@@ -120,6 +120,9 @@ parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = S
 parse_status_line(StatusLine, Data) ->
     make_error({bad_status_line, StatusLine}, Data).
 
+-spec parse_request_line(Arg, data()) -> { result(), data() } when
+      Arg :: binary()
+           | list(binary()).
 parse_request_line(RequestLine, Data) when is_binary(RequestLine) ->
     Splitted = binary:split(RequestLine, <<" ">>),
     parse_request_line(Splitted, Data);
@@ -136,9 +139,11 @@ parse_request_line([ Method, RURI, <<"SIP/2.0">>], Data) ->
 parse_request_line(ReqLine, Data) ->
     make_error({bad_request_line, ReqLine}, Data).
 
+-spec parse_headers(data()) -> { result(), data() }.
 parse_headers(Data) ->
     make_error(not_implemented_yet, Data).
 
+-spec parse_body(data()) -> { result(), data() }.
 parse_body(Data) ->
     make_error(not_implemented_yet, Data).
     

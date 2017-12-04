@@ -51,8 +51,8 @@ add_binary(Binary, #data{buf=Buf} = Data) ->
 parse(#data{ state = first_line } = Data) ->
     parse_first_line(Data);
 parse(#data{ state = headers } = Data) ->
-    parse_req_headers(Data);
-parse(#data{ state = headers } = Data) ->
+    parse_headers(Data);
+parse(#data{ state = body } = Data) ->
     parse_body(Data).
 
 %%%===================================================================
@@ -136,6 +136,12 @@ parse_request_line([ Method, RURI, <<"SIP/2.0">>], Data) ->
 parse_request_line(ReqLine, Data) ->
     make_error({bad_request_line, ReqLine}, Data).
 
+parse_headers(Data) ->
+    make_error(not_implemented_yet, Data).
+
+parse_body(Data) ->
+    make_error(not_implemented_yet, Data).
+    
 -spec make_error(term(), data()) -> { { error, term() }, data() }.
 make_error(Error, Data) ->
     { {error, Error}, Data }.

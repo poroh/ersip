@@ -14,8 +14,8 @@
         ]).
 
 -type method() :: binary().
--record(message, { type    = undefined :: { request, method(),  binary() }
-                                        | { response, 100..699, binary() }
+-record(message, { type    = undefined :: { request,  method() | undefined, binary() | undefined }
+                                        | { response, 100..699 | undefined, binary() | undefined }
                                         | undefined,
                    headers = #{}       :: #{ binary() := list({ term(), binary() } | binary()) },
                    body    = <<>>      :: binary()

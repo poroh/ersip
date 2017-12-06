@@ -23,7 +23,7 @@
 
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
--type options() :: #{ buffer := ersip_lex:options() }.
+-type options() :: #{ buffer => ersip_msg:options() }.
 -type result()  :: more_data
                  | { error, term() }
                  | { ok, ersip:message() }.
@@ -39,7 +39,7 @@ new() ->
 -spec new(options()) -> data().
 new(Options) ->
     #data{ options = Options,
-           buf     = ersip_buf:new(maps:get(buffer, Options,#{})),
+           buf     = ersip_buf:new(maps:get(buffer, Options, #{})),
            message = ersip_msg:new()
          }.
 
@@ -146,7 +146,7 @@ parse_headers(Data) ->
 -spec parse_body(data()) -> { result(), data() }.
 parse_body(Data) ->
     make_error(not_implemented_yet, Data).
-    
+
 -spec make_error(term(), data()) -> { { error, term() }, data() }.
 make_error(Error, Data) ->
     { {error, Error}, Data }.

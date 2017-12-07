@@ -158,7 +158,7 @@ parse_headers(#data{ buf = Buf, acc = Acc } = Data) ->
     case ersip_buf:read_till_crlf(Buf) of
         { more_data, Buf_ } ->
             { more_data, update(buf, Buf_, Data) };
-        { ok, <<FirstChar, _/binary>> = Cont, Buf_ } when FirstChar =:= $
+        { ok, <<FirstChar, _/binary>> = Cont, Buf_ } when FirstChar =:= $  % LWS
                                                    orelse FirstChar =:= $\t ->
             Data_ = update([ { buf, Buf_ },
                              { acc, [ Cont | Acc ] }

@@ -18,7 +18,8 @@
 -record(data, { options = #{}      :: map(),
                 buf                :: ersip_buf:state(),
                 state = first_line :: state(),
-                message            :: ersip:message()
+                message            :: ersip:message(),
+                acc   = []         :: list(binary())
                }).
 
 -type state()   :: first_line | headers | body.
@@ -59,6 +60,8 @@ parse(#data{ state = body } = Data) ->
 %%% internal implementation
 %%%===================================================================
 
+-define(message(Data), Data#data.message).
+
 -spec update(list({Item, Value}), data()) -> data() when
       Item :: buf
             | state
@@ -71,18 +74,14 @@ update(List, Data) ->
                 Data,
                 List).
 
--spec update(buf,   ersip_buf:state(), data()) -> data();
-            (state, state(),           data()) -> data().
-update(buf, Buffer, #data{} = Data) ->
-    Data#data{ buf = Buffer };
-update(state, State, #data{} = Data) ->
-    Data#data{ state = State };
-update(message, Message, #data{} = Data) ->
-    Data#data{ message = Message }.
-
--spec message(data()) -> ersip:message().
-message(#data{ message = Message }) ->
-    Message.
+-spec update(buf,     ersip_buf:state(),   data()) -> data();
+            (acc,     [ binary() ],        data()) -> data();
+            (state,   state(),             data()) -> data();
+            (message, ersip_msg:message(), data()) -> data().
+update(buf,     Buffer,  #data{} = Data) -> Data#data{ buf = Buffer };
+update(acc,     Acc,     #data{} = Data) -> Data#data{ acc = Acc };
+update(state,   State,   #data{} = Data) -> Data#data{ state = State };
+update(message, Message, #data{} = Data) -> Data#data{ message = Message }.
 
 -spec parse_first_line(data()) -> { result(), data() }.
 parse_first_line(#data{ buf = Buf } = Data) ->
@@ -105,7 +104,7 @@ parse_first_line(RequestLine, Data) ->
 parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = StatusLine, Data) ->
     case catch binary_to_integer(CodeBin) of
         Code when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
-            Message  = message(Data),
+            Message  = ?message(Data),
             Message_ = ersip_msg:set([ { type,   response     },
                                        { status, Code         },
                                        { reason, ReasonPhrase } ],
@@ -124,10 +123,10 @@ parse_status_line(StatusLine, Data) ->
       Arg :: binary()
            | list(binary()).
 parse_request_line(RequestLine, Data) when is_binary(RequestLine) ->
-    Splitted = binary:split(RequestLine, <<" ">>),
+    Splitted = binary:split(RequestLine, <<" ">>, [global]),
     parse_request_line(Splitted, Data);
 parse_request_line([ Method, RURI, <<"SIP/2.0">>], Data) ->
-    Message  = message(Data),
+    Message  = ?message(Data),
     Message_ = ersip_msg:set([ { type,   request },
                                { method, Method  },
                                { ruri,   RURI    } ],
@@ -140,8 +139,64 @@ parse_request_line(ReqLine, Data) ->
     make_error({bad_request_line, ReqLine}, Data).
 
 -spec parse_headers(data()) -> { result(), data() }.
-parse_headers(Data) ->
-    make_error(not_implemented_yet, Data).
+parse_headers(#data{ acc = [], buf = Buf } = Data) ->
+    case ersip_buf:read_till_crlf(Buf) of
+        { more_data, Buf_ } ->
+            { more_data, update(buf, Buf_, Data) };
+        { ok, <<>>, Buf_ } ->
+            Data_ = update([ { state, body},
+                             { buf,   Buf_ }
+                           ], Data),
+            parse(Data_);
+        { ok, Line, Buf_ } ->
+            Data_ = update([ { buf, Buf_ },
+                             { acc, [ Line ] }
+                           ], Data),
+            parse_headers(Data_)
+    end;
+parse_headers(#data{ buf = Buf, acc = Acc } = Data) ->
+    case ersip_buf:read_till_crlf(Buf) of
+        { more_data, Buf_ } ->
+            { more_data, update(buf, Buf_, Data) };
+        { ok, <<FirstChar, _/binary>> = Cont, Buf_ } when FirstChar =:= $
+                                                   orelse FirstChar =:= $\t ->
+            Data_ = update([ { buf, Buf_ },
+                             { acc, [ Cont | Acc ] }
+                           ], Data),
+            parse_headers(Data_);
+        { ok, <<>>, Buf_ } ->
+            case add_header(lists:reverse(Acc), Data) of
+                { ok, Data_ }  ->
+                    DataA = update([ { state, body },
+                                     { buf,   Buf_ },
+                                     { acc,   []   }
+                                   ], Data_),
+                    parse(DataA);
+                { error, _ } = Error ->
+                    Data_ = update(buf, Buf_, Data),
+                    make_error(Error, Data_)
+            end;
+        { ok, NewLine, Buf_ } ->
+            case add_header(lists:reverse(Acc), Data) of
+                { ok, Data_ } ->
+                    DataA = update([ { acc, [ NewLine ] },
+                                     { buf, Buf_ }
+                                   ], Data_),
+                    parse_headers(DataA);
+                { error, _ } = Error ->
+                    make_error(Error, Data)
+            end
+    end.
+
+-spec add_header(iolist(), data()) -> { ok, data() } | { error, term() }.
+add_header([H|Rest], Data) ->
+    case binary:split(H, <<":">>) of
+        [ HName, V ] ->
+            Message_ = ersip_msg:add(HName, [ V | Rest ], ?message(Data)),
+            { ok, update(message, Message_, Data) };
+        _ ->
+            { error, {invalid_header,H} }
+    end.
 
 -spec parse_body(data()) -> { result(), data() }.
 parse_body(Data) ->

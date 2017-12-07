@@ -19,3 +19,15 @@ read_till_crlf_test() ->
     { more_data, Buf5 }   = ersip_buf:read_till_crlf(Buf4),
     Buf6 = ersip_buf:add(<<$\n>>, Buf5),
     { ok, <<"b">>, _Buf7 } = ersip_buf:read_till_crlf(Buf6).
+
+read_till_crlf_2_test() ->
+    Buf  = ersip_buf:new(#{}),
+    Buf1 = ersip_buf:add(<<"aaa", $\r,$\n,
+                           "bbb", $\r,$\n
+                         >>, Buf),
+    lists:foldl(fun(S, Buf_) ->
+                        { ok, S, B } = ersip_buf:read_till_crlf(Buf_),
+                        B
+                end,
+                Buf1,
+                [ <<"aaa">>, <<"bbb">> ]).

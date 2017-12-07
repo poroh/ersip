@@ -10,15 +10,16 @@
 
 -export([new/0,
          set/2,
-         set/3
+         set/3,
+         add/3
         ]).
 
 -type method() :: binary().
 -record(message, { type    = undefined :: { request,  method() | undefined, binary() | undefined }
                                         | { response, 100..699 | undefined, binary() | undefined }
                                         | undefined,
-                   headers = #{}       :: #{ binary() := list({ term(), binary() } | binary()) },
-                   body    = <<>>      :: binary()
+                   headers = #{}       :: #{ binary() := list({ term(), iolist() } | iolist()) },
+                   body    = []        :: iolist()
                  }).
 
 -type item() :: type
@@ -55,6 +56,14 @@ set(status, Status, #message{ type = { response, _, X } } = Message) -> Message#
 set(reason, Reason, #message{ type = { response, X, _ } } = Message) -> Message#message{ type = { response,      X,  Reason } };
 set(method, Method, #message{ type = { request,  _, X } } = Message) -> Message#message{ type = { request,  Method,       X } };
 set(ruri,   RURI,   #message{ type = { request,  X, _ } } = Message) -> Message#message{ type = { request,       X,    RURI } }.
+
+-spec add(Name, Value, message()) -> message() when
+      Name  :: binary(),
+      Value :: iolist().
+add(Header, Value, #message{ headers = H } = Message) ->
+    LowerName = ersip_bin:to_lower(Header),
+    Current = maps:get(LowerName, H, []),
+    Message#message{ headers = H#{ LowerName => Current ++ [ Value ] } }.
 
 %%%===================================================================
 %%% internal implementation

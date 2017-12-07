@@ -11,7 +11,8 @@
 -export([new/0,
          set/2,
          set/3,
-         add/3
+         add/3,
+         get/2
         ]).
 
 -type method() :: binary().
@@ -38,6 +39,22 @@
 -spec new() -> message().
 new() ->
     #message{}.
+
+-spec get(item(),     message()) -> term();
+         ([ item() ], message()) -> [ term() ].
+get(ItemList, Message) when is_list(ItemList) ->
+    lists:map(fun(Item) ->
+                      { Item, get(Item, Message) }
+              end,
+              ItemList);
+get(type,   #message{ type = { X, _, _ } })        -> X;
+get(status, #message{ type = { response, X, _ } }) -> X;
+get(reason, #message{ type = { response, _, X } }) -> X; 
+get(method, #message{ type = { request,  X, _ } }) -> X;
+get(ruri,   #message{ type = { request,  _, X } }) -> X;
+get(HeaderName, #message{ headers = H }) when is_binary(HeaderName) ->
+    LowerName = ersip_bin:to_lower(HeaderName),
+    maps:get(LowerName, H, []).
 
 -spec set(list({item(), term()}), message()) -> message().
 set(List, Message) ->

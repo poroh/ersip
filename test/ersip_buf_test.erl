@@ -31,3 +31,11 @@ read_till_crlf_2_test() ->
                 end,
                 Buf1,
                 [ <<"aaa">>, <<"bbb">> ]).
+
+read_till_crlf_3_test() ->
+    Buf  = ersip_buf:new(#{}),
+    Buf1 = ersip_buf:add(<<"a">>, Buf),
+    { more_data, Buf2 }  = ersip_buf:read_till_crlf(Buf1),
+    Buf3 = ersip_buf:add(<<"b">>, Buf2),
+    Buf4 = ersip_buf:add(<<$\r, $\n>>, Buf3),
+    { ok, <<"ab">>, _ }   = ersip_buf:read_till_crlf(Buf4).

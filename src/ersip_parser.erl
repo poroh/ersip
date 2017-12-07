@@ -95,7 +95,7 @@ parse_first_line(#data{ buf = Buf } = Data) ->
     end.
 
 -spec parse_first_line(binary(), data()) -> { result(), data() }.
-parse_first_line(<<"SIP/2.0", _/binary>> = StatusLine, Data) ->
+parse_first_line(<<"SIP/", _/binary>> = StatusLine, Data) ->
     parse_status_line(StatusLine, Data);
 parse_first_line(RequestLine, Data) ->
     parse_request_line(RequestLine, Data).
@@ -144,10 +144,7 @@ parse_headers(#data{ acc = [], buf = Buf } = Data) ->
         { more_data, Buf_ } ->
             { more_data, update(buf, Buf_, Data) };
         { ok, <<>>, Buf_ } ->
-            Data_ = update([ { state, body},
-                             { buf,   Buf_ }
-                           ], Data),
-            parse(Data_);
+            make_error({bad_message, no_headers}, update(buf, Buf_, Data));
         { ok, Line, Buf_ } ->
             Data_ = update([ { buf, Buf_ },
                              { acc, [ Line ] }
@@ -172,9 +169,9 @@ parse_headers(#data{ buf = Buf, acc = Acc } = Data) ->
                                      { acc,   []   }
                                    ], Data_),
                     parse(DataA);
-                { error, _ } = Error ->
+                { error, Reason } ->
                     Data_ = update(buf, Buf_, Data),
-                    make_error(Error, Data_)
+                    make_error(Reason, Data_)
             end;
         { ok, NewLine, Buf_ } ->
             case add_header(lists:reverse(Acc), Data) of
@@ -183,8 +180,8 @@ parse_headers(#data{ buf = Buf, acc = Acc } = Data) ->
                                      { buf, Buf_ }
                                    ], Data_),
                     parse_headers(DataA);
-                { error, _ } = Error ->
-                    make_error(Error, Data)
+                { error, Reason } ->
+                    make_error(Reason, Data)
             end
     end.
 
@@ -195,7 +192,7 @@ add_header([H|Rest], Data) ->
             Message_ = ersip_msg:add(HName, [ V | Rest ], ?message(Data)),
             { ok, update(message, Message_, Data) };
         _ ->
-            { error, {invalid_header,H} }
+            { error, {bad_header,H} }
     end.
 
 -spec parse_body(data()) -> { result(), data() }.

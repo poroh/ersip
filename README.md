@@ -31,7 +31,7 @@ Low level parser operates with items:
    - Body (without interpret it)
    
 Low level parser is defined by module
-https://github.com/poroh/ersip/blob/master/src/ersip_parser.erl and
+[ersip_parser](https://github.com/poroh/ersip/blob/master/src/ersip_parser.erl) and
 generates low level message
-https://github.com/poroh/ersip/blob/master/src/ersip_msg.erl.
+[ersip_msg](https://github.com/poroh/ersip/blob/master/src/ersip_msg.erl).
 

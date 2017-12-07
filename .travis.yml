@@ -4,4 +4,4 @@ otp_release:
   - 20.0
   - 19.3
 after_success:
-  - env DEBUG=1 rebar3 coveralls send
+  - env DEBUG=1 rebar3 as test coveralls send

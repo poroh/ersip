@@ -27,7 +27,7 @@ basic_request_parse_test() ->
           >>,
     P  = ersip_parser:new(),
     P1 = ersip_parser:add_binary(Msg, P),
-    { more_data, _P2 } = ersip_parser:parse(P1).
+    {{error, not_implemented_yet}, _P2 } = ersip_parser:parse(P1).
 
         
     

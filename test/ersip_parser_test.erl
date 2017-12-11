@@ -22,14 +22,13 @@ basic_request_parse_test() ->
       ?crlf "CSeq: 314159 INVITE"
       ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
       ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 142"
-      ?crlf ?crlf
+      ?crlf "Content-Length: 4"
+      ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new(),
-    P1 = ersip_parser:add_binary(Msg, P),
-    {{error, not_implemented_yet}, _P2 } = ersip_parser:parse(P1).
-
-
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    ?assertEqual([ <<"Test">> ], ersip_msg:get(body, PMsg)).
+    
 basic_response_parse_test() ->
     Msg = <<"SIP/2.0 200 OK"
       ?crlf "Via: SIP/2.0/UDP server10.biloxi.com"
@@ -44,12 +43,96 @@ basic_response_parse_test() ->
       ?crlf "CSeq: 314159 INVITE"
       ?crlf "Contact: <sip:bob@192.0.2.4>"
       ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 131"
-      ?crlf ?crlf
+      ?crlf "Content-Length: 4"
+      ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    ?assertEqual([ <<"Test">> ], ersip_msg:get(body, PMsg)).
+
+truncated_message_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: 4"
+      ?crlf ?crlf ""
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {error, {bad_message, _} }, _P2 } = ersip_parser:parse(P).
+
+no_content_len_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    ?assertEqual([ <<"Test">> ], ersip_msg:get(body, PMsg)).
+
+invalid_content_len_dgram_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: invalid"
+      ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    ?assertEqual([ <<"Test">> ], ersip_msg:get(body, PMsg)).
+
+invalid_content_len_stream_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: invalid"
+      ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new(),
     P1 = ersip_parser:add_binary(Msg, P),
-    {{error, not_implemented_yet}, _P2 } = ersip_parser:parse(P1).
+    { {error, {bad_message, _}}, _P2 } = ersip_parser:parse(P1).
+
+double_content_len_stream_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: 4"
+      ?crlf "Content-Length: 5"
+      ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new(),
+    P1 = ersip_parser:add_binary(Msg, P),
+    { {error, {bad_message, _}}, _P2 } = ersip_parser:parse(P1).
 
 
 incremental_data_test() ->
@@ -62,15 +145,21 @@ incremental_data_test() ->
       ?crlf "CSeq: 314159 INVITE"
       ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
       ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 142">> ],
+      ?crlf "Content-Length: 1">>, <<"0" 
+      ?crlf ?crlf "01234">> ],
     P0 = ersip_parser:new(),
-    lists:foldl(fun(Msg, P) ->
-                        P1 = ersip_parser:add_binary(Msg, P),
-                        { more_data, P2 } = ersip_parser:parse(P1),
-                        P2
-                end,
-                P0,
-                Msgs).
+    P1 = 
+        lists:foldl(fun(Msg, P) ->
+                            P1 = ersip_parser:add_binary(Msg, P),
+                            { more_data, P2 } = ersip_parser:parse(P1),
+                            P2
+                    end,
+                    P0,
+                    Msgs),
+    P2 = ersip_parser:add_binary(<<"56789">>, P1),
+    { {ok, PMsg}, _P3 } = ersip_parser:parse(P2),
+    ?assertEqual([ <<"01234">>, <<"56789">> ], ersip_msg:get(body, PMsg)).
+    
 
 negative_cases_test_() ->
     [ ?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/2.0 700 OK", ?crlf>>)),

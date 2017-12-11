@@ -11,15 +11,17 @@
 
 -export([ new/0,
           new/1,
+          new_dgram/1,
           add_binary/2,
           parse/1
         ]).
 
--record(data, { options = #{}      :: map(),
-                buf                :: ersip_buf:state(),
-                state = first_line :: state(),
-                message            :: ersip:message(),
-                acc   = []         :: list(binary())
+-record(data, { options = #{}            :: map(),
+                buf                      :: ersip_buf:state(),
+                state = first_line       :: state(),
+                message                  :: ersip:message(),
+                acc   = []               :: list(binary()),
+                content_len  = undefined :: pos_integer() | undefined
                }).
 
 -type state()   :: first_line | headers | body.
@@ -43,6 +45,14 @@ new(Options) ->
            buf     = ersip_buf:new(maps:get(buffer, Options, #{})),
            message = ersip_msg:new()
          }.
+
+-spec new_dgram(binary()) -> data().
+new_dgram(DatagramBinary) when is_binary(DatagramBinary) ->
+    #data{ options = #{},
+           buf     = ersip_buf:new_dgram(DatagramBinary),
+           message = ersip_msg:new()
+         }.
+
 
 -spec add_binary(binary(), data()) -> data().
 add_binary(Binary, #data{buf=Buf} = Data) ->
@@ -74,14 +84,16 @@ update(List, Data) ->
                 Data,
                 List).
 
--spec update(buf,     ersip_buf:state(),   data()) -> data();
-            (acc,     [ binary() ],        data()) -> data();
-            (state,   state(),             data()) -> data();
-            (message, ersip_msg:message(), data()) -> data().
-update(buf,     Buffer,  #data{} = Data) -> Data#data{ buf = Buffer };
-update(acc,     Acc,     #data{} = Data) -> Data#data{ acc = Acc };
-update(state,   State,   #data{} = Data) -> Data#data{ state = State };
-update(message, Message, #data{} = Data) -> Data#data{ message = Message }.
+-spec update(buf,          ersip_buf:state(),     data()) -> data();
+            (acc,          [ binary() ],          data()) -> data();
+            (state,        state(),               data()) -> data();
+            (content_len,  integer() | undefined, data()) -> data();
+            (message,      ersip_msg:message(),   data()) -> data().
+update(buf,         Buffer,  #data{} = Data) -> Data#data{ buf         = Buffer };
+update(acc,         Acc,     #data{} = Data) -> Data#data{ acc         = Acc };
+update(state,       State,   #data{} = Data) -> Data#data{ state       = State };
+update(content_len, Len,     #data{} = Data) -> Data#data{ content_len = Len };
+update(message,     Message, #data{} = Data) -> Data#data{ message     = Message }.
 
 -spec parse_first_line(data()) -> { result(), data() }.
 parse_first_line(#data{ buf = Buf } = Data) ->
@@ -196,9 +208,41 @@ add_header([H|Rest], Data) ->
     end.
 
 -spec parse_body(data()) -> { result(), data() }.
-parse_body(Data) ->
-    make_error(not_implemented_yet, Data).
-
+parse_body(#data{ buf = Buf, message = Msg, content_len = undefined } = Data ) ->
+    Hdr = ersip_msg:get(<<"content-length">>, Msg),
+    case ersip_hdr:as_integer(Hdr) of
+        { ok, Value } when Value >= 0 ->
+            parse_body(Data#data{ content_len = Value });
+        _ ->
+            %% Applications SHOULD use this field to indicate the size of the
+            %% message-body to be transferred, regardless of the media type of the
+            %% entity.  If a stream-based protocol (such as TCP) is used as
+            %% transport, the header field MUST be used.
+            case ersip_buf:has_eof(Buf) of
+                true ->
+                    parse_body(Data#data{ content_len = ersip_buf:length(Buf) });
+                false ->
+                    make_error({bad_message, <<"Invalid Content-Length">>}, Data)
+            end
+    end;
+parse_body(#data{ buf = Buf, content_len = Len } = Data) ->
+    case ersip_buf:read(Len, Buf) of
+        { more_data, Buf_ } ->
+            case ersip_buf:has_eof(Buf) of
+                true ->
+                    make_error({bad_message, <<"Truncated message">>}, Data);
+                false ->
+                    { more_data, update(buf, Buf_, Data) }
+            end;
+        { ok, Body, Buf_ } ->
+            Message = ersip_msg:set(body, Body, ?message(Data)),
+            Data_ = update([ { message, ersip_msg:new() },
+                             { content_len, undefined   },
+                             { buf, Buf_ }
+                           ], Data),
+            { {ok, Message}, Data_ }
+    end.
+        
 -spec make_error(term(), data()) -> { { error, term() }, data() }.
 make_error(Error, Data) ->
     { {error, Error}, Data }.

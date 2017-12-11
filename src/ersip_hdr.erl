@@ -11,7 +11,8 @@
 -export([ make_key/1,
           new/1,
           add_value/2,
-          raw_values/1
+          raw_values/1,
+          as_integer/1
         ]).
 
 -record(header, { name        :: binary(),
@@ -45,3 +46,21 @@ add_value(Value, #header{ values = V } = Hdr) ->
 -spec raw_values(header()) -> [ iolist() ].
 raw_values(#header{ values = Vs }) ->
     Vs.
+
+%% @doc Create key by the header name.
+%% TODO: In future I plan to add here short names support.
+-spec as_integer(header()) -> { ok, integer() } | { error, term() }.
+as_integer(#header{ values = [ [ V ] ] })  when is_binary(V) ->
+    case catch binary_to_integer(V) of
+        Int when is_integer(Int) ->
+            { ok, Int };
+        _ ->
+            { error, invalid_integer }
+    end;
+as_integer(#header{ values = [ V ] }) when is_list(V) ->
+    Bin = iolist_to_binary(V),
+    as_integer(#header{ values = [ [ Bin ] ] });
+as_integer(#header{ values = [] }) ->
+    { error, no_header };
+as_integer(#header{ values = [_,_ |_] }) ->
+    { error, multiple_values }.

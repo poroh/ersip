@@ -116,7 +116,6 @@ read_more_to_acc(Len, #state{ acc = Acc, acclen = AccLen } = State) ->
         {{value, V}, Q} ->
             case byte_size(V) of
                 Sz when Sz =< Len ->
-                    io:format("read: ~p ~p~n", [ Sz, Len ]),
                     TotalAcc = AccLen + Sz,
                     State1 = State#state{ acc = [ V | Acc ],
                                           acclen = TotalAcc,

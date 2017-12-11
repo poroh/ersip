@@ -10,12 +10,14 @@
 
 -export([ new/1,
           add/2,
-          read_till_crlf/1
+          read_till_crlf/1,
+          read/2
         ]).
 
 -type options() :: map().
 -record(state,{ options = #{}          :: options(),
-                acc     = <<>>         :: binary(),
+                acc     = <<>>         :: binary() | iolist(),
+                acclen  = 0            :: non_neg_integer(),
                 queue   = queue:new()  :: queue:queue(binary())
               }).
 
@@ -50,6 +52,13 @@ add(Binary, State) when is_binary(Binary) ->
 read_till_crlf(#state{ acc = A } = State) ->
     read_till(?crlf, byte_size(A)-1, State).
 
+%% @doc Read number of bytes from the buffer.
+-spec read(Len :: pos_integer(), state()) -> Result when
+      Result :: { ok, iolist(), state() }
+              | { more_data, state() }.
+read(Len, #state{ acclen = AccLen } = State) when Len > AccLen->
+    read_more_to_acc(Len-AccLen, State).
+
 %%%===================================================================
 %%% internal implementation
 %%%===================================================================
@@ -77,7 +86,7 @@ read_till(Pattern, Pos, #state{ acc = A } = State) ->
                     {{value, Item}, Q} = queue:out(Queue),
                     Acc_ = <<A/binary, Item/binary>>,
                     Pos_ = byte_size(A) - byte_size(Pattern) + 1,
-                    read_till(Pattern, Pos_, State#state{ queue = Q, acc = Acc_ })
+                    read_till(Pattern, Pos_, State#state{ queue = Q, acc = Acc_, acclen = byte_size(Acc_) })
             end;
         { Start, Len } ->
             RestPos = Start + Len,
@@ -89,5 +98,37 @@ read_till(Pattern, Pos, #state{ acc = A } = State) ->
                     _ ->
                         queue:in_r(binary:part(A, RestPos, RestLen), Queue)
                 end,
-            { ok, binary:part(A, 0, Start), State#state{ queue = Q, acc = <<>> } }
+            { ok, binary:part(A, 0, Start), State#state{ queue = Q, acc = <<>>, acclen = 0 } }
+    end.
+
+-spec read_more_to_acc(Len :: pos_integer(), state()) -> Result when
+      Result :: { ok, state() }
+              | { more_data, state() }.
+read_more_to_acc(Len, #state{ acc = <<>> } = State) ->
+    read_more_to_acc(Len, State#state{ acc = [] });
+read_more_to_acc(0, #state{ acc = Acc } = State) ->
+    { ok, lists:reverse(Acc), State#state{ acc = <<>>, acclen = 0 } };
+read_more_to_acc(Len, #state{ acc = Acc, acclen = AccLen } = State) ->
+    Queue = ?queue(State),
+    case queue:out(Queue) of
+        {empty, Queue} ->
+            { more_data, State };
+        {{value, V}, Q} ->
+            case byte_size(V) of
+                Sz when Sz =< Len ->
+                    io:format("read: ~p ~p~n", [ Sz, Len ]),
+                    TotalAcc = AccLen + Sz,
+                    State1 = State#state{ acc = [ V | Acc ],
+                                          acclen = TotalAcc,
+                                          queue = Q },
+                    read_more_to_acc(Len-Sz, State1);
+                Sz when Sz > Len ->
+                    HPart = binary:part(V, 0, Len),
+                    RPart = binary:part(V, Len, Sz-Len),
+                    Q1    = queue:in_r(RPart, Q),
+                    State1 = State#state{ acc = lists:reverse([ HPart | Acc ]),
+                                          acclen = AccLen + Sz,
+                                          queue = Q1 },
+                    read_more_to_acc(0, State1)
+            end
     end.

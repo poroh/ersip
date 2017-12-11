@@ -39,3 +39,26 @@ read_till_crlf_3_test() ->
     Buf3 = ersip_buf:add(<<"b">>, Buf2),
     Buf4 = ersip_buf:add(<<$\r, $\n>>, Buf3),
     { ok, <<"ab">>, _ }   = ersip_buf:read_till_crlf(Buf4).
+
+
+read_test() ->
+    Buf  = ersip_buf:new(#{}),
+    Buf1 = ersip_buf:add(<<"a">>, Buf),
+    { ok, [ <<"a">> ], Buf2 }   = ersip_buf:read(1, Buf1),
+    Buf3 = ersip_buf:add(<<"abc">>, Buf2),
+    { more_data, Buf4 } = ersip_buf:read(5, Buf3),
+    Buf5 = ersip_buf:add(<<"12">>, Buf4),
+    { ok, [ <<"abc">>, <<"12">> ], Buf6 }   = ersip_buf:read(5, Buf5),
+    Buf7 = ersip_buf:add(<<"123456789">>, Buf6),
+    { ok, [ <<"12">> ], Buf8 }   = ersip_buf:read(2, Buf7),
+    { ok, [ <<"345">> ], Buf9 }  = ersip_buf:read(3, Buf8),
+    { ok, [ <<"6789">> ], _ }    = ersip_buf:read(4, Buf9).
+    
+    
+    
+
+
+    
+    
+
+    

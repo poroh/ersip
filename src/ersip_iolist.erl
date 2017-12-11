@@ -26,17 +26,42 @@ trim_head_lws([H|Rest]) when is_binary(H) ->
             [ B | Rest ]
     end;
 trim_head_lws([H|Rest]) when is_list(H) ->
-    case string:trim(H, leading, [ $ , $\t ]) of
+    case string_trim_lws(H) of
         [] ->
             trim_head_lws(Rest);
         Str ->
             [ Str | Rest ]
     end;
 trim_head_lws(L) when is_list(L) ->
-    string:trim(L, leading, [ $ , $\t ]);
+    string_trim_lws(L);
 trim_head_lws(B) when is_binary(B) ->
     ersip_bin:trim_head_lws(B).
 
+%%%===================================================================
+%%% internal implementation
+%%%===================================================================
 
+-ifdef(OTP_RELEASE).
 
+string_trim_lws(Str) ->
+    string_trim(?OTP_RELEASE, Str).
+string_trim_lws(Release, Str) when Release >= 20 ->
+    string:trim(L, leading, [ $ , $\t ]);
+string_trim_lws(_, Str) ->
+    string_trim_lws_impl(Str).
 
+-else.
+
+string_trim_lws(Str) ->
+    string_trim_lws_impl(Str).
+
+-endif.
+
+string_trim_lws_impl([]) ->
+    [];
+string_trim_lws_impl([ $  | Rest ]) ->
+    string_trim_lws_impl(Rest);
+string_trim_lws_impl([ $\t | Rest ]) ->
+    string_trim_lws_impl(Rest);
+string_trim_lws_impl(V) when is_list(V) ->
+    V.

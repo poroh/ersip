@@ -53,8 +53,8 @@ get(reason, #message{ type = { response, _, X } }) -> X;
 get(method, #message{ type = { request,  X, _ } }) -> X;
 get(ruri,   #message{ type = { request,  _, X } }) -> X;
 get(HeaderName, #message{ headers = H }) when is_binary(HeaderName) ->
-    LowerName = ersip_bin:to_lower(HeaderName),
-    maps:get(LowerName, H, []).
+    Key = ersip_hdr:make_key(HeaderName),
+    maps:get(Key, H, ersip_hdr:new(HeaderName)).
 
 -spec set(list({item(), term()}), message()) -> message().
 set(List, Message) ->
@@ -77,10 +77,16 @@ set(ruri,   RURI,   #message{ type = { request,  X, _ } } = Message) -> Message#
 -spec add(Name, Value, message()) -> message() when
       Name  :: binary(),
       Value :: iolist().
-add(Header, Value, #message{ headers = H } = Message) ->
-    LowerName = ersip_bin:to_lower(Header),
-    Current = maps:get(LowerName, H, []),
-    Message#message{ headers = H#{ LowerName => Current ++ [ Value ] } }.
+add(HeaderName, Value, #message{ headers = H } = Message) ->
+    case ersip_iolist:trim_head_lws(Value) of
+        [] ->
+            Message;
+        V ->
+            Key = ersip_hdr:make_key(HeaderName),
+            Current = maps:get(Key, H, ersip_hdr:new(HeaderName)),
+            Updated = ersip_hdr:add_value(V, Current),
+            Message#message{ headers = H#{ Key => Updated } }
+    end.
 
 %%%===================================================================
 %%% internal implementation

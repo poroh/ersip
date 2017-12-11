@@ -47,7 +47,12 @@ message_get_header_test() ->
     M0 = ersip_msg:new(),
     M1 = ersip_msg:add(<<"Some-Header">>,  ["1"], M0),
     M2 = ersip_msg:add(<<"Some-Header">>,  [<<"a">>, "b"], M1),
-    ?assertEqual([ ["1"], [ <<"a">>, "b" ] ], ersip_msg:get(<<"SOME-HEADER">>, M2)).
+    Hdr = ersip_msg:get(<<"SOME-HEADER">>, M2),
+    ?assertEqual([ ["1"], [ <<"a">>, "b" ] ],  ersip_hdr:raw_values(Hdr) ).
+
+message_empty_header_test() ->
+    M0 = ersip_msg:new(),
+    ?assertEqual(M0,  ersip_msg:add(<<"Some-Header">>,  ["   \t"], M0)).
 
 message_set(Type, Item, Values) ->
     lists:foreach(

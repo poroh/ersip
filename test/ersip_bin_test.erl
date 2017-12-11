@@ -13,3 +13,13 @@ to_lower_test() ->
     ?assertEqual(<<"aa1bbzzdd_@%20">>, ersip_bin:to_lower(<<"AA1BBZZDD_@%20">>)),
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(1)),
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(atom)).
+
+
+trim_lws_test() ->
+    ?assertEqual(<<"aa1bbzzdd_@%20">>, ersip_bin:trim_head_lws(<<"   \t  aa1bbzzdd_@%20">>)),
+    ?assertEqual(<<"aa1bbzzdd_@%20">>, ersip_bin:trim_head_lws(<<"\t   aa1bbzzdd_@%20">>)),
+    ?assertEqual(<<>>, ersip_bin:trim_head_lws(<<"\t   ">>)),
+    ?assertEqual(<<>>, ersip_bin:trim_head_lws(<<"  \t">>)),
+    ?assertEqual(<<>>, ersip_bin:trim_head_lws(<<>>)).
+
+    

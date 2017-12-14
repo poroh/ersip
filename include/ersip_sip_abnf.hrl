@@ -11,3 +11,47 @@
 
 %%alphanum  =  ALPHA / DIGIT
 -define(is_alphanum(X), (?is_ALPHA(X) orelse ?is_DIGIT(X))).
+
+
+%% mark        =  "-" / "_" / "." / "!" / "~" / "*" / "'"
+%%                 / "(" / ")"
+-define(is_mark(X),
+        (X =:= $- 
+         orelse X =:= $_ 
+         orelse X =:= $.
+         orelse X =:= $!
+         orelse X =:= $~
+         orelse X =:= $*
+         orelse X =:= $'
+         orelse X =:= $(
+         orelse X =:= $))).
+
+%% unreserved  =  alphanum / mark
+-define(is_unreserved(X), (?is_alphanum(X) orelse ?is_mark(X))).    
+
+%% user-unreserved  =  "&" / "=" / "+" / "$" / "," / ";" / "?" / "/"
+-define(is_user_unreserved(X),
+        (X  =:= $&
+         orelse X =:= $=
+         orelse X =:= $+
+         orelse X =:= $$
+         orelse X =:= $,
+         orelse X =:= $;
+         orelse X =:= $?
+         orelse X =:= $/
+        )).
+
+%% token       =  1*(alphanum / "-" / "." / "!" / "%" / "*"
+%%                   / "_" / "+" / "`" / "'" / "~" )
+-define(is_token_char(X), (?is_alphanum(X)
+                           orelse X =:= $-
+                           orelse X =:= $.
+                           orelse X =:= $!
+                           orelse X =:= $%
+                           orelse X =:= $*
+                           orelse X =:= $_
+                           orelse X =:= $+
+                           orelse X =:= $`
+                           orelse X =:= $'
+                           orelse X =:= $~
+                          )).

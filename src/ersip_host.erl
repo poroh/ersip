@@ -6,7 +6,7 @@
 %% Host-related routines
 %%
 
--module(ersip_hostname).
+-module(ersip_host).
 -export([parse/1]).
 
 -include("ersip_sip_abnf.hrl").

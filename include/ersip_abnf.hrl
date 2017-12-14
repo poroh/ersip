@@ -12,3 +12,7 @@
 
 %% DIGIT          =  %x30-39    ; 0-9
 -define(is_DIGIT(X), (X >= $0 andalso X =< $9)).
+
+%% HEXDIG         =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
+-define(is_HEXDIG(X), (?is_DIGIT(X) orelse (X >= $A andalso X =< $F))).
+

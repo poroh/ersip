@@ -55,3 +55,5 @@
                            orelse X =:= $'
                            orelse X =:= $~
                           )).
+
+-define(is_LWS_char(X), (X =:= 32 orelse X =:= $\t)). 

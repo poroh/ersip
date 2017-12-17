@@ -30,4 +30,18 @@ hostname_parse_test() ->
     ?assertEqual({ error, einval },  ersip_host:parse(<<"example-.com">>))
         .
     
+hostname_is_host_test() ->
+    ?assertEqual(true, ersip_host:is_host({ ipv4, { 1, 2, 3, 4 } })),
+    ?assertEqual(true, ersip_host:is_host({ ipv4, { 0, 2, 3, 4 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv4, { 1, 2, 3 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv4, { 1, 2, 3, 4, 5 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv4, { 256, 2, 3, 4 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv4, { -1, 2, 3, 4 } })),
+    ?assertEqual(true, ersip_host:is_host({ ipv6, { 1, 2, 3, 4, 1, 2, 3, 4 } })),
+    ?assertEqual(true, ersip_host:is_host({ ipv6, { 1, 0, 3, 4, 1, 2, 3, 4 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv6, { 1, 0, 3, 4, 1, 2, 3 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv6, { 1, 0, 3, 4, 1, 2, 3, 4, 5 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv6, { -1, 0, 3, 4, 1, 2, 3 } })),
+    ?assertEqual(false, ersip_host:is_host({ ipv6, { 65536, 0, 3, 4, 1, 2, 3, 4, 5 } })).
     
+

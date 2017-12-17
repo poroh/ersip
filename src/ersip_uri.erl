@@ -8,7 +8,7 @@
 
 -module(ersip_uri).
 
--export([ parse/1, set_param/3 ]).
+-export([ make/1, parse/1, set_param/3 ]).
 
 -include("ersip_uri.hrl").
 -include("ersip_sip_abnf.hrl").
@@ -20,9 +20,23 @@
                         | maddr
                         | lr.
 
+-type uri_part() :: sip
+                  | sips
+                  | { user, binary() }
+                  | { host, ersip_host:host() }
+                  | { port, 0..65535 }.
+
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec make(Parts :: [ list(uri_part()) ]) -> uri().
+make(Parts) ->
+    lists:foldl(fun(Option, URI) ->
+                       set_part(Option, URI)
+                end,
+                #uri{},
+                Parts).
 
 %% @doc Parse URI from the binary
 %% SIP-URI          =  "sip:" [ userinfo ] hostport
@@ -41,6 +55,23 @@ parse(_) ->
 -spec set_param(uri_param_name(), term(), uri()) -> uri().
 set_param(ParamName, Value, #uri{ params = P } = URI) ->
     URI#uri{ params = P#{ ParamName => Value } }.
+
+%% @doc set paramter of the URI
+-spec set_part(uri_part(), uri()) -> uri().
+set_part(sip,                #uri{} = URI) -> URI#uri{ scheme = sip };
+set_part(sips,               #uri{} = URI) -> URI#uri{ scheme = sips };
+set_part({ user, U } = User, #uri{} = URI) when is_binary(U) -> URI#uri{ user = User };
+set_part({ port, P },        #uri{} = URI) when is_integer(P) -> URI#uri{ port = P };
+set_part({ host, H },        #uri{} = URI) ->
+    case ersip_host:is_host(H) of
+        true ->
+            URI#uri{ host = H };
+        false ->
+            error(badarg)
+    end;
+set_part(_, _) ->
+    error(badarg).
+
 
 %%%===================================================================
 %%% Internal implementation
@@ -121,7 +152,7 @@ maybe_add_params(#uri{} = URI, <<>>) ->
     { ok, URI };
 maybe_add_params(#uri{} = URI, ParamsBin) ->
     ParamsList = binary:split(ParamsBin, <<";">>),
-    R = 
+    R =
         lists:foldl(fun(_, { error, _ } = Err) ->
                             Err;
                        (Param, #uri{} = URI_) ->
@@ -256,4 +287,3 @@ check_password(_) ->
 
 check_token(Bin) ->
     ersip_parser_aux:check_token(Bin).
-

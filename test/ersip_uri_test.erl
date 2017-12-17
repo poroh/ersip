@@ -13,35 +13,35 @@
 
 uri_test() ->
     ?assertEqual(
-       { ok, #uri{ user = { user, <<"a">> }, 
+       { ok, #uri{ user = { user, <<"a">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sip:a@b:5090">>)),
-    
+
     ?assertEqual(
-       { ok, #uri{ scheme = sips, 
-                   user = { user, <<"a">> }, 
+       { ok, #uri{ scheme = sips,
+                   user = { user, <<"a">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sips:a@b:5090">>)),
 
     ?assertEqual(
-       { ok, #uri{ scheme = sips, 
-                   user = { user, <<"a:b">> }, 
+       { ok, #uri{ scheme = sips,
+                   user = { user, <<"a:b">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sips:a:b@b:5090">>)),
 
     ?assertEqual(
-       { ok, #uri{ scheme = sips, 
-                   user = { user, <<"a:%20">> }, 
+       { ok, #uri{ scheme = sips,
+                   user = { user, <<"a:%20">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sips:a:%20@b:5090">>)),
-    
+
     ?assertEqual(
-       { ok, #uri{ scheme = sips, 
-                   user = { user, <<"%20">> }, 
+       { ok, #uri{ scheme = sips,
+                   user = { user, <<"%20">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sips:%20@b:5090">>)),
@@ -52,9 +52,9 @@ uri_test() ->
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:@b:5090">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip::a@b:5090">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
-    
+
     ?assertEqual(
-       { ok, #uri{ user = undefined, 
+       { ok, #uri{ user = undefined,
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sip:b:5090">>)),
@@ -68,7 +68,7 @@ uri_test() ->
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:%">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:a.-">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:b:x">>)),
-        
+
     ?assertEqual(
        { ok, #uri{ host = { hostname, <<"b">> }, params = #{ transport => { transport, tcp } } } },
        ersip_uri:parse(<<"sip:b;transport=tcp">>)),
@@ -112,7 +112,7 @@ uri_test() ->
     ?assertEqual(
        { ok, #uri{ host = { hostname, <<"b">> }, params = #{ user => <<"something">> } }},
        ersip_uri:parse(<<"sip:b;user=something">>)),
-    
+
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:b;user=&">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:b;user=">>)),
 
@@ -129,3 +129,20 @@ uri_test() ->
        ersip_uri:parse(<<"sip:b;Some=1">>)),
 
     ok.
+
+uri_make_test() ->
+    { ok, ExpectedURI } = ersip_uri:parse(<<"sips:Alice@atlanta.com:8083">>),
+    ?assertEqual(ExpectedURI,
+                 ersip_uri:make([ sips,
+                                  { user, <<"Alice">> },
+                                  { host, { hostname, <<"atlanta.com">> } },
+                                  { port, 8083 } ])),
+    { ok, ExpectedURI2 } = ersip_uri:parse(<<"sip:Alice@atlanta.com:5061">>),
+    ?assertEqual(ExpectedURI2,
+                 ersip_uri:make([ sip,
+                                  { user, <<"Alice">> },
+                                  { host, { hostname, <<"atlanta.com">> } },
+                                  { port, 5061 } ])),
+    ?assertError(badarg, ersip_uri:make([ { host, { hostname, <<"a-b">> } } ])),
+    ?assertError(badarg, ersip_uri:make([ { x, { user, <<"a-b">> } } ])).
+    

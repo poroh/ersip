@@ -7,7 +7,7 @@
 %%
 
 -module(ersip_host).
--export([parse/1]).
+-export([ is_host/1, parse/1 ]).
 
 -include("ersip_sip_abnf.hrl").
 
@@ -20,8 +20,26 @@
 %%% API
 %%%===================================================================
 
+
+%% @doc check term is valid host.
+-spec is_host(term()) -> boolean().
+is_host({ hostname, Bin }) ->
+    hostname_valid(Bin);
+is_host({ ipv4, {A0,A1,A2,A3} }) ->
+    lists:all(fun(X) ->
+                      X >= 0 andalso X =< 255
+              end,
+              [ A0,A1,A2,A3 ]);
+is_host({ ipv6, {A0,A1,A2,A3,A4,A5,A6,A7} }) ->
+    lists:all(fun(X) ->
+                      X >= 0 andalso X =< 65535
+              end,
+              [ A0,A1,A2,A3,A4,A5,A6,A7 ]);
+is_host(_) ->
+    false.
+
 %% @doc Generate host specification from binary.
--spec parse(binary()) -> { ok, host() } | { error, einval }. 
+-spec parse(binary()) -> { ok, host() } | { error, einval }.
 parse(<<$[, _/binary>> = R) ->
     parse_ipv6_reference(R);
 parse(<<Char/utf8, _/binary>> = R) when ?is_DIGIT(Char) ->
@@ -33,7 +51,7 @@ parse(Bin) when is_binary(Bin) ->
         false ->
             { error, einval }
     end.
-            
+
 
 %%%===================================================================
 %%% Internal implementation
@@ -88,8 +106,8 @@ parse_ipv4_address(Bin) when is_binary(Bin) ->
 %% @doc Check that hostname agree specicification
 %%
 %% hostname         =  *( domainlabel "." ) toplabel [ "." ]
-%% 
--spec hostname_valid( binary() ) -> boolean(). 
+%%
+-spec hostname_valid( binary() ) -> boolean().
 hostname_valid(Bin) when is_binary(Bin) ->
     hostname_valid(binary:split(Bin, <<".">>, [ global ]));
 hostname_valid([<<>>]) ->
@@ -108,9 +126,9 @@ hostname_valid([ DomainLabel | Rest ]) ->
 
 %% @doc Check that toplabel agree specicification
 %%
-%% toplabel         =  ALPHA / ALPHA *( alphanum / "-" ) 
+%% toplabel         =  ALPHA / ALPHA *( alphanum / "-" )
 %% @private
--spec toplabel_valid( binary(), start | rest ) -> boolean(). 
+-spec toplabel_valid( binary(), start | rest ) -> boolean().
 toplabel_valid(<<>>, start) ->
     false;
 toplabel_valid(<<>>, rest) ->

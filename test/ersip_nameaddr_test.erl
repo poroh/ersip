@@ -62,7 +62,3 @@ nameaddr_neg_parse_test() ->
     %% Ivalid host name
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.->">>)),
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:1.2.3.4.5>">>)).
-    
-    
-    
-

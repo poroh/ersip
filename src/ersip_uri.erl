@@ -179,7 +179,7 @@ parse_and_add_param(Param, URI) ->
                 <<"ip">> ->
                     set_param(user, ip, URI);
                 _ ->
-                    case check_token(U, start) of
+                    case check_token(U) of
                         true ->
                             set_param(user, U, URI);
                         false ->
@@ -212,7 +212,7 @@ parse_transport(V) ->
         <<"wss">> -> { transport, wss };
         <<"ws">>  -> { transport, ws  };
         Bin ->
-            case check_token(Bin, start) of
+            case check_token(Bin) of
                 true  -> { other_transport, Bin };
                 false -> { error, { einval, transport } }
             end
@@ -254,15 +254,6 @@ check_password(<<"%", A/utf8, B/utf8, R/binary>>) when ?is_HEXDIG(A) andalso ?is
 check_password(_) ->
     false.
 
-%% token       =  1*(alphanum / "-" / "." / "!" / "%" / "*"
-%%                   / "_" / "+" / "`" / "'" / "~" )
-check_token(<<>>, start) ->
-    false;
-check_token(<<>>, rest) ->
-    true;
-check_token(<<Char/utf8, R/binary>>, _) when ?is_token_char(Char) ->
-    check_token(R, rest);
-check_token(_, _) ->
-    false.
-
+check_token(Bin) ->
+    ersip_parser_aux:check_token(Bin).
 

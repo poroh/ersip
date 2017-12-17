@@ -18,7 +18,8 @@
                         | method
                         | ttl
                         | maddr
-                        | lr.
+                        | lr
+                        | binary().
 
 -type uri_part() :: sip
                   | sips
@@ -95,7 +96,7 @@ parse_usesrinfo(Scheme, Bin) ->
 %% hostport         =  host [ ":" port ]
 -spec parse_hostport(Scheme, User, binary()) -> { ok, uri() } | { error, { einval, atom() } } when
       Scheme :: sip | sips,
-      User   :: {user, binary() }.
+      User   :: {user, binary() } | undefined.
 parse_hostport(Scheme, User, R) ->
     { HostPort, Params } =
         case binary:split(R, <<";">>) of

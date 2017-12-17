@@ -16,7 +16,7 @@
         ]).
 
 -record(header, { name        :: binary(),
-                  values = [] :: [ binary() ]
+                  values = [] :: [ iolist() ]
                 }).
 
 -type header() :: #header{}.
@@ -57,9 +57,9 @@ as_integer(#header{ values = [ [ V ] ] })  when is_binary(V) ->
         _ ->
             { error, invalid_integer }
     end;
-as_integer(#header{ values = [ V ] }) when is_list(V) ->
+as_integer(#header{ values = [ V ] } = H) when is_list(V) ->
     Bin = iolist_to_binary(V),
-    as_integer(#header{ values = [ [ Bin ] ] });
+    as_integer(H#header{ values = [ [ Bin ] ] });
 as_integer(#header{ values = [] }) ->
     { error, no_header };
 as_integer(#header{ values = [_,_ |_] }) ->

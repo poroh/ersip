@@ -107,7 +107,7 @@ parse_ipv4_address(Bin) when is_binary(Bin) ->
 %%
 %% hostname         =  *( domainlabel "." ) toplabel [ "." ]
 %%
--spec hostname_valid( binary() ) -> boolean().
+-spec hostname_valid( binary() | [ binary() ] ) -> boolean().
 hostname_valid(Bin) when is_binary(Bin) ->
     hostname_valid(binary:split(Bin, <<".">>, [ global ]));
 hostname_valid([<<>>]) ->

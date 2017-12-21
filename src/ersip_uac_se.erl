@@ -35,7 +35,7 @@ clear_trans(Trans) ->
     { clear_trans, [ Trans ] }.
 
 %% @doc Send message to the nexthop.
-send(RawMessage, SendResultFun) when is_binary(RawMessage) ->
+send(RawMessage, SendResultFun) ->
     { send, [ RawMessage, SendResultFun ] }.
 
 %% @doc Inform transaction user about transaction result.

@@ -12,7 +12,8 @@
          set/2,
          set/3,
          add/3,
-         get/2
+         get/2,
+         serialize/1
         ]).
 
 -type method() :: binary().
@@ -52,7 +53,7 @@ get(ItemList, Message) when is_list(ItemList) ->
               ItemList);
 get(type,   #message{ type = { X, _, _ } })        -> X;
 get(status, #message{ type = { response, X, _ } }) -> X;
-get(reason, #message{ type = { response, _, X } }) -> X; 
+get(reason, #message{ type = { response, _, X } }) -> X;
 get(method, #message{ type = { request,  X, _ } }) -> X;
 get(ruri,   #message{ type = { request,  _, X } }) -> X;
 get(body,   #message{ body = X                  }) -> X;
@@ -93,6 +94,30 @@ add(HeaderName, Value, #message{ headers = H } = Message) ->
             Message#message{ headers = H#{ Key => Updated } }
     end.
 
+-spec serialize(message()) -> iolist().
+serialize(#message{} = Message) ->
+    L = lists:foldl(fun(F, Acc) -> F(Message, Acc) end,
+                    [],
+                    [ fun serialize_first_line/2,
+                      fun serialize_headers/2,
+                      fun serialize_body/2
+                    ]),
+    lists:reverse(L).
+
+
 %%%===================================================================
 %%% internal implementation
 %%%===================================================================
+
+-spec serialize_first_line(message(), iolist()) -> iolist().
+serialize_first_line(#message{ type={request, Method, RURI} }, Acc) ->
+    [ <<" SIP/2.0">>, RURI, <<" ">>, Method | Acc ];
+serialize_first_line(#message{ type={response, StatusCode, Reason} }, Acc) ->
+    [ Reason, <<" ">>, StatusCode, <<"SIP/2.0 ">> | Acc ].
+
+-spec serialize_headers(message(), iolist()) -> iolist().
+serialize_headers(#message{ headers = Headers }, Acc) ->
+    Acc.
+
+serialize_body(#message{ body = Body }, Acc) ->
+    [ Body | Acc ].

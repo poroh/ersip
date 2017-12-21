@@ -40,7 +40,8 @@ new(IsReliableTransport, Request, Options) ->
              }).
 
 -type timer_type() :: timer_f
-                    | timer_e.
+                    | timer_e
+                    | timer_k.
 
 -type uac() :: #uac{}.
 
@@ -251,18 +252,21 @@ terminate(Reason, UAC) ->
 set_state(State, UAC) ->
     UAC#uac{ state = State }.
 
+-spec process_event(Event :: term(), uac()) -> result().
 process_event(Event, #uac{ state = StateF } = UAC) ->
     StateF(Event, UAC).
 
+-spec timer_fired({ timer_type(), reference() }, uac()) -> result().
 timer_fired(Timer, #uac{ timers = Timers } = UAC) ->
     case maps:find(Timer, Timers) of
         error ->
             { ok, UAC, [] };
-        { Type, _ } ->
+        { ok, { Type, _ }  } ->
             UAC1 = clear_timer(Type, UAC),
             process_event(Type, UAC1)
     end.
 
+-spec send_request(uac()) -> { ersip_uac_se:effect(), uac() }.
 send_request(UAC) ->
     RawRequest =
         case UAC#uac.raw_message of
@@ -278,18 +282,28 @@ send_request(UAC) ->
     { ersip_uac_se:send(RawRequest, SendResultFun),
       UAC#uac{ raw_message = RawRequest } }.
 
-set_timer_f(UAC) ->
-    set_timer(timer_f, 64*?T1(UAC), UAC).
-
+-spec maybe_set_timer_e(uac()) -> uac() | result().
 maybe_set_timer_e(#uac{ reliable_transport = true } = UAC) ->
     UAC;
 maybe_set_timer_e(#uac{ reliable_transport = false } = UAC ) ->
     Timeout = UAC#uac.timer_e_timeout,
     set_timer(timer_e, Timeout, UAC).
 
+-spec set_timer_f(uac()) -> { ersip_uac_se:effect(), uac() }.
+set_timer_f(UAC) ->
+    set_timer(timer_f, 64*?T1(UAC), UAC).
+
+-spec set_timer_k(uac()) -> { ersip_uac_se:effect(), uac() }.
 set_timer_k(#uac{ reliable_transport = false } = UAC ) ->
     set_timer(timer_k, ?T4(UAC), UAC).
 
+-spec set_timer(timer_type(), pos_integer(), uac()) -> { ersip_uac_se:effect(), uac() }.
+set_timer(Type, Time, UAC) ->
+    TimerRef = { Type, make_ref() },
+    TimerFun = make_timer_fun(TimerRef, UAC),
+    { ersip_uac_se:set_timer(TimerFun, Time), add_timer(TimerRef, UAC) }.
+
+-spec add_timer({ timer_type(), reference() }, uac()) -> uac().
 add_timer({ TimerType, _ } = Ref, UAC) ->
     UAC1 = clear_timer(TimerType, UAC),
     Timers = UAC1#uac.timers,
@@ -297,11 +311,7 @@ add_timer({ TimerType, _ } = Ref, UAC) ->
                                 Ref => TimerType
                               } }.
 
-set_timer(Type, Time, UAC) ->
-    TimerRef = { Type, make_ref() },
-    TimerFun = make_timer_fun(TimerRef, UAC),
-    { ersip_uac_se:set_timer(TimerFun, Time), add_timer(TimerRef, UAC) }.
-
+-spec clear_timer(timer_type(), uac()) -> uac().
 clear_timer(TimerType, #uac{ timers = Timers } = UAC) ->
     case maps:find(TimerType, Timers) of
         { ok, Ref } ->
@@ -310,6 +320,18 @@ clear_timer(TimerType, #uac{ timers = Timers } = UAC) ->
             UAC
     end.
 
+-spec make_timer_fun(TimerVal, uac()) -> TimerFun when
+      TimerFun :: fun(() -> result()),
+      TimerVal :: { timer_type(), reference() }.
+make_timer_fun(TimerVal, UAC) ->
+    fun() ->
+            timer_fired(TimerVal, UAC)
+    end.
+
+-spec collect_side_effects(uac(), Funs) -> result() when
+      Funs ::[   fun((uac()) -> uac())
+               | fun((uac()) -> result())
+             ].
 collect_side_effects(UAC, Funs) ->
     case collect_side_effects_impl(UAC, Funs) of
         { #uac{} = UAC, SideEffects } ->
@@ -318,6 +340,10 @@ collect_side_effects(UAC, Funs) ->
             Error
     end.
 
+-spec collect_side_effects_impl(uac(), Funs) -> { uac(), [ ersip_uac_se:effect() ] } when
+      Funs :: [   fun((uac()) -> uac())
+                | fun((uac()) -> result())
+              ].
 collect_side_effects_impl(UAC, Funs) ->
     Record = { UAC, [] },
     lists:foldl(fun (F, { #uac{} = AccState, AccActions }) ->
@@ -333,16 +359,19 @@ collect_side_effects_impl(UAC, Funs) ->
                 Record,
                 Funs).
 
+-spec check_request(ersip:message()) -> ok | { error, term() }.
 check_request(Request) ->
     %% A valid SIP request formulated by a UAC MUST, at a minimum, contain
     %% the following header fields: To, From, CSeq, Call-ID, Max-Forwards,
     %% and Via;
     lists:foldl(fun(Item, ok) -> check_item(Item, Request);
                    (_, Error) -> Error end,
+                ok,
                 [ type, method, ruri,
                   <<"to">>, <<"from">>, <<"cseq">>, <<"call-id">>, <<"max-forwards">>,
                   <<"via">> ]).
 
+-spec check_item(ersip_msg:item(), ersip:message()) -> ok | { error, term() }.
 check_item(type, Request) ->
     case ersip_msg:get(type, Request) of
         request -> ok;
@@ -357,15 +386,12 @@ check_item(Item, Request) ->
             check_value(Item)
     end.
 
+-spec check_value(_) -> ok.
 check_value(_) ->
     %% TODO: check headers value here
     ok.
 
-make_timer_fun(TimerVal, UAC) ->
-    fun() ->
-            timer_fired(TimerVal, UAC)
-    end.
-
+-spec response_class(Code :: 100..699) -> provisional | final.
 response_class(Code) when is_integer(Code) ->
     case Code div 100 of
         1 ->

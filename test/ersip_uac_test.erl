@@ -182,9 +182,12 @@ uac_unreliable_test() ->
     ?assertMatch([5000, _], maps:get(set_timer, SideEffectsMap_5_1)),
     [_, TimerK_5_1] = maps:get(set_timer, SideEffectsMap_5_1),
 
+    %% Timer E/F ignored in Completed state:
+    { UAC_5_2, [] } = ersip_uac:event({ timer, RetransmitTimer }, UAC_5_1),
+    { UAC_5_3, [] } = ersip_uac:event({ timer, TransactionTimer }, UAC_5_2),
 
     %% TimerK fired => transaction terminated
-    { UAC_5_2, SideEffects_5_2 } = ersip_uac:event({timer, TimerK_5_1}, UAC_5_1),
-    SideEffectsMap_5_2 = maps:from_list(SideEffects_5_2),
-    ?assertMatch([UAC_5_2], maps:get(clear_trans, SideEffectsMap_5_2)),
-    ?assertEqual(completed, ersip_uac:clear_reason(UAC_5_2)).
+    { UAC_5_4, SideEffects_5_4 } = ersip_uac:event({timer, TimerK_5_1}, UAC_5_3),
+    SideEffectsMap_5_4 = maps:from_list(SideEffects_5_4),
+    ?assertMatch([UAC_5_4], maps:get(clear_trans, SideEffectsMap_5_4)),
+    ?assertEqual(completed, ersip_uac:clear_reason(UAC_5_4)).

@@ -32,8 +32,7 @@ new(IsReliableTransport, Request, Options) ->
 %% @doc Process event by UAC.
 -spec event(Event, uac()) -> result() when
       Event :: { timer, TimerFun }
-             | { resp, ersip_status:response_type(), term() }
-             | { send_result, ok | {error, term()} },
+             | { resp, ersip_status:response_type(), term() },
       TimerFun :: fun((uac()) -> result()).
 event({timer, TimerFun}, UAC) ->
     TimerFun(UAC);
@@ -96,8 +95,7 @@ new_impl(IsReliableTransport, Request, Options) ->
       Event :: enter
              | timer_f
              | timer_e
-             | { resp, ersip_status:response_type(), Msg :: term() }
-             | { send_result, ok | { error, term() } }.
+             | { resp, ersip_status:response_type(), Msg :: term() }.
 'Trying'(enter, UAC) ->
     %% The "Trying" state is entered when the TU initiates a new client
     %% transaction with a request.  When entering this state, the client
@@ -132,12 +130,6 @@ new_impl(IsReliableTransport, Request, Options) ->
                          [ fun maybe_set_timer_e/1,
                            fun send_request/1
                          ]);
-'Trying'({ send_result, ok }, UAC) ->
-    { UAC, [] };
-'Trying'({ send_result, { error, Error } }, UAC) ->
-    UAC1 = set_state(fun 'Terminated'/2, UAC),
-    { UAC2, SideEffects } =  process_event('enter', UAC1),
-    { UAC2, [ ersip_uac_se:tu_result({ error, { transport_error, Error } }) | SideEffects ] };
 'Trying'({ resp, ResponseType, Msg }, UAC) ->
     case ResponseType of
         provisional ->
@@ -166,8 +158,7 @@ new_impl(IsReliableTransport, Request, Options) ->
       Event :: enter
              | timer_f
              | timer_e
-             | { resp, ersip_status:response_type(), Msg :: term() }
-             | { send_result, ok | { error, term() } }.
+             | { resp, ersip_status:response_type(), Msg :: term() }.
 
 'Proceeding'(enter, UAC) ->
     %% Note: it is not clear from spec that we need to restrart timer
@@ -204,9 +195,7 @@ new_impl(IsReliableTransport, Request, Options) ->
             UAC1 = set_state(fun 'Completed'/2, UAC),
             { UAC2, SideEffects } = process_event(enter, UAC1),
             { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
-    end;
-'Proceeding'({ send_result, _ }, UAC) ->
-    { UAC, [] }.
+    end.
 
 %%
 %% Completed state
@@ -224,7 +213,7 @@ new_impl(IsReliableTransport, Request, Options) ->
     collect_side_effects(UAC, [ fun set_timer_k/1 ]);
 'Completed'(enter, #uac{ reliable_transport = true } = UAC) ->
     terminate(completed, UAC);
-'Completed'({ resp, _ }, UAC) ->
+'Completed'({ resp, _, _ }, UAC) ->
     %% Just ignore response retransmission in 'Completed' state.q
     { UAC, [] };
 'Completed'(timer_k, UAC) ->

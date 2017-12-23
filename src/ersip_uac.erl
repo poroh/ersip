@@ -33,7 +33,7 @@ new(IsReliableTransport, Request, Options) ->
 -record(uac, { state       = fun 'Trying'/2 :: non_inv_state(),
                request                      :: ersip:message(),
                options                      :: map(),
-               raw_message = undefined      :: iolist()        | undefined,
+               raw_message = undefined      :: binary() | undefined,
                reliable_transport           :: boolean(),
                timers     = #{}             :: #{ reference() => timer_type() },
                timer_e_timeout   = 500      :: pos_integer()
@@ -271,7 +271,7 @@ send_request(UAC) ->
     RawRequest =
         case UAC#uac.raw_message of
             undefined ->
-                ersip_msg:serialize(UAC#uac.request);
+                iolist_to_binary(ersip_msg:serialize(UAC#uac.request));
             Msg ->
                 Msg
         end,

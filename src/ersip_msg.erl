@@ -13,14 +13,15 @@
          set/3,
          add/3,
          get/2,
-         serialize/1
+         serialize/1,
+         serialize_bin/1
         ]).
 
 -type method() :: binary().
 -record(message, { type    = undefined :: { request,  method() | undefined, binary() | undefined }
                                         | { response, 100..699 | undefined, binary() | undefined }
                                         | undefined,
-                   headers = #{}       :: #{ binary() := list({ term(), iolist() } | iolist()) },
+                   headers = #{}       :: #{ binary() := ersip_hdr:header() },
                    body    = []        :: iolist()
                  }).
 
@@ -69,6 +70,7 @@ set(List, Message) ->
                 Message,
                 List).
 
+%% @doc Set message part to specified value.
 -spec set(item(), term(), message()) -> message().
 set(type, _X, #message{ type = { _X, _, _ } } = Message) ->
     Message;
@@ -78,7 +80,22 @@ set(status, Status, #message{ type = { response, _, X } } = Message) -> Message#
 set(reason, Reason, #message{ type = { response, X, _ } } = Message) -> Message#message{ type = { response,      X,  Reason } };
 set(method, Method, #message{ type = { request,  _, X } } = Message) -> Message#message{ type = { request,  Method,       X } };
 set(ruri,   RURI,   #message{ type = { request,  X, _ } } = Message) -> Message#message{ type = { request,       X,    RURI } };
-set(body,   Body,   Message) -> Message#message{ body = Body }.
+set(body,   Body,   Message) -> Message#message{ body = Body };
+set(HeaderName, {mval, Values},  #message{ headers = H } = Message) ->
+    Key = ersip_hdr:make_key(HeaderName),
+    Message1 = Message#message{ headers = H#{ Key => ersip_hdr:new(HeaderName) } },
+    lists:foldl(fun(Value, Msg) ->
+                        add(HeaderName, Value, Msg)
+                end,
+                Message1,
+                Values);
+set(HeaderName, Value,  #message{ headers = H } = Message) ->
+    Key = ersip_hdr:make_key(HeaderName),
+    Header0 = ersip_hdr:new(HeaderName),
+    Header1 = ersip_hdr:add_value(Value, Header0),
+    Message#message{ headers = H#{ Key => Header1 } }.
+
+
 
 -spec add(Name, Value, message()) -> message() when
       Name  :: binary(),
@@ -93,6 +110,10 @@ add(HeaderName, Value, #message{ headers = H } = Message) ->
             Updated = ersip_hdr:add_value(V, Current),
             Message#message{ headers = H#{ Key => Updated } }
     end.
+
+-spec serialize_bin(message()) -> binary().
+serialize_bin(#message{} = Message) ->
+    iolist_to_binary(serialize(Message)).
 
 -spec serialize(message()) -> iolist().
 serialize(#message{} = Message) ->
@@ -109,15 +130,35 @@ serialize(#message{} = Message) ->
 %%% internal implementation
 %%%===================================================================
 
+-define(headers_order, [ <<"via">>, <<"to">>, <<"from">>,
+                         <<"call-id">>,  <<"cseq">>, <<"max-forwards">> ]).
+
 -spec serialize_first_line(message(), iolist()) -> iolist().
 serialize_first_line(#message{ type={request, Method, RURI} }, Acc) ->
     [ <<" SIP/2.0">>, RURI, <<" ">>, Method | Acc ];
 serialize_first_line(#message{ type={response, StatusCode, Reason} }, Acc) ->
-    [ Reason, <<" ">>, StatusCode, <<"SIP/2.0 ">> | Acc ].
+    [ Reason, <<" ">>, integer_to_binary(StatusCode), <<"SIP/2.0 ">> | Acc ].
 
 -spec serialize_headers(message(), iolist()) -> iolist().
 serialize_headers(#message{ headers = Headers }, Acc) ->
-    Acc.
+    Ordered    = header_keys_order(),
+    NotOrdered = maps:keys(maps:without(Ordered, Headers)),
+    Acc1 = serialize_headers_in_order(Ordered, Headers, Acc),
+    Acc2 = serialize_headers_in_order(NotOrdered, Headers, Acc1),
+    [ <<"\r\n\r\n">> | Acc2 ].
 
 serialize_body(#message{ body = Body }, Acc) ->
     [ Body | Acc ].
+
+header_keys_order() ->
+    lists:map(fun ersip_hdr:make_key/1, ?headers_order).
+
+serialize_headers_in_order([], _Headers, Acc) ->
+    Acc;
+serialize_headers_in_order([K|Rest], Headers, Acc) ->
+    case Headers of
+        #{ K := Hdr } ->
+            serialize_headers_in_order(Rest, Headers, ersip_hdr:serialize_rev_iolist(Hdr, Acc));
+        _ ->
+            serialize_headers_in_order(Rest, Headers, Acc)
+    end.

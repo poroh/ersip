@@ -9,6 +9,8 @@
 -module(ersip_msg_test).
 -include_lib("eunit/include/eunit.hrl").
 
+-define(crlf, "\r\n").
+
 message_set_test() ->
     Vectors =
         [ { all,       type,   [ request, response ] },
@@ -53,6 +55,52 @@ message_get_header_test() ->
 message_empty_header_test() ->
     M0 = ersip_msg:new(),
     ?assertEqual(M0,  ersip_msg:add(<<"Some-Header">>,  ["   \t"], M0)).
+
+message_serialize_req_test() ->
+    M0 = ersip_msg:new(),
+    M1 = ersip_msg:set([ {type,   request},
+                         {method, <<"INVITE">> },
+                         {ruri,       <<"sip:alice@example.com">>},
+                         {<<"Via">>,  <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>},
+                         {<<"From">>, <<"sip:bob@biloxi.com">>},
+                         {<<"To">>,   <<"sip:alice@example.com">>},
+                         {<<"Max-Forwards">>, <<"70">>},
+                         {<<"CSeq">>, <<"1 INVITE">>},
+                         {<<"Call-Id">>, <<"some-call-id">>}
+                         ], M0),
+    ExpectedMessage = <<"INVITE sip:alice@example.com SIP/2.0"
+                        ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                        ?crlf "To: sip:alice@example.com"
+                        ?crlf "From: sip:bob@biloxi.com"
+                        ?crlf "Call-Id: some-call-id"
+                        ?crlf "CSeq: 1 INVITE"
+                        ?crlf "Max-Forwards: 70"
+                        ?crlf ?crlf>>,
+    ?assertEqual(ExpectedMessage, ersip_msg:serialize_bin(M1)).
+
+message_serialize_resp_test() ->
+    M0 = ersip_msg:new(),
+    M1 = ersip_msg:set([ {type,   response},
+                         {status, 200 },
+                         {reason, <<"OK">>},
+                         {<<"Via">>,
+                          {mval,
+                           [ <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>,
+                             <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">> ]}},
+                         {<<"From">>, <<"sip:bob@biloxi.com">>},
+                         {<<"To">>,   <<"sip:alice@example.com">>},
+                         {<<"CSeq">>, <<"1 INVITE">>},
+                         {<<"Call-Id">>, <<"some-call-id">>}
+                         ], M0),
+    ExpectedMessage = <<"SIP/2.0 200 OK"
+                        ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1"
+                        ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                        ?crlf "To: sip:alice@example.com"
+                        ?crlf "From: sip:bob@biloxi.com"
+                        ?crlf "Call-Id: some-call-id"
+                        ?crlf "CSeq: 1 INVITE"
+                        ?crlf ?crlf>>,
+    ?assertEqual(ExpectedMessage, ersip_msg:serialize_bin(M1)).
 
 message_set(Type, Item, Values) ->
     lists:foreach(

@@ -11,7 +11,7 @@
 
 -export([ new_trans/1,
           clear_trans/1,
-          send/2,
+          send/1,
           tu_result/1,
           set_timer/2
         ]).
@@ -35,8 +35,8 @@ clear_trans(Trans) ->
     { clear_trans, [ Trans ] }.
 
 %% @doc Send message to the nexthop.
-send(RawMessage, SendResultFun) ->
-    { send, [ RawMessage, SendResultFun ] }.
+send(RawMessage) ->
+    { send, [ RawMessage ] }.
 
 %% @doc Inform transaction user about transaction result.
 tu_result(Result) ->
@@ -44,7 +44,7 @@ tu_result(Result) ->
 
 %% @doc Set timer for specified time interval. After timeout is
 %% expired TimerFun must be called.
--spec set_timer(TimerFun, pos_integer()) -> { set_timer, [ TimerFun | pos_integer() ] } when
+-spec set_timer(pos_integer(), TimerFun) -> { set_timer, [ TimerFun | pos_integer() ] } when
       TimerFun :: fun(() -> ersip_uac:result()).
-set_timer(TimerFun, Timeout) ->
-    { set_timer, [ TimerFun, Timeout ] }.
+set_timer(Timeout, TimerFun) ->
+    { set_timer, [ Timeout, TimerFun ] }.

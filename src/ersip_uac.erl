@@ -5,13 +5,16 @@
 %%
 %% UAC non-invite transaction
 %%
+%% Pure FSM implementation - transformation events to side effects.
+%%
 
 -module(ersip_uac).
 
--export([ new/3 ]).
+-export([ new/3, event/2, clear_reason/1 ]).
 
--type result() :: { ok, uac(), [ ersip_uac_se:effect() ] }
-                | { error, term() }.
+-type result() :: { uac(), [ ersip_uac_se:effect() ] }.
+-type clear_reason() :: completed
+                      | timeout.
 
 %%%===================================================================
 %%% API
@@ -20,9 +23,28 @@
 %% @doc Create new UAC transaction. Result of creation is UAC state
 %% and set of side effects that produced because of creation.
 %% Side effects are chained.
--spec new(IsReliableTransport :: boolean(), ersip:message(), ersip:uac_options()) -> result().
+%%
+%% Request is not interpretted in any way.
+-spec new(IsReliableTransport :: boolean(), Request :: term(), ersip:uac_options()) -> result().
 new(IsReliableTransport, Request, Options) ->
     new_impl(IsReliableTransport, Request, Options).
+
+%% @doc Process event by UAC.
+-spec event(Event, uac()) -> result() when
+      Event :: { timer, TimerFun }
+             | { resp, ersip_status:response_type(), term() }
+             | { send_result, ok | {error, term()} },
+      TimerFun :: fun((uac()) -> result()).
+event({timer, TimerFun}, UAC) ->
+    TimerFun(UAC);
+event(Evt, UAC) ->
+    process_event(Evt, UAC).
+
+%% @doc Get transaction clear reason. It is guaranteed that after
+%% clear_trans side effect tranaction has defined clear reason.
+-spec clear_reason(uac()) -> clear_reason().
+clear_reason(UAC) ->
+    clear_reason_impl(UAC).
 
 %%%===================================================================
 %%% Internal implementation
@@ -31,12 +53,13 @@ new(IsReliableTransport, Request, Options) ->
 -type non_inv_state() :: fun((Event :: term(), uac()) -> result()).
 
 -record(uac, { state       = fun 'Trying'/2 :: non_inv_state(),
-               request                      :: ersip:message(),
+               request                      :: term(),
                options                      :: map(),
-               raw_message = undefined      :: binary() | undefined,
                reliable_transport           :: boolean(),
-               timers     = #{}             :: #{ reference() => timer_type() },
-               timer_e_timeout   = 500      :: pos_integer()
+               timers     = #{}             :: #{ reference() => timer_type(),
+                                                  timer_type() => reference() },
+               timer_e_timeout = 500        :: pos_integer(),
+               clear_reason    = undefined  :: clear_reason() | undefined
              }).
 
 -type timer_type() :: timer_f
@@ -57,19 +80,14 @@ new(IsReliableTransport, Request, Options) ->
 
 -spec new_impl(IsReliableTransport :: boolean(), ersip:message(), ersip:uac_options()) -> result().
 new_impl(IsReliableTransport, Request, Options) ->
-    case check_request(Request) of
-        ok ->
-            UAC = #uac{ request = Request,
-                        options = maps:merge(?default_options, Options),
-                        reliable_transport = IsReliableTransport,
-                        state   = fun 'Trying'/2
-                      },
-            UAC1 = UAC#uac{ timer_e_timeout = ?T1(UAC) },
-            { ok, UAC2, SideEffects } =  process_event('enter', UAC1),
-            { ok, UAC2, [ ersip_uac_se:new_trans(UAC2) | SideEffects ] };
-        { error, _ } = Error ->
-            Error
-    end.
+    UAC = #uac{ request = Request,
+                options = maps:merge(?default_options, Options),
+                reliable_transport = IsReliableTransport,
+                state   = fun 'Trying'/2
+              },
+    UAC1 = UAC#uac{ timer_e_timeout = ?T1(UAC) },
+    { UAC2, SideEffects } =  process_event('enter', UAC1),
+    { UAC2, [ ersip_uac_se:new_trans(UAC2) | SideEffects ] }.
 
 %%
 %% Trying state
@@ -78,7 +96,7 @@ new_impl(IsReliableTransport, Request, Options) ->
       Event :: enter
              | timer_f
              | timer_e
-             | { recv, ersip:message() }
+             | { resp, ersip_status:response_type(), Msg :: term() }
              | { send_result, ok | { error, term() } }.
 'Trying'(enter, UAC) ->
     %% The "Trying" state is entered when the TU initiates a new client
@@ -115,35 +133,30 @@ new_impl(IsReliableTransport, Request, Options) ->
                            fun send_request/1
                          ]);
 'Trying'({ send_result, ok }, UAC) ->
-    { ok, UAC, [] };
+    { UAC, [] };
 'Trying'({ send_result, { error, Error } }, UAC) ->
     UAC1 = set_state(fun 'Terminated'/2, UAC),
-    { ok, UAC2, SideEffects } =  process_event('enter', UAC1),
-    { ok, UAC2, [ ersip_uac_se:tu_result({ error, { transport_error, Error } }) | SideEffects ] };
-'Trying'({ recv, Msg }, UAC) ->
-    case ersip_msg:get(type, Msg) of
-        response ->
-            case response_class(ersip_msg:get(status, Msg)) of
-                provisional ->
-                    %% If a provisional response is received while in
-                    %% the "Trying" state, the response MUST be passed
-                    %% to the TU, and then the client transaction
-                    %% SHOULD move to the "Proceeding" state.
-                    UAC1 = set_state(fun 'Proceeding'/2, UAC),
-                    { ok, UAC2, SideEffects } = process_event(enter, UAC1),
-                    { ok, UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] };
-                final ->
-                    %% If a final response (status codes 200-699) is
-                    %% received while in the "Trying" state, the
-                    %% response MUST be passed to the TU, and the
-                    %% client transaction MUST transition to the
-                    %% "Completed" state.
-                    UAC1 = set_state(fun 'Completed'/2, UAC),
-                    { ok, UAC2, SideEffects } = process_event(enter, UAC1),
-                    { ok, UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
-            end;
-        _ ->
-            { ok, UAC, [] }
+    { UAC2, SideEffects } =  process_event('enter', UAC1),
+    { UAC2, [ ersip_uac_se:tu_result({ error, { transport_error, Error } }) | SideEffects ] };
+'Trying'({ resp, ResponseType, Msg }, UAC) ->
+    case ResponseType of
+        provisional ->
+            %% If a provisional response is received while in
+            %% the "Trying" state, the response MUST be passed
+            %% to the TU, and then the client transaction
+            %% SHOULD move to the "Proceeding" state.
+            UAC1 = set_state(fun 'Proceeding'/2, UAC),
+            { UAC2, SideEffects } = process_event(enter, UAC1),
+            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] };
+        final ->
+            %% If a final response (status codes 200-699) is
+            %% received while in the "Trying" state, the
+            %% response MUST be passed to the TU, and the
+            %% client transaction MUST transition to the
+            %% "Completed" state.
+            UAC1 = set_state(fun 'Completed'/2, UAC),
+            { UAC2, SideEffects } = process_event(enter, UAC1),
+            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
     end.
 
 %%
@@ -153,7 +166,7 @@ new_impl(IsReliableTransport, Request, Options) ->
       Event :: enter
              | timer_f
              | timer_e
-             | { recv, ersip:message() }
+             | { resp, ersip_status:response_type(), Msg :: term() }
              | { send_result, ok | { error, term() } }.
 
 'Proceeding'(enter, UAC) ->
@@ -178,27 +191,22 @@ new_impl(IsReliableTransport, Request, Options) ->
     %% be informed of a timeout, and the client transaction MUST
     %% transition to the terminated state.
     terminate(timeout, UAC);
-'Proceeding'({ recv, Msg }, UAC) ->
-    case ersip_msg:get(type, Msg) of
-        response ->
-            case response_class(ersip_msg:get(status, Msg)) of
-                provisional ->
-                    { ok, UAC, [] };
-                final ->
-                    %% If a final response (status codes 200-699) is
-                    %% received while in the "Proceeding" state, the
-                    %% response MUST be passed to the TU, and the
-                    %% client transaction MUST transition to the
-                    %% "Completed" state.
-                    UAC1 = set_state(fun 'Completed'/2, UAC),
-                    { ok, UAC2, SideEffects } = process_event(enter, UAC1),
-                    { ok, UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
-            end;
-        _ ->
-            { ok, UAC, [] }
+'Proceeding'({ resp, ResponseType, Msg }, UAC) ->
+    case ResponseType of
+        provisional ->
+            { UAC, [] };
+        final ->
+            %% If a final response (status codes 200-699) is
+            %% received while in the "Proceeding" state, the
+            %% response MUST be passed to the TU, and the
+            %% client transaction MUST transition to the
+            %% "Completed" state.
+            UAC1 = set_state(fun 'Completed'/2, UAC),
+            { UAC2, SideEffects } = process_event(enter, UAC1),
+            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
     end;
 'Proceeding'({ send_result, _ }, UAC) ->
-    { ok, UAC, [] }.
+    { UAC, [] }.
 
 %%
 %% Completed state
@@ -208,7 +216,7 @@ new_impl(IsReliableTransport, Request, Options) ->
              | timer_f
              | timer_e
              | timer_k
-             | { recv, ersip:message() }.
+             | { resp, ersip_status:response_type(), Msg :: term() }.
 'Completed'(enter, #uac{ reliable_transport = false } = UAC) ->
     %% Once the client transaction enters the "Completed" state, it
     %% MUST set Timer K to fire in T4 seconds for unreliable
@@ -216,16 +224,16 @@ new_impl(IsReliableTransport, Request, Options) ->
     collect_side_effects(UAC, [ fun set_timer_k/1 ]);
 'Completed'(enter, #uac{ reliable_transport = true } = UAC) ->
     terminate(completed, UAC);
-'Completed'({ recv, _ }, UAC) ->
+'Completed'({ resp, _ }, UAC) ->
     %% Just ignore response retransmission in 'Completed' state.q
-    { ok, UAC, [] };
+    { UAC, [] };
 'Completed'(timer_k, UAC) ->
     %% If Timer K fires while in this state, the client transaction
     %% MUST transition to the "Terminated" state.
     terminate(completed, UAC);
 'Completed'(_, UAC) ->
     %%  Ignore other timers if any fired
-    { ok, UAC, [] }.
+    { UAC, [] }.
 
 %%
 %% Terminated state
@@ -235,7 +243,7 @@ new_impl(IsReliableTransport, Request, Options) ->
 'Terminated'(enter, UAC) ->
     %% Once the transaction is in the terminated state, it MUST be
     %% destroyed immediately.
-    { ok, UAC, [ ersip_uac_se:clear_trans(UAC) ] }.
+    { UAC, [ ersip_uac_se:clear_trans(UAC) ] }.
 
 %%
 %% Helpers
@@ -245,8 +253,8 @@ new_impl(IsReliableTransport, Request, Options) ->
               | completed.
 terminate(Reason, UAC) ->
     UAC1 = set_state(fun 'Terminated'/2, UAC),
-    { ok, UAC2, SideEffects } =  process_event('enter', UAC1),
-    { ok, UAC2, [ ersip_uac_se:tu_result(Reason) | SideEffects ] }.
+    UAC2 = UAC1#uac{ clear_reason = Reason },
+    process_event('enter', UAC2).
 
 -spec set_state(fun((Event :: term(), uac()) -> result()), uac()) -> uac().
 set_state(State, UAC) ->
@@ -256,31 +264,9 @@ set_state(State, UAC) ->
 process_event(Event, #uac{ state = StateF } = UAC) ->
     StateF(Event, UAC).
 
--spec timer_fired({ timer_type(), reference() }, uac()) -> result().
-timer_fired(Timer, #uac{ timers = Timers } = UAC) ->
-    case maps:find(Timer, Timers) of
-        error ->
-            { ok, UAC, [] };
-        { ok, { Type, _ }  } ->
-            UAC1 = clear_timer(Type, UAC),
-            process_event(Type, UAC1)
-    end.
-
 -spec send_request(uac()) -> { ersip_uac_se:effect(), uac() }.
 send_request(UAC) ->
-    RawRequest =
-        case UAC#uac.raw_message of
-            undefined ->
-                iolist_to_binary(ersip_msg:serialize(UAC#uac.request));
-            Msg ->
-                Msg
-        end,
-    SendResultFun =
-        fun(Result) ->
-                process_event({ send_result, Result }, UAC)
-        end,
-    { ersip_uac_se:send(RawRequest, SendResultFun),
-      UAC#uac{ raw_message = RawRequest } }.
+    { ersip_uac_se:send(UAC#uac.request), UAC }.
 
 -spec maybe_set_timer_e(uac()) -> uac() | result().
 maybe_set_timer_e(#uac{ reliable_transport = true } = UAC) ->
@@ -300,8 +286,8 @@ set_timer_k(#uac{ reliable_transport = false } = UAC ) ->
 -spec set_timer(timer_type(), pos_integer(), uac()) -> { ersip_uac_se:effect(), uac() }.
 set_timer(Type, Time, UAC) ->
     TimerRef = { Type, make_ref() },
-    TimerFun = make_timer_fun(TimerRef, UAC),
-    { ersip_uac_se:set_timer(TimerFun, Time), add_timer(TimerRef, UAC) }.
+    TimerFun = make_timer_fun(TimerRef),
+    { ersip_uac_se:set_timer(Time, TimerFun), add_timer(TimerRef, UAC) }.
 
 -spec add_timer({ timer_type(), reference() }, uac()) -> uac().
 add_timer({ TimerType, _ } = Ref, UAC) ->
@@ -320,82 +306,40 @@ clear_timer(TimerType, #uac{ timers = Timers } = UAC) ->
             UAC
     end.
 
--spec make_timer_fun(TimerVal, uac()) -> TimerFun when
-      TimerFun :: fun(() -> result()),
+-spec make_timer_fun(TimerVal) -> TimerFun when
+      TimerFun :: fun((uac()) -> result()),
       TimerVal :: { timer_type(), reference() }.
-make_timer_fun(TimerVal, UAC) ->
-    fun() ->
+make_timer_fun(TimerVal) ->
+    fun(UAC) ->
             timer_fired(TimerVal, UAC)
     end.
 
--spec collect_side_effects(uac(), Funs) -> result() when
-      Funs ::[   fun((uac()) -> uac())
-               | fun((uac()) -> result())
-             ].
-collect_side_effects(UAC, Funs) ->
-    case collect_side_effects_impl(UAC, Funs) of
-        { #uac{} = UAC, SideEffects } ->
-            { ok, UAC, SideEffects };
-        Error ->
-            Error
+-spec timer_fired({ timer_type(), reference() }, uac()) -> result().
+timer_fired(Timer, #uac{ timers = Timers } = UAC) ->
+    case maps:find(Timer, Timers) of
+        error ->
+            { UAC, [] };
+        { ok, Type } ->
+            UAC1 = clear_timer(Type, UAC),
+            process_event(Type, UAC1)
     end.
 
--spec collect_side_effects_impl(uac(), Funs) -> { uac(), [ ersip_uac_se:effect() ] } when
+-spec collect_side_effects(uac(), Funs) -> result() when
       Funs :: [   fun((uac()) -> uac())
                 | fun((uac()) -> result())
               ].
-collect_side_effects_impl(UAC, Funs) ->
+collect_side_effects(UAC, Funs) ->
     Record = { UAC, [] },
     lists:foldl(fun (F, { #uac{} = AccState, AccActions }) ->
                         case F(AccState) of
                             #uac{} = UpdatedState ->
                                 { UpdatedState, AccActions };
-                            { #uac{} = UpdatedState, Action } ->
-                                { UpdatedState, [ Action | AccActions ] };
-                            Error ->
-                                Error
+                            { Action, #uac{} = UpdatedState } ->
+                                { UpdatedState, [ Action | AccActions ] }
                         end
                 end,
                 Record,
                 Funs).
 
--spec check_request(ersip:message()) -> ok | { error, term() }.
-check_request(Request) ->
-    %% A valid SIP request formulated by a UAC MUST, at a minimum, contain
-    %% the following header fields: To, From, CSeq, Call-ID, Max-Forwards,
-    %% and Via;
-    lists:foldl(fun(Item, ok) -> check_item(Item, Request);
-                   (_, Error) -> Error end,
-                ok,
-                [ type, method, ruri,
-                  <<"to">>, <<"from">>, <<"cseq">>, <<"call-id">>, <<"max-forwards">>,
-                  <<"via">> ]).
-
--spec check_item(ersip_msg:item(), ersip:message()) -> ok | { error, term() }.
-check_item(type, Request) ->
-    case ersip_msg:get(type, Request) of
-        request -> ok;
-        _ ->
-            { error, request_message_expected }
-    end;
-check_item(Item, Request) ->
-    case ersip_msg:get(Item, Request) of
-        undefined ->
-            { error, { not_specified, Item } };
-        Item ->
-            check_value(Item)
-    end.
-
--spec check_value(_) -> ok.
-check_value(_) ->
-    %% TODO: check headers value here
-    ok.
-
--spec response_class(Code :: 100..699) -> provisional | final.
-response_class(Code) when is_integer(Code) ->
-    case Code div 100 of
-        1 ->
-            provisional;
-        _ ->
-            final
-    end.
+clear_reason_impl(#uac{ clear_reason = X }) ->
+    X.

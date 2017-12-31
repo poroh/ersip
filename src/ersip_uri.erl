@@ -27,16 +27,19 @@
                   | { host, ersip_host:host() }
                   | { port, 0..65535 }.
 
+-export_type([ uri/0 ]).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 -spec make(Parts :: [ list(uri_part()) ]) -> uri().
 make(Parts) ->
+    Init = #uri{ host = { ipv4, { 0, 0, 0, 0 } } },
     lists:foldl(fun(Option, URI) ->
                        set_part(Option, URI)
                 end,
-                #uri{},
+                Init,
                 Parts).
 
 %% @doc Parse URI from the binary
@@ -235,7 +238,7 @@ parse_and_add_param(Param, URI) ->
             set_param(Other, OtherVal, URI)
     end.
 
--spec parse_transport(binary()) -> { ok, transport() } | { error, { einval, atom() } }.
+-spec parse_transport(binary()) -> transport() | { error, { einval, transport } }.
 parse_transport(V) ->
     case ersip_bin:to_lower(V) of
         <<"tcp">> -> { transport, tcp };
@@ -252,9 +255,7 @@ parse_transport(V) ->
 
 %% userinfo         =  ( user / telephone-subscriber ) [ ":" password ] "@"
 %% password         =  *( unreserved / escaped / "&" / "=" / "+" / "$" / "," )
--spec check_userinfo(binary()) -> { { user, binary() }, { password, binary() } }
-                                | { user, binary() }
-                                | false.
+-spec check_userinfo(binary()) -> boolean().
 check_userinfo(Bin) ->
     case binary:split(Bin, <<":">>) of
         [ User, Password ] ->

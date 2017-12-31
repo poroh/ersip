@@ -22,3 +22,12 @@
 
 -type transport_atom() :: udp | tcp | tls | ws | wss.
 -type connection_id()  :: term().
+
+-type uac_options() :: #{ sip_t1 => pos_integer(),
+                          sip_t2 => pos_integer(),
+                          sip_t4 => pos_integer()
+                        }.
+-type uas_options() :: #{ sip_t1 => pos_integer() }.
+
+-export_type([ uac_options/0,
+               uas_options/0 ]).

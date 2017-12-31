@@ -19,10 +19,11 @@
 %% display-name   =  *(token LWS)/ quoted-string
 -spec parse(binary()) -> Result when
       Result :: { ok, { DisplayName :: { display_name, binary() | [ binary() ]},
-                        Addr :: ersip_uri:uri(),
-                        Rest :: binary()
-                      } }
-              | { error, { einval, term() } }.
+                        Addr :: ersip_uri:uri()
+                      },
+                  Rest :: binary()
+                }
+              | { error, { einval, atom() } }.
 parse(NameAddrBin) ->
     NA = ersip_bin:trim_head_lws(NameAddrBin),
     case parse_display_name(NA) of
@@ -50,7 +51,9 @@ parse(NameAddrBin) ->
 
 %% display-name   =  *(token LWS)/ quoted-string
 -spec parse_display_name(binary()) -> Result when
-      Result :: { DisplayName :: binary(), Rest :: binary() } | error.
+      Result :: { { display_name, DisplayName :: binary() | [ binary() ] },
+                  Rest :: binary() }
+              | error.
 parse_display_name(<<>>) ->
     error;
 parse_display_name(<<$", _/binary>> = Quoted) ->

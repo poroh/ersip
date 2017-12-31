@@ -62,7 +62,10 @@ serialize_rev_iolist(#header{} = Header, Acc) ->
     serialize_rev_iolist_impl(ensure_raw_values(Header), Acc).
 
 %% @doc Get integer value from the header.
--spec as_integer(header()) -> { ok, integer() } | { error, term() }.
+-spec as_integer(header()) -> { ok, integer() } | { error, Error } when
+      Error :: invalid_integer
+             | multiple_values
+             | no_header.
 as_integer(#header{ values = [ [ V ] ] })  when is_binary(V) ->
     case catch binary_to_integer(V) of
         Int when is_integer(Int) ->

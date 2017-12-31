@@ -10,11 +10,25 @@
 
 -module(ersip_uac).
 
--export([ new/3, event/2, clear_reason/1 ]).
+-export([ new/4, event/2, clear_reason/1, id/1 ]).
 
 -type result() :: { uac(), [ ersip_uac_se:effect() ] }.
 -type clear_reason() :: completed
                       | timeout.
+-type request() :: term().
+
+-export_type([ uac/0, result/0, clear_reason/0 ]).
+
+-record(uac, { id                           :: ersip_trans:tid(),
+               state       = fun 'Trying'/2 :: non_inv_state(),
+               request                      :: term(),
+               options                      :: map(),
+               reliable_transport           :: reliable | unreliable,
+               timers     = #{}             :: #{ reference() => timer_type(),
+                                                  timer_type() => reference() },
+               timer_e_timeout = 500        :: pos_integer(),
+               clear_reason    = undefined  :: clear_reason() | undefined
+             }).
 
 %%%===================================================================
 %%% API
@@ -22,14 +36,26 @@
 
 %% @doc Create new UAC transaction. Result of creation is UAC state
 %% and set of side effects that produced because of creation.
-%% Side effects are chained.
 %%
 %% Request is not interpretted in any way.
--spec new(IsReliableTransport :: boolean(), Request :: term(), ersip:uac_options()) -> result().
-new(IsReliableTransport, Request, Options) ->
-    new_impl(IsReliableTransport, Request, Options).
+-spec new(Id, Transport, Request, ersip:uac_options()) -> result() when
+      Id        :: ersip_trans:tid(),
+      Transport :: reliable | unreliable,
+      Request   :: request().
+new(Id, Transport, Request, Options) ->
+    new_impl(Id, Transport, Request, Options).
 
 %% @doc Process event by UAC.
+%%
+%% Function retuns new UAC state and side effects that must be done by
+%% caller.
+%%
+%% Defined events:
+%% { timer, TimerFun }         - timer alarm that was requested by previous side effect
+%% { resp, RespType, message } - response with type is recieved by UAC.
+%%
+%% Side effects are defined in module ersip_uac_ser
+%%
 -spec event(Event, uac()) -> result() when
       Event :: { timer, TimerFun }
              | { resp, ersip_status:response_type(), term() },
@@ -39,11 +65,16 @@ event({timer, TimerFun}, UAC) ->
 event(Evt, UAC) ->
     process_event(Evt, UAC).
 
+%% @doc Get tranaction ID.
+-spec id(uac()) -> ersip_trans:tid().
+id(#uac{ id = X }) ->
+    X.
+
 %% @doc Get transaction clear reason. It is guaranteed that after
 %% clear_trans side effect tranaction has defined clear reason.
 -spec clear_reason(uac()) -> clear_reason().
-clear_reason(UAC) ->
-    clear_reason_impl(UAC).
+clear_reason(#uac{ clear_reason = X }) ->
+    X.
 
 %%%===================================================================
 %%% Internal implementation
@@ -51,15 +82,6 @@ clear_reason(UAC) ->
 
 -type non_inv_state() :: fun((Event :: term(), uac()) -> result()).
 
--record(uac, { state       = fun 'Trying'/2 :: non_inv_state(),
-               request                      :: term(),
-               options                      :: map(),
-               reliable_transport           :: boolean(),
-               timers     = #{}             :: #{ reference() => timer_type(),
-                                                  timer_type() => reference() },
-               timer_e_timeout = 500        :: pos_integer(),
-               clear_reason    = undefined  :: clear_reason() | undefined
-             }).
 
 -type timer_type() :: timer_f
                     | timer_e
@@ -77,11 +99,15 @@ clear_reason(UAC) ->
 -define(T2(UAC), maps:get(sip_t2, UAC#uac.options)).
 -define(T4(UAC), maps:get(sip_t4, UAC#uac.options)).
 
--spec new_impl(IsReliableTransport :: boolean(), ersip:message(), ersip:uac_options()) -> result().
-new_impl(IsReliableTransport, Request, Options) ->
-    UAC = #uac{ request = Request,
+-spec new_impl(Id, Transport, Request, ersip:uac_options()) -> result() when
+      Id        :: ersip_trans:tid(),
+      Transport :: reliable | unreliable,
+      Request   :: request().
+new_impl(Id, ReliableTransport, Request, Options) ->
+    UAC = #uac{ id      = Id,
+                request = Request,
                 options = maps:merge(?default_options, Options),
-                reliable_transport = IsReliableTransport,
+                reliable_transport = ReliableTransport,
                 state   = fun 'Trying'/2
               },
     UAC1 = UAC#uac{ timer_e_timeout = ?T1(UAC) },
@@ -139,7 +165,7 @@ new_impl(IsReliableTransport, Request, Options) ->
             %% SHOULD move to the "Proceeding" state.
             UAC1 = set_state(fun 'Proceeding'/2, UAC),
             { UAC2, SideEffects } = process_event(enter, UAC1),
-            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] };
+            { UAC2, [ ersip_uac_se:tu_result(Msg, id(UAC)) | SideEffects ] };
         final ->
             %% If a final response (status codes 200-699) is
             %% received while in the "Trying" state, the
@@ -148,7 +174,7 @@ new_impl(IsReliableTransport, Request, Options) ->
             %% "Completed" state.
             UAC1 = set_state(fun 'Completed'/2, UAC),
             { UAC2, SideEffects } = process_event(enter, UAC1),
-            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
+            { UAC2, [ ersip_uac_se:tu_result(Msg, id(UAC)) | SideEffects ] }
     end.
 
 %%
@@ -194,7 +220,7 @@ new_impl(IsReliableTransport, Request, Options) ->
             %% "Completed" state.
             UAC1 = set_state(fun 'Completed'/2, UAC),
             { UAC2, SideEffects } = process_event(enter, UAC1),
-            { UAC2, [ ersip_uac_se:tu_result(Msg) | SideEffects ] }
+            { UAC2, [ ersip_uac_se:tu_result(Msg, id(UAC)) | SideEffects ] }
     end.
 
 %%
@@ -206,12 +232,12 @@ new_impl(IsReliableTransport, Request, Options) ->
              | timer_e
              | timer_k
              | { resp, ersip_status:response_type(), Msg :: term() }.
-'Completed'(enter, #uac{ reliable_transport = false } = UAC) ->
+'Completed'(enter, #uac{ reliable_transport = unreliable } = UAC) ->
     %% Once the client transaction enters the "Completed" state, it
     %% MUST set Timer K to fire in T4 seconds for unreliable
     %% transports, and zero seconds for reliable transports.
     collect_side_effects(UAC, [ fun set_timer_k/1 ]);
-'Completed'(enter, #uac{ reliable_transport = true } = UAC) ->
+'Completed'(enter, #uac{ reliable_transport = reliable } = UAC) ->
     terminate(completed, UAC);
 'Completed'({ resp, _, _ }, UAC) ->
     %% Just ignore response retransmission in 'Completed' state.q
@@ -255,12 +281,12 @@ process_event(Event, #uac{ state = StateF } = UAC) ->
 
 -spec send_request(uac()) -> { ersip_uac_se:effect(), uac() }.
 send_request(UAC) ->
-    { ersip_uac_se:send(UAC#uac.request), UAC }.
+    { ersip_uac_se:send(UAC#uac.request, id(UAC)), UAC }.
 
 -spec maybe_set_timer_e(uac()) -> uac() | result().
-maybe_set_timer_e(#uac{ reliable_transport = true } = UAC) ->
+maybe_set_timer_e(#uac{ reliable_transport = reliable } = UAC) ->
     UAC;
-maybe_set_timer_e(#uac{ reliable_transport = false } = UAC ) ->
+maybe_set_timer_e(#uac{ reliable_transport = unreliable } = UAC ) ->
     Timeout = UAC#uac.timer_e_timeout,
     set_timer(timer_e, Timeout, UAC).
 
@@ -269,14 +295,14 @@ set_timer_f(UAC) ->
     set_timer(timer_f, 64*?T1(UAC), UAC).
 
 -spec set_timer_k(uac()) -> { ersip_uac_se:effect(), uac() }.
-set_timer_k(#uac{ reliable_transport = false } = UAC ) ->
+set_timer_k(#uac{ reliable_transport = unreliable } = UAC ) ->
     set_timer(timer_k, ?T4(UAC), UAC).
 
 -spec set_timer(timer_type(), pos_integer(), uac()) -> { ersip_uac_se:effect(), uac() }.
 set_timer(Type, Time, UAC) ->
     TimerRef = { Type, make_ref() },
     TimerFun = make_timer_fun(TimerRef),
-    { ersip_uac_se:set_timer(Time, TimerFun), add_timer(TimerRef, UAC) }.
+    { ersip_uac_se:set_timer(Time, TimerFun, id(UAC)), add_timer(TimerRef, UAC) }.
 
 -spec add_timer({ timer_type(), reference() }, uac()) -> uac().
 add_timer({ TimerType, _ } = Ref, UAC) ->
@@ -330,5 +356,3 @@ collect_side_effects(UAC, Funs) ->
                 Record,
                 Funs).
 
-clear_reason_impl(#uac{ clear_reason = X }) ->
-    X.

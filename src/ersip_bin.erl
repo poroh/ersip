@@ -33,7 +33,7 @@ trim_head_lws(Binary) when is_binary(Binary) ->
 %%% internal implementation
 %%%===================================================================
 
--spec unicode_to_lower( char() ) -> char().
+-spec unicode_to_lower( byte() ) -> byte().
 unicode_to_lower(C) ->
     hd(string:to_lower([C])).
 

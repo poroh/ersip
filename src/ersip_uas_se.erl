@@ -7,7 +7,7 @@
 %% Side Effects Definition
 %%
 
--module(ersip_uac_se).
+-module(ersip_uas_se).
 
 -export([ new_trans/1,
           clear_trans/1,
@@ -34,15 +34,15 @@ new_trans(Trans) ->
 clear_trans(Trans) ->
     { clear_trans, [ Trans ] }.
 
-%% @doc Send message to the nexthop.
-send(RawMessage, Tid) ->
-    { send, [ RawMessage, Tid ] }.
-
 %% @doc Inform transaction user about transaction result.
-tu_result(Result, Tid) ->
-    { tu_result, [ Result, Tid ] }.
+tu_result(Result, TransId) ->
+    { tu_result, [ Result, TransId ] }.
+
+%% @doc Send respinse to the UAC.
+send(RawMessage, TransId) ->
+    { send, [ RawMessage, TransId ] }.
 
 %% @doc Set timer for specified time interval. After timeout is
 %% expired TimerFun must be called.
-set_timer(Timeout, TimerEv, Tid) ->
-    { set_timer, [ Timeout, TimerEv, Tid ] }.
+set_timer(Timeout, TimerEv, TransId) ->
+    { set_timer, [ Timeout, TimerEv, TransId ] }.

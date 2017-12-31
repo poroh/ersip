@@ -26,7 +26,7 @@
 
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
--type options() :: #{ buffer => ersip_msg:options() }.
+-type options() :: #{ buffer => ersip_buf:options() }.
 -type result()  :: more_data
                  | { error, term() }
                  | { ok, ersip:message() }.

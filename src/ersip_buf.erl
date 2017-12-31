@@ -66,7 +66,7 @@ set_eof(State) ->
 has_eof(#state{eof=EOF}) ->
     EOF.
 
--spec length(state()) -> integer().
+-spec length(state()) -> non_neg_integer().
 length(#state{ acclen = 0, acc = <<>>, eof = true } = State) -> 
     calc_length(?queue(State), 0).
 
@@ -127,8 +127,8 @@ read_till(Pattern, Pos, #state{ acc = A } = State) ->
             { ok, binary:part(A, 0, Start), State#state{ queue = Q, acc = <<>>, acclen = 0 } }
     end.
 
--spec read_more_to_acc(Len :: pos_integer(), state()) -> Result when
-      Result :: { ok, state() }
+-spec read_more_to_acc(Len :: non_neg_integer(), state()) -> Result when
+      Result :: { ok, iolist(), state() }
               | { more_data, state() }.
 read_more_to_acc(Len, #state{ acc = <<>> } = State) ->
     read_more_to_acc(Len, State#state{ acc = [] });

@@ -16,6 +16,8 @@
               | { ipv4,     inet:ip4_address() }
               | { ipv6,     inet:ip6_address() }.
 
+-export_type([ host/0 ]).
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -57,11 +59,15 @@ parse(Bin) when is_binary(Bin) ->
 %%% Internal implementation
 %%%===================================================================
 
+-type nonempty_binary() :: <<_:8,_:_*8>>.
+
 %% @private
 %% @doc Parse IPv6 reference
 %%
 %% IPv6reference  =  "[" IPv6address "]"
--spec parse_ipv6_reference(binary()) -> { ok, host() } | { error, einval }.
+-spec parse_ipv6_reference(nonempty_binary()) -> Result when
+      Result :: { ok, { ipv6, inet:ip6_address() } }
+              | { error, einval }.
 parse_ipv6_reference(<<$[, R/binary>>) when R =/= <<>> ->
     case binary:at(R, byte_size(R)-1) of
         $] ->
@@ -78,7 +84,7 @@ parse_ipv6_reference(<<$[, R/binary>>) when R =/= <<>> ->
 %% hexpart        =  hexseq / hexseq "::" [ hexseq ] / "::" [ hexseq ]
 %% hexseq         =  hex4 *( ":" hex4)
 %% hex4           =  1*4HEXDIG
--spec parse_ipv6_address(binary()) -> { ok, host() } | { error, einval }.
+-spec parse_ipv6_address(binary()) -> { ok, { ipv6, inet:ip6_address() } } | { error, einval }.
 parse_ipv6_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
     case inet:parse_address(L) of

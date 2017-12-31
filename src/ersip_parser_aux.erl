@@ -40,7 +40,7 @@ quoted_string(Quoted) ->
     end.
 
 %% @doc Parse token list separated with SEP
--spec token_list(binary(), SEP) -> { ok, [ Token ], Rest } | error when
+-spec token_list(binary(), SEP) -> { ok, [ Token, ... ], Rest } | error when
       SEP    :: separator(),
       Token  :: binary(),
       Rest   :: binary().
@@ -88,7 +88,7 @@ quoted_string_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F ->
 
 %% @private
 %% @doc get length of the first UTF8 character in binary
--spec utf8_len(binary()) -> { ok, Len :: pos_integer() } | error.
+-spec utf8_len(binary()) -> { ok, Len :: 1..6 } | error.
 utf8_len(<<ASCII:8, _/binary>>) when ASCII =< 16#7F ->
     { ok, 1 };
 utf8_len(<<UTF8_1:8, _:8, _/binary>>)
@@ -110,7 +110,11 @@ utf8_len(_) ->
     error.
 
 %% @private
--spec token_list_impl(binary(), [binary()], binary:cp()) -> { ok, Len :: pos_integer() } | error.
+-spec token_list_impl(binary(), [binary()], binary:cp()) -> Result when
+      Result :: { ok, [ Token, ... ], Rest }
+              | error,
+      Token  :: binary(),
+      Rest   :: binary().
 token_list_impl(Binary, Acc, CompPattern) ->
     case binary:split(Binary, CompPattern) of
         [ <<>>, Rest ] ->

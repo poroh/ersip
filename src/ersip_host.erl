@@ -155,6 +155,8 @@ toplabel_valid(_, rest) ->
 -spec domainlabel_valid( binary(), start | rest ) -> boolean().
 domainlabel_valid(<<>>, start) ->
     false;
+domainlabel_valid(<<Char/utf8>>, start) when ?is_alphanum(Char) ->
+    true;
 domainlabel_valid(<<Char/utf8, R/binary>>, start) when ?is_alphanum(Char) ->
     domainlabel_valid(R, rest);
 domainlabel_valid(<<Char/utf8>>, rest) when ?is_alphanum(Char) ->

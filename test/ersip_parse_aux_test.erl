@@ -10,6 +10,11 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+
+%%%===================================================================
+%%% Cases
+%%%===================================================================
+
 quoted_string_test() ->
     lists:foreach(fun(X) ->
                           qs_check_ok(X, <<>>, X)
@@ -48,13 +53,6 @@ quoted_string_test() ->
                   ]),
     qs_check_ok(<<"\"aaa\"">>, <<"bcd">>, <<"\"aaa\"bcd">>).
 
-qs_check_ok(Quoted, Rest, Sting) ->
-    ?assertEqual({ok, Quoted, Rest}, ersip_parser_aux:quoted_string(Sting)).
-
-qs_check_error(Sting) ->
-    ?assertEqual(error, ersip_parser_aux:quoted_string(Sting)).
-
-
 token_list_test() ->
     ?assertEqual({ ok, [ <<"a">>, <<"b">> ], <<>> }, ersip_parser_aux:token_list(<<"a b">>, lws)),
     ?assertEqual({ ok, [ <<"a">> ], <<>> }, ersip_parser_aux:token_list(<<"a">>, lws)),
@@ -65,8 +63,27 @@ token_list_test() ->
     ?assertEqual({ ok, [ <<"a">> ], <<"<sip:b> <sip:d>">> }, ersip_parser_aux:token_list(<<"a <sip:b> <sip:d>">>, lws)),
     ?assertEqual(error, ersip_parser_aux:token_list(<<"<sip:b> <sip:d>">>, lws)),
     ?assertEqual(error, ersip_parser_aux:token_list(<<"<sip:b>">>, lws)).
-    
+
+parse_gen_param_value_test() ->
+    ?assertEqual({ ok, <<"a">>, <<>> }, ersip_parser_aux:parse_gen_param_value(<<"a">>)),
+    ?assertEqual({ ok, <<"\"a\"">>, <<>> }, ersip_parser_aux:parse_gen_param_value(<<"\"a\"">>)),
+    ?assertEqual({ ok, { ipv6, { 0, 0, 0, 0, 0, 0, 0, 1 } }, <<>> }, ersip_parser_aux:parse_gen_param_value(<<"[::1]">>)).
+
+
+parse_lws_test() ->
+    ?assertEqual({ ok, { lws, 1 }, <<>> }, ersip_parser_aux:parse_lws(<<" ">>)),
+    ?assertEqual({ ok, { lws, 2 }, <<"xyz">> }, ersip_parser_aux:parse_lws(<<"  xyz">>)),
+    ?assertEqual({ ok, { lws, 3 }, <<"xyz">> }, ersip_parser_aux:parse_lws(<<"  ", 9, "xyz">>)),
+    ?assertMatch({ error, _ }, ersip_parser_aux:parse_lws(<<"xyz">>)).
 
 
 
+%%%===================================================================
+%%% Implementation
+%%%===================================================================
 
+qs_check_ok(Quoted, Rest, Sting) ->
+    ?assertEqual({ok, Quoted, Rest}, ersip_parser_aux:quoted_string(Sting)).
+
+qs_check_error(Sting) ->
+    ?assertEqual(error, ersip_parser_aux:quoted_string(Sting)).

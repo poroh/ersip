@@ -6,9 +6,6 @@
 %% SIP URI
 %%
 
--type transport() :: { transport, udp | tcp | tls | ws | wss }
-                   | { other_transport, binary() }.
-
 -record(uri, { scheme = sip       :: sip | sips,
                %% user: The identifier of a particular resource at the host being
                %%    addressed.  The term "host" in this context frequently refers
@@ -29,7 +26,7 @@
                port   = 5060      :: 1..65535,
                %% URI parameters: Parameters affecting a request constructed from
                %% the URI.
-               params = #{}       :: #{ transport => transport(),
+               params = #{}       :: #{ transport => ersip_transport:transport(),
                                         maddr     => ersip_host:host()
                                       }
              }).

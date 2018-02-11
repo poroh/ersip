@@ -190,10 +190,10 @@ parse_and_add_param(Param, URI) ->
             %%                      / other-transport)
             %% other-transport   =  token
             %%
-            case parse_transport(V) of
+            case ersip_transport:parse(V) of
                 { error, _ } = Err ->
                     Err;
-                T ->
+                { ok, T } ->
                     set_param(transport, T, URI)
             end;
 
@@ -236,21 +236,6 @@ parse_and_add_param(Param, URI) ->
         { Other, OtherVal } ->
             %% TODO check Other & OtherVal for compliance.
             set_param(Other, OtherVal, URI)
-    end.
-
--spec parse_transport(binary()) -> transport() | { error, { einval, transport } }.
-parse_transport(V) ->
-    case ersip_bin:to_lower(V) of
-        <<"tcp">> -> { transport, tcp };
-        <<"udp">> -> { transport, udp };
-        <<"tls">> -> { transport, tls };
-        <<"wss">> -> { transport, wss };
-        <<"ws">>  -> { transport, ws  };
-        Bin ->
-            case check_token(Bin) of
-                true  -> { other_transport, Bin };
-                false -> { error, { einval, transport } }
-            end
     end.
 
 %% userinfo         =  ( user / telephone-subscriber ) [ ":" password ] "@"

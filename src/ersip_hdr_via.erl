@@ -14,16 +14,24 @@
           sent_by/1 ]).
 
 
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
 -record(via, { sent_protocol  :: sent_protocol(),
-               sent_by        :: sent_by(),
+               sent_by        :: internal_sent_by(),
                via_params     :: via_params()
              }).
 -type via()           :: #via{}.
 -type sent_protocol() :: { sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport() }.
 -type branch()        :: { branch, binary() }.
 -type sent_by()       :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() }.
+-type internal_sent_by() :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port }.
 -type via_params()    :: #{}.
-
+-type known_via_params() :: branch
+                          | maddr
+                          | received
+                          | ttl.
 
 -export_type([ via/0, branch/0, sent_by/0 ]).
 
@@ -159,9 +167,12 @@ parse_via_params(Binary) ->
 -spec via_params_val(Key, Value) -> Result when
       Key    :: binary(),
       Value  :: binary(),
-      Result :: { ok, { Key :: term(), Value :: term() } }
-              | skip
-              | { error, term() }.
+      Result :: { ok, { ResultKey, ResultVal } }
+              | { error, term() },
+      ResultKey :: known_via_params() | binary(),
+      ResultVal :: non_neg_integer()
+                 | ersip_host:host()
+                 | binary().
 via_params_val(Key, novalue) ->
     { ok, { Key, true } };
 via_params_val(Key, Value) ->
@@ -172,9 +183,12 @@ via_params_val(Key, Value) ->
 -spec via_params_val_impl(Key, Value) -> Result when
       Key    :: binary(),
       Value  :: binary(),
-      Result :: { ok, { Key :: term(), Value :: term() } }
-              | skip
-              | { error, term() }.
+      Result :: { ok, { ResultKey, ResultVal } }
+              | { error, term() },
+      ResultKey :: known_via_params() | binary(),
+      ResultVal :: non_neg_integer()
+                 | ersip_host:host()
+                 | binary().
 via_params_val_impl(<<"ttl">>, Value) ->
     %% 1*3DIGIT ; 0 to 255
     case ersip_parser_aux:parse_non_neg_int(Value) of

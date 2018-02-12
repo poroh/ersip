@@ -26,8 +26,9 @@
 %%% Types
 %%%===================================================================
 
--type parse_result(T) :: { ok, ParseResult :: T, Rest :: binary() }
-                      | { error, Reason :: term() }.
+-type parse_result(T) :: parse_result(T, term()).
+-type parse_result(T, Err) :: { ok, ParseResult :: T, Rest :: binary() }
+                            | { error, Err }.
 -type parse_result() :: parse_result(term()).
 
 -type parser_fun()           :: fun((binary()) -> parse_result()).
@@ -87,13 +88,13 @@ check_token(Bin) ->
 -spec parse_all(binary(), [ ParserFun ]) -> ParseAllResult when
       ParserFun      :: fun((binary()) -> parse_result()),
       ParseAllResult :: { ok, [ ParseResult ], Rest :: binary() }
-                      | { error, { parse_error, term() } },
+                      | { error, term() },
       ParseResult    :: term().
 parse_all(Binary, Parsers) ->
     parse_all_impl(Binary, Parsers, []).
 
 %% @doc Parse SIP token
--spec parse_token(binary()) -> parse_result(binary()).
+-spec parse_token(binary()) -> parse_result(binary(), not_a_token).
 parse_token(Bin) ->
     End = find_token_end(Bin, 0),
     RestLen = byte_size(Bin) - End,
@@ -128,7 +129,7 @@ parse_sep(Sep, <<Sep/utf8, R/binary>>) ->
 parse_sep(Sep, Bin) ->
     { error, { no_separator, Sep, Bin} }.
 
--spec parse_non_neg_int(binary()) -> parse_result(non_neg_integer()).
+-spec parse_non_neg_int(binary()) -> parse_result(non_neg_integer(), { invalid_integer, binary() }).
 parse_non_neg_int(Bin) ->
     parse_non_neg_int_impl(Bin, start, 0).
 
@@ -285,9 +286,9 @@ compile_pattern(lws) ->
     binary:compile_pattern([ <<" ">>, <<"\t">> ]).
 
 -spec parse_all_impl(binary(), [ ParserFun ], Acc) -> ParseAllResult when
-      ParserFun      :: fun((binary()) -> { ok, ParseResult, Rest :: binary() }),
+      ParserFun      :: fun((binary()) -> parse_result()),
       ParseAllResult :: { ok, [ ParseResult ], Rest :: binary() }
-                      | { error, { parse_error, term() } },
+                      | { error, term() },
       ParseResult    :: term(),
       Acc            :: list().
 parse_all_impl(Binary, [], Acc) ->

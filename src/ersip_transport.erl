@@ -39,7 +39,11 @@ make(V) ->
             error(badarg)
     end.
 
--spec parse(binary() | transport_atom()) -> { ok, transport() } | { error, { einval, transport } }.
+-spec parse(binary() | transport_atom()) -> Result when
+      Result      :: { ok, transport() }
+                   | { error, ErrorReason  },
+      ErrorReason :: { bad_transport_atom, atom() }
+                   | { einval, transport }.
 parse(V) when is_binary(V) ->
     case parse_bin(V) of
         { error, _ } = Error ->
@@ -79,7 +83,7 @@ default_port({other_transport, _ } = T) ->
 %%% Internal implementation
 %%%===================================================================
 
--spec parse_bin(binary()) -> transport().
+-spec parse_bin(binary()) -> transport() | { error, { einval, transport } }.
 parse_bin(V) ->
     case ersip_bin:to_lower(V) of
         <<"tcp">> -> { transport, tcp };

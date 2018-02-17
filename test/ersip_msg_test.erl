@@ -16,7 +16,7 @@ message_set_test() ->
         [ { all,       type,   [ request, response ] },
           { response,  status, [ 100, 199, 200, 299, 300, 399, 400, 499, 500, 599 ] },
           { response,  reason, [ <<"OK">>, <<"Ringing">>, <<"Temorary Failure">> ] },
-          { request,   method, [ <<"REGISTER">>, <<"INVITE">>, <<"ACK">> ] },
+          { request,   method, lists:map(fun ersip_method:make/1, [ <<"REGISTER">>, <<"INVITE">>, <<"ACK">> ]) },
           { request,   ruri,   [ <<"sip:a@b">>, <<"sip:a@b:5060">>, <<"sip:a@b;tranport=tls">> ] }
         ],
     lists:foreach(fun({all, Item, Values}) ->
@@ -41,7 +41,7 @@ message_multiget_test() ->
                          ], M0),
     ?assertEqual(
        [ {type,   request},
-         {method, <<"INVITE">> }
+         {method, ersip_method:make(<<"INVITE">>) }
        ],
        ersip_msg:get([type, method], M1)).
 
@@ -59,7 +59,7 @@ message_empty_header_test() ->
 message_serialize_req_test() ->
     M0 = ersip_msg:new(),
     M1 = ersip_msg:set([ {type,   request},
-                         {method, <<"INVITE">> },
+                         {method, <<"INVITE">>},
                          {ruri,       <<"sip:alice@example.com">>},
                          {<<"Via">>,  <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>},
                          {<<"From">>, <<"sip:bob@biloxi.com">>},
@@ -101,6 +101,13 @@ message_serialize_resp_test() ->
                         ?crlf "CSeq: 1 INVITE"
                         ?crlf ?crlf>>,
     ?assertEqual(ExpectedMessage, ersip_msg:serialize_bin(M1)).
+
+message_set_invalid_method_test() ->
+    M0 = ersip_msg:new(),
+    ?assertError({ invalid_method_type, _ },
+                 ersip_msg:set([ {type,   request},
+                                 {method, ok } ],
+                               M0)).
 
 message_set(Type, Item, Values) ->
     lists:foreach(

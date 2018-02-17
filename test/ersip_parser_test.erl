@@ -66,6 +66,22 @@ truncated_message_test() ->
     P  = ersip_parser:new_dgram(Msg),
     { {error, {bad_message, _} }, _P2 } = ersip_parser:parse(P).
 
+invalid_method_test() ->
+    Msg = <<"INV@TE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: 4"
+      ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {error, {bad_message, _} }, _P2 } = ersip_parser:parse(P).
+
 no_content_len_test() ->
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
       ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"

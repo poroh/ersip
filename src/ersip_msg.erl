@@ -78,7 +78,15 @@ set(type, X, Message) ->
     Message#message{ type = { X, undefined, undefined } };
 set(status, Status, #message{ type = { response, _, X } } = Message) -> Message#message{ type = { response, Status,       X } };
 set(reason, Reason, #message{ type = { response, X, _ } } = Message) -> Message#message{ type = { response,      X,  Reason } };
-set(method, Method, #message{ type = { request,  _, X } } = Message) -> Message#message{ type = { request,  Method,       X } };
+set(method, Method, #message{ type = { request,  _, X } } = Message) -> 
+    case Method of
+        { method, _ } ->
+            Message#message{ type = { request,  Method,       X } };
+        MethodBin when is_binary(MethodBin) ->
+            Message#message{ type = { request,  ersip_method:make(Method), X } };
+        _ ->
+            error({invalid_method_type, Method })
+    end;
 set(ruri,   RURI,   #message{ type = { request,  X, _ } } = Message) -> Message#message{ type = { request,       X,    RURI } };
 set(body,   Body,   Message) -> Message#message{ body = Body };
 set(HeaderName, {mval, Values},  #message{ headers = H } = Message) ->
@@ -135,7 +143,7 @@ serialize(#message{} = Message) ->
 
 -spec serialize_first_line(message(), iolist()) -> iolist().
 serialize_first_line(#message{ type={request, Method, RURI} }, Acc) ->
-    [ <<" SIP/2.0">>, RURI, <<" ">>, Method | Acc ];
+    [ <<" SIP/2.0">>, RURI, <<" ">>, ersip_method:to_binary(Method) | Acc ];
 serialize_first_line(#message{ type={response, StatusCode, Reason} }, Acc) ->
     [ Reason, <<" ">>, integer_to_binary(StatusCode), <<"SIP/2.0 ">> | Acc ].
 

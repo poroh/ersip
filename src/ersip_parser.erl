@@ -137,6 +137,13 @@ parse_status_line(StatusLine, Data) ->
 parse_request_line(RequestLine, Data) when is_binary(RequestLine) ->
     Splitted = binary:split(RequestLine, <<" ">>, [global]),
     parse_request_line(Splitted, Data);
+parse_request_line([ MethodBin, RURI, <<"SIP/2.0">>], Data) when is_binary(MethodBin) ->
+    case ersip_method:parse(MethodBin) of
+        { ok, Method } ->
+            parse_request_line([ Method, RURI, <<"SIP/2.0">> ], Data);
+        { error, Reason } ->
+            make_error({ bad_message, Reason }, Data)
+    end;
 parse_request_line([ Method, RURI, <<"SIP/2.0">>], Data) ->
     Message  = ?message(Data),
     Message_ = ersip_msg:set([ { type,   request },

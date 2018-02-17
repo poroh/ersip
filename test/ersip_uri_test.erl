@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%

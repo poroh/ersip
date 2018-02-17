@@ -304,8 +304,6 @@ parse_all_impl(Binary, [ F | FRest ], Acc) ->
             parse_all_impl(BinRest, FRest, [ ParseResult | Acc ]);
         { error, Error } ->
             { error, Error };
-        Error ->
-            { error, { parse_error, Error } }
     end.
 
 -spec parse_non_neg_int_impl(binary(), State , Acc) -> parse_result(non_neg_integer()) when

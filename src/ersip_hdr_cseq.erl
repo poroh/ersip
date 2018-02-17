@@ -18,7 +18,7 @@
 %%% Types
 %%%===================================================================
 
--record(cseq, { method :: ersip_msg:method(),
+-record(cseq, { method :: ersip_method:method(),
                 number :: cseq_num()
               }).
 -type cseq_num() :: non_neg_integer().
@@ -29,7 +29,7 @@
 %%% API
 %%%===================================================================
 
--spec make(ersip_msg:method(), cseq_num()) -> cseq().
+-spec make(ersip_method:method(), cseq_num()) -> cseq().
 make(Method, Number) ->
     #cseq{ method = Method,
            number = Number }.
@@ -38,7 +38,7 @@ make(Method, Number) ->
 number(#cseq{ number = N }) ->
     N.
 
--spec method(cseq()) -> ersip_msg:method().
+-spec method(cseq()) -> ersip_method:method().
 method(#cseq{ method = M }) ->
     M.
 

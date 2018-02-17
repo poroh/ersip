@@ -327,7 +327,7 @@ check_token(Bin) ->
 -spec userinfo_key(undefined | { user, binary() }) ->
                           undefined | { user, binary() }.
 userinfo_key(undefined) ->
-    undefiend;
+    undefined;
 userinfo_key({user, Bin}) ->
     { user, ersip_bin:unquote_rfc_2396(Bin) }.
 
@@ -373,7 +373,9 @@ split_uri(Bin) ->
 
 -spec split_hostport(binary()) -> Result when
       Result :: { ok, { binary(), binary() } }
-              | { error, term() }.
+              | { error, Error },
+      Error :: { einval, invalid_ipv6_reference }
+             | { invalid_port, binary() }.
 split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
     case binary:match(IPv6RefPort, <<"]">>) of
         nomatch ->

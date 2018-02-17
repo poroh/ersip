@@ -17,7 +17,7 @@
          serialize_bin/1
         ]).
 
--type method() :: binary().
+-type method() :: ersip_method:method().
 -record(message, { type    = undefined :: { request,  method() | undefined, binary() | undefined }
                                         | { response, 100..699 | undefined, binary() | undefined }
                                         | undefined,

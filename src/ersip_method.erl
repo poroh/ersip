@@ -25,7 +25,8 @@
 %%%===================================================================
 
 -spec parse(binary()) ->  { ok, method() }
-                        | { error, term() }.
+                        | { error, Error } when
+      Error :: { invalid_method, binary() }.
 parse(Bin) ->
     case ersip_parser_aux:check_token(Bin) of
         true ->

@@ -77,6 +77,43 @@ parse_lws_test() ->
     ?assertMatch({ error, _ }, ersip_parser_aux:parse_lws(<<"xyz">>)).
 
 
+parse_kvp_test() ->
+    Validator = fun(Key, Value) -> { ok, { Key, Value } } end,
+    { ok,
+      [{<<"a">>, <<"b">> },
+       {<<"c">>, <<"d">> }
+      ],
+      <<>>
+    } = ersip_parser_aux:parse_kvps(Validator, <<";">>, <<"a=b;c=d">>),
+    TransformValidator = fun(Key, Value) -> { ok, { Key, binary_to_integer(Value) } } end,
+    { ok,
+      [{<<"a">>, 1 },
+       {<<"c">>, 2 }
+      ],
+      <<>>
+    } = ersip_parser_aux:parse_kvps(TransformValidator, <<";">>, <<"a=1;c=2">>),
+    SkipAValidator = fun(<<"a">>, _Value) ->
+                             skip;
+                        (Key, Value) ->
+                             { ok, { Key, Value } }
+                     end,
+    { ok,
+      [{<<"x">>, <<"1">> },
+       {<<"c">>, <<"2">> }
+      ],
+      <<>>
+    } = ersip_parser_aux:parse_kvps(SkipAValidator, <<";">>, <<"x=1;a=1;a;c=2">>),
+    ErrorAValidator = fun(<<"a">>, _Value) ->
+                              { error, unexpeted_a };
+                        (Key, Value) ->
+                             { ok, { Key, Value } }
+                     end,
+
+    { error, unexpeted_a }
+        = ersip_parser_aux:parse_kvps(ErrorAValidator, <<";">>, <<"x=1;a=1;a;c=2">>),
+   { error, unexpeted_a }
+        = ersip_parser_aux:parse_kvps(ErrorAValidator, <<";">>, <<"x=1;a;a=1;c=2">>).
+
 
 %%%===================================================================
 %%% Implementation

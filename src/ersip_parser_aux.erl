@@ -133,6 +133,11 @@ parse_sep(Sep, Bin) ->
 parse_non_neg_int(Bin) ->
     parse_non_neg_int_impl(Bin, start, 0).
 
+%% @doc Parse key-value pairs sepeated with Sep.
+%% Validator may:
+%% - transform key-value to another key/value pair
+%% - skip key-value pair
+%% - return error on pair
 -spec parse_kvps(Validator, Sep, binary()) -> parse_result([ { Key, Value } | Key ]) when
       Key   :: binary(),
       Value :: binary(),

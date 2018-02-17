@@ -11,6 +11,7 @@
 -export([ topmost_via/1,
           sent_protocol/1,
           params/1,
+          branch/1,
           sent_by/1 ]).
 
 
@@ -24,7 +25,6 @@
              }).
 -type via()           :: #via{}.
 -type sent_protocol() :: { sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport() }.
--type branch()        :: { branch, binary() }.
 -type sent_by()       :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() }.
 -type internal_sent_by() :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port }.
 -type via_params()    :: #{}.
@@ -33,7 +33,7 @@
                           | received
                           | ttl.
 
--export_type([ via/0, branch/0, sent_by/0 ]).
+-export_type([ via/0, sent_by/0 ]).
 
 %%%===================================================================
 %%% API
@@ -65,6 +65,11 @@ sent_by(#via{sent_by = {sent_by,Host,default_port}} = Via) ->
     {sent_by, Host, ersip_transport:default_port(Transport) };
 sent_by(#via{sent_by = SentBy}) ->
     SentBy.
+
+-spec branch(via()) -> ersip_branch:branch() | undefined.
+branch(#via{} = Via) ->
+    Params = params(Via),
+    maps:get(branch, Params, undefined).
 
 %%%===================================================================
 %%% Internal implementation
@@ -219,7 +224,7 @@ via_params_val_impl(<<"branch">>, Value) ->
     %% "branch" EQUAL token
     case ersip_parser_aux:parse_token(Value) of
         { ok, Branch, <<>> } ->
-            { ok, { branch, Branch } };
+            { ok, { branch, ersip_branch:make(Branch) } };
         _ ->
             { error, { invalid_branch, Value } }
     end;

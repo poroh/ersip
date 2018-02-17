@@ -53,7 +53,7 @@ topmost_via_via_params_test() ->
                HVia@0),
     { ok, Via } = ersip_hdr_via:topmost_via(HVia@1),
     ?assertMatch(
-       #{ branch   := <<"branch_v">>,
+       #{ branch   := { branch, <<"branch_v">> },
           ttl      := 200,
           received := { ipv4, { 1, 1, 1, 1 } },
           maddr    := { hostname, <<"x.com">> } },
@@ -66,7 +66,7 @@ topmost_via_via_params_ipv6_test() ->
                HVia@0),
     { ok, Via } = ersip_hdr_via:topmost_via(HVia@1),
     ?assertMatch(
-       #{ branch   := <<"branch_v">>,
+       #{ branch   := { branch, <<"branch_v">> },
           ttl      := 200,
           received := { ipv6, { 0, 0, 0, 0, 0, 0, 0, 1 } },
           maddr    := { ipv6, { 0, 0, 0, 0, 0, 0, 0, 1 } } },
@@ -79,7 +79,7 @@ topmost_via_via_gen_params_test() ->
                HVia@0),
     { ok, Via } = ersip_hdr_via:topmost_via(HVia@1),
     ?assertMatch(
-       #{ branch   := <<"branch_v">>,
+       #{ branch   := { branch, <<"branch_v">> },
           <<"my_param">> := <<"abc">> },
        ersip_hdr_via:params(Via)).
 
@@ -103,8 +103,13 @@ topmost_via_negative_test() ->
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=\"xyz\"">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;my_param=\"x">>).
 
-
-
+via_branch_test() ->
+    BranchValue = <<"z9hG4bK776asdhds">>,
+    ViaHdr = create_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=", BranchValue/binary>>),
+    Branch = ersip_branch:make(BranchValue),
+    { ok, Via } = ersip_hdr_via:topmost_via(ViaHdr),
+    ViaBranch = ersip_hdr_via:branch(Via),
+    ?assertEqual(ersip_branch:make_key(Branch),  ersip_branch:make_key(ViaBranch)).
 
 %%%===================================================================
 %%% Implementation

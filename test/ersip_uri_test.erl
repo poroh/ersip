@@ -11,12 +11,28 @@
 -include_lib("eunit/include/eunit.hrl").
 -include("ersip_uri.hrl").
 
+%%%===================================================================
+%%% Cases
+%%%===================================================================
+
 uri_test() ->
     ?assertEqual(
        { ok, #uri{ user = { user, <<"a">> },
                    host = { hostname, <<"b">> },
                    port = 5090 } },
        ersip_uri:parse(<<"sip:a@b:5090">>)),
+
+    ?assertEqual(
+       { ok, #uri{ user = { user, <<"a">> },
+                   host = { ipv4, { 1, 2, 3, 4 } },
+                   port = 5090 } },
+       ersip_uri:parse(<<"sip:a@1.2.3.4:5090">>)),
+
+    ?assertEqual(
+       { ok, #uri{ user = { user, <<"a">> },
+                   host = { ipv6, { 0, 0, 0, 0, 0, 0, 0, 1 } },
+                   port = 5090 } },
+       ersip_uri:parse(<<"sip:a@[::1]:5090">>)),
 
     ?assertEqual(
        { ok, #uri{ scheme = sips,
@@ -68,6 +84,9 @@ uri_test() ->
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:%">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:a.-">>)),
     ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:b:x">>)),
+    ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"sip:[::1">>)),
+    ?assertMatch({ error, { invalid_port, _ } }, ersip_uri:parse(<<"sip:[::1]:">>)),
+    ?assertMatch({ error, { invalid_port, _ } }, ersip_uri:parse(<<"sip:[::1]x">>)),
 
     ?assertEqual(
        { ok, #uri{ host = { hostname, <<"b">> }, params = #{ transport => { transport, tcp } } } },
@@ -127,7 +146,14 @@ uri_test() ->
     ?assertEqual(
        { ok, #uri{ host = { hostname, <<"b">> }, params = #{ <<"some">> => <<"1">> } }},
        ersip_uri:parse(<<"sip:b;Some=1">>)),
+    ?assertEqual(
+       { ok, #uri{ host = { hostname, <<"b">> },
+                   headers = #{ <<"some">> => <<"1">>,
+                                <<"another">> => <<"2">> } }},
+       ersip_uri:parse(<<"sip:b?Some=1&Another=2">>)),
 
+
+    ?assertMatch({ error, { einval, _ } }, ersip_uri:parse(<<"a@b">>)),
     ok.
 
 uri_make_test() ->
@@ -145,4 +171,80 @@ uri_make_test() ->
                                   { port, 5061 } ])),
     ?assertError(badarg, ersip_uri:make([ { host, { hostname, <<"a-b">> } } ])),
     ?assertError(badarg, ersip_uri:make([ { x, { user, <<"a-b">> } } ])).
-    
+
+uri_compare_test() ->
+        %% RFC 3261 test cases:
+
+    %% The URIs within each of the following sets are equivalent:
+    %%
+    %% sip:%61lice@atlanta.com;transport=TCP
+    %% sip:alice@AtLanTa.CoM;Transport=tcp
+    ?assertEqual(make_key(<<"sip:%61lice@atlanta.com;transport=TCP">>),
+                 make_key(<<"sip:alice@AtLanTa.CoM;Transport=tcp">>)),
+
+    %% sip:carol@chicago.com
+    %% sip:carol@chicago.com;newparam=5
+    %% sip:carol@chicago.com;security=on
+    ?assertEqual(make_key(<<"sip:carol@chicago.com">>),
+                 make_key(<<"sip:carol@chicago.com;newparam=5">>)),
+    ?assertEqual(make_key(<<"sip:carol@chicago.com">>),
+                 make_key(<<"sip:carol@chicago.com;security=on">>)),
+    ?assertEqual(make_key(<<"sip:carol@chicago.com;newparam=5">>),
+                 make_key(<<"sip:carol@chicago.com;security=on">>)),
+
+    %% sip:biloxi.com;transport=tcp;method=REGISTER?to=sip:bob%40biloxi.com
+    %% sip:biloxi.com;method=REGISTER;transport=tcp?to=sip:bob%40biloxi.com
+    ?assertEqual(make_key(<<"sip:biloxi.com;transport=tcp;method=REGISTER?to=sip:bob%40biloxi.com">>),
+                 make_key(<<"sip:biloxi.com;method=REGISTER;transport=tcp?to=sip:bob%40biloxi.com">>)),
+
+    %% sip:alice@atlanta.com?subject=project%20x&priority=urgent
+    %% sip:alice@atlanta.com?priority=urgent&subject=project%20x
+    ?assertEqual(make_key(<<"sip:alice@atlanta.com?subject=project%20x&priority=urgent">>),
+                 make_key(<<"sip:alice@atlanta.com?priority=urgent&subject=project%20x">>)),
+
+    ?assertEqual(make_key(<<"sip:1.1.1.1;transport=tcp">>),
+                 make_key(<<"sip:1.1.1.1;transport=tcp">>)),
+    ?assertEqual(make_key(<<"sip:[::1];transport=tcp">>),
+                 make_key(<<"sip:[::1];transport=tcp">>)),
+    ?assertEqual(make_key(<<"sip:[::1]:5060;transport=tcp">>),
+                 make_key(<<"sip:[::1]:5060;transport=tcp">>)),
+
+    %% The URIs within each of the following sets are not equivalent:
+
+    %% SIP:ALICE@AtLanTa.CoM;Transport=udp             (different usernames)
+    %% sip:alice@AtLanTa.CoM;Transport=UDP
+    ?assertNotEqual(make_key(<<"SIP:ALICE@AtLanTa.CoM;Transport=udp">>),
+                    make_key(<<"sip:alice@AtLanTa.CoM;Transport=UDP">>)),
+
+    %% sip:bob@biloxi.com                   (can resolve to different ports)
+    %% sip:bob@biloxi.com:5060
+    ?assertNotEqual(make_key(<<"sip:bob@biloxi.com">>),
+                    make_key(<<"sip:bob@biloxi.com:5060">>)),
+
+
+    %% sip:bob@biloxi.com              (can resolve to different transports)
+    %% sip:bob@biloxi.com;transport=udp
+    ?assertNotEqual(make_key(<<"sip:bob@biloxi.com">>),
+                    make_key(<<"sip:bob@biloxi.com;transport=udp">>)),
+
+    %% sip:bob@biloxi.com     (can resolve to different port and transports)
+    %% sip:bob@biloxi.com:6000;transport=tcp
+    ?assertNotEqual(make_key(<<"sip:bob@biloxi.com">>),
+                    make_key(<<"sip:bob@biloxi.com:6000;transport=tcp">>)),
+
+    %% sip:carol@chicago.com                    (different header component)
+    %% sip:carol@chicago.com?Subject=next%20meeting
+    ?assertNotEqual(make_key(<<"sip:carol@chicago.com">>),
+                    make_key(<<"sip:carol@chicago.com?Subject=next%20meeting">>)),
+
+    %% sip:bob@phone21.boxesbybob.com   (even though that's what
+    %% sip:bob@192.0.2.4                 phone21.boxesbybob.com resolves to)
+    ok.
+
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+make_key(Bin) ->
+    { ok, URI } = ersip_uri:parse(Bin),
+    ersip_uri:make_key(URI).

@@ -8,7 +8,10 @@
 
 -module(ersip_uri).
 
--export([ make/1, parse/1, set_param/3 ]).
+-export([ make/1,
+          make_key/1,
+          parse/1,
+          set_param/3 ]).
 
 -include("ersip_uri.hrl").
 -include("ersip_sip_abnf.hrl").
@@ -42,18 +45,50 @@ make(Parts) ->
                 Init,
                 Parts).
 
+%% @doc Make URI comparable with =:= erlang operator.  This means that
+%% if make_key(UriA) =:= make_key(UriB) then they equal by RFC3261 19.1.4 URI Comparison.
+-spec make_key(uri()) -> uri().
+make_key(#uri{} = URI) ->
+    #uri{
+       %% A SIP and SIPS URI are never equivalent.
+       scheme = URI#uri.scheme,
+       %%
+       %% Comparison of the userinfo of SIP and SIPS URIs is case-
+       %% sensitive.  This includes userinfo containing passwords or
+       %% formatted as telephone-subscribers.  Comparison of all other
+       %% components of the URI is case-insensitive unless explicitly
+       %% defined otherwise.
+       %%
+       %% For two URIs to be equal, the user, password, host, and port
+       %% components must match.
+       user  = userinfo_key(URI#uri.user),
+       host  = ersip_host:make_key(URI#uri.host),
+       port  = URI#uri.port,
+       params = params_key(URI#uri.params),
+       headers = headers_key(URI#uri.headers)
+      }.
+
+
 %% @doc Parse URI from the binary
 %% SIP-URI          =  "sip:" [ userinfo ] hostport
 %%                     uri-parameters [ headers ]
 %% SIPS-URI         =  "sips:" [ userinfo ] hostport
 %%                     uri-parameters [ headers ]
 -spec parse(binary()) -> { ok, uri() } | { error, { einval, atom() } }.
-parse(<<"sip:", R/binary>>) ->
-    parse_usesrinfo(sip, R);
-parse(<<"sips:", R/binary>>) ->
-    parse_usesrinfo(sips, R);
-parse(_) ->
-    { error, { einval, invalid_scheme } }.
+parse(Binary) ->
+    case split_scheme(Binary) of
+        { <<>>, _ } ->
+            { error, { einval, invalid_scheme } };
+        { S, R } ->
+            case ersip_bin:to_lower(S) of
+                <<"sip">> ->
+                    parse_usesrinfo(sip, R);
+                <<"sips">> ->
+                    parse_usesrinfo(sips, R);
+                _ ->
+                    { error, { einval, invalid_scheme } }
+            end
+    end.
 
 %% @doc set paramter of the URI
 -spec set_param(uri_param_name(), term(), uri()) -> uri().
@@ -101,38 +136,39 @@ parse_usesrinfo(Scheme, Bin) ->
       Scheme :: sip | sips,
       User   :: {user, binary() } | undefined.
 parse_hostport(Scheme, User, R) ->
-    { HostPort, Params } =
-        case binary:split(R, <<";">>) of
-            [ H, P ] ->
-                { H, P };
-            [ H ] ->
-                { H, <<>> }
-        end,
+    { HostPort, Params, Headers } = split_uri(R),
     URI =
-        case binary:split(HostPort, <<":">>) of
-            [ HostBin, PortBin ] ->
+        case split_hostport(HostPort) of
+            { ok, { HostBin, <<>> } } ->
+                case ersip_host:parse(HostBin) of
+                    { ok, Host } ->
+                        { ok,
+                          #uri{ scheme = Scheme,
+                                user   = User,
+                                host   = Host
+                              }
+                        };
+                    _ ->
+                        { error, { einval, host } }
+                end;
+            { ok, { HostBin, PortBin } } ->
                 case { ersip_host:parse(HostBin), parse_port(PortBin) } of
                     { { ok, Host }, { ok, Port } } ->
-                        #uri{ scheme = Scheme,
-                              user   = User,
-                              host   = Host,
-                              port   = Port
-                            };
+                        { ok,
+                          #uri{ scheme = Scheme,
+                                user   = User,
+                                host   = Host,
+                                port   = Port
+                              }
+                        };
                     _ ->
                         { error, { einval, hostport } }
                 end;
-            [ HostBin ] ->
-                case ersip_host:parse(HostBin) of
-                    { ok, Host } ->
-                        #uri{ scheme = Scheme,
-                              user   = User,
-                              host   = Host
-                            };
-                    _ ->
-                        { error, { einval, host } }
-                end
+            { error, _ } = Error ->
+                Error
         end,
-    maybe_add_params(URI, Params).
+    URI1 = maybe_add_params(URI, Params),
+    maybe_add_headers(URI1, Headers).
 
 %% port           =  1*DIGIT
 -spec parse_port(binary()) -> { ok, 0..65535 } |  { error, { einval, port } }.
@@ -148,13 +184,13 @@ parse_port(Bin) ->
 %% uri-parameter     =  transport-param / user-param / method-param
 %%                      / ttl-param / maddr-param / lr-param / other-param
 -spec maybe_add_params(UriOrError, binary()) -> { ok, uri() } | { error, { einval, atom() } } when
-      UriOrError :: uri()
+      UriOrError :: { ok, uri() }
                   | { error, { einval, atom() } }.
 maybe_add_params({error, _ } = Err, _) ->
     Err;
-maybe_add_params(#uri{} = URI, <<>>) ->
+maybe_add_params({ok, #uri{} = URI}, <<>>) ->
     { ok, URI };
-maybe_add_params(#uri{} = URI, ParamsBin) ->
+maybe_add_params({ok, #uri{} = URI}, ParamsBin) ->
     ParamsList = binary:split(ParamsBin, <<";">>),
     R =
         lists:foldl(fun(_, { error, _ } = Err) ->
@@ -170,6 +206,17 @@ maybe_add_params(#uri{} = URI, ParamsBin) ->
         Err ->
             Err
     end.
+
+-spec maybe_add_headers(UriOrError, binary()) -> { ok, uri() } | { error, { einval, atom() } } when
+      UriOrError :: uri()
+                  | { error, { einval, atom() } }.
+maybe_add_headers({ error, _ } = Err, _) ->
+    Err;
+maybe_add_headers({ ok, #uri{} = URI }, <<>>) ->
+    { ok, URI };
+maybe_add_headers({ ok, #uri{} = URI }, Headers) ->
+    { ok, HeadersList, <<>> } = ersip_parser_aux:parse_kvps(fun uri_header_validator/2, <<"&">>, Headers),
+    { ok, URI#uri{ headers = maps:from_list(HeadersList) } }.
 
 %% @private
 %% @doc Parse and add parameters described in RFC3261
@@ -274,3 +321,101 @@ check_password(_) ->
 
 check_token(Bin) ->
     ersip_parser_aux:check_token(Bin).
+
+%% @private
+%% @doc URI userinfo part key
+-spec userinfo_key(undefined | { user, binary() }) ->
+                          undefined | { user, binary() }.
+userinfo_key(undefined) ->
+    undefiend;
+userinfo_key({user, Bin}) ->
+    { user, ersip_bin:unquote_rfc_2396(Bin) }.
+
+%% @private
+%% @doc URI params key
+-spec params_key(uri_params()) -> uri_params().
+params_key(Params) ->
+    maps:with([ user, transport, ttl, method ], Params).
+
+%% @doc URI headers key
+-spec headers_key(uri_headers()) -> uri_headers().
+headers_key(Headers) ->
+    maps:map(fun(Key, Value) ->
+                     { Key,
+                       ersip_bin:unquote_rfc_2396(Value)
+                     }
+             end,
+             Headers).
+
+-spec split_scheme(binary()) -> { binary(), binary() }.
+split_scheme(Bin) ->
+    case binary:split(Bin, <<":">>) of
+        [ Scheme, Suffix ] ->
+            { Scheme, Suffix };
+        [ Suffix ] ->
+            { <<>>, Suffix }
+    end.
+
+-spec split_uri(binary()) -> { HostPort, Params, Headers } when
+      HostPort :: binary(),
+      Params   :: binary(),
+      Headers  :: binary().
+split_uri(Bin) ->
+    case binary:match(Bin, <<";">>) of
+        nomatch ->
+            { HostPort, Headers } = split_headers(Bin),
+            { HostPort, <<>>, Headers };
+        { _, 1 } ->
+            { HostPort, Rest } = split_params(Bin),
+            { Params, Headers } = split_headers(Rest),
+            { HostPort, Params, Headers }
+    end.
+
+-spec split_hostport(binary()) -> Result when
+      Result :: { ok, { binary(), binary() } }
+              | { error, term() }.
+split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
+    case binary:match(IPv6RefPort, <<"]">>) of
+        nomatch ->
+            { error, { einval, invalid_ipv6_reference } };
+        { Pos, 1 } when Pos + 1 =:= byte_size(IPv6RefPort) ->
+            %% No port specified
+            { ok, { IPv6RefPort, <<>> } };
+        { Pos, 1 } ->
+            Host = binary:part(IPv6RefPort, { 0, Pos+1 }),
+            Rest = binary:part(IPv6RefPort, { Pos+1, byte_size(IPv6RefPort)-Pos-1}),
+            case Rest of
+                <<$:, Port/binary>> when Port =/= <<>> ->
+                    { ok, { Host, Port } };
+                Else ->
+                    { error, { invalid_port, Else } }
+            end
+    end;
+split_hostport(IPOrHost) ->
+    case binary:split(IPOrHost, <<":">>) of
+        [ H, P ] ->
+            { ok, { H, P } };
+        [ H ] ->
+            { ok, { H, <<>> } }
+    end.
+
+-spec split_headers(binary()) -> { binary(), binary() }.
+split_headers(Bin) ->
+    case binary:split(Bin, <<"?">>) of
+        [ Prefix, Headers ] ->
+            { Prefix, Headers };
+        [ Prefix ] ->
+            { Prefix, <<>> }
+    end.
+
+
+-spec split_params(binary()) -> { binary(), binary() }.
+split_params(Bin) ->
+    case binary:split(Bin, <<";">>) of
+        [ Prefix, Headers ] ->
+            { Prefix, Headers }
+    end.
+
+-spec uri_header_validator(binary(), binary()) -> { ok, { binary(), binary() } }.
+uri_header_validator(Key, Value) ->
+    { ok, { ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Key)), Value } }.

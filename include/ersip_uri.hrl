@@ -23,12 +23,19 @@
                %%    RECOMMENDED whenever possible.
                host               :: ersip_host:host(),
                 %% port: The port number where the request is to be sent.
-               port   = 5060      :: 1..65535,
+               port               :: undefined | 1..65535,
                %% URI parameters: Parameters affecting a request constructed from
                %% the URI.
-               params = #{}       :: #{ transport => ersip_transport:transport(),
-                                        maddr     => ersip_host:host()
-                                      }
+               params = #{}       :: uri_params(),
+               %% URI headers
+               headers = #{}      :: uri_headers()
              }).
 
+-type uri_params() :: #{ transport => ersip_transport:transport(),
+                         maddr     => ersip_host:host(),
+                         ttl       => 0..255,
+                         user      => phone | ip | binary(),
+                         method    => binary()
+                       }.
+-type uri_headers() ::  #{ binary() => binary() }.
 -type uri() :: #uri{}.

@@ -23,3 +23,7 @@ trim_lws_test() ->
     ?assertEqual(<<>>, ersip_bin:trim_head_lws(<<>>)).
 
     
+unquote_test() ->
+    ?assertEqual(<<" ">>, ersip_bin:unquote_rfc_2396(<<"%20">>)),
+    ?assertEqual(<<"/">>, ersip_bin:unquote_rfc_2396(<<"%2f">>)),
+    ?assertEqual(<<"*/">>, ersip_bin:unquote_rfc_2396(<<"%2A%2F">>)).

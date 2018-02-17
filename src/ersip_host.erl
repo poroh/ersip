@@ -7,7 +7,10 @@
 %%
 
 -module(ersip_host).
--export([ is_host/1, parse/1 ]).
+-export([ is_host/1,
+          parse/1,
+          make_key/1
+        ]).
 
 -include("ersip_sip_abnf.hrl").
 
@@ -54,6 +57,14 @@ parse(Bin) when is_binary(Bin) ->
             { error, einval }
     end.
 
+%% @doc make comparable hostname (from rfc3261 comparision rules).
+-spec make_key(host()) -> host().
+make_key({ hostname, Bin }) ->
+    { hostname, ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Bin)) };
+make_key({ ipv4, _ } = H) ->
+    H;
+make_key({ ipv6, _ } = H) ->
+    H.
 
 %%%===================================================================
 %%% Internal implementation

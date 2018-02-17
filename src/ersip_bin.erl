@@ -8,7 +8,10 @@
 
 -module(ersip_bin).
 
--export([to_lower/1, trim_head_lws/1 ]).
+-export([ to_lower/1,
+          trim_head_lws/1,
+          unquote_rfc_2396/1
+        ]).
 
 %%%===================================================================
 %%% API
@@ -29,6 +32,11 @@ trim_head_lws(<<$\t, Rest/binary>>) ->
 trim_head_lws(Binary) when is_binary(Binary) ->
     Binary.
 
+%% @doc unqoute % HEX HEX format from RFC 2396
+-spec unquote_rfc_2396(binary()) -> binary().
+unquote_rfc_2396(String) when is_binary(String) ->
+    unquote_rfc_2396_iter(String, []).
+
 %%%===================================================================
 %%% internal implementation
 %%%===================================================================
@@ -37,3 +45,27 @@ trim_head_lws(Binary) when is_binary(Binary) ->
 unicode_to_lower(C) ->
     hd(string:to_lower([C])).
 
+unquote_rfc_2396_iter(<<>>, Acc) ->
+    list_to_binary(lists:reverse(Acc));
+unquote_rfc_2396_iter(<<$%, Hex1/utf8, Hex2/utf8, Rest/binary>>, Acc)
+  when ((Hex1 >= $0 andalso Hex1 =< $9)
+        orelse (Hex1 >= $A andalso Hex1 =< $F)
+        orelse (Hex1 >= $a andalso Hex1 =< $f))
+       andalso
+       ((Hex2 >= $0 andalso Hex2 =< $9)
+        orelse (Hex2 >= $A andalso Hex2 =< $F)
+        orelse (Hex2 >= $a andalso Hex2 =< $f)) ->
+    unquote_rfc_2396_iter(Rest, [ update_hex(update_hex(0, Hex1), Hex2) | Acc ]);
+unquote_rfc_2396_iter(<<C/utf8, Rest/binary>>, Acc) ->
+    unquote_rfc_2396_iter(Rest, [ C | Acc ]).
+
+%% @private
+%% @doc Helper for makeing HEX HEX to the character value
+-spec update_hex(char(), char()) -> char().
+
+update_hex(Val, Char) when Char >= $0 andalso Char =< $9 ->
+    Val * 16 + Char - $0;
+update_hex(Val, Char) when Char >= $A andalso Char =< $F ->
+    Val * 16 + Char - $A + 10;
+update_hex(Val, Char) when Char >= $a andalso Char =< $f ->
+    Val * 16 + Char - $a + 10.

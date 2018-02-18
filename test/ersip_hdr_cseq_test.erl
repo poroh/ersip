@@ -23,6 +23,7 @@ parse_test() ->
 
 parse_fail_test() ->
     ?assertMatch({error, _}, ersip_hdr_cseq:parse(create(<<"314159 INVITE x">>))),
+    ?assertMatch({error, _}, ersip_hdr_cseq:parse(create(<<"314159 INVITE, 31 ACK">>))),
     ?assertMatch({error, _}, ersip_hdr_cseq:parse(create(<<"123 INV@TE">>))),
     ?assertMatch({error, _}, ersip_hdr_cseq:parse(create(<<"abc INVITE">>))),
     NoValue = ersip_hdr:new(<<"CSeq">>),

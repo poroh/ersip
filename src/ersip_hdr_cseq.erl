@@ -59,13 +59,18 @@ method(#cseq{ method = M }) ->
 
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: { ok, cseq() }
-              | { error, term() }.
+              | { error, Error },
+      Error :: no_cseq
+             | multiple_cseqs
+             | { invalid_cseq, binary() }.
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
             { error, no_cseq };
         [ CSeqIOList ]  ->
-            parse_cseq(iolist_to_binary(CSeqIOList))
+            parse_cseq(iolist_to_binary(CSeqIOList));
+        _ ->
+            { error, multiple_cseqs }
     end.
 
 %%%===================================================================

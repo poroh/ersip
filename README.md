@@ -50,8 +50,8 @@ available.
 
 Idea of this project to provide SIP stack that:
 
-  + can be integrated anywhere in any other infratructure
-  + has 100% test coveage
+  + can be integrated anywhere in any other infrastructure
+  + has 100% test coverage
   + fully conformant with IETF standards and BCPs
 
 To do this this library provides high-level building blocks:

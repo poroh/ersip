@@ -2,7 +2,6 @@
 [![Build Status](https://travis-ci.org/poroh/ersip.svg?branch=master)](https://travis-ci.org/poroh/ersip) [![Coverage Status](https://coveralls.io/repos/github/poroh/ersip/badge.svg?branch=master)](https://coveralls.io/github/poroh/ersip?branch=master)
 
 # Erlang SIP
-==========
 
 Some time ago I found that there are no opensource SIP library
 that does not force you to some software design. All libraries
@@ -10,7 +9,6 @@ provides some framework that required in project if you want to use
 SIP.
 
 ## About Author
-------
 
 Dmitry Poroh:
 
@@ -37,7 +35,6 @@ beleive that SIP protocol is instrument the must be free and
 available.
 
 ## Roadmap
-------
 
   + Basic low-level parser (completed)
   + Essential headers support (in-progress)
@@ -50,7 +47,6 @@ available.
   + SIP proxy support 
 
 ## Basics
------
 
 Idea of this project to provide SIP stack that:
 
@@ -70,7 +66,6 @@ side effects that need to be implemented.
 
 
 ## Side effects
-------
 
 Following side effects must be implemented to use library
 
@@ -79,7 +74,6 @@ Following side effects must be implemented to use library
   + UA's side effects
 
 ## Transport-layer interaction
-------
 
 When transport layer receives new portion of data it need to feed
 buffer inside the UA.

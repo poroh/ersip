@@ -12,31 +12,31 @@ SIP.
 Roadmap
 ------
 
-    - Basic low-level parser (completed)
-    - Essential headers support (in-progress)
-    - Tranacation support
-      - Transaction table
-      - Non-INVITE transaction
-      - INVITE transaction
-    - Dialog support
-    - High-level UA support
-    - SIP proxy support 
+  + Basic low-level parser (completed)
+  + Essential headers support (in-progress)
+  + Tranacation support
+     - Transaction table
+     - Non-INVITE transaction
+     - INVITE transaction
+  + Dialog support
+  + High-level UA support
+  + SIP proxy support 
 
 Basics
 -----
 
 Idea of this project to provide SIP stack that:
 
-    - can be integrated anywhere in any other infratructure
-    - has 100% test coveage
-    - fully conformant with IETF standards and BCPs
+  + can be integrated anywhere in any other infratructure
+  + has 100% test coveage
+  + fully conformant with IETF standards and BCPs
 
 To do this this library provides high-level building blocks:
 
-    - SIP parser
-    - SIP message
-    - Transactions
-    - UAs
+  + SIP parser
+  + SIP message
+  + Transactions
+  + UAs
 
 All layers and objects has well-defined interface and well-defined
 side effects that need to be implemented.
@@ -47,9 +47,9 @@ Side effects
 
 Following side effects must be implemented to use library
 
-    - Timer set
-    - Send message
-    - UA's side effects
+  + Timer set
+  + Send message
+  + UA's side effects
 
 Transport-layer interaction
 ------

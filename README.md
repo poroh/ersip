@@ -4,46 +4,58 @@
 Erlang SIP
 ==========
 
-Goals
+Some time ago I found that there are no opensource SIP library
+that does not force you to some software design. All libraries
+provides some framework that required in project if you want to use
+SIP.
+
+Roadmap
+------
+
+    - Basic low-level parser (completed)
+    - Essential headers support (in-progress)
+    - Tranacation support
+      - Transaction table
+      - Non-INVITE transaction
+      - INVITE transaction
+    - Dialog support
+    - High-level UA support
+    - SIP proxy support 
+
+Basics
 -----
 
-Goal of the project to implement lightweight scalable SIP stack.
+Idea of this project to provide SIP stack that:
 
-I beleive that Erlang may become great telephony platform again :).
+    - can be integrated anywhere in any other infratructure
+    - has 100% test coveage
+    - fully conformant with IETF standards and BCPs
 
-Story decomposion
------------------
+To do this this library provides high-level building blocks:
 
-Defined layers:
+    - SIP parser
+    - SIP message
+    - Transactions
+    - UAs
 
-   - Parser
-   - Transport
-   - Transaction layer
-   - Dialog layer
+All layers and objects has well-defined interface and well-defined
+side effects that need to be implemented.
 
-### Parser and low level messages
 
-Low level parser operates with items:
+Side effects
+------
 
-   - Request Linee (for requests)
-   - Status Lines (for responses)
-   - Headers in generic manner (without parsing content)
-   - Body (without interpret it)
-   
-Low level parser is defined by module
-[ersip_parser](https://github.com/poroh/ersip/blob/master/src/ersip_parser.erl) and
-generates low level message
-[ersip_msg](https://github.com/poroh/ersip/blob/master/src/ersip_msg.erl).
+Following side effects must be implemented to use library
 
-### Transport
+    - Timer set
+    - Send message
+    - UA's side effects
 
-I avoid to implement transports in this project. Connection management
-is too specific and application-related task. Basicly you can use any
-widely available transports implementation like ranch or nkpacket or
-any other you like.
+Transport-layer interaction
+------
 
-TODO:
-    - ersip_ranch library
-    - ersip_nkpacket library
-    - ersip_cowboy library
+When transport layer receives new portion of data it need to feed
+buffer inside the UA.
 
+When UA needs to send new message it returns appropriate side-effect
+return code.

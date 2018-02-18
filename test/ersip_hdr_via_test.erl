@@ -111,6 +111,44 @@ via_branch_test() ->
     ViaBranch = ersip_hdr_via:branch(Via),
     ?assertEqual(ersip_branch:make_key(Branch),  ersip_branch:make_key(ViaBranch)).
 
+via_compare_test() ->
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>),
+    via_equal(<<"SIP/2.0/UDP BIGBOX3.SITE3.ATLANTA.COM;BRANCH=Z9HG4BK77EF4C2312983.1">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;ttl=1">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;TTL=1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=x.com">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=X.COM">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some=1">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;SOMe=1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
+
+    %% TODO we need fix for this:
+    %% via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
+    %%           <<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
+                  <<"SIP/2.0/TCP bigbox3.site3.atlanta.com">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
+                  <<"SIP/3.0/UDP bigbox3.site3.atlanta.com">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=2">>,
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=1">>).
+
+
+via_sent_by_key_test() ->
+    ViaHdr1 = create_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=x">>),
+    ViaHdr2 = create_via(<<"SIP/2.0/UDP BIGBOX3.SITE3.ATLANTA.COM;branch=y">>),
+    { ok, Via1 } = ersip_hdr_via:topmost_via(ViaHdr1),
+    { ok, Via2 } = ersip_hdr_via:topmost_via(ViaHdr2),
+    SentBy1 = ersip_hdr_via:sent_by_key(Via1),
+    SentBy2 = ersip_hdr_via:sent_by_key(Via2),
+    ?assertEqual(SentBy1, SentBy2).
+
+
 %%%===================================================================
 %%% Implementation
 %%%===================================================================
@@ -121,3 +159,13 @@ create_via(Bin) ->
 
 bad_topmost_via(Bin) ->
     ?assertMatch({error, _}, ersip_hdr_via:topmost_via(create_via(Bin))).
+
+via_equal(ViaBin1, ViaBin2) ->
+    { ok, Via1 } = ersip_hdr_via:topmost_via(create_via(ViaBin1)),
+    { ok, Via2 } = ersip_hdr_via:topmost_via(create_via(ViaBin2)),
+    ?assertEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).
+
+via_not_equal(ViaBin1, ViaBin2) ->
+    { ok, Via1 } = ersip_hdr_via:topmost_via(create_via(ViaBin1)),
+    { ok, Via2 } = ersip_hdr_via:topmost_via(create_via(ViaBin2)),
+    ?assertNotEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).

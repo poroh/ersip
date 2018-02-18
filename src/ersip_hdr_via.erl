@@ -12,7 +12,10 @@
           sent_protocol/1,
           params/1,
           branch/1,
-          sent_by/1 ]).
+          sent_by/1,
+          sent_by_key/1,
+          make_key/1
+        ]).
 
 
 %%%===================================================================
@@ -33,7 +36,9 @@
                           | received
                           | ttl.
 
--export_type([ via/0, sent_by/0 ]).
+-export_type([ via/0,
+               sent_by/0
+             ]).
 
 %%%===================================================================
 %%% API
@@ -66,10 +71,23 @@ sent_by(#via{sent_by = {sent_by,Host,default_port}} = Via) ->
 sent_by(#via{sent_by = SentBy}) ->
     SentBy.
 
+%% @doc Make comparable sent_by (adjusted to be comparable as erlang
+%% terms).
+-spec sent_by_key(via()) -> sent_by().
+sent_by_key(#via{} = Via) ->
+    sent_by_make_key(sent_by(Via)).
+
 -spec branch(via()) -> ersip_branch:branch() | undefined.
 branch(#via{} = Via) ->
     Params = params(Via),
     maps:get(branch, Params, undefined).
+
+-spec make_key(via()) -> via().
+make_key(#via{} = Via) ->
+    #via{ sent_protocol = sent_protocol_make_key(sent_protocol(Via)),
+          sent_by       = sent_by_make_key(sent_by(Via)),
+          via_params    = via_params_make_key(params(Via))
+        }.
 
 %%%===================================================================
 %%% Internal implementation
@@ -235,3 +253,31 @@ via_params_val_impl(Key, Value) ->
         _ ->
             { error, { invalid_gen_param, { Key, Value } } }
     end.
+
+-spec sent_protocol_make_key(sent_protocol()) -> sent_protocol().
+sent_protocol_make_key(Protocol) ->
+    Protocol.
+
+-spec sent_by_make_key(sent_by()) -> sent_by().
+sent_by_make_key({ sent_by, Host, Port }) ->
+    { sent_by, ersip_host:make_key(Host), Port }.
+
+-spec via_params_make_key(via_params()) -> via_params().
+via_params_make_key(Params) ->
+    maps:map(fun via_param_make_key/2, Params).
+
+-spec via_param_make_key(Key, Value) -> { NewKey, NewValue } when
+      Key    :: known_via_params() | binary(),
+      Value  :: term(),
+      NewKey :: known_via_params() | binary(),
+      NewValue :: term().
+via_param_make_key(ttl, V) ->
+    { ttl, V };
+via_param_make_key(branch, B) ->
+    { branch, ersip_branch:make_key(B) };
+via_param_make_key(maddr, Maddr) ->
+    { maddr, ersip_host:make_key(Maddr) };
+via_param_make_key(received, R) ->
+    { received, R };
+via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
+    { ersip_bin:to_lower(OtherKey), OtherValue }.

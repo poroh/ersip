@@ -8,7 +8,9 @@
 
 -module(ersip_hdr_cseq).
 
--export([ make/2,
+-export([ make/1,
+          make/2,
+          make_key/1,
           number/1,
           method/1,
           parse/1 ]).
@@ -29,10 +31,23 @@
 %%% API
 %%%===================================================================
 
+-spec make(ersip_hdr:header()) -> cseq().
+make(Header) ->
+    case parse(Header) of
+        { ok, CSeq } ->
+            CSeq;
+        Error ->
+            error(Error)
+    end.
+
 -spec make(ersip_method:method(), cseq_num()) -> cseq().
 make(Method, Number) ->
     #cseq{ method = Method,
            number = Number }.
+
+-spec make_key(cseq()) -> cseq().
+make_key(CSeq) ->
+    CSeq.
 
 -spec number(cseq()) -> cseq_num().
 number(#cseq{ number = N }) ->

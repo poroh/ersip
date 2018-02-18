@@ -85,6 +85,12 @@ parse_kvp_test() ->
       ],
       <<>>
     } = ersip_parser_aux:parse_kvps(Validator, <<";">>, <<"a=b;c=d">>),
+    { ok,
+      [{<<"a">>, <<"b">> },
+       {<<"c">>, <<"d">> }
+      ],
+      <<>>
+    } = ersip_parser_aux:parse_kvps(Validator, <<";">>, <<" a = b ; c = d">>),
     TransformValidator = fun(Key, Value) -> { ok, { Key, binary_to_integer(Value) } } end,
     { ok,
       [{<<"a">>, 1 },

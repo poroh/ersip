@@ -322,7 +322,9 @@ parse_non_neg_int_impl(Rest, rest, Acc) ->
       KVPsMapFun :: fun((list()) -> { term(), term() }).
 parse_kvps_make_validator_func(Validator) ->
     fun([ Key, Value ]) ->
-            case Validator(Key, Value) of
+            TKey = ersip_bin:trim_lws(Key),
+            TVal = ersip_bin:trim_lws(Value),
+            case Validator(TKey, TVal) of
                 { ok, { K, V } } ->
                     {true, { K, V }};
                 skip ->
@@ -331,7 +333,8 @@ parse_kvps_make_validator_func(Validator) ->
                     throw(Error)
             end;
        ([ Key ]) ->
-            case Validator(Key, novalue) of
+            TKey = ersip_bin:trim_lws(Key),
+            case Validator(TKey, novalue) of
                 { ok, { K, V } } ->
                     {true, { K, V }};
                 skip ->

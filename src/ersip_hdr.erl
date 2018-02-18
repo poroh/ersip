@@ -24,7 +24,7 @@
 
 -record(header, { name        :: binary(),
                   key         :: header_key(),
-                  values = [] :: [ iolist() ]
+                  values = [] :: [ iolist() | binary() ]
                 }).
 
 -type header() :: #header{}.
@@ -79,7 +79,7 @@ serialize_rev_iolist(#header{} = Header, Acc) ->
       Error :: invalid_integer
              | multiple_values
              | no_header.
-as_integer(#header{ values = [ V ] })  when is_binary(V) ->
+as_integer(#header{ values = [ V ] }) when is_binary(V) ->
     case catch binary_to_integer(V) of
         Int when is_integer(Int) ->
             { ok, Int };

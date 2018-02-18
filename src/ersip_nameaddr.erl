@@ -41,6 +41,25 @@ parse(NameAddrBin) ->
                 _ ->
                     { error, { einval, address } }
             end;
+        { { display_name, [] } = DN, <<R/binary>> } ->
+            case binary:match(R, <<";">>) of
+                { Pos, 1 } ->
+                    Addr = binary:part(R, 0, Pos),
+                    case ersip_uri:parse(Addr) of
+                        { ok, URI } ->
+                            RestLen = byte_size(R) - byte_size(Addr),
+                            { ok, { DN, URI}, binary:part(R, Pos, RestLen) };
+                        Error ->
+                            Error
+                    end;
+                _ ->
+                    case ersip_uri:parse(R) of
+                        { ok, URI } ->
+                            { ok, { DN, URI}, <<>> };
+                        Error ->
+                            Error
+                    end
+            end;
         error ->
             { error, {einval, address} }
     end.
@@ -66,9 +85,14 @@ parse_display_name(<<$", _/binary>> = Quoted) ->
 parse_display_name(<<Char/utf8, _/binary>> = TL) when ?is_token_char(Char) ->
     case ersip_parser_aux:token_list(TL, lws) of
         { ok,  Tokens, Rest } ->
-            { { display_name,  Tokens }, Rest };
+            case Rest of
+                <<"<", _/binary>> ->
+                    { { display_name,  Tokens }, Rest };
+                _ ->
+                    { { display_name, [] }, TL }
+            end;
         error ->
-            error
+            { { display_name, [] }, TL }
     end;
 parse_display_name(<<"<", _/binary>> = Addr) ->
     { { display_name, [] }, Addr }.

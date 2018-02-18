@@ -49,7 +49,28 @@ nameaddr_parse_test() ->
         Ex4URI
       },
       <<";tag=a6c85cf">>
-    } = ersip_nameaddr:parse(Ex4).
+    } = ersip_nameaddr:parse(Ex4),
+
+    Ex5 = <<"sip:bob-smith@biloxi.com;tag=a6c85cf">>,
+    { ok, Ex5Host } = ersip_host:parse(<<"biloxi.com">>),
+    Ex5URI = ersip_uri:make([ { user, <<"bob-smith">> }, { host, Ex5Host } ]),
+    { ok,
+      { { display_name, [] },
+        Ex5URI
+      },
+      <<";tag=a6c85cf">>
+    } = ersip_nameaddr:parse(Ex5),
+
+    Ex6 = <<"sip:bob-smith@biloxi.com">>,
+    { ok, Ex6Host } = ersip_host:parse(<<"biloxi.com">>),
+    Ex6URI = ersip_uri:make([ { user, <<"bob-smith">> }, { host, Ex6Host } ]),
+    { ok,
+      { { display_name, [] },
+        Ex6URI
+      },
+      <<>>
+    } = ersip_nameaddr:parse(Ex6).
+
 
 nameaddr_neg_parse_test() ->
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<>>)),
@@ -61,4 +82,6 @@ nameaddr_neg_parse_test() ->
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.com">>)),
     %% Ivalid host name
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.->">>)),
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:1.2.3.4.5>">>)).
+    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"1.2.3.4">>)),
+    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"abc:1.2.3.4">>)), 
+    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"abc:1.2.3.4;tag=a6c85cf">>)). 

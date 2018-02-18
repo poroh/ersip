@@ -50,7 +50,10 @@ message_get_header_test() ->
     M1 = ersip_msg:add(<<"Some-Header">>,  ["1"], M0),
     M2 = ersip_msg:add(<<"Some-Header">>,  [<<"a">>, "b"], M1),
     Hdr = ersip_msg:get(<<"SOME-HEADER">>, M2),
-    ?assertEqual([ ["1"], [ <<"a">>, "b" ] ],  ersip_hdr:raw_values(Hdr) ).
+    ?assertEqual(lists:map(fun iolist_to_binary/1,
+                           [ ["1"], [ <<"a">>, "b" ] ]),
+                 lists:map(fun iolist_to_binary/1,
+                           ersip_hdr:raw_values(Hdr) )).
 
 message_empty_header_test() ->
     M0 = ersip_msg:new(),

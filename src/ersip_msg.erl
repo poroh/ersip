@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% SIP message
+%% Raw SIP message
 %%
 
 -module(ersip_msg).
@@ -76,9 +76,11 @@ set(type, _X, #message{ type = { _X, _, _ } } = Message) ->
     Message;
 set(type, X, Message) ->
     Message#message{ type = { X, undefined, undefined } };
-set(status, Status, #message{ type = { response, _, X } } = Message) -> Message#message{ type = { response, Status,       X } };
-set(reason, Reason, #message{ type = { response, X, _ } } = Message) -> Message#message{ type = { response,      X,  Reason } };
-set(method, Method, #message{ type = { request,  _, X } } = Message) -> 
+set(status, Status, #message{ type = { response, _, X } } = Message) ->
+    Message#message{ type = { response, Status,       X } };
+set(reason, Reason, #message{ type = { response, X, _ } } = Message) ->
+    Message#message{ type = { response,      X,  Reason } };
+set(method, Method, #message{ type = { request,  _, X } } = Message) ->
     case Method of
         { method, _ } ->
             Message#message{ type = { request,  Method,       X } };

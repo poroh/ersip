@@ -10,7 +10,15 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-trim_lws_test() ->
+is_emtpy_test() ->
+    ?assertEqual(true, ersip_iolist:is_empty(<<>>)),
+    ?assertEqual(true, ersip_iolist:is_empty([])),
+    ?assertEqual(true, ersip_iolist:is_empty([ <<>> ])),
+    ?assertEqual(true, ersip_iolist:is_empty([ [], <<>> ])),
+    ?assertEqual(true, ersip_iolist:is_empty([ [], [<<>>] ])),
+    ?assertEqual(true, ersip_iolist:is_empty([ [], [] ])).
+
+trim_head_lws_test() ->
     ?assertEqual([], ersip_iolist:trim_head_lws([<<>>])),
     ?assertEqual([], ersip_iolist:trim_head_lws([])),
     ?assertEqual(<<>>, ersip_iolist:trim_head_lws(<<>>)),
@@ -24,5 +32,17 @@ trim_lws_test() ->
     ?assertEqual([<<"abc">>], ersip_iolist:trim_head_lws(["", <<" abc">>])),
     ?assertEqual(["abc"], ersip_iolist:trim_head_lws([<<>>, " abc"])).
 
-    
-
+trim_tail_lws_test() ->
+    ?assertEqual([],          ersip_iolist:trim_tail_lws([<<>>])),
+    ?assertEqual([],          ersip_iolist:trim_tail_lws([])),
+    ?assertEqual(<<>>,        ersip_iolist:trim_tail_lws(<<>>)),
+    ?assertEqual("abc",       ersip_iolist:trim_tail_lws("abc \t")),
+    ?assertEqual("abc",       ersip_iolist:trim_tail_lws("abc\t ")),
+    ?assertEqual(<<"abc">>,   ersip_iolist:trim_tail_lws(<<"abc \t">>)),
+    ?assertEqual(<<"abc">>,   ersip_iolist:trim_tail_lws(<<"abc\t ">>)),
+    ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc", <<>>])),
+    ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc ", <<>>])),
+    ?assertEqual([<<"abc">>], ersip_iolist:trim_tail_lws([<<"abc ">>])),
+    ?assertEqual([<<"abc">>], ersip_iolist:trim_tail_lws([<<"abc ">>, ""])),
+    ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc ", <<>>])),
+    ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc ", <<" ">>, <<" ">>])).

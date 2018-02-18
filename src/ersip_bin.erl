@@ -7,9 +7,12 @@
 %%
 
 -module(ersip_bin).
+-include("ersip_sip_abnf.hrl").
 
 -export([ to_lower/1,
+          trim_lws/1,
           trim_head_lws/1,
+          trim_tail_lws/1,
           unquote_rfc_2396/1
         ]).
 
@@ -22,6 +25,12 @@ to_lower(Binary) when is_binary(Binary) ->
     << <<(unicode_to_lower(C))/utf8>> || <<C/utf8>> <= Binary >>;
 to_lower(Binary) -> erlang:error(badarg, [Binary]).
 
+-spec trim_lws( binary() ) -> binary().
+trim_lws(Bin0) ->
+    Bin1 = trim_head_lws(Bin0),
+    Bin2 = trim_tail_lws(Bin1),
+    Bin2.
+
 -spec trim_head_lws( binary() ) -> binary().
 trim_head_lws(<<>>) ->
     <<>>;
@@ -31,6 +40,19 @@ trim_head_lws(<<$\t, Rest/binary>>) ->
     trim_head_lws(Rest);
 trim_head_lws(Binary) when is_binary(Binary) ->
     Binary.
+
+-spec trim_tail_lws( binary() ) -> binary().
+trim_tail_lws(<<>>) ->
+    <<>>;
+trim_tail_lws(Bin) ->
+    Len = byte_size(Bin),
+    LastChar = binary:at(Bin, Len-1),
+    case LastChar of
+        Char when ?is_LWS_char(Char)->
+            trim_tail_lws(binary:part(Bin, { 0, Len-1 }));
+        _ ->
+            Bin
+    end.
 
 %% @doc unqoute % HEX HEX format from RFC 2396
 -spec unquote_rfc_2396(binary()) -> binary().

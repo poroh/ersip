@@ -16,38 +16,51 @@
           serialize_rev_iolist/2,
           as_integer/1
         ]).
+-export_type([ header/0 ]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
 
 -record(header, { name        :: binary(),
+                  key         :: header_key(),
                   values = [] :: [ iolist() ]
                 }).
 
 -type header() :: #header{}.
--export_type([header/0 ]).
+-type header_key() :: { hdr_key, binary() }.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 %% @doc Create key by the header name.
-%% TODO: In future I plan to add here short names support.
--spec make_key(Name :: binary()) -> { hdr_key, binary() }.
+-spec make_key(NameOrHeader) -> header_key() when
+      NameOrHeader :: binary() | header().
+make_key(#header{ key = Key }) ->
+    Key;
 make_key(HeaderName) ->
-    { hdr_key, ersip_bin:to_lower(HeaderName) }.
+    { hdr_key, ersip_hdr_names:compact_form(HeaderName) }.
 
 %% @doc Create new headers.
 -spec new(Name :: binary()) -> header().
 new(Name) when is_binary(Name) ->
-    #header{ name = Name }.
+    #header{ name = Name,
+             key  = make_key(Name)
+           }.
 
 %% @doc Append value to list of values.
 -spec add_value(Value :: iolist(), header()) -> header().
-add_value(Value, #header{ values = V } = Hdr) ->
-    Hdr#header{ values = V ++ [ Value ] }.
+add_value(Value, #header{ values = V, key = Key } = Hdr) ->
+    Values = comma_split(Key, Value),
+    Hdr#header{ values = V ++ Values }.
 
 %% @doc Append list of values to headr's list of values.
 -spec add_values(Value :: [ iolist() ], header()) -> header().
-add_values(Values, #header{ values = V } = Hdr) ->
-    Hdr#header{ values = V ++ Values }.
+add_values(Values, #header{} = Hdr) ->
+    lists:foldl(fun add_value/2,
+                Hdr,
+                Values).
 
 %% @doc Return raw values of the header.
 -spec raw_values(header()) -> [ iolist() ].
@@ -66,7 +79,7 @@ serialize_rev_iolist(#header{} = Header, Acc) ->
       Error :: invalid_integer
              | multiple_values
              | no_header.
-as_integer(#header{ values = [ [ V ] ] })  when is_binary(V) ->
+as_integer(#header{ values = [ V ] })  when is_binary(V) ->
     case catch binary_to_integer(V) of
         Int when is_integer(Int) ->
             { ok, Int };
@@ -75,7 +88,7 @@ as_integer(#header{ values = [ [ V ] ] })  when is_binary(V) ->
     end;
 as_integer(#header{ values = [ V ] } = H) when is_list(V) ->
     Bin = iolist_to_binary(V),
-    as_integer(H#header{ values = [ [ Bin ] ] });
+    as_integer(H#header{ values = [ Bin ] });
 as_integer(#header{ values = [] }) ->
     { error, no_header };
 as_integer(#header{ values = [_,_ |_] }) ->
@@ -102,3 +115,26 @@ serialize_rev_iolist_impl(#header{ name = Name, values = [V | Rest] } = H, []) -
 serialize_rev_iolist_impl(#header{ name = Name, values = [V | Rest] } = H, Acc) ->
     serialize_rev_iolist_impl(H#header{ values = Rest },
                               [ V, <<": ">>, Name, <<"\r\n">> | Acc ]).
+
+%% @private
+%% @doc split headers with comma:
+%% RFC 3261 7.3.1 Header Field Format
+%% It MUST be possible to combine the multiple
+%% header field rows into one "field-name: field-value" pair, without
+%% changing the semantics of the message, by appending each subsequent
+%% field-value to the first, each separated by a comma.  The exceptions
+%% to this rule are the WWW-Authenticate, Authorization, Proxy-
+%% Authenticate, and Proxy-Authorization header fields.
+-spec comma_split(header_key(), iolist()) -> [ iolist() ].
+comma_split({ hdr_key, <<"www-authenticate">> }, V) ->
+    [ ersip_iolist:trim_lws(V) ];
+comma_split({ hdr_key, <<"authorization">> }, V) ->
+    [ ersip_iolist:trim_lws(V) ];
+comma_split({ hdr_key, <<"proxy-authenticate">> }, V) ->
+    [ ersip_iolist:trim_lws(V) ];
+comma_split({ hdr_key, <<"proxy-authorization">> }, V) ->
+    [ ersip_iolist:trim_lws(V) ];
+comma_split(_, V) ->
+    Bin = iolist_to_binary(V),
+    lists:map(fun ersip_bin:trim_lws/1,
+              binary:split(Bin, <<",">>, [ global ])).

@@ -27,8 +27,8 @@ Also I have experience in VOIP area:
 
   + Private PBX implementation based on FreeSWITCH
   + Multipoint Control Unit (developed from scratch)
-  + MSML-capable Audio Media Gateway
-  + Session Border Controller
+  + MSML-capable Audio Media Gateway (developed from scratch)
+  + Session Border Controller (developed from scratch)
 
 I try to contribute all my experience to this project because I
 beleive that SIP protocol is instrument the must be free and

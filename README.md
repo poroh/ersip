@@ -38,7 +38,7 @@ available.
 
   + Basic low-level parser (completed)
   + Essential headers support (in-progress)
-  + Tranacation support
+  + Transaction support
      - Transaction table
      - Non-INVITE transaction
      - INVITE transaction

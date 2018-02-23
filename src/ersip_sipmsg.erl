@@ -54,6 +54,8 @@ get(HdrAtom, #sipmsg{} = Msg) ->
     case find(HdrAtom, Msg) of
         { ok, Value } ->
             Value;
+        not_found ->
+            error({ error, { no_header, HdrAtom } });
         { error, _ } = Error ->
             error(Error)
     end.

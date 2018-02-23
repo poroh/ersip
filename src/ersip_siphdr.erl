@@ -106,7 +106,7 @@ is_required(_, all) ->
     true;
 is_required(#required_essentials{ type = T }, T) ->
     true;
-is_required(#required_essentials{ has_body = true }, body) ->
+is_required(#required_essentials{ has_body = true }, with_body) ->
     true;
 is_required(#required_essentials{}, _) ->
     false;

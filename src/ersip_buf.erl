@@ -82,7 +82,7 @@ read_till_crlf(#state{ acc = A } = State) ->
 -spec read(Len :: pos_integer(), state()) -> Result when
       Result :: { ok, iolist(), state() }
               | { more_data, state() }.
-read(Len, #state{ acclen = AccLen } = State) when Len > AccLen->
+read(Len, #state{ acclen = AccLen } = State) when Len >= AccLen->
     read_more_to_acc(Len-AccLen, State).
 
 %%%===================================================================

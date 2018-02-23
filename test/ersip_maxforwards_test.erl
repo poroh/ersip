@@ -31,7 +31,7 @@ make_test() ->
     ?assertEqual(make(<<"55">>), ersip_hdr_maxforwards:make(H1)),
     EmptyH1 = ersip_hdr:new(<<"Max-Forwards">>),
     ?assertError({ error, no_maxforwards }, ersip_hdr_maxforwards:make(EmptyH1)).
-    
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

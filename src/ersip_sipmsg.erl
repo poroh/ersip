@@ -60,13 +60,16 @@ get(HdrAtom, #sipmsg{} = Msg) ->
 
 -spec find(known_header(), sipmsg()) -> Result when
       Result :: { ok, term() }
+              | not_found
               | { error, term() }.
 find(HdrAtom, #sipmsg{ headers = H } = Msg) ->
     case maps:find(HdrAtom, H) of
         { ok, Value } ->
             { ok, Value };
         error ->
-            case parse_header(HdrAtom, { ok, Msg }) of
+            case ersip_siphdr:parse_header(HdrAtom, raw_message(Msg)) of
+                { ok, no_header } ->
+                    not_found;
                 { ok, Value } ->
                     { ok, Value };
                 { error, _  } = Error ->

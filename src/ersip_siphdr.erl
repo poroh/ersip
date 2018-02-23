@@ -37,7 +37,13 @@
 %%%===================================================================
 
 all_known_headers() ->
-    [ from, to, callid, cseq, maxforwards ].
+    [ from,
+      to,
+      callid,
+      cseq,
+      maxforwards,
+      topmost_via
+    ].
 
 -spec parse_header(known_header(), ersip_msg:message()) -> ValueOrError when
       ValueOrError :: { ok, term() }
@@ -157,5 +163,10 @@ header_descr(maxforwards) ->
     #descr{ name   = <<"max-forwards">>,
             required = request,
             parse_fun = fun ersip_hdr_maxforwards:parse/1
+          };
+header_descr(topmost_via) ->
+    #descr{ name   = <<"via">>,
+            required = all,
+            parse_fun = fun ersip_hdr_via:topmost_via/1
           }.
 

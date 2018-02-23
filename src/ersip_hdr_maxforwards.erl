@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% SIP Call-ID header
+%% SIP Max-Forwards header
 %%
 
 -module(ersip_hdr_maxforwards).

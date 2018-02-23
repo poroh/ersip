@@ -26,7 +26,7 @@
           params  :: params()
          }).
 -type mime_type() :: { mime, Type :: binary(), SubType :: binary() }.
--type content_type() :: { content_type, binary() }.
+-type content_type() :: #content_type{}.
 -type params() :: [ pair() ].
 -type pair() :: { Key :: binary(), Value :: binary() }.
 

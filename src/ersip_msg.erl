@@ -8,14 +8,23 @@
 
 -module(ersip_msg).
 
--export([new/0,
-         set/2,
-         set/3,
-         add/3,
-         get/2,
-         serialize/1,
-         serialize_bin/1
+-export([ new/0,
+          set/2,
+          set/3,
+          add/3,
+          get/2,
+          serialize/1,
+          serialize_bin/1
         ]).
+-export_type([ message/0,
+               item/0,
+               type/0
+             ]).
+
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
 
 -type method() :: ersip_method:method().
 -record(message, { type    = undefined :: { request,  method() | undefined, binary() | undefined }
@@ -35,7 +44,7 @@
               | header_name().
 
 -type message() :: #message{}.
--export_type([message/0, item/0 ]).
+-type type()    :: request | response.
 
 %%%===================================================================
 %%% API

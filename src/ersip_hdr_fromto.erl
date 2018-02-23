@@ -33,8 +33,8 @@
 -type fromto_params() :: #{ tag => tag(),
                             binary() => binary()
                           }.
--type fromto() :: #fromto{}.
--type tag() :: { tag, binary() }.
+-type fromto()  :: #fromto{}.
+-type tag()     :: { tag, binary() }.
 -type tag_key() :: { tag_key, binary() }.
 
 %%%===================================================================

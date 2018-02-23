@@ -10,6 +10,7 @@
 
 -export([ make_key/1,
           new/1,
+          is_empty/1,
           add_value/2,
           add_values/2,
           raw_values/1,
@@ -48,6 +49,12 @@ new(Name) when is_binary(Name) ->
     #header{ name = Name,
              key  = make_key(Name)
            }.
+
+-spec is_empty(header()) -> boolean().
+is_empty(#header{ values = []}) ->
+    true;
+is_empty(#header{}) ->
+    false.
 
 %% @doc Append value to list of values.
 -spec add_value(Value :: iolist(), header()) -> header().

@@ -101,10 +101,11 @@ parse(Header) ->
       Error :: { einval, address }.
 parse_fromto(Bin) ->
     Parsers = [ fun ersip_nameaddr:parse/1,
+                fun ersip_parser_aux:trim_lws/1,
                 fun parse_params/1
               ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of
-        { ok, [ { DisplayName, URI }, ParamsList ], <<>> } ->
+        { ok, [ { DisplayName, URI }, _, ParamsList ], <<>> } ->
             { ok,
               #fromto{ display_name = DisplayName,
                        uri          = URI,

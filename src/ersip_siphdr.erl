@@ -42,7 +42,8 @@ all_known_headers() ->
       callid,
       cseq,
       maxforwards,
-      topmost_via
+      topmost_via,
+      content_type
     ].
 
 -spec parse_header(known_header(), ersip_msg:message()) -> ValueOrError when
@@ -64,12 +65,14 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
 %%%===================================================================
 
 
--type header_required() :: all
-                         | request.
+-type header_required() :: all        %% Header required for all requests/responses
+                         | request    %% Header required in requests
+                         | with_body. %% Header required if body is not empty
 
--record(required_essentials, { type   :: ersip_msg:type(),
-                               method :: undefined | binary(),
-                               status :: undefined | ersip_status:code()
+-record(required_essentials, { type     :: ersip_msg:type(),
+                               method   :: undefined | binary(),
+                               status   :: undefined | ersip_status:code(),
+                               has_body :: boolean()
                              }).
 -type required_essentials() :: #required_essentials{}.
 
@@ -103,6 +106,8 @@ is_required(_, all) ->
     true;
 is_required(#required_essentials{ type = T }, T) ->
     true;
+is_required(#required_essentials{ has_body = true }, body) ->
+    true;
 is_required(#required_essentials{}, _) ->
     false;
 is_required(Msg, R) ->
@@ -112,9 +117,10 @@ is_required(Msg, R) ->
 required_essentials(Msg) ->
     Type = ersip_msg:get(type, Msg),
     #required_essentials{
-       type   = ersip_msg:get(type, Msg),
-       method = method_from_raw(Type, Msg),
-       status = status_from_raw(Type, Msg)
+       type     = ersip_msg:get(type, Msg),
+       method   = method_from_raw(Type, Msg),
+       status   = status_from_raw(Type, Msg),
+       has_body = not ersip_iolist:is_empty(ersip_msg:get(body, Msg))
       }.
 
 -spec method_from_raw(ersip_msg:type(), ersip_msg:message()) -> binary() | undefined.
@@ -168,5 +174,10 @@ header_descr(topmost_via) ->
     #descr{ name   = <<"via">>,
             required = all,
             parse_fun = fun ersip_hdr_via:topmost_via/1
+          };
+header_descr(content_type) ->
+    #descr{ name   = <<"content-type">>,
+            required = with_body,
+            parse_fun = fun ersip_hdr_content_type:parse/1
           }.
 

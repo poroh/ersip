@@ -15,6 +15,7 @@
           parse_all/2,
           parse_token/1,
           parse_lws/1,
+          trim_lws/1,
           make_sep_parser/1,
           parse_sep/2,
           parse_non_neg_int/1,
@@ -115,6 +116,12 @@ parse_lws(Bin) ->
         N ->
             { ok, { lws, N }, Trimmed }
     end.
+
+-spec trim_lws(binary()) ->  { ok, {lws, pos_integer()}, Rest :: binary() }.
+trim_lws(Bin) ->
+    Trimmed = ersip_bin:trim_head_lws(Bin),
+    N = byte_size(Bin) - byte_size(Trimmed),
+    { ok, { lws, N }, Trimmed }.
 
 -spec make_sep_parser(Sep) -> parser_fun() when
       Sep :: char().

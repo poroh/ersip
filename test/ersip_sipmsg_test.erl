@@ -43,7 +43,7 @@ parse_request_test() ->
     ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
                  ersip_hdr_via:sent_by(Via)).
 
-parse_respose_test() ->
+parse_response_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"SIP/2.0 200 OK"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -70,7 +70,7 @@ parse_respose_test() ->
     ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
                  ersip_hdr_via:sent_by(Via)).
 
-parse_respose_error_test() ->
+parse_response_error_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"SIP/2.0 200 OK"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -133,6 +133,23 @@ parse_request_with_body_no_content_type_test() ->
     ?assertEqual({error,{ header_error,
                           { content_type, 
                             {no_required_header,<<"content-type">>}}}},
+                 ersip_sipmsg:parse(PMsg, all)).
+
+parse_request_with_invalid_ruri_test() ->
+    Msg = <<"INVITE bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    ?assertMatch({error,{ invalid_ruri, _}},
                  ersip_sipmsg:parse(PMsg, all)).
 
 parse_on_demand_test() ->

@@ -85,7 +85,7 @@ uas_transaction_id_rfc3261_not_equal_test() ->
 
 
 uas_transaction_id_rfc2543_equal_test() ->
-    InviteMsg = 
+    InviteMsg =
         <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
           "Via:     SIP/2.0/UDP sip.ieee.org ;branch=1" ?crlf
           "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
@@ -96,16 +96,63 @@ uas_transaction_id_rfc2543_equal_test() ->
           ?crlf
         >>,
     %% ACK After 404:
-    AckMsg = 
+    AckMsg =
         <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
           "Via:     SIP/2.0/UDP sip.ieee.org ;branch=1" ?crlf
           "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
           "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
           "Call-ID: 31415@c.bell-tel.com" ?crlf
-          "CSeq:    1 ACK" ?crlf 
+          "CSeq:    1 ACK" ?crlf
           "" ?crlf>>,
     ?assertEqual(calc_uas_trans_id(InviteMsg),
                  calc_uas_trans_id(AckMsg)).
+
+uas_transaction_id_rfc2543_equal_without_branch_test() ->
+    InviteMsg =
+        <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org" ?crlf
+          "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 INVITE" ?crlf
+          ?crlf
+        >>,
+    %% ACK After 404:
+    AckMsg =
+        <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 ACK" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_uas_trans_id(InviteMsg),
+                 calc_uas_trans_id(AckMsg)).
+
+uas_transaction_id_rfc2543_non_invite_test() ->
+   Register0 =
+        <<"REGISTER sip:bell-tel.com SIP/2.0" ?crlf
+          "Via: SIP/2.0/UDP saturn.bell-tel.com" ?crlf
+          "From: sip:watson@bell-tel.com" ?crlf
+          "To: sip:watson@bell-tel.com" ?crlf
+          "Call-ID: 70710@saturn.bell-tel.com" ?crlf
+          "CSeq: 1 REGISTER" ?crlf
+          "Contact: <sip:watson@saturn.bell-tel.com:3890;transport=udp>" ?crlf
+          "Expires: 7200" ?crlf
+          "" ?crlf>>,
+   Register1 =
+        <<"REGISTER sip:bell-tel.com SIP/2.0" ?crlf
+          "Via: SIP/2.0/UDP saturn.bell-tel.com" ?crlf
+          "From: sip:watson@bell-tel.com" ?crlf
+          "To: sip:watson@bell-tel.com" ?crlf
+          "Call-ID: 70710@saturn.bell-tel.com" ?crlf
+          "CSeq: 1 REGISTER" ?crlf
+          "Contact: <sip:watson@saturn.bell-tel.com:3890;transport=udp>" ?crlf
+          "Expires: 200" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_uas_trans_id(Register0),
+                 calc_uas_trans_id(Register1)).
 
 %%%===================================================================
 %%% Helpers

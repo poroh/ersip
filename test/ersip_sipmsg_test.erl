@@ -130,7 +130,10 @@ parse_request_with_body_no_content_type_test() ->
           >>,
     P  = ersip_parser:new_dgram(Msg),
     { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    ?assertEqual({error,{no_required_header,<<"content-type">>}}, ersip_sipmsg:parse(PMsg, all)).
+    ?assertEqual({error,{ header_error,
+                          { content_type, 
+                            {no_required_header,<<"content-type">>}}}},
+                 ersip_sipmsg:parse(PMsg, all)).
 
 parse_on_demand_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,

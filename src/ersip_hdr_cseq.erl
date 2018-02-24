@@ -84,7 +84,7 @@ parse_cseq(Binary) ->
               ],
     case ersip_parser_aux:parse_all(Binary, Parsers) of
         { ok, [ Number, _, Method ], <<>> } ->
-            { ok, make(Method, Number) };
+            { ok, make(ersip_method:make(Method), Number) };
         { ok, _, _ } ->
             { error, { invalid_cseq, Binary } };
         { error, _ } = Error ->

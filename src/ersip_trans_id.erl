@@ -114,7 +114,7 @@ make_rfc2543_tid(TopmostVia, Message) ->
             #tid_rfc2543{ callid      = ersip_hdr_callid:make_key(CallId),
                           ruri        = ersip_uri:make_key(RURI),
                           from_tag    = ersip_hdr_fromto:tag_key(From),
-                          to_tag      = ersip_hdr_fromto:tag_key(To),
+                          to_tag      = undefined,
                           cseq        = ACKCSeq,
                           topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         };

@@ -106,6 +106,8 @@ get_header(#descr{ name = N } = D, SipMsg) ->
 -spec is_required(ersip_sipmsg:sipmsg() | required_essentials(), header_required()) -> boolean().
 is_required(_, all) ->
     true;
+is_required(_, optional) ->
+    false;
 is_required(#required_essentials{ type = T }, T) ->
     true;
 is_required(#required_essentials{ has_body = true }, with_body) ->
@@ -152,7 +154,7 @@ header_descr(callid) ->
           };
 header_descr(maxforwards) ->
     #descr{ name   = <<"max-forwards">>,
-            required = request,
+            required = optional, %% It was optional in RFC2543
             parse_fun = fun ersip_hdr_maxforwards:parse/1
           };
 header_descr(topmost_via) ->

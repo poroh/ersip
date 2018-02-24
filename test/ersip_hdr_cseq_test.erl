@@ -16,7 +16,7 @@
 
 parse_test() ->
     { ok, CSeq } = ersip_hdr_cseq:parse(create(<<"314159 INVITE">>)),
-    ?assertEqual(<<"INVITE">>, ersip_hdr_cseq:method(CSeq)),
+    ?assertEqual(ersip_method:make(<<"INVITE">>), ersip_hdr_cseq:method(CSeq)),
     ?assertEqual(314159, ersip_hdr_cseq:number(CSeq)),
     ?assertEqual(ersip_hdr_cseq:make_key(make(<<"1 REGISTER">>)), make(<<"1  REGISTER">>)),
     ?assertError({ error, _ }, ersip_hdr_cseq:make(create(<<"Not valid">>))).

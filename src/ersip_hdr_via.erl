@@ -98,9 +98,10 @@ parse_via(ViaBinary) ->
     Parsers = [ fun parse_sent_protocol/1,
                 fun ersip_parser_aux:parse_lws/1,
                 fun parse_sent_by/1,
+                fun ersip_parser_aux:trim_lws/1,
                 fun parse_via_params/1 ],
     case ersip_parser_aux:parse_all(ViaBinary, Parsers) of
-        { ok, [ SentProtocol, _, SentBy, ViaParams ], _ } ->
+        { ok, [ SentProtocol, _, SentBy, _, ViaParams ], _ } ->
             Via = #via{ sent_protocol = SentProtocol,
                         sent_by       = SentBy,
                         via_params    = ViaParams },
@@ -140,9 +141,9 @@ parse_sent_by(Binary) ->
         { Pos, 1 } ->
             HostPort = binary:part(Binary, { 0, Pos }),
             Rest = binary:part(Binary, Pos, byte_size(Binary) - Pos),
-            parse_sent_by_host_port(HostPort, host, #{ rest => Rest });
+            parse_sent_by_host_port(ersip_bin:trim_lws(HostPort), host, #{ rest => Rest });
         nomatch ->
-            parse_sent_by_host_port(Binary, host, #{ rest => <<>> })
+            parse_sent_by_host_port(ersip_bin:trim_lws(Binary), host, #{ rest => <<>> })
     end.
 
 parse_sent_by_host_port(Binary, host, Acc) ->

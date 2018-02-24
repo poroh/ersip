@@ -29,6 +29,7 @@
 
 -record(sipmsg, { raw = undefined :: ersip_msg:message(),
                   method          :: ersip_method:method(),
+                  ruri            :: ersip_uri:uri() | undefined,
                   headers = #{}   :: headers()
                 }).
 
@@ -59,8 +60,8 @@ method(#sipmsg{ method = Method }) ->
     Method.
 
 -spec ruri(ersip_sipmsg:sipmsg()) -> ersip_uri:uri().
-ruri(#sipmsg{} = Msg) ->
-    ersip_msg:get(ruri, raw_message(Msg)).
+ruri(#sipmsg{ ruri = RURI }) ->
+    RURI.
 
 -spec status(ersip_sipmsg:sipmsg()) -> undefined | ersip_status:code().
 status(#sipmsg{} = SipMsg) ->
@@ -136,10 +137,15 @@ set_headers(H, #sipmsg{} = M) ->
 %%%
 -spec create_from_raw(ersip_msg:message()) -> maybe_sipmsg().
 create_from_raw(RawMsg) ->
-    case method_from_raw(RawMsg) of
-        { ok, Method } ->
-            { ok, #sipmsg{ method = Method,
-                           raw = RawMsg }
+    MaybeMethod = method_from_raw(RawMsg),
+    MaybeRURI   = ruri_from_raw(RawMsg),
+    case fold_maybes([ MaybeMethod, MaybeRURI ]) of
+        [ Method, RURI ] ->
+            { ok,
+              #sipmsg{ method = Method,
+                       ruri   = RURI,
+                       raw    = RawMsg
+                     }
             };
         { error, _ } = Error ->
             Error
@@ -163,8 +169,8 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
             Headers = headers(Msg),
             NewHeaders = Headers#{ HdrAtom => Value },
             { ok, set_headers(NewHeaders, Msg) };
-        { error, _ } = Error ->
-            Error
+        { error, Reason } ->
+            { error, { header_error, { HdrAtom, Reason } } }
     end.
 
 -spec method_from_raw(ersip_msg:message()) -> MaybeMethod when
@@ -183,3 +189,31 @@ method_from_raw(RawMsg) ->
                     { error, { invalid_cseq, Reason } }
             end
     end.
+
+-spec ruri_from_raw(ersip_msg:message()) -> MaybeRURI when
+      MaybeRURI :: { ok, ersip_uri:uri() | undefined }
+                   | { error, { invalid_ruri, term() } }.
+ruri_from_raw(Msg) ->
+    case ersip_msg:get(type, Msg) of
+        request ->
+            URIBin = ersip_msg:get(ruri, Msg),
+            case ersip_uri:parse(URIBin) of
+                { ok, _ } = R ->
+                    R;
+                { error, Reason } ->
+                    { error, { invalid_ruri, Reason } }
+            end;
+        response ->
+            { ok, undefined }
+    end.
+ 
+fold_maybes(MaybesList) ->
+    lists:foldr(fun(_, {error, _} = Error) ->
+                        Error;
+                   ({ok, Result }, Acc) ->
+                        [ Result | Acc ];
+                   ({error, _ } = Error, _) ->
+                        Error
+                end,
+                [],
+                MaybesList).

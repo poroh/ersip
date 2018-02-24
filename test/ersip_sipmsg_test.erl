@@ -86,8 +86,7 @@ parse_respose_error_test() ->
           >>,
     P  = ersip_parser:new_dgram(Msg),
     { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, [ content_type ]),
-    ?assertError({error, _ }, ersip_sipmsg:get(cseq, SipMsg)).
+    ?assertMatch({ error, { invalid_cseq, _ } }, ersip_sipmsg:parse(PMsg, [ content_type ])).
 
 parse_request_without_body_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,

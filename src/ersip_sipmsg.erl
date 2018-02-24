@@ -10,8 +10,13 @@
 
 -module(ersip_sipmsg).
 
--export([ parse/2,
+-export([ raw_message/1,
+          type/1,
+          method/1,
+          status/1,
+          has_body/1,
           get/2,
+          parse/2,
           find/2
         ]).
 -export_type([ sipmsg/0,
@@ -22,6 +27,7 @@
 %%%===================================================================
 
 -record(sipmsg, { raw = undefined :: ersip_msg:message(),
+                  method          :: ersip_method:method(),
                   headers = #{}   :: headers()
                 }).
 
@@ -39,14 +45,30 @@
 %%% API
 %%%===================================================================
 
--spec parse(ersip_msg:message(), [ known_header() ] | all) -> Result when
-      Result :: { ok, sipmsg() }
-              | { error, term() }.
-parse(RawMsg, all) ->
-    parse(RawMsg, ersip_siphdr:all_known_headers());
-parse(RawMsg, Headers) ->
-    Msg = #sipmsg{ raw = RawMsg },
-    lists:foldl(fun maybe_parse_header/2, { ok, Msg }, Headers).
+-spec raw_message(sipmsg()) -> ersip_msg:message().
+raw_message(#sipmsg{ raw = R }) ->
+    R.
+
+-spec type(ersip_sipmsg:sipmsg()) -> ersip_msg:type().
+type(#sipmsg{} = Msg) ->
+    ersip_msg:get(type, raw_message(Msg)).
+
+-spec method(ersip_sipmsg:sipmsg()) -> ersip_method:method().
+method(#sipmsg{ method = Method }) ->
+    Method.
+
+-spec status(ersip_sipmsg:sipmsg()) -> undefined | ersip_status:code().
+status(#sipmsg{} = SipMsg) ->
+    case type(SipMsg) of
+        request ->
+            undefined;
+        response ->
+            ersip_msg:get(status, raw_message(SipMsg))
+    end.
+
+-spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
+has_body(#sipmsg{} = Msg) ->
+    not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
 
 -spec get(known_header(), sipmsg()) -> Value when
       Value :: term().
@@ -60,6 +82,16 @@ get(HdrAtom, #sipmsg{} = Msg) ->
             error(Error)
     end.
 
+-spec parse(ersip_msg:message(), [ known_header() ] | all) -> Result when
+      Result :: { ok, sipmsg() }
+              | { error, term() }.
+parse(RawMsg, all) ->
+    parse(RawMsg, ersip_siphdr:all_known_headers());
+parse(RawMsg, Headers) ->
+    MaybeMsg = create_from_raw(RawMsg),
+    lists:foldl(fun maybe_parse_header/2, MaybeMsg, Headers).
+
+
 -spec find(known_header(), sipmsg()) -> Result when
       Result :: { ok, term() }
               | not_found
@@ -69,7 +101,7 @@ find(HdrAtom, #sipmsg{ headers = H } = Msg) ->
         { ok, Value } ->
             { ok, Value };
         error ->
-            case ersip_siphdr:parse_header(HdrAtom, raw_message(Msg)) of
+            case ersip_siphdr:parse_header(HdrAtom, Msg) of
                 { ok, no_header } ->
                     not_found;
                 { ok, Value } ->
@@ -94,13 +126,20 @@ headers(#sipmsg{ headers = H }) ->
 set_headers(H, #sipmsg{} = M) ->
     M#sipmsg{ headers = H }.
 
--spec raw_message(sipmsg()) -> ersip_msg:message().
-raw_message(#sipmsg{ raw = R }) ->
-    R.
-
 %%%
 %%% Parsing infrastructure
 %%%
+-spec create_from_raw(ersip_msg:message()) -> maybe_sipmsg().
+create_from_raw(RawMsg) ->
+    case method_from_raw(RawMsg) of
+        { ok, Method } ->
+            { ok, #sipmsg{ method = Method,
+                           raw = RawMsg }
+            };
+        { error, _ } = Error ->
+            Error
+    end.
+
 -type maybe_sipmsg() :: { ok, sipmsg() }
                       | { error, term() }.
 
@@ -112,7 +151,7 @@ maybe_parse_header(Hdr, { ok, Msg }) ->
 
 -spec parse_header(known_header(), sipmsg()) ->  maybe_sipmsg().
 parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
-    case ersip_siphdr:parse_header(HdrAtom, raw_message(Msg)) of
+    case ersip_siphdr:parse_header(HdrAtom, Msg) of
         { ok, no_header } ->
             { ok, Msg };
         { ok, Value } ->
@@ -123,3 +162,19 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
             Error
     end.
 
+-spec method_from_raw(ersip_msg:message()) -> MaybeMethod when
+      MaybeMethod :: { ok, ersip_method:method() }
+                   | { error, no_cseq }.
+method_from_raw(RawMsg) ->
+    case ersip_msg:get(type, RawMsg) of
+        request ->
+            { ok, ersip_msg:get(method, RawMsg) };
+        response ->
+            CSeqHdr = ersip_msg:get(<<"cseq">>, RawMsg),
+            case ersip_hdr_cseq:parse(CSeqHdr) of
+                { ok, CSeq } ->
+                    { ok, ersip_hdr_cseq:method(CSeq) };
+                { error, Reason } ->
+                    { error, { invalid_cseq, Reason } }
+            end
+    end.

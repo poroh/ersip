@@ -46,7 +46,7 @@ all_known_headers() ->
       content_type
     ].
 
--spec parse_header(known_header(), ersip_msg:message()) -> ValueOrError when
+-spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
       ValueOrError :: { ok, term() }
                     | { error, term() }.
 parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
@@ -70,7 +70,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
                          | with_body. %% Header required if body is not empty
 
 -record(required_essentials, { type     :: ersip_msg:type(),
-                               method   :: undefined | binary(),
+                               method   :: ersip_method:method(),
                                status   :: undefined | ersip_status:code(),
                                has_body :: boolean()
                              }).
@@ -82,13 +82,13 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
 parse_header_by_descr(#descr{ parse_fun = F }, Hdr) ->
     F(Hdr).
 
--spec get_header(descr(), ersip_msg:message()) -> Result when
+-spec get_header(descr(), ersip_sipmsg:sipmsg()) -> Result when
       Result :: { ok, ersip_hdr:header() }
               | { ok, no_header }
               | { error, { no_required_header, binary() } }.
-get_header(#descr{ name = N } = D, RawMsg) ->
-    Hdr = ersip_msg:get(N, RawMsg),
-    Required = is_required(RawMsg, D#descr.required),
+get_header(#descr{ name = N } = D, SipMsg) ->
+    Hdr = ersip_msg:get(N, ersip_sipmsg:raw_message(SipMsg)),
+    Required = is_required(SipMsg, D#descr.required),
     case ersip_hdr:is_empty(Hdr) of
         true ->
             case Required of
@@ -101,7 +101,7 @@ get_header(#descr{ name = N } = D, RawMsg) ->
             { ok, Hdr }
     end.
 
--spec is_required(ersip_msg:message() | required_essentials(), header_required()) -> boolean().
+-spec is_required(ersip_sipmsg:sipmsg() | required_essentials(), header_required()) -> boolean().
 is_required(_, all) ->
     true;
 is_required(#required_essentials{ type = T }, T) ->
@@ -110,36 +110,19 @@ is_required(#required_essentials{ has_body = true }, with_body) ->
     true;
 is_required(#required_essentials{}, _) ->
     false;
-is_required(Msg, R) ->
-    is_required(required_essentials(Msg), R).
+is_required(SipMsg, R) ->
+    is_required(required_essentials(SipMsg), R).
 
--spec required_essentials(ersip_msg:message()) -> required_essentials().
-required_essentials(Msg) ->
-    Type = ersip_msg:get(type, Msg),
+-spec required_essentials(ersip_sipmsg:sipmsg()) -> required_essentials().
+required_essentials(SipMsg) ->
+    Type = ersip_sipmsg:type(SipMsg),
     #required_essentials{
-       type     = ersip_msg:get(type, Msg),
-       method   = method_from_raw(Type, Msg),
-       status   = status_from_raw(Type, Msg),
-       has_body = not ersip_iolist:is_empty(ersip_msg:get(body, Msg))
+       type     = Type,
+       method   = ersip_sipmsg:method(SipMsg),
+       status   = ersip_sipmsg:status(SipMsg),
+       has_body = ersip_sipmsg:has_body(SipMsg)
       }.
 
--spec method_from_raw(ersip_msg:type(), ersip_msg:message()) -> binary() | undefined.
-method_from_raw(request, Msg) ->
-    ersip_msg:get(method, Msg);
-method_from_raw(response, Msg) ->
-    CSeqHdr = ersip_msg:get(<<"cseq">>, Msg),
-    case ersip_hdr_cseq:parse(CSeqHdr) of
-        { ok, CSeq } ->
-            ersip_hdr_cseq:method(CSeq);
-        _ ->
-            undefined
-    end.
-
--spec status_from_raw(ersip_msg:type(), ersip_msg:message()) -> ersip_status:code() | undefined.
-status_from_raw(request, _Msg) ->
-    undefined;
-status_from_raw(response, Msg) ->
-    ersip_msg:get(status, Msg).
 
 %%%
 %%% Headers description

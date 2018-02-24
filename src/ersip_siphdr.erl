@@ -21,7 +21,9 @@
                       | to
                       | callid
                       | cseq
-                      | maxforwards.
+                      | maxforwards
+                      | topmost_via
+                      | content_type.
 
 -record(descr, { name      :: binary(),
                  required  :: header_required(),

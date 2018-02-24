@@ -13,6 +13,7 @@
 -export([ raw_message/1,
           type/1,
           method/1,
+          ruri/1,
           status/1,
           has_body/1,
           get/2,
@@ -56,6 +57,10 @@ type(#sipmsg{} = Msg) ->
 -spec method(ersip_sipmsg:sipmsg()) -> ersip_method:method().
 method(#sipmsg{ method = Method }) ->
     Method.
+
+-spec ruri(ersip_sipmsg:sipmsg()) -> ersip_uri:uri().
+ruri(#sipmsg{} = Msg) ->
+    ersip_msg:get(ruri, raw_message(Msg)).
 
 -spec status(ersip_sipmsg:sipmsg()) -> undefined | ersip_status:code().
 status(#sipmsg{} = SipMsg) ->

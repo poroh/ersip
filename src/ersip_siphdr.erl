@@ -68,6 +68,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
 
 
 -type header_required() :: all        %% Header required for all requests/responses
+                         | optional   %% Header is optional for all requests/responses
                          | with_body. %% Header required if body is not empty
 
 -record(required_essentials, { type     :: ersip_msg:type(),

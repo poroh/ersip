@@ -164,7 +164,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
 
 -spec method_from_raw(ersip_msg:message()) -> MaybeMethod when
       MaybeMethod :: { ok, ersip_method:method() }
-                   | { error, no_cseq }.
+                   | { error, { invalid_cseq, term() } }.
 method_from_raw(RawMsg) ->
     case ersip_msg:get(type, RawMsg) of
         request ->

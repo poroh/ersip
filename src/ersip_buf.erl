@@ -17,6 +17,13 @@
           read_till_crlf/1,
           read/2
         ]).
+-export_type([ state/0,
+               options/0
+             ]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
 
 -type options() :: map().
 -record(state,{ options = #{}          :: options(),
@@ -28,9 +35,6 @@
 
 -type state() :: #state{}.
 
--export_type([ state/0,
-               options/0
-             ]).
 -define(crlf, <<$\r,$\n>>).
 -define(queue(State), State#state.queue).
 

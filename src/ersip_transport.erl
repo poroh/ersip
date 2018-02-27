@@ -9,10 +9,14 @@
 -module(ersip_transport).
 
 -export([ make/1,
+          is_datagram/1,
           parse/1,
           parse_port_number/1,
           default_port/1
         ]).
+
+-export_type([ transport/0,
+               port_number/0 ]).
 
 %%%===================================================================
 %%% Types
@@ -23,8 +27,6 @@
                    | { other_transport, binary() }.
 
 -type port_number() :: 0..65535 | { default_port, transport() }.
--export_type([ transport/0,
-               port_number/0 ]).
 
 %%%===================================================================
 %%% API
@@ -55,6 +57,19 @@ parse(V) when V =:= tcp; V =:= udp; V =:= tls; V =:= wss; V =:= ws ->
     { ok, { transport, V } };
 parse(V) when is_atom(V) ->
     { error, { bad_transport_atom, V } }.
+
+-spec is_datagram(transport()) -> boolean().
+is_datagram({ transport, udp }) ->
+    true;
+is_datagram({ transport, ws }) ->
+    true;
+is_datagram({ transport, wss }) ->
+    true;
+is_datagram({ transport, tls }) ->
+    false;
+is_datagram({ transport, tcp }) ->
+    false.
+
 
 -spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(port_number()).
 parse_port_number(Bin) ->

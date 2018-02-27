@@ -16,6 +16,12 @@
           parse/1
         ]).
 
+-export_type([ data/0 ]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
 -record(data, { options = #{}            :: map(),
                 buf                      :: ersip_buf:state(),
                 state = first_line       :: state(),
@@ -23,7 +29,6 @@
                 acc   = []               :: list(binary()),
                 content_len  = undefined :: pos_integer() | undefined
                }).
-
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
 -type options() :: #{ buffer => ersip_buf:options() }.

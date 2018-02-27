@@ -11,7 +11,7 @@
 
 -type trans() :: ersip_uac:uac()
                | ersip_uas:uas().
--type tid()   :: { tid, term() }. 
+-type tid()   :: { tid, ersip_trans_id:transaction_id() }.
 
 -export_type([ trans/0, tid/0 ]).
 

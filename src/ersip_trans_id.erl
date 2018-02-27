@@ -9,6 +9,7 @@
 -module(ersip_trans_id).
 
 -export([ make_uas/1 ]).
+-export_type([ transaction_id/0 ]).
 
 %%%===================================================================
 %%% Types

@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -12,12 +12,16 @@
 
 -export([ new/4, event/2, clear_reason/1, id/1 ]).
 
+-export_type([ uac/0, result/0, clear_reason/0 ]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
 -type result() :: { uac(), [ ersip_uac_se:effect() ] }.
 -type clear_reason() :: completed
                       | timeout.
 -type request() :: term().
-
--export_type([ uac/0, result/0, clear_reason/0 ]).
 
 -record(uac, { id                           :: ersip_trans:tid(),
                state       = fun 'Trying'/2 :: non_inv_state(),

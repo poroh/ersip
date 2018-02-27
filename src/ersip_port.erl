@@ -59,8 +59,8 @@ new(LocalAddr, LocalPort, SIPTransport, Options) ->
 -spec port_data(binary(), sip_port()) -> result().
 port_data(Binary, #sip_port{ parser = undefined } = Port) -> 
     %% Datagram transport
-    Buf = ersip_buf:new_dgram(Binary),
-    case ersip_parser:parse(Buf) of
+    Parser = ersip_parser:new_dgram(Binary),
+    case ersip_parser:parse(Parser) of
         { ok, Msg } ->
             receive_raw(Msg, Port);
         { error, _ } = Error ->
@@ -68,15 +68,8 @@ port_data(Binary, #sip_port{ parser = undefined } = Port) ->
     end;
 port_data(Binary, #sip_port{ parser = Parser } = Port) -> 
     %% Stream transport
-    case ersip_parser:add_binary(Binary, Parser) of
-        { more_data, NewParser } ->
-            { Port#sip_port{ parser = NewParser }, [] };
-        { {ok, Msg }, NewParser } ->
-            Result = receive_raw(Msg, save_parser(NewParser, Port)),
-            maybe_receive_more(Result);
-        { error, _ } = Error ->
-            return_se(disconnect, Port)
-    end.
+    NewParser = ersip_parser:add_binary(Binary, Parser),
+    parse_data({ save_parser(NewParser, Port), [] }).
                 
 %%%===================================================================
 %%% Internal Implementation
@@ -90,10 +83,24 @@ save_parser(Parser, SipPort) ->
 receive_raw(Msg, Port) ->
     { Port, [] }.
 
+-spec parse_data(result()) -> result().
+parse_data({ #sip_port{ parser= Parser } = Port, SideEffects }) ->
+    case ersip_parser:parse(Parser) of
+        { more_data, NewParser } ->
+            { Port#sip_port{ parser = NewParser }, SideEffects };
+        { {ok, Msg }, NewParser } ->
+            Result  = receive_raw(Msg, save_parser(NewParser, Port)),
+            Result1 = add_side_effects_to_head(Result, SideEffects),
+            parse_data(Result1);
+        { error, _ } = Error ->
+            { Port, SideEffects ++ [ ersip_port_se:disconnect(Error) ] }
+    end.
+
+
 -spec return_se(ersip_port_se:side_effect(), sip_port()) -> result().
 return_se(SideEffect, SipPort) ->
     { SipPort, [ SideEffect ] }.
 
+add_side_effects_to_head({ Port, SideEffect }, SE) ->
+    { Port, SE ++ SideEffect }.
 
-maybe_receive_more(X) ->
-    X.

@@ -11,12 +11,17 @@
 -export([ topmost_via/1,
           sent_protocol/1,
           params/1,
+          set_param/3,
           branch/1,
           sent_by/1,
           sent_by_key/1,
-          make_key/1
+          make_key/1,
+          assemble/1
         ]).
 
+-export_type([ via/0,
+               sent_by/0
+             ]).
 
 %%%===================================================================
 %%% Types
@@ -35,10 +40,6 @@
                           | maddr
                           | received
                           | ttl.
-
--export_type([ via/0,
-               sent_by/0
-             ]).
 
 %%%===================================================================
 %%% API
@@ -64,6 +65,22 @@ sent_protocol(#via{sent_protocol = Sp}) ->
 params(#via{via_params = VP}) ->
     VP.
 
+-spec set_param(ParamName, Value, via()) -> via() when
+      ParamName :: known_via_params() | binary(),
+      Value     :: binary().
+set_param(received, Value, Via) when is_binary(Value) ->
+    case ersip_host:parse(Value) of
+        { ok, Host } ->
+            set_param(received, Host, Via);
+        { error, _ } = Error ->
+            error(Error)
+    end;
+set_param(received, { Type, _ } = Value , #via{ via_params = VP } = Via)
+  when Type =:= ipv4 orelse Type =:= ipv6 ->
+    Via#via{ via_params = VP#{ received => Value } };
+set_param(received, Value, _) ->
+    error({error, { bad_received_via_param, Value } }).
+
 -spec sent_by(via()) -> sent_by().
 sent_by(#via{sent_by = {sent_by,Host,default_port}} = Via) ->
     {sent_protocol, _, _, Transport} = sent_protocol(Via),
@@ -88,6 +105,25 @@ make_key(#via{} = Via) ->
           sent_by       = sent_by_make_key(sent_by(Via)),
           via_params    = via_params_make_key(params(Via))
         }.
+
+-spec assemble(via()) -> iolist().
+assemble(#via{} = Via) ->
+    #via{
+       sent_protocol =
+           { sent_protocol, Protocol, ProtocolVersion, Transport },
+       sent_by    = { sent_by, Host, Port },
+       via_params = Params
+      } = Via,
+    [ Protocol, $/, ProtocolVersion, $/, ersip_transport:assemble(Transport),
+      <<" ">>, ersip_host:assemble(Host),
+      case Port of 
+          default_port ->
+              [];
+          Port ->
+              integer_to_binary(Port)
+      end,
+      assemble_params(Params)
+    ].
 
 %%%===================================================================
 %%% Internal implementation
@@ -282,3 +318,30 @@ via_param_make_key(received, R) ->
     { received, R };
 via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
     { ersip_bin:to_lower(OtherKey), OtherValue }.
+
+-spec assemble_params(via_params()) -> iolist().
+assemble_params(#{}) ->
+    [];
+assemble_params(Params) ->
+    lists:map(fun assemble_param/1,
+              maps:to_list(Params)).
+
+-spec assemble_param({ Name, Value }) -> iolist() when
+      Name :: known_via_params()
+            | binary(),
+      Value :: term().
+assemble_param({ received, Value }) ->
+    [ <<";received=">>, ersip_host:assemble(Value) ];
+assemble_param({ ttl, Value }) ->
+    [ <<";ttl=">>, integer_to_binary(Value) ];
+assemble_param({ maddr, Value }) ->
+    [ <<";maddr=">>, ersip_host:assemble(Value) ];
+assemble_param({ branch, Value }) ->
+    [ <<";branch=">>, ersip_branch:assemble(Value) ];
+assemble_param({ Name, Value }) ->
+    <<";", Name/binary, "=", Value/binary>>.
+
+
+
+    
+

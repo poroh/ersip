@@ -10,7 +10,7 @@
 
 -module(ersip_conn).
 
--export([ new/4,
+-export([ new/6,
           conn_data/2
         ]).
 -export_type([ sip_conn/0 ]).
@@ -21,11 +21,12 @@
 
 -type result() :: { sip_conn(), [ ersip_conn_se:effect() ] }.
 -record(sip_conn, {
-          local_addr :: { inet:ip_address(), inet:port_number() },
-          transport  :: ersip_transport:transport(),
-          options    :: options(),
-          parser     :: ersip_parser:data() | undefined,
-          is_dgram   :: boolean()
+          local_addr  :: { inet:ip_address(), inet:port_number() },
+          remote_addr :: { inet:ip_address(), inet:port_number() },
+          transport   :: ersip_transport:transport(),
+          options     :: options(),
+          parser      :: ersip_parser:data() | undefined,
+          is_dgram    :: boolean()
          }).
 -type sip_conn() :: #sip_conn{}.
 -type options()  :: map().
@@ -34,16 +35,19 @@
 %%% API
 %%%===================================================================
 
--spec new(LocalAddr, LocalPort, SIPTransport, Options) -> sip_conn() when
+-spec new(LocalAddr, LocalPort, RemoteAddr, RemotePort, SIPTransport, Options) -> sip_conn() when
       LocalAddr    :: inet:ip_address(),
       LocalPort    :: inet:port_number(),
+      RemoteAddr   :: inet:ip_address(),
+      RemotePort   :: inet:port_number(),
       SIPTransport :: ersip_transport:transport(),
       Options      :: options().
-new(LocalAddr, LocalPort, SIPTransport, Options) ->
+new(LocalAddr, LocalPort, RemoteAddr, RemotePort, SIPTransport, Options) ->
     ParserOptions = maps:get(parser, Options, #{}),
     IsDgram       = ersip_transport:is_dgram(SIPTransport),
     #sip_conn{
-       local_addr = { LocalAddr, LocalPort },
+       local_addr  = { LocalAddr, LocalPort },
+       remote_addr = { RemoteAddr, RemotePort },
        transport  = SIPTransport,
        options    = Options,
        parser     = 
@@ -74,13 +78,22 @@ conn_data(Binary, #sip_conn{ parser = Parser } = Conn) ->
 %%% Internal Implementation
 %%%===================================================================
 
+-spec remote_ip(sip_conn()) -> inet:ip_address().
+remote_ip(#sip_conn{ local_addr = { LocalIP, _ } }) ->
+    LocalIP.
+
 -spec save_parser(ersip_parser:data(), sip_conn()) -> sip_conn().
 save_parser(Parser, SipConn) ->
     SipConn#sip_conn{ parser = Parser }.
 
 -spec receive_raw(ersip_msg:message(), sip_conn()) -> result().
 receive_raw(Msg, Conn) ->
-    { Conn, [] }.
+    case maybe_add_received(Msg, Conn) of
+        { ok, Msg } ->
+            { Conn, { [ ersip_conn_se:new_message(Msg) ] } };
+        { error, _ } = Error ->
+            return_se(ersip_conn_se:bad_message(Msg, Error), Conn)
+    end.
 
 -spec parse_data(result()) -> result().
 parse_data({ #sip_conn{ parser= Parser } = Conn, SideEffects }) ->
@@ -100,6 +113,42 @@ parse_data({ #sip_conn{ parser= Parser } = Conn, SideEffects }) ->
 return_se(SideEffect, SipConn) ->
     { SipConn, [ SideEffect ] }.
 
+-spec add_side_effects_to_head(result(), [ ersip_conn_se:side_effect() ]) -> result().
 add_side_effects_to_head({ Conn, SideEffect }, SE) ->
     { Conn, SE ++ SideEffect }.
 
+
+%% @doc 
+%% When the server transport receives a request over any transport, it
+%% MUST examine the value of the "sent-by" parameter in the top Via
+%% header field value.  If the host portion of the "sent-by" parameter
+%% contains a domain name, or if it contains an IP address that
+%% differs from the packet source address, the server MUST add a
+%% "received" parameter to that Via header field value.  This
+%% parameter MUST contain the source address from which the packet was
+%% received.
+-spec maybe_add_received(ersip_msg:message(), sip_conn()) -> Result when
+      Result :: { ok, ersip_msg:message() }
+              | { error, term() }.
+maybe_add_received(Msg, Conn) ->
+    ViaH = ersip_msg:get(<<"via">>, Msg),
+    RemoteIP = remote_ip(Conn),
+    case ersip_hdr_via:topmost_via(ViaH) of
+        { error, _ } = Error ->
+            Error;
+        { ok, Via } ->
+            case ersip_hdr_via:sent_by(Via) of
+                { sent_by, { hostname, _ }, _ } ->
+                    { ok, add_received(Via, ViaH, Msg, Conn) };
+                { sent_by, IP, _ } when IP =/= RemoteIP ->
+                    { ok, add_received(Via, ViaH, Conn, Msg)};
+                _ ->
+                    { ok, Msg }
+            end
+    end.
+
+-spec add_received(ersip_hdr_via:via(), ersip_hdr:header(), sip_conn(), ersip_msg:message()) -> ersip_msg:message().
+add_received(Via, ViaH, Conn, Msg) ->
+    Via1  = ersip_hdr_via:set_param(received, remote_ip(Conn), Via),
+    ViaH1 = ersip_hdr:set_topmost(ersip_hdr_via:to_binary(Via1), ViaH),
+    ersip_msg:set(<<"via">>, ViaH1, Msg).

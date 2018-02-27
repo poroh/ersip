@@ -3,10 +3,10 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% SIP Port Side Effects
+%% SIP Connection Side effects
 %%
 
--module(ersip_port_se).
+-module(ersip_conn_se).
 
 -export([ bad_datagram/2
         ]).

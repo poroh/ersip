@@ -10,6 +10,7 @@
 
 -export([ make/1,
           make_key/1,
+          assemble/1,
           is_rfc3261/1
         ]).
 
@@ -38,6 +39,10 @@ make_key({ branch, Bin }) ->
     { branch_key, ersip_bin:to_lower(Bin) };
 make_key({ branch_key, _ } = Key) ->
     Key.
+
+-spec assemble(branch()) -> iolist().
+assemble({ branch, Bin }) ->
+    Bin.
 
 -spec is_rfc3261(branch() | branch_key()) -> boolean().
 is_rfc3261({ branch, <<"z9hG4bK", _/binary>> }) ->

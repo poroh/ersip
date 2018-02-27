@@ -9,7 +9,8 @@
 -module(ersip_host).
 -export([ is_host/1,
           parse/1,
-          make_key/1
+          make_key/1,
+          assemble/1
         ]).
 
 -include("ersip_sip_abnf.hrl").
@@ -65,6 +66,14 @@ make_key({ ipv4, _ } = H) ->
     H;
 make_key({ ipv6, _ } = H) ->
     H.
+
+-spec assemble(host()) -> iolist().
+assemble({ hostname, Bin }) ->
+    Bin;
+assemble({ ipv4, IpAddr }) ->
+    inet:ntoa(IpAddr);
+assemble({ ipv6, IpAddr }) ->
+    [ $[, inet:ntoa(IpAddr), $] ].
 
 %%%===================================================================
 %%% Internal implementation

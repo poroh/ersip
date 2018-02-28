@@ -38,6 +38,14 @@ is_datagram_test() ->
     ?assertEqual(false, ersip_transport:is_datagram(make_transport(tls))),
     ?assertEqual(false, ersip_transport:is_datagram(make_transport(tcp))).
 
+assemble_test() ->
+    ?assertEqual(<<"UDP">>, ersip_transport:assemble_upper(make_transport(udp))),
+    ?assertEqual(<<"WS">>,  ersip_transport:assemble_upper(make_transport(ws))),
+    ?assertEqual(<<"WSS">>, ersip_transport:assemble_upper(make_transport(wss))),
+    ?assertEqual(<<"TLS">>, ersip_transport:assemble_upper(make_transport(tls))),
+    ?assertEqual(<<"TCP">>, ersip_transport:assemble_upper(make_transport(tcp))),
+    ?assertEqual(<<"SOME">>, ersip_transport:assemble_upper(make_transport(<<"some">>))).
+
 make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),
     ?assertError(badarg, ersip_transport:make(x)).

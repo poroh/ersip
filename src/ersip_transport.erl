@@ -105,7 +105,7 @@ assemble_upper({ transport, ws }) ->
     <<"WS">>;
 assemble_upper({ transport, wss }) ->
     <<"WSS">>;
-assemble_upper({ transport, { other_transport, Binary } }) ->
+assemble_upper({ other_transport, Binary }) ->
     ersip_bin:to_upper(Binary).
 
 %%%===================================================================

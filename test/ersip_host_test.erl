@@ -30,7 +30,14 @@ hostname_parse_test() ->
     ?assertEqual({ error, einval },  ersip_host:parse(<<"example.co-m">>)),
     ?assertEqual({ error, einval },  ersip_host:parse(<<"example-.com">>))
         .
-    
+
+host_assemble_test() ->
+    check_reassemble(<<"127.0.0.1">>),
+    check_reassemble(<<"[::1]">>),
+    check_reassemble(<<"example.com">>),
+    check_reassemble(<<"example.com.">>),
+    check_reassemble(<<"x.com">>).
+
 hostname_is_host_test() ->
     ?assertEqual(true, ersip_host:is_host({ ipv4, { 1, 2, 3, 4 } })),
     ?assertEqual(true, ersip_host:is_host({ ipv4, { 0, 2, 3, 4 } })),
@@ -44,5 +51,11 @@ hostname_is_host_test() ->
     ?assertEqual(false, ersip_host:is_host({ ipv6, { 1, 0, 3, 4, 1, 2, 3, 4, 5 } })),
     ?assertEqual(false, ersip_host:is_host({ ipv6, { -1, 0, 3, 4, 1, 2, 3 } })),
     ?assertEqual(false, ersip_host:is_host({ ipv6, { 65536, 0, 3, 4, 1, 2, 3, 4, 5 } })).
-    
 
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+
+check_reassemble(Binary) ->
+    { ok, Host } = ersip_host:parse(Binary),
+    ?assertEqual(Binary, iolist_to_binary(ersip_host:assemble(Host))).

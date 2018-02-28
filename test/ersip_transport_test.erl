@@ -10,6 +10,10 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+%%%===================================================================
+%%% Cases
+%%%===================================================================
+
 parse_port_number_test() ->
     ?assertEqual({ ok, 5060, <<>>},      ersip_transport:parse_port_number(<<"5060">>)),
     ?assertEqual({ ok, 80, <<" ">>},     ersip_transport:parse_port_number(<<"80 ">>)),
@@ -27,9 +31,20 @@ default_port_test() ->
     CustomTransport = make_transport(<<"unknowntranport">>),
     ?assertEqual({default_port, CustomTransport}, ersip_transport:default_port(CustomTransport)).
 
+is_datagram_test() ->
+    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(udp))),
+    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(ws))),
+    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(wss))),
+    ?assertEqual(false, ersip_transport:is_datagram(make_transport(tls))),
+    ?assertEqual(false, ersip_transport:is_datagram(make_transport(tcp))).
+
 make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),
     ?assertError(badarg, ersip_transport:make(x)).
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
 
 make_transport(V) ->
     ersip_transport:make(V).

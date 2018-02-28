@@ -182,6 +182,5 @@ via_not_equal(ViaBin1, ViaBin2) ->
 check_reassemble(Binary) ->
     { ok, Via1 } = ersip_hdr_via:topmost_via(create_via(Binary)),
     Via1Bin = ersip_hdr_via:assemble(Via1),
-    ?debugFmt("~p", [ iolist_to_binary(Via1Bin) ]),
     { ok, Via2 } = ersip_hdr_via:topmost_via(create_via(Via1Bin)),
     ?assertEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).

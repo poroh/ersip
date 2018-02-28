@@ -114,7 +114,7 @@ assemble(#via{} = Via) ->
        sent_by    = { sent_by, Host, Port },
        via_params = Params
       } = Via,
-    [ Protocol, $/, ProtocolVersion, $/, ersip_transport:assemble(Transport),
+    [ Protocol, $/, ProtocolVersion, $/, ersip_transport:assemble_upper(Transport),
       <<" ">>, ersip_host:assemble(Host),
       case Port of 
           default_port ->
@@ -320,8 +320,6 @@ via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
     { ersip_bin:to_lower(OtherKey), OtherValue }.
 
 -spec assemble_params(via_params()) -> iolist().
-assemble_params(#{}) ->
-    [];
 assemble_params(Params) ->
     lists:map(fun assemble_param/1,
               maps:to_list(Params)).
@@ -338,6 +336,8 @@ assemble_param({ maddr, Value }) ->
     [ <<";maddr=">>, ersip_host:assemble(Value) ];
 assemble_param({ branch, Value }) ->
     [ <<";branch=">>, ersip_branch:assemble(Value) ];
+assemble_param({ Name, true }) ->
+    [ <<";", Name/binary>> ];
 assemble_param({ Name, Value }) ->
     <<";", Name/binary, "=", Value/binary>>.
 

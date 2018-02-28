@@ -12,7 +12,8 @@
           is_datagram/1,
           parse/1,
           parse_port_number/1,
-          default_port/1
+          default_port/1,
+          assemble_upper/1
         ]).
 
 -export_type([ transport/0,
@@ -70,7 +71,6 @@ is_datagram({ transport, tls }) ->
 is_datagram({ transport, tcp }) ->
     false.
 
-
 -spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(port_number()).
 parse_port_number(Bin) ->
     case ersip_parser_aux:parse_non_neg_int(Bin) of
@@ -93,6 +93,20 @@ default_port({transport, wss}) ->
     443;  %% RFC 7118 5.5
 default_port({other_transport, _ } = T) ->
     { default_port, T}.
+
+-spec assemble_upper(transport()) -> iolist().
+assemble_upper({ transport, udp }) ->
+    <<"UDP">>;
+assemble_upper({ transport, tcp }) ->
+    <<"TCP">>;
+assemble_upper({ transport, tls }) ->
+    <<"TLS">>;
+assemble_upper({ transport, ws }) ->
+    <<"WS">>;
+assemble_upper({ transport, wss }) ->
+    <<"WSS">>;
+assemble_upper({ transport, { other_transport, Binary } }) ->
+    ersip_bin:to_upper(Binary).
 
 %%%===================================================================
 %%% Internal implementation

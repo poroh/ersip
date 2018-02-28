@@ -10,6 +10,7 @@
 -include("ersip_sip_abnf.hrl").
 
 -export([ to_lower/1,
+          to_upper/1,
           trim_lws/1,
           trim_head_lws/1,
           trim_tail_lws/1,
@@ -24,6 +25,11 @@
 to_lower(Binary) when is_binary(Binary) ->
     << <<(unicode_to_lower(C))/utf8>> || <<C/utf8>> <= Binary >>;
 to_lower(Binary) -> erlang:error(badarg, [Binary]).
+
+-spec to_upper( binary() ) -> binary().
+to_upper(Binary) when is_binary(Binary) ->
+    << <<(unicode_to_upper(C))/utf8>> || <<C/utf8>> <= Binary >>;
+to_upper(Binary) -> erlang:error(badarg, [Binary]).
 
 -spec trim_lws( binary() ) -> binary().
 trim_lws(Bin0) ->
@@ -66,6 +72,10 @@ unquote_rfc_2396(String) when is_binary(String) ->
 -spec unicode_to_lower( byte() ) -> byte().
 unicode_to_lower(C) ->
     hd(string:to_lower([C])).
+
+-spec unicode_to_upper( byte() ) -> byte().
+unicode_to_upper(C) ->
+    hd(string:to_upper([C])).
 
 unquote_rfc_2396_iter(<<>>, Acc) ->
     list_to_binary(lists:reverse(Acc));

@@ -148,6 +148,15 @@ via_sent_by_key_test() ->
     SentBy2 = ersip_hdr_via:sent_by_key(Via2),
     ?assertEqual(SentBy1, SentBy2).
 
+assemle_test() ->
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>),
+    check_reassemble(<<"SIP/2.0/UDP BIGBOX3.SITE3.ATLANTA.COM;BRANCH=Z9HG4BK77EF4C2312983.1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;ttl=1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=x.com">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some=1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>).
+
 
 %%%===================================================================
 %%% Implementation
@@ -169,3 +178,10 @@ via_not_equal(ViaBin1, ViaBin2) ->
     { ok, Via1 } = ersip_hdr_via:topmost_via(create_via(ViaBin1)),
     { ok, Via2 } = ersip_hdr_via:topmost_via(create_via(ViaBin2)),
     ?assertNotEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).
+
+check_reassemble(Binary) ->
+    { ok, Via1 } = ersip_hdr_via:topmost_via(create_via(Binary)),
+    Via1Bin = ersip_hdr_via:assemble(Via1),
+    ?debugFmt("~p", [ iolist_to_binary(Via1Bin) ]),
+    { ok, Via2 } = ersip_hdr_via:topmost_via(create_via(Via1Bin)),
+    ?assertEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).

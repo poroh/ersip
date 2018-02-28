@@ -37,6 +37,13 @@ branch_key_idempotent_test() ->
     Key = make_key(<<"z9hG4bK776asdhds">>),
     ?assertEqual(Key, ersip_branch:make_key(Key)).
 
+assemle_test() ->
+    check_reassemble(<<"z9hg4bk776asdhds">>),
+    check_reassemble(<<"z9hg4bk">>),
+    check_reassemble(<<"_z9hG4bK">>),
+    check_reassemble(<<"_">>),
+    check_reassemble(<<"z">>).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -70,3 +77,7 @@ make_key(Bin) ->
     Branch = ersip_branch:make(Bin),
     ersip_branch:make_key(Branch).
     
+check_reassemble(Binary) ->
+    Branch = ersip_branch:make(Binary),
+    ?assertEqual(Binary, iolist_to_binary(ersip_branch:assemble(Branch))).
+

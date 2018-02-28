@@ -120,7 +120,7 @@ assemble(#via{} = Via) ->
           default_port ->
               [];
           Port ->
-              integer_to_binary(Port)
+              [ $:, integer_to_binary(Port) ]
       end,
       assemble_params(Params)
     ].

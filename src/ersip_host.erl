@@ -29,7 +29,9 @@
 
 
 %% @doc check term is valid host.
--spec is_host(term()) -> boolean().
+-spec is_host(MaybeHost) -> boolean() when
+      MaybeHost :: host()
+                 | term().
 is_host({ hostname, Bin }) ->
     hostname_valid(Bin);
 is_host({ ipv4, {A0,A1,A2,A3} }) ->

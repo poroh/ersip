@@ -35,7 +35,7 @@
 -type sent_protocol() :: { sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport() }.
 -type sent_by()       :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() }.
 -type internal_sent_by() :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port }.
--type via_params()    :: #{}.
+-type via_params()    :: map().
 -type known_via_params() :: branch
                           | maddr
                           | received
@@ -67,7 +67,8 @@ params(#via{via_params = VP}) ->
 
 -spec set_param(ParamName, Value, via()) -> via() when
       ParamName :: known_via_params() | binary(),
-      Value     :: binary().
+      Value     :: binary()
+                 | ersip_host:host().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
         { ok, Host } ->
@@ -335,7 +336,7 @@ via_param_make_key(received, R) ->
 via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
     { ersip_bin:to_lower(OtherKey), OtherValue }.
 
--spec assemble_params(via_params()) -> iolist().
+-spec assemble_params(via_params()) -> [ iolist() ].
 assemble_params(Params) ->
     lists:map(fun assemble_param/1,
               maps:to_list(Params)).

@@ -24,9 +24,10 @@
 %%%===================================================================
 
 -type transport_atom() :: udp | tcp | tls | ws | wss.
--type transport() :: { transport, transport_atom() }
-                   | { other_transport, binary() }.
-
+-type transport() :: known_transport()
+                   | other_transport().
+-type known_transport() :: { transport, transport_atom() }.
+-type other_transport() :: { other_transport, binary() }.
 -type port_number() :: 0..65535 | { default_port, transport() }.
 
 %%%===================================================================
@@ -59,7 +60,7 @@ parse(V) when V =:= tcp; V =:= udp; V =:= tls; V =:= wss; V =:= ws ->
 parse(V) when is_atom(V) ->
     { error, { bad_transport_atom, V } }.
 
--spec is_datagram(transport()) -> boolean().
+-spec is_datagram(known_transport()) -> boolean().
 is_datagram({ transport, udp }) ->
     true;
 is_datagram({ transport, ws }) ->
@@ -70,7 +71,7 @@ is_datagram({ transport, tls }) ->
     false;
 is_datagram({ transport, tcp }) ->
     false;
-is_datagram({ other_transport, Binary }) ->
+is_datagram({ other_transport, Binary }) when is_binary(Binary) ->
     error({error, { unknown_transport_type, Binary }}).
 
 -spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(port_number()).
@@ -96,7 +97,7 @@ default_port({transport, wss}) ->
 default_port({other_transport, _ } = T) ->
     { default_port, T}.
 
--spec assemble_upper(transport()) -> iolist().
+-spec assemble_upper(transport()) -> binary().
 assemble_upper({ transport, udp }) ->
     <<"UDP">>;
 assemble_upper({ transport, tcp }) ->

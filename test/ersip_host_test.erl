@@ -56,6 +56,16 @@ hostname_is_host_test() ->
     ?assertEqual(false, ersip_host:is_host({ ipv6, { -1, 0, 3, 4, 1, 2, 3 } })),
     ?assertEqual(false, ersip_host:is_host({ ipv6, { 65536, 0, 3, 4, 1, 2, 3, 4, 5 } })).
 
+host_make_test() ->
+    ?assertEqual(ersip_host:make(<<"127.0.0.1">>), ersip_host:make({127, 0, 0, 1})),
+    ?assertEqual(ersip_host:make(<<"127.0.0.1">>), ersip_host:make({ ipv4, {127, 0, 0, 1}})),
+    ?assertEqual(ersip_host:make(<<"[::1]">>), ersip_host:make({ ipv6, {0, 0, 0, 0,  0, 0, 0, 1}})),
+    ?assertEqual(ersip_host:make(<<"[::1]">>), ersip_host:make({0, 0, 0, 0,  0, 0, 0, 1})),
+    ?assertEqual(ersip_host:make(<<"a.com">>), ersip_host:make({ hostname, <<"a.com">> })),
+    ?assertError({ error, _ }, ersip_host:make({ hostname, <<".">> })),
+    ?assertError({ error, _ }, ersip_host:make(<<".">>)).
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

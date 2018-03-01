@@ -87,8 +87,14 @@ assemble({ ipv6, IpAddr }) ->
             | binary().
 make({ _, _, _, _ } = Addr) ->
     assure_host({ ipv4, Addr });
+make({ ipv4, { _, _, _, _ } } = Addr) ->
+    assure_host(Addr);
 make({ _, _, _, _,  _, _, _, _ } = Addr) ->
     assure_host({ ipv6, Addr });
+make({ ipv6, { _, _, _, _,  _, _, _, _ } } = Addr) ->
+    assure_host(Addr);
+make({ hostname, _ } = Host) ->
+    assure_host(Host);
 make(Addr) when is_binary(Addr)  ->
     case parse(Addr) of
         { ok, Host } ->

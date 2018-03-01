@@ -8,7 +8,9 @@
 
 -module(ersip_conn_se).
 
--export([ bad_datagram/2
+-export([ bad_message/2,
+          new_message/1,
+          disconnect/1
         ]).
 
 -export_type([ side_effect/0 ]).
@@ -18,13 +20,22 @@
 %%%===================================================================
 
 %% Bad datagram received.
--type side_effect() :: { bad_datagram, { error, term() }, binary() }.
+-type side_effect() :: { bad_message, { error, term() }, binary() }
+                     | { new_message, ersip_msg:message() }
+                     | { disconnect, { error, term() } }.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec bad_datagram({ error, term() }, binary()) -> side_effect().
-bad_datagram(Error, Data) ->
-    { bad_datagram, Error, Data }.
-    
+-spec bad_message({ error, term() }, binary()) -> side_effect().
+bad_message(Error, Data) ->
+    { bad_message, Error, Data }.
+
+-spec new_message(ersip_msg:message()) -> { new_message, ersip_msg:message() }.
+new_message(Message) ->
+    { new_message, Message }.
+
+-spec disconnect({ error, term() }) -> side_effect().
+disconnect(Error) ->
+    { disconnect, Error }.

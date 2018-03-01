@@ -116,7 +116,7 @@ assemble(#via{} = Via) ->
       } = Via,
     [ Protocol, $/, ProtocolVersion, $/, ersip_transport:assemble_upper(Transport),
       <<" ">>, ersip_host:assemble(Host),
-      case Port of 
+      case Port of
           default_port ->
               [];
           Port ->
@@ -182,6 +182,20 @@ parse_sent_by(Binary) ->
             parse_sent_by_host_port(ersip_bin:trim_lws(Binary), host, #{ rest => <<>> })
     end.
 
+parse_sent_by_host_port(<<$[, _/binary>> = IPv6RefPort, host, Acc) ->
+    case binary:match(IPv6RefPort, <<"]">>) of
+        nomatch ->
+            { error, { invalid_ipv6_reference, IPv6RefPort } };
+        { Pos, 1 } ->
+            HostBin = binary:part(IPv6RefPort, { 0, Pos+1 }),
+            Rest = binary:part(IPv6RefPort, { Pos+1, byte_size(IPv6RefPort)-Pos-1}),
+            case ersip_host:parse(HostBin) of
+                { ok, Host } ->
+                    parse_sent_by_host_port(Rest, port, Acc#{ host => Host });
+                { error, _ } = Err ->
+                    Err
+            end
+    end;
 parse_sent_by_host_port(Binary, host, Acc) ->
     [ HostBin | MayBePort ] = binary:split(Binary, <<":">>),
     case ersip_host:parse(HostBin) of
@@ -191,6 +205,8 @@ parse_sent_by_host_port(Binary, host, Acc) ->
             Err
     end;
 parse_sent_by_host_port([], port, Acc) ->
+    parse_sent_by_host_port(<<>>, result, Acc);
+parse_sent_by_host_port(<<>>, port, Acc) ->
     parse_sent_by_host_port(<<>>, result, Acc);
 parse_sent_by_host_port([ Bin ], port, Acc) when is_binary(Bin) ->
     case ersip_transport:parse_port_number(Bin) of
@@ -340,8 +356,3 @@ assemble_param({ Name, true }) ->
     [ <<";", Name/binary>> ];
 assemble_param({ Name, Value }) ->
     <<";", Name/binary, "=", Value/binary>>.
-
-
-
-    
-

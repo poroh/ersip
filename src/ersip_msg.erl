@@ -11,6 +11,7 @@
 -export([ new/0,
           set/2,
           set/3,
+          set_header/2,
           add/3,
           get/2,
           serialize/1,
@@ -114,7 +115,10 @@ set(HeaderName, Value,  #message{ headers = H } = Message) ->
     Header1 = ersip_hdr:add_value(Value, Header0),
     Message#message{ headers = H#{ Key => Header1 } }.
 
-
+-spec set_header(ersip_hdr:header(), message()) -> message().
+set_header(Header, #message{ headers = H } = Message) ->
+    Key = ersip_hdr:make_key(Header),
+    Message#message{ headers = H#{ Key => Header } }.
 
 -spec add(Name, Value, message()) -> message() when
       Name  :: binary(),

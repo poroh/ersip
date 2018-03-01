@@ -9,6 +9,7 @@
 -module(ersip_host).
 -export([ is_host/1,
           parse/1,
+          make/1,
           make_key/1,
           assemble/1
         ]).
@@ -74,6 +75,21 @@ assemble({ ipv4, IpAddr }) ->
     inet:ntoa(IpAddr);
 assemble({ ipv6, IpAddr }) ->
     [ $[, inet:ntoa(IpAddr), $] ].
+
+-spec make(Addr) -> host() when
+      Addr :: inet:ip_address()
+            | binary().
+make({ _, _, _, _ } = Addr) ->
+    assure_host({ ipv4, Addr });
+make({ _, _, _, _,  _, _, _, _ } = Addr) ->
+    assure_host({ ipv6, Addr });
+make(Addr) when is_binary(Addr)  ->
+    case parse(Addr) of
+        { ok, Host } ->
+            Host;
+        { error, _ } ->
+            error({ error, { invalid_host, Addr } })
+    end.
 
 %%%===================================================================
 %%% Internal implementation
@@ -187,3 +203,13 @@ domainlabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) orelse 
     domainlabel_valid(R, rest);
 domainlabel_valid(_, _) ->
     false.
+
+-spec assure_host(MaybeHost) -> host() when
+      MaybeHost :: term().
+assure_host(Host) ->
+    case is_host(Host) of
+        true ->
+            Host;
+        false ->
+            error({ error, { not_valid_host, Host } })
+    end.

@@ -69,7 +69,9 @@ is_datagram({ transport, wss }) ->
 is_datagram({ transport, tls }) ->
     false;
 is_datagram({ transport, tcp }) ->
-    false.
+    false;
+is_datagram({ other_transport, Binary }) ->
+    error({error, { unknown_transport_type, Binary }}).
 
 -spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(port_number()).
 parse_port_number(Bin) ->

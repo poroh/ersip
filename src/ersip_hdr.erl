@@ -8,12 +8,14 @@
 
 -module(ersip_hdr).
 
--export([ make_key/1,
+-export([ is_header/1,
+          make_key/1,
           new/1,
           is_empty/1,
           add_value/2,
           add_values/2,
           raw_values/1,
+          replace_topmost/2,
           serialize_rev_iolist/2,
           as_integer/1
         ]).
@@ -34,6 +36,12 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec is_header(header() | term()) -> boolean().
+is_header(#header{}) ->
+    true;
+is_header(_) ->
+    false.
 
 %% @doc Create key by the header name.
 -spec make_key(NameOrHeader) -> header_key() when
@@ -73,6 +81,13 @@ add_values(Values, #header{} = Hdr) ->
 -spec raw_values(header()) -> [ iolist() ].
 raw_values(#header{ values = Vs }) ->
     Vs.
+
+-spec replace_topmost(Value, header()) -> header() when
+      Value :: iolist().
+replace_topmost(Value, #header{ values = []} = H) ->
+    H#header{ values = [ Value ] };
+replace_topmost(Value, #header{ values = [_|Rest]} = H) ->
+    H#header{ values = [ Value | Rest ] }.
 
 %% @doc serialize header values in reverse iolist If Acc is not empty
 %% then also adds CR LF before adding header. If header has more than

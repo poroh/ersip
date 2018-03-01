@@ -77,8 +77,6 @@ raw_values(#header{ values = Vs }) ->
 
 -spec replace_topmost(Value, header()) -> header() when
       Value :: iolist().
-replace_topmost(Value, #header{ values = []} = H) ->
-    H#header{ values = [ Value ] };
 replace_topmost(Value, #header{ values = [_|Rest]} = H) ->
     H#header{ values = [ Value | Rest ] }.
 

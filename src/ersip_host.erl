@@ -13,20 +13,24 @@
           make_key/1,
           assemble/1
         ]).
-
--include("ersip_sip_abnf.hrl").
-
-
--type host() :: { hostname, binary() }
-              | { ipv4,     inet:ip4_address() }
-              | { ipv6,     inet:ip6_address() }.
-
 -export_type([ host/0 ]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
+-type host() :: hostname()
+              | address().
+-type address()  :: { ipv4, inet:ip4_address() }
+                  | { ipv6, inet:ip6_address() }.
+-type hostname() :: { hostname, binary() }.
+
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+-include("ersip_sip_abnf.hrl").
 
 %% @doc check term is valid host.
 -spec is_host(MaybeHost) -> boolean() when

@@ -22,12 +22,12 @@
 %%% Types
 %%%===================================================================
 
--record(data, { options = #{}            :: map(),
-                buf                      :: ersip_buf:state(),
-                state = first_line       :: state(),
-                message                  :: ersip:message(),
-                acc   = []               :: list(binary()),
-                content_len  = undefined :: pos_integer() | undefined
+-record(data, { options = #{}             :: map(),
+                buf                       :: ersip_buf:state(),
+                state = first_line        :: state(),
+                message = ersip_msg:new() :: ersip:message(),
+                acc   = []                :: list(binary()),
+                content_len  = undefined  :: pos_integer() | undefined
                }).
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
@@ -47,16 +47,12 @@ new() ->
 -spec new(options()) -> data().
 new(Options) ->
     #data{ options = Options,
-           buf     = ersip_buf:new(maps:get(buffer, Options, #{})),
-           message = ersip_msg:new()
+           buf     = ersip_buf:new(maps:get(buffer, Options, #{}))
          }.
 
 -spec new_dgram(binary()) -> data().
 new_dgram(DatagramBinary) when is_binary(DatagramBinary) ->
-    #data{ options = #{},
-           buf     = ersip_buf:new_dgram(DatagramBinary),
-           message = ersip_msg:new()
-         }.
+    #data{ buf = ersip_buf:new_dgram(DatagramBinary) }.
 
 
 -spec add_binary(binary(), data()) -> data().

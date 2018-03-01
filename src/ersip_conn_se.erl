@@ -28,7 +28,7 @@
 %%% API
 %%%===================================================================
 
--spec bad_message({ error, term() }, binary()) -> side_effect().
+-spec bad_message({ error, term() }, binary() | ersip_msg:message()) -> side_effect().
 bad_message(Error, Data) ->
     { bad_message, Error, Data }.
 

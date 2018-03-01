@@ -8,8 +8,7 @@
 
 -module(ersip_hdr).
 
--export([ is_header/1,
-          make_key/1,
+-export([ make_key/1,
           new/1,
           is_empty/1,
           add_value/2,
@@ -36,12 +35,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
--spec is_header(header() | term()) -> boolean().
-is_header(#header{}) ->
-    true;
-is_header(_) ->
-    false.
 
 %% @doc Create key by the header name.
 -spec make_key(NameOrHeader) -> header_key() when

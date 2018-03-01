@@ -73,7 +73,45 @@ conn_add_received_test() ->
           >>,
     check_received(RemoteIP, MsgWithAnotherIPv6, Conn).
 
-conn_error_on_via_test() ->
+conn_do_not_add_received_test() ->
+    RemoteIP = { 127, 0, 0, 1 },
+    Conn = create_conn(RemoteIP, 5090),
+    %% 1. received added if domain name:
+    Msg =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP 127.0.0.1;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: deadbeef",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    check_no_received(Msg, Conn).
+
+conn_error_invalid_message_test() ->
+    RemoteIP = { 127, 0, 0, 1 },
+    Conn = create_conn(RemoteIP, 5090),
+    %% 1. received added if domain name:
+    MsgWithoutBadFirstline =
+        <<"INVITE_sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: deadbeef",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test"
+        >>,
+    { _, [ { bad_message, MsgWithoutBadFirstline, { error, _ } } ] }
+        = ersip_conn:conn_data(MsgWithoutBadFirstline, Conn).
+
+conn_error_no_via_test() ->
     RemoteIP = { 127, 0, 0, 1 },
     Conn = create_conn(RemoteIP, 5090),
     %% 1. received added if domain name:
@@ -92,7 +130,7 @@ conn_error_on_via_test() ->
     { _, [ { bad_message, BadMsg, { error, _ } } ] } = ersip_conn:conn_data(MsgWithoutVia, Conn),
     CallIdH = ersip_msg:get(<<"call-id">>, BadMsg),
     ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallIdH)).
-    
+
 
 conn_stream_test() ->
     RemoteIP = { 127, 0, 0, 1 },
@@ -179,3 +217,9 @@ check_received(RemoteIp, Msg, Conn) ->
     { ok, Via } = ersip_hdr_via:topmost_via(ViaH),
     RemoteHost = ersip_host:make(RemoteIp),
     ?assertMatch(#{ received := RemoteHost }, ersip_hdr_via:params(Via)).
+
+check_no_received(Msg, Conn) ->
+    { _, [ { new_message, NewMsg } ] } = ersip_conn:conn_data(Msg, Conn),
+    ViaH = ersip_msg:get(<<"via">>, NewMsg),
+    { ok, Via } = ersip_hdr_via:topmost_via(ViaH),
+    ?assertMatch(error, maps:find(received, ersip_hdr_via:params(Via))).

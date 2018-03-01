@@ -59,7 +59,7 @@ new_dgram(DatagramBinary) when is_binary(DatagramBinary) ->
 add_binary(Binary, #data{buf=Buf} = Data) ->
     update(buf, ersip_buf:add(Binary, Buf), Data).
 
--spec parse(data()) -> { result(), data() }.
+% -spec parse(data()) -> { result(), data() }.
 parse(#data{ state = first_line } = Data) ->
     parse_first_line(Data);
 parse(#data{ state = headers } = Data) ->
@@ -75,7 +75,9 @@ parse(#data{ state = body } = Data) ->
 
 -spec update(list({Item, Value}), data()) -> data() when
       Item :: buf
+            | acc
             | state
+            | content_len
             | message,
       Value :: term().
 update(List, Data) ->
@@ -135,17 +137,17 @@ parse_status_line(StatusLine, Data) ->
 -spec parse_request_line(Arg, data()) -> { result(), data() } when
       Arg :: binary()
            | list(binary()).
-parse_request_line(RequestLine, Data) when is_binary(RequestLine) ->
+parse_request_line(RequestLine, #data{} =Data) when is_binary(RequestLine) ->
     Splitted = binary:split(RequestLine, <<" ">>, [global]),
     parse_request_line(Splitted, Data);
-parse_request_line([ MethodBin, RURI, <<"SIP/2.0">>], Data) when is_binary(MethodBin) ->
+parse_request_line([ MethodBin, RURI, <<"SIP/2.0">>], #data{} = Data) when is_binary(MethodBin) ->
     case ersip_method:parse(MethodBin) of
         { ok, Method } ->
             parse_request_line([ Method, RURI, <<"SIP/2.0">> ], Data);
         { error, Reason } ->
             make_error({ bad_message, Reason }, Data)
     end;
-parse_request_line([ Method, RURI, <<"SIP/2.0">>], Data) ->
+parse_request_line([ Method, RURI, <<"SIP/2.0">>], #data{} = Data) ->
     Message  = ?message(Data),
     Message_ = ersip_msg:set([ { type,   request },
                                { method, Method  },
@@ -206,7 +208,7 @@ parse_headers(#data{ buf = Buf, acc = Acc } = Data) ->
     end.
 
 -spec add_header(iolist(), data()) -> { ok, data() } | { error, term() }.
-add_header([H|Rest], Data) ->
+add_header([H|Rest], #data{} = Data) ->
     case binary:split(H, <<":">>) of
         [ HName, V ] ->
             Message_ = ersip_msg:add(HName, [ V | Rest ], ?message(Data)),
@@ -230,7 +232,7 @@ parse_body(#data{ buf = Buf, message = Msg, content_len = undefined } = Data ) -
                 true ->
                     parse_body(Data#data{ content_len = ersip_buf:length(Buf) });
                 false ->
-                    make_error({bad_message, <<"Invalid Content-Length">>}, Data)
+                    make_error({ bad_message, {invalid_content_length, ersip_hdr:raw_values(Hdr) } }, Data)
             end
     end;
 parse_body(#data{ buf = Buf, content_len = Len } = Data) ->
@@ -246,11 +248,12 @@ parse_body(#data{ buf = Buf, content_len = Len } = Data) ->
             Message = ersip_msg:set(body, Body, ?message(Data)),
             Data_ = update([ { message, ersip_msg:new() },
                              { content_len, undefined   },
+                             { state, first_line },
                              { buf, Buf_ }
                            ], Data),
             { {ok, Message}, Data_ }
     end.
         
 -spec make_error(term(), data()) -> { { error, term() }, data() }.
-make_error(Error, Data) ->
+make_error(Error, #data{} = Data) ->
     { {error, Error}, Data }.

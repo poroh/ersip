@@ -14,7 +14,7 @@
           event/2,
           id/1 ]).
 
--type result()  :: { uas(), [ ersip_uas_se:effect() ] }.
+-type result()  :: { uas(), [ ersip_uas_fsm_se:effect() ] }.
 -type event()   :: enter
                  | retransmit
                  | { send_resp, ersip_status:response_type(), Response :: term() }

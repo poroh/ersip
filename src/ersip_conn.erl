@@ -72,7 +72,7 @@ conn_data(Binary, #sip_conn{ parser = Parser } = Conn) ->
     %% Stream transport
     NewParser = ersip_parser:add_binary(Binary, Parser),
     parse_data({ save_parser(NewParser, Conn), [] }).
-                
+
 %%%===================================================================
 %%% Internal Implementation
 %%%===================================================================

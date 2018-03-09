@@ -7,7 +7,7 @@
 %% Side Effects Definition
 %%
 
--module(ersip_uac_se).
+-module(ersip_uac_fsm_se).
 
 -export([ new_trans/1,
           clear_trans/1,

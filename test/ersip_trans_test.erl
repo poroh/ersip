@@ -12,7 +12,7 @@
 
 transaction_id_test() ->
     UASTid = <<"UAS tid">>,
-    { UAS, _ } = ersip_uas:new(UASTid, reliable, message, #{}),
+    { UAS, _ } = ersip_uas_fsm:new(UASTid, reliable, message, #{}),
     ?assertEqual(UASTid, ersip_trans:id(UAS)),
     UACTid = <<"UAC tid">>,
     { UAC, _ } = ersip_uac_fsm:new(UACTid, reliable, message, #{}),

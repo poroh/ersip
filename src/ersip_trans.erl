@@ -10,7 +10,7 @@
 -export([ id/1 ]).
 
 -type trans() :: ersip_uac_fsm:uac()
-               | ersip_uas:uas().
+               | ersip_uas_fsm:uas().
 -type tid()   :: { tid, ersip_trans_id:transaction_id() }.
 
 -export_type([ trans/0, tid/0 ]).
@@ -31,7 +31,7 @@ call_trans_module(FunId, Transaction, Args) ->
     Module = 
         case classify(Transaction) of
             uac -> ersip_uac_fsm;
-            uas -> ersip_uas
+            uas -> ersip_uas_fsm
         end,
     erlang:apply(Module, FunId, Args).
 

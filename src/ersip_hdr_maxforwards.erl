@@ -10,7 +10,9 @@
 -include("ersip_sip_abnf.hrl").
 
 -export([ make/1,
-          parse/1 ]).
+          value/1,
+          parse/1,
+          build/2 ]).
 
 -export_type([ maxforwards/0 ]).
 
@@ -40,6 +42,10 @@ make(Header) ->
             error(Error)
     end.
 
+-spec value(maxforwards()) -> non_neg_integer().
+value({ maxforwards, V }) ->
+    V.
+
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: { ok, maxforwards() }
               | { error, Error },
@@ -54,6 +60,12 @@ parse(Header) ->
         _ ->
             { error, multiple_maxforwards }
     end.
+
+-spec build(HdrName, maxforwards()) -> ersip_hdr:header() when
+      HdrName :: binary().
+build(HdrName, { maxforwards, V }) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_hdr:add_value(integer_to_binary(V), Hdr).
 
 %%%===================================================================
 %%% Internal implementation

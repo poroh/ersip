@@ -10,6 +10,7 @@
 
 -module(ersip_sipmsg).
 
+%% API exports
 -export([ raw_message/1,
           type/1,
           method/1,
@@ -18,8 +19,15 @@
           has_body/1,
           get/2,
           parse/2,
-          find/2
+          find/2,
+          reply/2
         ]).
+
+%% Non-API exports.
+-export([ headers/1,
+          set_headers/2,
+          set_raw_message/2 ]).
+
 -export_type([ sipmsg/0,
                known_header/0
              ]).
@@ -42,6 +50,8 @@
                            maxforwards  => pos_integer(),
                            topmost_via  => ersip_hdr_via:via()
                          }.
+
+-type reply_options() :: { ersip_status:code(), Reason :: binary() }.
 
 %%%===================================================================
 %%% API
@@ -88,6 +98,11 @@ get(HdrAtom, #sipmsg{} = Msg) ->
             error(Error)
     end.
 
+-spec set(known_header(), Value :: term(), sipmsg()) -> Value when
+      Value :: term().
+set(HdrAtom, Value, #sipmsg{} = Msg) ->
+    ersip_siphdr:set_header(HdrAtom, Value, Msg).
+
 -spec parse(ersip_msg:message(), [ known_header() ] | all) -> Result when
       Result :: { ok, sipmsg() }
               | { error, term() }.
@@ -117,9 +132,21 @@ find(HdrAtom, #sipmsg{ headers = H } = Msg) ->
             end
     end.
 
+-spec reply(reply_options(), sipmsg()) -> sipmsg().
+reply(Reply, SipMsg) ->
+    reply_impl(Reply, SipMsg).
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
+
+-spec set_raw_message(ersip_msg:message(), sipmsg()) -> sipmsg().
+set_raw_message(RawMsg, #sipmsg{} = SipMsg) ->
+    SipMsg#sipmsg{ raw = RawMsg }.
+
+-spec new() -> sipmsg().
+new() ->
+    #sipmsg{ raw = ersip_msg:new() }.
 
 %%%
 %%% Getters/Setters
@@ -206,7 +233,7 @@ ruri_from_raw(Msg) ->
         response ->
             { ok, undefined }
     end.
- 
+
 fold_maybes(MaybesList) ->
     lists:foldr(fun(_, {error, _} = Error) ->
                         Error;
@@ -217,3 +244,86 @@ fold_maybes(MaybesList) ->
                 end,
                 [],
                 MaybesList).
+
+%% 8.2.6 Generating the Response
+%%
+%% Note valid parameters:
+%% 1. SipMsg has to_tag
+%% 2. Reply contains to_tag
+%% 3. Reply is 100 Trying
+%%
+%% Otherwise function generates error.
+-spec reply_impl(ersip_reply:options(), sipmsg()) -> sipmsg().
+reply_impl(Reply, SipMsg) ->
+    Status = ersip_reply:status(Reply),
+    RSipMsg0 = new(),
+    %% 8.2.6.1 Sending a Provisional Response
+    %% When a 100 (Trying) response is generated, any
+    %% Timestamp header field present in the request MUST be
+    %% copied into this 100 (Trying) response.
+    RSipMsg1 = maybe_copy_timestamp(Status, SipMsg, RSipMsg0),
+
+    %% 8.2.6.2 Headers and Tags
+    %%
+    %% The From field of the response MUST equal the From header field
+    %% of the request.  The Call-ID header field of the response MUST
+    %% equal the Call-ID header field of the request.  The CSeq header
+    %% field of the response MUST equal the CSeq field of the request.
+    %% The Via header field values in the response MUST equal the Via
+    %% header field values in the request and MUST maintain the same
+    %% ordering
+    RSipMsg2 = ersip_siphdr:copy_headers(
+                 [ from, callid, cseq, <<"via">> ],
+                 SipMsg, RSipMsg1),
+
+    RSipMsg3 =
+        case ersip_hdr_fromto:tag(get(to)) of
+            { tag, _ } ->
+                %% If a request contained a To tag in the request, the
+                %% To header field in the response MUST equal that of
+                %% the request.
+                ersip_siphdr:copy_header(to, SipMsg, RSipMsg2);
+            undefined ->
+                maybe_set_to_tag(Reply, SipMsg, RSipMsg2)
+        end.
+
+%% When a 100 (Trying) response is generated, any
+%% Timestamp header field present in the request MUST be
+%% copied into this 100 (Trying) response.
+%%
+%% TODO: If there is a delay in generating the response, the UAS
+%% SHOULD add a delay value into the Timestamp value in the response.
+%% This value MUST contain the difference between the time of sending
+%% of the response and receipt of the request, measured in seconds.
+-spec maybe_copy_timestamp(ersip_status:code(), sipmsg(), sipmsg()) -> sipmsg().
+maybe_copy_timestamp(100, SipMsg, RSipMsg) ->
+    ersip_siphdr:copy_header(<<"timestamp">>, SipMsg, RSipMsg);
+maybe_copy_timestamp(_, _, RSipMsg) ->
+    RSipMsg.
+
+%% 8.2.6.2 Headers and Tags
+%%
+%% However, if the To header field in the request did not contain a
+%% tag, the URI in the To header field in the response MUST equal the
+%% URI in the To header field; additionally, the UAS MUST add a tag to
+%% the To header field in the response (with the exception of the 100
+%% (Trying) response, in which a tag MAY be present).
+-spec maybe_set_to_tag(ersip_reply:options(), SrcSipMsg, DstSipMsg) -> ResultSipMsg when
+      SrcSipMsg :: sipmsg(),
+      DstSipMsg :: sipmsg(),
+      ResultSipMsg :: sipmsg().
+maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
+    case ersip_reply:status(Reply) of
+        100 ->
+            ersip_siphdr:copy_header(to, SipMsg, RSipMsg);
+        _ ->
+            NewTo =
+                case ersip_reply:tag(Reply) of
+                    undefined ->
+                        error({ error, no_to_tag_specified});
+                    ToTag ->
+                        To = get(to, SipMsg),
+                        ersip_hdr_fromto:set_tag(ToTag, To)
+                end,
+            set(to, NewTo, RSipMsg)
+    end.

@@ -45,7 +45,14 @@ assemble_test() ->
     ?assertEqual(<<"WSS">>, ersip_transport:assemble_upper(make_transport(wss))),
     ?assertEqual(<<"TLS">>, ersip_transport:assemble_upper(make_transport(tls))),
     ?assertEqual(<<"TCP">>, ersip_transport:assemble_upper(make_transport(tcp))),
-    ?assertEqual(<<"SOME">>, ersip_transport:assemble_upper(make_transport(<<"some">>))).
+    ?assertEqual(<<"SOME">>, ersip_transport:assemble_upper(make_transport(<<"some">>))),
+
+    ?assertEqual(<<"udp">>, ersip_transport:assemble(make_transport(udp))),
+    ?assertEqual(<<"ws">>,  ersip_transport:assemble(make_transport(ws))),
+    ?assertEqual(<<"wss">>, ersip_transport:assemble(make_transport(wss))),
+    ?assertEqual(<<"tls">>, ersip_transport:assemble(make_transport(tls))),
+    ?assertEqual(<<"tcp">>, ersip_transport:assemble(make_transport(tcp))),
+    ?assertEqual(<<"some">>, ersip_transport:assemble(make_transport(<<"Some">>))).
 
 make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),

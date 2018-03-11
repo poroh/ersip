@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -9,6 +9,10 @@
 -module(ersip_iolist_test).
 
 -include_lib("eunit/include/eunit.hrl").
+
+%%%===================================================================
+%%% Cases
+%%%===================================================================
 
 is_emtpy_test() ->
     ?assertEqual(true, ersip_iolist:is_empty(<<>>)),
@@ -46,3 +50,19 @@ trim_tail_lws_test() ->
     ?assertEqual([<<"abc">>], ersip_iolist:trim_tail_lws([<<"abc ">>, ""])),
     ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc ", <<>>])),
     ?assertEqual(["abc"],     ersip_iolist:trim_tail_lws(["abc ", <<" ">>, <<" ">>])).
+
+join_test() ->
+    iolist_equal(<<"a">>,       ersip_iolist:join(",",     ["a"])),
+    iolist_equal(<<"a,b">>,     ersip_iolist:join(",",     ["a","b"])),
+    iolist_equal(<<"a,b">>,     ersip_iolist:join(<<",">>, ["a","b"])),
+    iolist_equal(<<"a,b,c">>,   ersip_iolist:join(",",     ["a","b", <<"c">>])),
+    iolist_equal(<<"a, b, c">>, ersip_iolist:join(", ",    ["a","b", <<"c">>])).
+
+
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+
+iolist_equal(IO1, IO2) ->
+    ?assertEqual(iolist_to_binary(IO1), iolist_to_binary(IO2)). 

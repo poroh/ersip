@@ -11,7 +11,8 @@
 -export([ trim_lws/1,
           trim_head_lws/1,
           trim_tail_lws/1,
-          is_empty/1
+          is_empty/1,
+          join/2
         ]).
 
 -include("ersip_sip_abnf.hrl").
@@ -68,6 +69,21 @@ is_empty([X|Rest]) ->
         true ->
             is_empty(Rest)
     end.
+
+
+%% @doc join list of iolists with separator
+-spec join(Sep, List) -> iolist() when
+      List :: [ iolist() ],
+      Sep  :: iolist() | binary().
+join(_, [ X ]) ->
+    X;
+join(Sep, [ X | Rest ]) ->
+    [ X |
+      lists:map(fun(Y) ->
+                        [ Sep, Y ]
+                end,
+                Rest)
+    ].
 
 %%%===================================================================
 %%% internal implementation

@@ -8,8 +8,18 @@
 
 -module(ersip_nameaddr).
 
--export([parse/1]).
+-export([ parse/1,
+          assemble/2
+        ]).
+-export_type([ display_name/0 ]).
+
 -include("ersip_sip_abnf.hrl").
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
+-type display_name() :: { display_name, binary() | [ binary() ]}.
 
 %%%===================================================================
 %%% API
@@ -18,8 +28,8 @@
 %% [ display-name ] LAQUOT addr-spec RAQUOT
 %% display-name   =  *(token LWS)/ quoted-string
 -spec parse(binary()) -> Result when
-      Result :: { ok, { DisplayName :: { display_name, binary() | [ binary() ]},
-                        Addr :: ersip_uri:uri()
+      Result :: { ok, { display_name(),
+                        ersip_uri:uri()
                       },
                   Rest :: binary()
                 }
@@ -64,14 +74,26 @@ parse(NameAddrBin) ->
             { error, {einval, address} }
     end.
 
+-spec assemble(display_name(), ersip_uri:uri()) -> iolist().
+assemble(DisplayName, URI) ->
+    DN = assemble_display_name(DisplayName),
+    [ DN,
+      case ersip_iolist:is_empty(DN) of
+          true ->
+              <<"">>;
+          false ->
+              <<" ">>
+      end,
+      $<, ersip_uri:assemble(URI), $>
+    ].
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 
 %% display-name   =  *(token LWS)/ quoted-string
 -spec parse_display_name(binary()) -> Result when
-      Result :: { { display_name, DisplayName :: binary() | [ binary() ] },
-                  Rest :: binary() }
+      Result :: { display_name(), Rest :: binary() }
               | error.
 parse_display_name(<<>>) ->
     error;
@@ -96,3 +118,8 @@ parse_display_name(<<Char/utf8, _/binary>> = TL) when ?is_token_char(Char) ->
     end;
 parse_display_name(<<"<", _/binary>> = Addr) ->
     { { display_name, [] }, Addr }.
+
+assemble_display_name({ display_name, L }) when is_list(L) ->
+    ersip_iolist:join(<<" ">>, L);
+assemble_display_name({ display_name, V }) when is_binary(V) ->
+    V.

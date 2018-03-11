@@ -63,6 +63,25 @@ tag_key_test() ->
     ?assertEqual({ tag_key, <<"abc">> }, tag_key(<<"sip:a@b;tag=ABC">>)),
     ?assertEqual(undefined, tag_key(<<"sip:a@b">>)).
 
+assemble_test() ->
+    reassemble_check(<<"<sip:a@b>">>),
+    reassemble_check(<<"Alice <sip:a@b>">>),
+    reassemble_check(<<"Alice <sip:alice@atlanta.com>;tag=88sja8x">>),
+    reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s">>),
+    reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s;myparam=Value">>),
+    ok.
+
+set_tag_test() ->
+    AliceF = success_parse_fromto(<<"Alice <sip:alice@atlanta.com>">>),
+    AliceWithTag = ersip_hdr_fromto:set_tag({ tag, <<"88sja8x">> }, AliceF),
+    ?assertEqual(<<"Alice <sip:alice@atlanta.com>;tag=88sja8x">>, assemble(AliceWithTag)),
+    ok.
+
+build_test() ->
+    AliceF = success_parse_fromto(<<"Alice <sip:alice@atlanta.com>">>),
+    AliceFH = ersip_hdr_fromto:build(<<"From">>, AliceF),
+    { ok, AliceF2 } = ersip_hdr_fromto:parse(AliceFH),
+    ?assertEqual(AliceF, AliceF2).
 
 %%%===================================================================
 %%% Helpers
@@ -78,3 +97,12 @@ success_parse_fromto(Bin) ->
 
 tag_key(Bin) ->
     ersip_hdr_fromto:tag_key(ersip_hdr_fromto:make(Bin)).
+
+reassemble_check(Bin) ->
+    { ok, FromTo } = ersip_hdr_fromto:parse(create(Bin)),
+    BinAssembled = iolist_to_binary(ersip_hdr_fromto:assemble(FromTo)),
+    { ok, _ } = ersip_hdr_fromto:parse(create(BinAssembled)),
+    ?assertEqual(Bin, BinAssembled).
+
+assemble(FromTo) ->
+    iolist_to_binary(ersip_hdr_fromto:assemble(FromTo)).

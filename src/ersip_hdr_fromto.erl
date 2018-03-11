@@ -12,9 +12,13 @@
           display_name/1,
           uri/1,
           tag/1,
+          set_tag/2,
           tag_key/1,
           params/1,
-          parse/1 ]).
+          parse/1,
+          build/2,
+          assemble/1
+        ]).
 -export_type([ fromto/0,
                tag/0,
                tag_key/0
@@ -25,7 +29,7 @@
 %%%===================================================================
 
 -record(fromto, {
-          display_name = undefined :: undefined | binary(),
+          display_name = undefined :: ersip_nameaddr:display_name(),
           uri                      :: ersip_uri:uri(),
           params = #{}             :: fromto_params()
          }).
@@ -33,6 +37,7 @@
 -type fromto_params() :: #{ tag => tag(),
                             binary() => binary()
                           }.
+-type known_fromto_params() :: tag.
 -type fromto()  :: #fromto{}.
 -type tag()     :: { tag, binary() }.
 -type tag_key() :: { tag_key, binary() }.
@@ -50,7 +55,7 @@ make(Bin) ->
             error(Error)
     end.
 
--spec display_name(fromto()) -> undefined | binary().
+-spec display_name(fromto()) -> ersip_nameaddr:display_name().
 display_name(#fromto{ display_name = DN }) ->
     DN.
 
@@ -71,6 +76,12 @@ tag(#fromto{} = FT) ->
         error ->
             undefined
     end.
+
+-spec set_tag(tag(), fromto()) -> fromto().
+set_tag({ tag, _ } = Tag, #fromto{} = FT) ->
+    OldParams = params(FT),
+    NewParams = OldParams#{ tag => Tag },
+    set_params(NewParams, FT).
 
 -spec tag_key(fromto()) -> undefined | tag_key().
 tag_key(FT) ->
@@ -95,6 +106,28 @@ parse(Header) ->
         [ _| _ ] ->
             { error, multiple_values }
     end.
+
+-spec build(HdrName, fromto()) -> ersip_hdr:header() when
+      HdrName :: binary().
+build(HdrName, #fromto{} = FromTo) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_hdr:add_value(assemble(FromTo), Hdr).
+
+-spec assemble(fromto()) -> iolist().
+assemble(#fromto{} = FromTo) ->
+    DisplayName = display_name(FromTo),
+    URI = uri(FromTo),
+    NameAddr = ersip_nameaddr:assemble(DisplayName, URI),
+    [ NameAddr, assemble_params(params(FromTo)) ].
+
+
+%%%===================================================================
+%%% Internal Implementation
+%%%===================================================================
+
+-spec set_params(fromto_params(), fromto()) -> fromto().
+set_params(Params, #fromto{} = FT) ->
+    FT#fromto{ params = Params }.
 
 -spec parse_fromto(binary()) -> { ok, fromto() }
                               | { error, Error } when
@@ -140,3 +173,17 @@ fromto_params_validator(Key, Value) ->
         _ ->
             { error, { invalid_gen_param, { Key, Value } } }
     end.
+
+-spec assemble_params(fromto_params()) -> [ iolist() ].
+assemble_params(Params) ->
+    lists:map(fun assemble_param/1,
+              maps:to_list(Params)).
+
+-spec assemble_param({ Name, Value }) -> iolist() when
+      Name :: known_fromto_params()
+            | binary(),
+      Value :: term().
+assemble_param({ tag, { tag, Value } }) ->
+    [ <<";tag=">>, Value ];
+assemble_param({ Name, Value }) ->
+    <<";", Name/binary, "=", Value/binary>>.

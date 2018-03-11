@@ -75,6 +75,8 @@ is_empty([X|Rest]) ->
 -spec join(Sep, List) -> iolist() when
       List :: [ iolist() ],
       Sep  :: iolist() | binary().
+join(_, []) ->
+    [];
 join(_, [ X ]) ->
     X;
 join(Sep, [ X | Rest ]) ->

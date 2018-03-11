@@ -241,6 +241,20 @@ uri_compare_test() ->
     %% sip:bob@192.0.2.4                 phone21.boxesbybob.com resolves to)
     ok.
 
+uri_assemeble_test() ->
+    reassemble_check(<<"sip:1.1.1.1;transport=tcp">>),
+    reassemble_check(<<"sips:%20@b:5090">>),
+    reassemble_check(<<"sip:b;transport=wss">>),
+    reassemble_check(<<"sip:b;maddr=1.1.1.1">>),
+    reassemble_check(<<"sip:b;ttl=1">>),
+    reassemble_check(<<"sip:b;lr">>),
+    reassemble_check(<<"sip:b;user=phone">>),
+    reassemble_check(<<"sip:b;user=ip">>),
+    reassemble_check(<<"sip:b;user=Some">>),
+    reassemble_check(<<"sip:b;myparam=Param">>),
+    reassemble_check(<<"sip:b;myparam">>),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -248,3 +262,9 @@ uri_compare_test() ->
 make_key(Bin) ->
     { ok, URI } = ersip_uri:parse(Bin),
     ersip_uri:make_key(URI).
+
+reassemble_check(Bin) ->
+    { ok, URI } = ersip_uri:parse(Bin),
+    BinAssembled = iolist_to_binary(ersip_uri:assemble(URI)),
+    { ok, _ } = ersip_uri:parse(BinAssembled),
+    ?assertEqual(Bin, BinAssembled).

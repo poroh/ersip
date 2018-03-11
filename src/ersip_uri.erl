@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -11,11 +11,17 @@
 -export([ make/1,
           make_key/1,
           parse/1,
+          assemble/1,
           set_param/3 ]).
+-export_type([ uri/0 ]).
+
 
 -include("ersip_uri.hrl").
 -include("ersip_sip_abnf.hrl").
 
+%%%===================================================================
+%%% Types
+%%%===================================================================
 -type uri_param_name() :: transport
                         | user
                         | method
@@ -30,7 +36,6 @@
                   | { host, ersip_host:host() }
                   | { port, 0..65535 }.
 
--export_type([ uri/0 ]).
 
 %%%===================================================================
 %%% API
@@ -89,6 +94,25 @@ parse(Binary) ->
                     { error, { einval, invalid_scheme } }
             end
     end.
+
+-spec assemble(uri()) -> iolist().
+assemble(#uri{} = URI) ->
+    [ assemble_scheme(URI#uri.scheme), $:,
+      case URI#uri.user of
+          undefined ->
+              [];
+          User ->
+              [ assemble_user(User), $@ ]
+      end,
+      ersip_host:assemble(URI#uri.host),
+      case URI#uri.port of
+          undefined ->
+              [];
+          Port ->
+              [ $:, integer_to_binary(Port) ]
+      end,
+      assemble_params(URI#uri.params)
+    ].
 
 %% @doc set paramter of the URI
 -spec set_param(uri_param_name(), term(), uri()) -> uri().
@@ -421,3 +445,40 @@ split_params(Bin) ->
 -spec uri_header_validator(binary(), binary()) -> { ok, { binary(), binary() } }.
 uri_header_validator(Key, Value) ->
     { ok, { ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Key)), Value } }.
+
+
+assemble_scheme(sip) ->
+    <<"sip">>;
+assemble_scheme(sips) ->
+    <<"sips">>.
+
+-spec assemble_user({ user, binary() }) -> binary().
+assemble_user({ user, UserBin }) ->
+    UserBin.
+
+-spec assemble_params(uri_params()) -> [ iolist() ].
+assemble_params(Params) ->
+    lists:map(fun assemble_param/1,
+              maps:to_list(Params)).
+
+-spec assemble_param({ Name, Value }) -> iolist() when
+      Name :: uri_param_name(),
+      Value :: term().
+assemble_param({ transport, Value }) ->
+    [ <<";transport=">>, ersip_transport:assemble(Value) ];
+assemble_param({ maddr, Host }) ->
+    [ <<";maddr=">>, ersip_host:assemble(Host) ];
+assemble_param({ lr, _ }) ->
+    <<";lr">>;
+assemble_param({ user, ip }) ->
+    <<";user=ip">>;
+assemble_param({ user, phone }) ->
+    <<";user=phone">>;
+assemble_param({ user, Bin }) when is_binary(Bin) ->
+    [ <<";user=">>, Bin ];
+assemble_param({ ttl, TTL }) ->
+    [ <<";ttl=">>, integer_to_binary(TTL) ];
+assemble_param({ Name, <<>> }) when is_binary(Name) ->
+    <<";", Name/binary >>;
+assemble_param({ Name, Value }) ->
+    <<";", Name/binary, "=", Value/binary>>.

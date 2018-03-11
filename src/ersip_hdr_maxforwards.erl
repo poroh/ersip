@@ -65,7 +65,7 @@ parse(Header) ->
       HdrName :: binary().
 build(HdrName, { maxforwards, V }) ->
     Hdr = ersip_hdr:new(HdrName),
-    ersip_hdr:add_value(integer_to_binary(V), Hdr).
+    ersip_hdr:add_value([ integer_to_binary(V) ], Hdr).
 
 %%%===================================================================
 %%% Internal implementation

@@ -113,7 +113,7 @@ parse_request_without_body_test() ->
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
     ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
                  ersip_hdr_via:sent_by(Via)),
-    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)). 
+    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)).
 
 parse_request_with_body_no_content_type_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -131,7 +131,7 @@ parse_request_with_body_no_content_type_test() ->
     P  = ersip_parser:new_dgram(Msg),
     { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
     ?assertEqual({error,{ header_error,
-                          { content_type, 
+                          { content_type,
                             {no_required_header,<<"content-type">>}}}},
                  ersip_sipmsg:parse(PMsg, all)).
 
@@ -197,7 +197,7 @@ parse_no_required_field_test() ->
     ?assertMatch({ error, _ }, ersip_sipmsg:parse(PMsg, all)).
 
 
-parse_on_demand_parse_erorr_test() ->
+parse_on_demand_parse_error_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -216,3 +216,146 @@ parse_on_demand_parse_erorr_test() ->
     { ok, SipMsg } = ersip_sipmsg:parse(PMsg, []),
     ?assertEqual(ersip_hdr_callid:make(CallId), ersip_sipmsg:get(callid, SipMsg)),
     ?assertError({error, _ }, ersip_sipmsg:get(content_type, SipMsg)).
+
+reply_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    ToTag = { tag, <<"4212312424">> },
+    ReplyOpts = ersip_reply:new(404, [ { to_tag, ToTag } ]),
+    RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
+    %% The From field of the response MUST equal the From header field of
+    %% the request.
+    ?assertEqual(ersip_sipmsg:get(from, SipMsg), ersip_sipmsg:get(from, RespSipMsg)),
+    %% The Call-ID header field of the response MUST equal the
+    %% Call-ID header field of the request.
+    ?assertEqual(ersip_sipmsg:get(callid, SipMsg), ersip_sipmsg:get(callid, RespSipMsg)),
+    %% The CSeq header field of the response MUST equal the CSeq field
+    %% of the request.
+    ?assertEqual(ersip_sipmsg:get(cseq, SipMsg), ersip_sipmsg:get(cseq, RespSipMsg)),
+    %% The Via header field values in the response MUST equal the Via
+    %% header field values in the request and MUST maintain the same
+    %% ordering.
+    ?assertEqual(ersip_sipmsg:raw_header(<<"via">>, SipMsg), ersip_sipmsg:raw_header(<<"via">>, RespSipMsg)),
+    ToReq  = ersip_sipmsg:get(to, SipMsg),
+    ToResp = ersip_sipmsg:get(to, RespSipMsg),
+    %% However, if the To header field in the request did not contain
+    %% a tag, the URI in the To header field in the response MUST
+    %% equal the URI in the To header field
+    ?assertEqual(ersip_hdr_fromto:uri(ToReq), ersip_hdr_fromto:uri(ToResp)),
+    %% additionally, the UAS MUST add a tag to the To header field in
+    %% the response
+    ?assertEqual(ToTag, ersip_hdr_fromto:tag(ToResp)),
+    ok.
+
+reply_notag_error_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    ReplyOpts = ersip_reply:new(404),
+    ?assertError({error, no_to_tag_specified}, ersip_sipmsg:reply(ReplyOpts, SipMsg)),
+    ok.
+
+reply_indialog_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>;tag=1234421234"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    ReplyOpts = ersip_reply:new(404, [ { reason, <<"My Not Found">> } ]),
+    RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
+    %% The From field of the response MUST equal the From header field of
+    %% the request.
+    ?assertEqual(ersip_sipmsg:get(from, SipMsg), ersip_sipmsg:get(from, RespSipMsg)),
+    %% The Call-ID header field of the response MUST equal the
+    %% Call-ID header field of the request.
+    ?assertEqual(ersip_sipmsg:get(callid, SipMsg), ersip_sipmsg:get(callid, RespSipMsg)),
+    %% The CSeq header field of the response MUST equal the CSeq field
+    %% of the request.
+    ?assertEqual(ersip_sipmsg:get(cseq, SipMsg), ersip_sipmsg:get(cseq, RespSipMsg)),
+    %% The Via header field values in the response MUST equal the Via
+    %% header field values in the request and MUST maintain the same
+    %% ordering.
+    ?assertEqual(ersip_sipmsg:raw_header(<<"via">>, SipMsg), ersip_sipmsg:raw_header(<<"via">>, RespSipMsg)),
+    %% If a request contained a To tag in the request, the To header
+    %% field in the response MUST equal that of the request.
+    ?assertEqual(ersip_sipmsg:get(to, SipMsg), ersip_sipmsg:get(to, RespSipMsg)),
+    ok.
+
+reply_100_trying_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    ReplyOpts = ersip_reply:new(100),
+    RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
+    %% The From field of the response MUST equal the From header field of
+    %% the request.
+    ?assertEqual(ersip_sipmsg:get(from, SipMsg), ersip_sipmsg:get(from, RespSipMsg)),
+    %% The Call-ID header field of the response MUST equal the
+    %% Call-ID header field of the request.
+    ?assertEqual(ersip_sipmsg:get(callid, SipMsg), ersip_sipmsg:get(callid, RespSipMsg)),
+    %% The CSeq header field of the response MUST equal the CSeq field
+    %% of the request.
+    ?assertEqual(ersip_sipmsg:get(cseq, SipMsg), ersip_sipmsg:get(cseq, RespSipMsg)),
+    %% The Via header field values in the response MUST equal the Via
+    %% header field values in the request and MUST maintain the same
+    %% ordering.
+    ?assertEqual(ersip_sipmsg:raw_header(<<"via">>, SipMsg), ersip_sipmsg:raw_header(<<"via">>, RespSipMsg)),
+    ToReq  = ersip_sipmsg:get(to, SipMsg),
+    ToResp = ersip_sipmsg:get(to, RespSipMsg),
+    ?assertEqual(ToReq, ToResp),
+    ok.

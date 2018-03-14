@@ -18,6 +18,7 @@
           status/1,
           has_body/1,
           get/2,
+          raw_header/2,
           parse/2,
           find/2,
           reply/2
@@ -98,6 +99,10 @@ get(HdrAtom, #sipmsg{} = Msg) ->
             error(Error)
     end.
 
+-spec raw_header(HdrName :: binary(), sipmsg()) -> ersip_hdr:header().
+raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
+    ersip_msg:get(HdrName, raw_message(Msg)).
+
 -spec set(known_header(), Value :: term(), sipmsg()) -> Value when
       Value :: term().
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
@@ -144,9 +149,16 @@ reply(Reply, SipMsg) ->
 set_raw_message(RawMsg, #sipmsg{} = SipMsg) ->
     SipMsg#sipmsg{ raw = RawMsg }.
 
--spec new() -> sipmsg().
-new() ->
-    #sipmsg{ raw = ersip_msg:new() }.
+-spec new_reply(Status, Reason) -> sipmsg() when
+      Status :: ersip_status:code(),
+      Reason :: ersip_status:reason() | undefined.
+new_reply(Status, Reason) ->
+    RawMsg = ersip_msg:new(),
+    RawMsg1 = ersip_msg:set([ { type,   response },
+                              { status, Status },
+                              { reason, Reason } ],
+                            RawMsg),
+    #sipmsg{ raw = RawMsg1 }.
 
 %%%
 %%% Getters/Setters
@@ -256,7 +268,7 @@ fold_maybes(MaybesList) ->
 -spec reply_impl(ersip_reply:options(), sipmsg()) -> sipmsg().
 reply_impl(Reply, SipMsg) ->
     Status = ersip_reply:status(Reply),
-    RSipMsg0 = new(),
+    RSipMsg0 = new_reply(Status, ersip_reply:reason(Reply)),
     %% 8.2.6.1 Sending a Provisional Response
     %% When a 100 (Trying) response is generated, any
     %% Timestamp header field present in the request MUST be
@@ -277,7 +289,7 @@ reply_impl(Reply, SipMsg) ->
                  SipMsg, RSipMsg1),
 
     RSipMsg3 =
-        case ersip_hdr_fromto:tag(get(to)) of
+        case ersip_hdr_fromto:tag(get(to, SipMsg)) of
             { tag, _ } ->
                 %% If a request contained a To tag in the request, the
                 %% To header field in the response MUST equal that of
@@ -318,7 +330,7 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
             ersip_siphdr:copy_header(to, SipMsg, RSipMsg);
         _ ->
             NewTo =
-                case ersip_reply:tag(Reply) of
+                case ersip_reply:to_tag(Reply) of
                     undefined ->
                         error({ error, no_to_tag_specified});
                     ToTag ->

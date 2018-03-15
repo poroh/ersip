@@ -11,7 +11,10 @@
 
 -export([ make/1,
           make_key/1,
-          parse/1 ]).
+          parse/1,
+          build/2,
+          assemble/1
+        ]).
 
 -export_type([ callid/0 ]).
 
@@ -59,6 +62,15 @@ parse(Header) ->
         _ ->
             { error, multiple_callids }
     end.
+
+-spec build(HeaderName :: binary(), callid()) -> ersip_hdr:header().
+build(HdrName, { callid, _ } = CallId) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_hdr:add_value(assemble(CallId), Hdr).
+
+-spec assemble(callid()) ->  binary().
+assemble({ callid, CallIdBin }) ->
+    CallIdBin.
 
 %%%===================================================================
 %%% Internal implementation

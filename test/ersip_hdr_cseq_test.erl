@@ -29,6 +29,15 @@ parse_fail_test() ->
     NoValue = ersip_hdr:new(<<"CSeq">>),
     ?assertMatch({error, _}, ersip_hdr_cseq:parse(NoValue)).
     
+reassemble_test() ->
+    reassemble(<<"314159 INVITE">>),
+    reassemble(<<"1 REGISTER">>),
+    reassemble(<<"99 MYMETHOD">>).
+
+build_test() ->
+    CSeqH = create(<<"314159 INVITE">>),
+    { ok, CSeq } = ersip_hdr_cseq:parse(CSeqH),
+    ?assertEqual(CSeqH, ersip_hdr_cseq:build(<<"CSeq">>,  CSeq)).
 
 %%%===================================================================
 %%% Helpers
@@ -39,3 +48,7 @@ create(Bin) ->
 
 make(Bin) ->
     ersip_hdr_cseq:make(create(Bin)).
+
+reassemble(Bin) ->
+    CSeq = make(Bin),
+    ?assertEqual(Bin, iolist_to_binary(ersip_hdr_cseq:assemble(CSeq))).

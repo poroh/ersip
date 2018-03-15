@@ -13,7 +13,10 @@
           make_key/1,
           number/1,
           method/1,
-          parse/1 ]).
+          parse/1,
+          build/2,
+          assemble/1
+        ]).
 -export_type([ cseq/0 ]).
 
 %%%===================================================================
@@ -72,6 +75,18 @@ parse(Header) ->
         _ ->
             { error, multiple_cseqs }
     end.
+
+-spec build(HeaderName :: binary(), cseq()) -> ersip_hdr:header().
+build(HdrName, #cseq{} = CSeq) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_hdr:add_value(assemble(CSeq), Hdr).
+
+-spec assemble(cseq()) -> iolist().
+assemble(#cseq{ method = Method, number = Num }) ->
+    [ integer_to_binary(Num),
+      <<" ">>,
+      ersip_method:to_binary(Method)
+    ].
 
 %%%===================================================================
 %%% Internal implementation

@@ -81,7 +81,7 @@ build(HdrName, #cseq{} = CSeq) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value(assemble(CSeq), Hdr).
 
--spec assemble(cseq()) -> iolist().
+-spec assemble(cseq()) -> [ binary(), ...  ].
 assemble(#cseq{ method = Method, number = Num }) ->
     [ integer_to_binary(Num),
       <<" ">>,

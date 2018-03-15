@@ -44,4 +44,4 @@ reason_phrase(Code) ->
 %%%===================================================================
 reason_impl(100) -> <<"Trying">>;
 reason_impl(404) -> <<"Not Found">>;
-reason_impl(_)   -> <<"Unknown status">>.
+reason_impl(_)   -> <<"Unknown Status">>.

@@ -10,6 +10,11 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+
+%%%===================================================================
+%%% Cases
+%%%===================================================================
+
 response_type_test() ->
     ?assertEqual(provisional, ersip_status:response_type(100)),
     ?assertEqual(provisional, ersip_status:response_type(199)),
@@ -26,3 +31,17 @@ response_type_test() ->
     ?assertException(error, function_clause, ersip_status:response_type(99)),
     ?assertException(error, function_clause, ersip_status:response_type(700)),
     ?assertException(error, function_clause, ersip_status:response_type(a)).
+
+reason_text_test() ->
+    test_phrase(100, "Trying"),
+    test_phrase(404, "Not Found"),
+    test_phrase(199, "Unknown Status").
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+
+test_phrase(Code, Text) ->
+    TextBin = list_to_binary(Text),
+    Phrase  = ersip_status:reason_phrase(Code),
+    ?assertEqual(TextBin, Phrase).

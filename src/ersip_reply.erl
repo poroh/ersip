@@ -24,7 +24,7 @@
                    reason = undefined :: undefined | ersip_status:reason(),
                    to_tag = undefined :: undefined | ersip_hdr_fromto:tag()
                  }).
--type options()    :: options().
+-type options()    :: #options{}.
 -type param_pair() :: { know_param(), term() }.
 -type know_param() :: reason
                     | to_tag.

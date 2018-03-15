@@ -52,8 +52,6 @@
                            topmost_via  => ersip_hdr_via:via()
                          }.
 
--type reply_options() :: { ersip_status:code(), Reason :: binary() }.
-
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -137,7 +135,7 @@ find(HdrAtom, #sipmsg{ headers = H } = Msg) ->
             end
     end.
 
--spec reply(reply_options(), sipmsg()) -> sipmsg().
+-spec reply(ersip_reply:options(), sipmsg()) -> sipmsg().
 reply(Reply, SipMsg) ->
     reply_impl(Reply, SipMsg).
 
@@ -149,16 +147,20 @@ reply(Reply, SipMsg) ->
 set_raw_message(RawMsg, #sipmsg{} = SipMsg) ->
     SipMsg#sipmsg{ raw = RawMsg }.
 
--spec new_reply(Status, Reason) -> sipmsg() when
+-spec new_reply(Status, Reason, Method) -> sipmsg() when
       Status :: ersip_status:code(),
-      Reason :: ersip_status:reason() | undefined.
-new_reply(Status, Reason) ->
+      Reason :: ersip_status:reason() | undefined,
+      Method :: ersip_method:method().
+new_reply(Status, Reason, Method) ->
     RawMsg = ersip_msg:new(),
     RawMsg1 = ersip_msg:set([ { type,   response },
                               { status, Status },
                               { reason, Reason } ],
                             RawMsg),
-    #sipmsg{ raw = RawMsg1 }.
+    #sipmsg{ raw    = RawMsg1,
+             method = Method,
+             ruri   = undefined
+           }.
 
 %%%
 %%% Getters/Setters
@@ -268,7 +270,8 @@ fold_maybes(MaybesList) ->
 -spec reply_impl(ersip_reply:options(), sipmsg()) -> sipmsg().
 reply_impl(Reply, SipMsg) ->
     Status = ersip_reply:status(Reply),
-    RSipMsg0 = new_reply(Status, ersip_reply:reason(Reply)),
+    Method = method(SipMsg),
+    RSipMsg0 = new_reply(Status, ersip_reply:reason(Reply), Method),
     %% 8.2.6.1 Sending a Provisional Response
     %% When a 100 (Trying) response is generated, any
     %% Timestamp header field present in the request MUST be

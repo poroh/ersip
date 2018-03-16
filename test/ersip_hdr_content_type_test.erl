@@ -49,6 +49,15 @@ make_test() ->
     ContentTypeH2 = create(<<"text/html; charset=&">>),
     ?assertError({ error, _ }, ersip_hdr_content_type:make(ContentTypeH2)).
 
+reassemble_test() ->
+    reassemble(<<"application/sdp">>),
+    reassemble(<<"text/html;charset=\"ISO-8859-4\"">>).
+
+build_test() ->
+    ContentTypeH = create(<<"application/sdp">>),
+    { ok, ContentType } = ersip_hdr_content_type:parse(ContentTypeH),
+    ?assertEqual(ContentTypeH, ersip_hdr_content_type:build(<<"Content-Type">>, ContentType)).
+
 
 %%%===================================================================
 %%% Helpers
@@ -61,4 +70,7 @@ success_parse_content_type(Bin) ->
     H = create(Bin),
     { ok, Hdr } = ersip_hdr_content_type:parse(H),
     Hdr.
-
+    
+reassemble(Bin) ->
+    ContentType = success_parse_content_type(Bin),
+    ?assertEqual(Bin, iolist_to_binary(ersip_hdr_content_type:assemble(ContentType))).

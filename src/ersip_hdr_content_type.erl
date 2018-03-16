@@ -11,7 +11,10 @@
 -export([ mime_type/1,
           params/1,
           make/1,
-          parse/1 ]).
+          parse/1,
+          build/2,
+          assemble/1
+        ]).
 
 -export_type([ content_type/0,
                mime_type/0 
@@ -72,6 +75,21 @@ parse(Header) ->
         _ ->
             { error, multiple_content_types }
     end.
+
+-spec build(HeaderName :: binary(), content_type()) -> ersip_hdr:header().
+build(HdrName, #content_type{} = ContentType) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_hdr:add_value([ assemble(ContentType) ], Hdr).
+
+-spec assemble(content_type()) ->  binary().
+assemble(#content_type{} = ContentType) ->
+    { mime, Type, SubType } = mime_type(ContentType),
+    [ Type, <<"/">>, SubType,
+      lists:map(fun({ Key, Value }) ->
+                        [ $;, Key, $=, Value ]
+                end,
+                params(ContentType))
+    ].
 
 %%%===================================================================
 %%% Internal implementation

@@ -66,7 +66,7 @@ parse(Header) ->
 -spec build(HeaderName :: binary(), callid()) -> ersip_hdr:header().
 build(HdrName, { callid, _ } = CallId) ->
     Hdr = ersip_hdr:new(HdrName),
-    ersip_hdr:add_value(assemble(CallId), Hdr).
+    ersip_hdr:add_value([ assemble(CallId) ], Hdr).
 
 -spec assemble(callid()) ->  binary().
 assemble({ callid, CallIdBin }) ->

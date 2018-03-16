@@ -81,7 +81,7 @@ build(HdrName, #content_type{} = ContentType) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value([ assemble(ContentType) ], Hdr).
 
--spec assemble(content_type()) ->  binary().
+-spec assemble(content_type()) -> iolist().
 assemble(#content_type{} = ContentType) ->
     { mime, Type, SubType } = mime_type(ContentType),
     [ Type, <<"/">>, SubType,

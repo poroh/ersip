@@ -15,7 +15,9 @@
 %%%===================================================================
 
 -type validate_options() :: #{ to_tag         := ersip_hdr_fromto:tag(),
-                               scheme_val_fun => scheme_val_fun()
+                               scheme_val_fun => scheme_val_fun(),
+                               ua_options     => map(), %% TODO:
+                               reply_options  => boolean()
                              }.
 -type validate_result()  :: { ok, ersip_sipmsg:sipmsg() }
                           | { reply, ersip_sipmsg:sipmsg() }
@@ -50,14 +52,16 @@ request_validation(RawMessage, Options) ->
                 end,
                 { ok, RawMessage },
                 [ fun val_reasonable_syntax/2,
-                  fun val_uri_scheme/2
+                  fun val_uri_scheme/2,
+                  fun val_max_forwards/2
                 ]).
 
 %%%===================================================================
 %%% Internal Implementation
 %%%===================================================================
 
-%% @doc function converts raw message to SIP message with "reasonable
+%% 1. Reasonable syntax check
+%% Function also converts raw message to SIP message with "reasonable
 %% parsing".
 -spec val_reasonable_syntax(ersip_msg:message(), validate_options()) -> validate_result().
 val_reasonable_syntax(RawMessage, Options) ->
@@ -73,7 +77,7 @@ val_reasonable_syntax(RawMessage, Options) ->
             end
     end.
 
-
+%% 2. URI scheme check
 -spec val_uri_scheme(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
 val_uri_scheme(SipMessage, Options) ->
     Val = maps:get(scheme_val_fun, Options, fun(_) -> true end),
@@ -87,6 +91,34 @@ val_uri_scheme(SipMessage, Options) ->
             %% request with a 416 (Unsupported URI Scheme) response.
             { reply, make_reply(SipMessage, Options, 416) }
     end.
+
+%% 3. Max-Forwards check
+-spec val_max_forwards(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
+val_max_forwards(SipMessage, Options) ->
+    case ersip_sipmsg:find(maxforwards, SipMessage) of
+        not_found ->
+            %% If the request does not contain a Max-Forwards header
+            %% field, this check is passed.
+            { ok, SipMessage };
+        { ok, { maxforwards, Value } } when Value > 0  ->
+            %% If the request contains a Max-Forwards header field
+            %% with a field value greater than zero, the check is
+            %% passed.
+            { ok, SipMessage };
+        { ok, { maxforwards, 0 } } ->
+            %% If the request contains a Max-Forwards header field with a field
+            %% value of zero (0), the element MUST NOT forward the request.  If
+            %% the request was for OPTIONS, the element MAY act as the final
+            %% recipient and respond per Section 11.  Otherwise, the element MUST
+            %% return a 483 (Too many hops) response.
+            case ersip_sipmsg:method(SipMessage) of
+                { method, <<"OPTIONS">> } ->
+                    maybe_reply_options(SipMessage, Options);
+                _ ->
+                    { reply, make_reply(SipMessage, Options, 483) }
+            end
+    end.
+
 
 -spec make_bad_request(ersip_msg:message(), validate_options(), ParseError) -> Result when
       ParseError :: { error, term() },
@@ -114,4 +146,11 @@ make_reply(SipMessage, Options, Code) ->
                             [ { to_tag, maps:get(to_tag, Options) }
                             ]),
     ersip_sipmsg:reply(Reply, SipMessage).
+
+-spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> { reply, ersip_sipmsg:sipmsg() }.
+maybe_reply_options(SipMessage, #{ reply_options := true, ua_options := UAOptions } = Options) ->
+    %% TODO: Respond per Section 11.
+    { reply, make_reply(SipMessage, Options, 483) };
+maybe_reply_options(SipMessage, Options) ->
+    { reply, make_reply(SipMessage, Options, 483) }.
 

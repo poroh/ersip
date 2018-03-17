@@ -33,6 +33,22 @@ request_validation_success_test() ->
     ?assertMatch({ ok, _ }, request_validation(raw_message(Msg))),
     ok.
 
+request_validation_success_no_maxforwards_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ?assertMatch({ ok, _ }, request_validation(raw_message(Msg))),
+    ok.
+
 request_validation_bad_maxforwards_test() ->
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -106,6 +122,27 @@ request_validation_no_resp_from_test() ->
           >>,
     ?assertMatch({ error, _ }, request_validation(raw_message(Msg))),
     ok.
+
+request_validation_maxforwards_is_zero_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 0"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    { reply, BadMsg } = request_validation(raw_message(Msg)),
+    ?assertEqual(483, ersip_sipmsg:status(BadMsg)),
+    Reason = ersip_sipmsg:reason(BadMsg),
+    ?assertEqual(<<"Too many hops">>, Reason),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

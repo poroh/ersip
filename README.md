@@ -37,7 +37,9 @@ available.
 ## Roadmap
 
   + Basic low-level parser (completed)
-  + Essential headers support (in-progress)
+  + Essential headers support (completed)
+  + High-level SIP message (completed)
+  + Stateless proxy support (in-progress)
   + Transaction support
      - Transaction table
      - Non-INVITE transaction

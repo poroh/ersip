@@ -6,7 +6,7 @@
 %% SIP URI
 %%
 
--record(uri, { scheme = sip       :: sip | sips,
+-record(uri, { scheme = { scheme, sip } :: uri_scheme(),
                %% user: The identifier of a particular resource at the host being
                %%    addressed.  The term "host" in this context frequently refers
                %%    to a domain.  The "userinfo" of a URI consists of this user
@@ -39,3 +39,4 @@
                        }.
 -type uri_headers() ::  #{ binary() => binary() }.
 -type uri() :: #uri{}.
+-type uri_scheme()   :: { scheme, sip | sips | binary() }.

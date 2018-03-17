@@ -37,6 +37,11 @@ reason_text_test() ->
     test_phrase(404, "Not Found"),
     test_phrase(199, "Unknown Status").
 
+bad_request_reason_test() ->
+    test_bad_request_reason("Bad Request",  { error, some_error }),
+    test_bad_request_reason("Max-Forwards", { error, {header_error,{maxforwards,some}}}),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -45,3 +50,7 @@ test_phrase(Code, Text) ->
     TextBin = list_to_binary(Text),
     Phrase  = ersip_status:reason_phrase(Code),
     ?assertEqual(TextBin, Phrase).
+
+test_bad_request_reason(MatchText, Error) ->
+    Reason = ersip_bin:to_lower(ersip_status:bad_request_reason(Error)),
+    ?assert(binary:match(Reason, ersip_bin:to_lower(iolist_to_binary(MatchText))) =/= nomatch).

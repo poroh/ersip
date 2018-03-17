@@ -359,3 +359,33 @@ reply_100_trying_test() ->
     ToResp = ersip_sipmsg:get(to, RespSipMsg),
     ?assertEqual(ToReq, ToResp),
     ok.
+
+get_parts_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    SipMsg = create_sipmsg(Msg),
+    ?assertEqual(undefined, ersip_sipmsg:status(SipMsg)),
+    ?assertEqual(undefined, ersip_sipmsg:reason(SipMsg)),
+    ?assertEqual({ method, <<"INVITE">> }, ersip_sipmsg:method(SipMsg)),
+    ok.
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+create_sipmsg(Msg) ->
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    SipMsg.

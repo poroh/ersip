@@ -16,6 +16,7 @@
           method/1,
           ruri/1,
           status/1,
+          reason/1,
           has_body/1,
           get/2,
           raw_header/2,
@@ -79,6 +80,15 @@ status(#sipmsg{} = SipMsg) ->
             undefined;
         response ->
             ersip_msg:get(status, raw_message(SipMsg))
+    end.
+
+-spec reason(ersip_sipmsg:sipmsg()) -> undefined | binary().
+reason(#sipmsg{} = SipMsg) ->
+    case type(SipMsg) of
+        request ->
+            undefined;
+        response ->
+            ersip_msg:get(reason, raw_message(SipMsg))
     end.
 
 -spec has_body(ersip_sipmsg:sipmsg()) -> boolean().

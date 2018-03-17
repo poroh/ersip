@@ -117,7 +117,9 @@ parse_display_name(<<Char/utf8, _/binary>> = TL) when ?is_token_char(Char) ->
             { { display_name, [] }, TL }
     end;
 parse_display_name(<<"<", _/binary>> = Addr) ->
-    { { display_name, [] }, Addr }.
+    { { display_name, [] }, Addr };
+parse_display_name(_) ->
+    error.
 
 assemble_display_name({ display_name, L }) when is_list(L) ->
     ersip_iolist:join(<<" ">>, L);

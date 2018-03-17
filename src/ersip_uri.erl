@@ -13,7 +13,7 @@
           parse/1,
           assemble/1,
           set_param/3 ]).
--export_type([ uri/0 ]).
+-export_type([ uri/0, scheme/0 ]).
 
 
 -include("ersip_uri.hrl").
@@ -30,12 +30,12 @@
                         | lr
                         | binary().
 
--type uri_part() :: sip
-                  | sips
+-type uri_part() :: scheme()
                   | { user, binary() }
                   | { host, ersip_host:host() }
                   | { port, 0..65535 }.
 
+-type scheme() :: uri_scheme().
 
 %%%===================================================================
 %%% API
@@ -87,11 +87,16 @@ parse(Binary) ->
         { S, R } ->
             case ersip_bin:to_lower(S) of
                 <<"sip">> ->
-                    parse_usesrinfo(sip, R);
+                    parse_usesrinfo({ scheme, sip }, R);
                 <<"sips">> ->
-                    parse_usesrinfo(sips, R);
-                _ ->
-                    { error, { einval, invalid_scheme } }
+                    parse_usesrinfo({ scheme, sips }, R);
+                Scheme ->
+                    case check_token(Scheme) of
+                        true ->
+                            parse_usesrinfo({ scheme, S }, R);
+                        false ->
+                            { error, { invalid_scheme, S } }
+                    end
             end
     end.
 
@@ -121,11 +126,10 @@ set_param(ParamName, Value, #uri{ params = P } = URI) ->
 
 %% @doc set paramter of the URI
 -spec set_part(uri_part(), uri()) -> uri().
-set_part(sip,                #uri{} = URI) -> URI#uri{ scheme = sip };
-set_part(sips,               #uri{} = URI) -> URI#uri{ scheme = sips };
-set_part({ user, U } = User, #uri{} = URI) when is_binary(U) -> URI#uri{ user = User };
-set_part({ port, P },        #uri{} = URI) when is_integer(P) -> URI#uri{ port = P };
-set_part({ host, H },        #uri{} = URI) ->
+set_part({ scheme, _ } = Scheme, #uri{} = URI) -> URI#uri{ scheme = Scheme };
+set_part({ user, U } = User,     #uri{} = URI) when is_binary(U) -> URI#uri{ user = User };
+set_part({ port, P },            #uri{} = URI) when is_integer(P) -> URI#uri{ port = P };
+set_part({ host, H },            #uri{} = URI) ->
     case ersip_host:is_host(H) of
         true ->
             URI#uri{ host = H };
@@ -141,7 +145,7 @@ set_part(_, _) ->
 %%%===================================================================
 
 -spec parse_usesrinfo(Scheme, binary()) -> { ok, uri() } | { error, { einval, atom() } } when
-      Scheme :: sip | sips.
+      Scheme :: scheme().
 parse_usesrinfo(Scheme, Bin) ->
     case binary:split(Bin, <<"@">>) of
         [ Userinfo, R ] ->
@@ -157,7 +161,7 @@ parse_usesrinfo(Scheme, Bin) ->
 
 %% hostport         =  host [ ":" port ]
 -spec parse_hostport(Scheme, User, binary()) -> { ok, uri() } | { error, { einval, atom() } } when
-      Scheme :: sip | sips,
+      Scheme :: scheme(),
       User   :: {user, binary() } | undefined.
 parse_hostport(Scheme, User, R) ->
     { HostPort, Params, Headers } = split_uri(R),
@@ -447,10 +451,12 @@ uri_header_validator(Key, Value) ->
     { ok, { ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Key)), Value } }.
 
 
-assemble_scheme(sip) ->
+assemble_scheme({ scheme, sip }) ->
     <<"sip">>;
-assemble_scheme(sips) ->
-    <<"sips">>.
+assemble_scheme({ scheme, sips }) ->
+    <<"sips">>;
+assemble_scheme({ scheme, Scheme }) ->
+    Scheme.
 
 -spec assemble_user({ user, binary() }) -> binary().
 assemble_user({ user, UserBin }) ->

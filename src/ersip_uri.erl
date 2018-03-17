@@ -8,7 +8,8 @@
 
 -module(ersip_uri).
 
--export([ make/1,
+-export([ scheme/1,
+          make/1,
           make_key/1,
           parse/1,
           assemble/1,
@@ -40,6 +41,10 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec scheme(uri()) -> scheme().
+scheme(#uri{ scheme = S }) ->
+    S.
 
 -spec make(Parts :: [ list(uri_part()) ]) -> uri().
 make(Parts) ->

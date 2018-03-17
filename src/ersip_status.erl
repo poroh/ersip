@@ -53,4 +53,5 @@ bad_request_reason({error, _ }) ->
 %%%===================================================================
 reason_impl(100) -> <<"Trying">>;
 reason_impl(404) -> <<"Not Found">>;
+reason_impl(416) -> <<"Unsupported URI Scheme">>;
 reason_impl(_)   -> <<"Unknown Status">>.

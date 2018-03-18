@@ -14,16 +14,36 @@
 %%% Types
 %%%===================================================================
 
--type validate_options() :: #{ to_tag         := ersip_hdr_fromto:tag(),
-                               scheme_val_fun => scheme_val_fun(),
-                               ua_options     => map(), %% TODO:
-                               reply_options  => boolean()
-                             }.
+-type validate_options() ::
+        #{ %% Mandatory option: To tag used for replies
+           to_tag         := ersip_hdr_fromto:tag(),
+           %% Validator of the scheme.
+           scheme_val_fun => scheme_val_fun(),
+           %% Proxy MAY reply on OPTIONS request with Max-Forwards set
+           %% to 0. This flag triggers this behavior.
+           reply_on_options  => boolean(),
+           %% Proxy parameters
+           proxy_params      => proxy_params(),
+           %% Optional loop detection is performed by proxy.
+           loop_detect       => boolean()
+         }.
 -type validate_result()  :: { ok, ersip_sipmsg:sipmsg() }
                           | { reply, ersip_sipmsg:sipmsg() }
                           | { error, term() }.
 
 -type scheme_val_fun() :: fun((binary() | sip) -> boolean()).
+-type reply_or_error() :: { reply, ersip_sipmsg:sipmsg() }
+                        | { error, term() }.
+-type proxy_params() ::
+        #{ %% If 'allow' option is set then proxy is restricted to pass
+           %% only methods that are included in this set. If proxy
+           %% replies on OPTIONS request it adds Allow header to
+           %% expose this restrictions.
+           %%
+           %% If 'allow' options is not set then proxy is
+           %% method-agnostic and passes all messages.
+           allow => ersip_hdr_allow:allow()
+         }.
 
 %%%===================================================================
 %%% API
@@ -43,7 +63,7 @@
 %%
 -spec request_validation(ersip_msg:message(), validate_options()) -> validate_result().
 request_validation(RawMessage, Options) ->
-    lists:foldl(fun(ValFun, { ok, Message }) -> 
+    lists:foldl(fun(ValFun, { ok, Message }) ->
                         ValFun(Message, Options);
                    (_, { reply, _ReplyMsg } = Reply) ->
                         Reply;
@@ -53,7 +73,8 @@ request_validation(RawMessage, Options) ->
                 { ok, RawMessage },
                 [ fun val_reasonable_syntax/2,
                   fun val_uri_scheme/2,
-                  fun val_max_forwards/2
+                  fun val_max_forwards/2,
+                  fun val_loop_detect/2
                 ]).
 
 %%%===================================================================
@@ -89,7 +110,7 @@ val_uri_scheme(SipMessage, Options) ->
             %% If the Request-URI has a URI whose scheme is not
             %% understood by the proxy, the proxy SHOULD reject the
             %% request with a 416 (Unsupported URI Scheme) response.
-            { reply, make_reply(SipMessage, Options, 416) }
+            make_reply(SipMessage, Options, 416)
     end.
 
 %% 3. Max-Forwards check
@@ -115,10 +136,15 @@ val_max_forwards(SipMessage, Options) ->
                 { method, <<"OPTIONS">> } ->
                     maybe_reply_options(SipMessage, Options);
                 _ ->
-                    { reply, make_reply(SipMessage, Options, 483) }
+                    make_reply(SipMessage, Options, 483)
             end
     end.
 
+-spec val_loop_detect(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
+val_loop_detect(SipMessage, #{ loop_detect := true } = Options) ->
+    loop_detect(SipMessage, Options);
+val_loop_detect(SipMessage, #{}) ->
+    { ok, SipMessage }.
 
 -spec make_bad_request(ersip_msg:message(), validate_options(), ParseError) -> Result when
       ParseError :: { error, term() },
@@ -139,18 +165,75 @@ make_bad_request(RawMessage, Options, ParseError) ->
 
 -spec make_reply(ersip_sipmsg:sipmsg(), validate_options(), Code) -> Result when
       Code       :: ersip_status:code(),
-      Result     :: { ok, ersip_sipmsg:sipmsg() }
+      Result     :: { reply, ersip_sipmsg:sipmsg() }
                   | { error, term() }.
 make_reply(SipMessage, Options, Code) ->
-    Reply = ersip_reply:new(Code,
+    case ersip_sipmsg:parse(SipMessage, [ to, from, callid, cseq ]) of
+        { ok, SipMessage1 } ->
+            Reply = ersip_reply:new(Code,
+                                    [ { to_tag, maps:get(to_tag, Options) }
+                                    ]),
+            { reply, ersip_sipmsg:reply(Reply, SipMessage1) };
+        { error, _ } = Error ->
+            Error
+    end.
+
+-spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> reply_or_error().
+maybe_reply_options(SipMessage, #{ reply_on_options := true, proxy_params := _ } = Options) ->
+    make_options_reply(SipMessage, Options);
+maybe_reply_options(SipMessage, Options) ->
+    make_reply(SipMessage, Options, 483).
+
+-spec make_options_reply(ersip_sipmsg:sipmsg(), validate_options()) -> reply_or_error().
+make_options_reply(SipMessage, Options) ->
+    Reply = ersip_reply:new(200,
                             [ { to_tag, maps:get(to_tag, Options) }
                             ]),
-    ersip_sipmsg:reply(Reply, SipMessage).
+    %% The response to an OPTIONS is constructed using the standard rules
+    %% for a SIP response as discussed in Section 8.2.6.
+    Resp200 = ersip_sipmsg:reply(Reply, SipMessage),
+    %% If the response to an OPTIONS is generated by a proxy server,
+    %% the proxy returns a 200 (OK), listing the capabilities of the
+    %% server. The response does not contain a message body.
+    %%
+    %% Allow, Accept, Accept-Encoding, Accept-Language, and Supported
+    %% header fields SHOULD be present in a 200 (OK) response to an
+    %% OPTIONS request. If the response is generated by a proxy, the
+    %% Allow header...
+    Enriched =
+        lists:foldl(fun(Fun, Resp) ->
+                            Fun(Options, Resp)
+                    end,
+                    Resp200,
+                    [ fun maybe_add_allow/2,
+                      fun maybe_add_accept/2,
+                      fun maybe_add_accept_encoding/2,
+                      fun maybe_add_accept_language/2,
+                      fun maybe_add_supported/2
+                    ]),
+    { reply, Enriched }.
 
--spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> { reply, ersip_sipmsg:sipmsg() }.
-maybe_reply_options(SipMessage, #{ reply_options := true, ua_options := UAOptions } = Options) ->
-    %% TODO: Respond per Section 11.
-    { reply, make_reply(SipMessage, Options, 483) };
-maybe_reply_options(SipMessage, Options) ->
-    { reply, make_reply(SipMessage, Options, 483) }.
+-spec maybe_add_allow(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_add_allow(#{ proxy_params := #{ allow := Allow } }, Resp) ->
+    ersip_sipmsg:set(allow, Allow, Resp);
+maybe_add_allow(_, Resp) ->
+    Resp.
 
+-spec maybe_add_accept(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_add_accept(Options, Resp) ->
+    Resp.
+
+-spec maybe_add_accept_encoding(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_add_accept_encoding(Options, Resp) ->
+    Resp.
+
+-spec maybe_add_accept_language(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_add_accept_language(Options, Resp) ->
+    Resp.
+
+-spec maybe_add_supported(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_add_supported(Options, Resp) ->
+    Resp.
+
+loop_detect(SipMessage, Options) ->
+    { ok, SipMessage }.

@@ -63,6 +63,35 @@ comma_split_test() ->
     ?assertEqual(H1, H2),
     ?assertEqual(H1, H3).
 
+allow_compact_test() ->
+    H0 = ersip_hdr:new(<<"Allow">>),
+    H1 = ersip_hdr:add_values(
+           [ <<"ACK">>,
+             <<"INVITE">>,
+             <<"OPTIONS">>
+           ],
+           H0),
+    ?assertEqual(<<"Allow: ACK, INVITE, OPTIONS">>,
+                 serialize_to_bin(H1)).
+
+contact_test() ->
+    H0 = ersip_hdr:new(<<"Contact">>),
+    H1 = ersip_hdr:add_values(
+           [ <<"sip:a@b">>,
+             <<"sip:a@c">>
+           ],
+           H0),
+    ?assertEqual(<<"Contact: sip:a@b\r\n"
+                   "Contact: sip:a@c">>,
+                 serialize_to_bin(H1)).
+
+allow_empty_test() ->
+    H0 = ersip_hdr:new(<<"Allow">>),
+    H1 = ersip_hdr:add_values(
+           [],
+           H0),
+    ?assertEqual(<<"A: B">>, serialize_to_bin_append(H1, [ <<"A: B">> ])).
+
 no_split_exceptions_test() ->
     %% The exceptions to this rule are the WWW-Authenticate,
     %% Authorization, Proxy-Authenticate, and Proxy-Authorization
@@ -96,8 +125,10 @@ no_split_exceptions_test() ->
 serialize_to_bin(Header) ->
     iolist_to_binary(lists:reverse(ersip_hdr:serialize_rev_iolist(Header, []))).
 
+serialize_to_bin_append(Header, Src) ->
+    iolist_to_binary(lists:reverse(ersip_hdr:serialize_rev_iolist(Header, Src))).
+
 check_no_comma_split(HeaderName, Value) ->
     H0 = ersip_hdr:new(HeaderName),
     H1 = ersip_hdr:add_value(Value, H0),
     ?assertEqual([ Value ], ersip_hdr:raw_values(H1)).
-    

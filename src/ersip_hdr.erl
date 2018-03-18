@@ -84,8 +84,13 @@ replace_topmost(Value, #header{ values = [_|Rest]} = H) ->
 %% then also adds CR LF before adding header. If header has more than
 %% one value then multiple headers are added separated by CR LF.
 -spec serialize_rev_iolist(header(), list()) -> list().
-serialize_rev_iolist(#header{} = Header, Acc) ->
-    serialize_rev_iolist_impl(ensure_raw_values(Header), Acc).
+serialize_rev_iolist(#header{ key = Key } = Header, Acc) ->
+    case use_comma(Key) of
+        true ->
+            serialize_rev_iolist_comma_impl(ensure_raw_values(Header), Acc);
+        false ->
+            serialize_rev_iolist_impl(ensure_raw_values(Header), Acc)
+    end.
 
 %% @doc Get integer value from the header.
 -spec as_integer(header()) -> { ok, integer() } | { error, Error } when
@@ -129,6 +134,20 @@ serialize_rev_iolist_impl(#header{ name = Name, values = [V | Rest] } = H, Acc) 
     serialize_rev_iolist_impl(H#header{ values = Rest },
                               [ V, <<": ">>, Name, <<"\r\n">> | Acc ]).
 
+-spec serialize_rev_iolist_comma_impl(header(), list()) -> list().
+serialize_rev_iolist_comma_impl(#header{ values = [] }, Acc) ->
+    Acc;
+serialize_rev_iolist_comma_impl(#header{ name = Name, values = Vs }, []) ->
+    rev_comma_sep_values(Vs, [ <<": ">> , Name ]);
+serialize_rev_iolist_comma_impl(#header{ name = Name, values = Vs }, Acc) ->
+    rev_comma_sep_values(Vs, [ <<": ">> , Name, <<"\r\n">> | Acc ]).
+
+-spec rev_comma_sep_values([ iolist() ], iolist()) -> iolist().
+rev_comma_sep_values([ LastVal ], Acc) ->
+    [ LastVal | Acc ];
+rev_comma_sep_values([ Val | Rest ], Acc) ->
+    rev_comma_sep_values(Rest, [ <<", ">>, Val | Acc ]).
+
 %% @private
 %% @doc split headers with comma:
 %% RFC 3261 7.3.1 Header Field Format
@@ -151,3 +170,11 @@ comma_split(_, V) ->
     Bin = iolist_to_binary(V),
     lists:map(fun ersip_bin:trim_lws/1,
               binary:split(Bin, <<",">>, [ global ])).
+
+-spec use_comma(header_key()) -> boolean().
+use_comma({ hdr_key, <<"v">> }) -> %% Via
+    false;
+use_comma({ hdr_key, <<"m">> }) -> %% Contact
+    false;
+use_comma(_) ->
+    true.

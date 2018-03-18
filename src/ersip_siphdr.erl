@@ -26,7 +26,8 @@
                       | cseq
                       | maxforwards
                       | topmost_via
-                      | content_type.
+                      | content_type
+                      | allow.
 
 -record(descr, { name         :: binary(),
                  printname    :: undefined | binary(),
@@ -52,7 +53,8 @@ all_known_headers() ->
       cseq,
       maxforwards,
       topmost_via,
-      content_type
+      content_type,
+      allow
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -244,5 +246,12 @@ header_descr(content_type) ->
             required     = with_body,
             parse_fun    = fun ersip_hdr_content_type:parse/1,
             assemble_fun = fun ersip_hdr_content_type:build/2
+          };
+header_descr(allow) ->
+    #descr{ name         = <<"allow">>,
+            printname    = <<"Allow">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_allow:parse/1,
+            assemble_fun = fun ersip_hdr_allow:build/2
           }.
 

@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% Common proxy routinges tests 
+%% Common proxy routinges tests
 %%
 
 -module(ersip_proxy_common_test).
@@ -83,12 +83,32 @@ request_validation_unsupported_scheme_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    { reply, BadMsg } = request_validation(raw_message(Msg), 
+    { reply, BadMsg } = request_validation(raw_message(Msg),
                                            #{ scheme_val_fun => fun(_) -> false end
                                             }),
     ?assertEqual(416, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assertEqual(<<"Unsupported URI Scheme">>, Reason),
+    ok.
+
+request_validation_unsupported_scheme_cannot_reply_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ?assertMatch({ error, _ },
+                 request_validation(
+                   raw_message(Msg),
+                   #{ scheme_val_fun => fun(_) -> false end
+                    })),
     ok.
 
 request_validation_no_resp_to_test() ->
@@ -143,6 +163,55 @@ request_validation_maxforwards_is_zero_test() ->
     ?assertEqual(<<"Too many hops">>, Reason),
     ok.
 
+request_validation_maxforwards_is_zero_options_test() ->
+    Msg = <<"OPTIONS sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 0"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf ?crlf
+          >>,
+    { reply, BadMsg } = request_validation(raw_message(Msg)),
+    ?assertEqual(483, ersip_sipmsg:status(BadMsg)),
+    Reason = ersip_sipmsg:reason(BadMsg),
+    ?assertEqual(<<"Too many hops">>, Reason),
+    ok.
+
+request_validation_maxforwards_is_zero_options_reply_test() ->
+    Msg = <<"OPTIONS sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 0"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf ?crlf
+          >>,
+    AllowMethodsList = [ <<"INVITE">>,
+                         <<"ACK">>,
+                         <<"OPTIONS">>,
+                         <<"CANCEL">>,
+                         <<"BYE">>
+                       ],
+    AllowMethods =
+        ersip_hdr_allow:from_list(
+          [ ersip_method:make(M) || M <- AllowMethodsList ]),
+    Options = #{ reply_on_options => true,
+                 proxy_params => #{
+                   allow => AllowMethods
+                  }
+               },
+    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+    ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
+    Reason = ersip_sipmsg:reason(RespMsg),
+    ?assertEqual(<<"OK">>, Reason),
+    ?debugFmt("~n~s~n", [ ersip_sipmsg:serialize_bin(RespMsg) ]),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -158,4 +227,3 @@ request_validation(RawMsg, Opts) ->
 
 request_validation(RawMsg) ->
     request_validation(RawMsg, #{}).
-    

@@ -19,8 +19,11 @@
           reason/1,
           has_body/1,
           get/2,
+          set/3,
           raw_header/2,
           parse/2,
+          serialize/1,
+          serialize_bin/1,
           find/2,
           reply/2
         ]).
@@ -116,15 +119,35 @@ raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
     ersip_siphdr:set_header(HdrAtom, Value, Msg).
 
+%% @doc Parse Raw message and transform it to SIP message or parse
+%% additional headers of SIP message.
 -spec parse(ersip_msg:message(), [ known_header() ] | all) -> Result when
       Result :: { ok, sipmsg() }
               | { error, term() }.
+parse(#sipmsg{} = SipMsg, all) ->
+    AlreadyParsed = maps:keys(headers(SipMsg)),
+    HeadersToParse = ersip_siphdr:all_known_headers() -- AlreadyParsed,
+    MaybeMsg = { ok, SipMsg },
+    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+parse(#sipmsg{} = SipMsg, Headers) ->
+    AlreadyParsed = maps:keys(headers(SipMsg)),
+    HeadersToParse = Headers -- AlreadyParsed,
+    MaybeMsg = { ok, SipMsg },
+    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
 parse(RawMsg, all) ->
     parse(RawMsg, ersip_siphdr:all_known_headers());
 parse(RawMsg, Headers) ->
     MaybeMsg = create_from_raw(RawMsg),
     lists:foldl(fun maybe_parse_header/2, MaybeMsg, Headers).
 
+
+-spec serialize(sipmsg()) -> iolist().
+serialize(#sipmsg{} = SipMsg) ->
+    ersip_msg:serialize(raw_message(SipMsg)).
+
+-spec serialize_bin(sipmsg()) -> binary().
+serialize_bin(#sipmsg{} = SipMsg) ->
+    ersip_msg:serialize_bin(raw_message(SipMsg)).
 
 -spec find(known_header(), sipmsg()) -> Result when
       Result :: { ok, term() }
@@ -148,6 +171,7 @@ find(HdrAtom, #sipmsg{ headers = H } = Msg) ->
 -spec reply(ersip_reply:options(), sipmsg()) -> sipmsg().
 reply(Reply, SipMsg) ->
     reply_impl(Reply, SipMsg).
+
 
 %%%===================================================================
 %%% Internal implementation

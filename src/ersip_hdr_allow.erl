@@ -8,8 +8,7 @@
 
 -module(ersip_hdr_allow).
 
--export([ new/0,
-          from_list/1,
+-export([ from_list/1,
           to_list/1,
           parse/1,
           build/2,
@@ -26,10 +25,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
--spec new() -> allow().
-new() ->
-    { allow, gb_sets:new() }.
 
 -spec from_list([ ersip_method:method() ]) -> allow().
 from_list(MethodList) ->

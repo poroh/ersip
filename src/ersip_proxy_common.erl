@@ -42,7 +42,16 @@
            %%
            %% If 'allow' options is not set then proxy is
            %% method-agnostic and passes all messages.
-           allow => ersip_hdr_allow:allow()
+           allow => ersip_hdr_allow:allow(),
+
+           %% 'supported' defines features that are supported by
+           %% proxy.  If request hase 'Proxy-Require' header than to
+           %% be passed through the proxy it need to be subset of this
+           %% 'supported' options.
+           %%
+           %% Also this set is reported in OPTIONS reply in supported
+           %% header field
+           supported => ersip_hdr_opttag_list:option_tag_list()
          }.
 
 %%%===================================================================
@@ -74,7 +83,8 @@ request_validation(RawMessage, Options) ->
                 [ fun val_reasonable_syntax/2,
                   fun val_uri_scheme/2,
                   fun val_max_forwards/2,
-                  fun val_loop_detect/2
+                  fun val_loop_detect/2,
+                  fun val_proxy_require/2
                 ]).
 
 %%%===================================================================
@@ -86,7 +96,7 @@ request_validation(RawMessage, Options) ->
 %% parsing".
 -spec val_reasonable_syntax(ersip_msg:message(), validate_options()) -> validate_result().
 val_reasonable_syntax(RawMessage, Options) ->
-    case ersip_sipmsg:parse(RawMessage, [ maxforwards ]) of
+    case ersip_sipmsg:parse(RawMessage, [ maxforwards, proxy_require ]) of
         { ok, _SipMsg } = R ->
             R;
         { error, _ } = ParseError ->
@@ -146,6 +156,29 @@ val_loop_detect(SipMessage, #{ loop_detect := true } = Options) ->
 val_loop_detect(SipMessage, #{}) ->
     { ok, SipMessage }.
 
+%% 5. Proxy-Require check
+%%
+%% If the request contains a Proxy-Require header field (Section
+%% 20.29) with one or more option-tags this element does not
+%% understand, the element MUST return a 420 (Bad Extension)
+%% response.  The response MUST include an Unsupported (Section
+%% 20.40) header field listing those option-tags the element did not
+%% understand.
+-spec val_proxy_require(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
+val_proxy_require(SipMessage, Options) ->
+    case ersip_sipmsg:find(proxy_require, SipMessage) of
+        not_found ->
+            { ok, SipMessage };
+        { ok, Required } ->
+            case check_supported(Required, Options) of
+                all_supported ->
+                    { ok, SipMessage };
+                Unsupported ->
+                    make_bad_extension(SipMessage, Options, Unsupported)
+            end
+    end.
+
+
 -spec make_bad_request(ersip_msg:message(), validate_options(), ParseError) -> Result when
       ParseError :: { error, term() },
       Result     :: { ok, ersip_sipmsg:sipmsg() }
@@ -177,6 +210,22 @@ make_reply(SipMessage, Options, Code) ->
         { error, _ } = Error ->
             Error
     end.
+
+-spec make_bad_extension(ersip_sipmsg:sipmsg(), validate_options(), Unsupported) -> reply_or_error() when
+      Unsupported :: ersip_hdr_opttag_list:option_tag_list().
+make_bad_extension(SipMessage, Options, Unsupported) ->
+    case ersip_sipmsg:parse(SipMessage, [ to, from, callid, cseq ]) of
+        { ok, SipMsg } ->
+            Reply = ersip_reply:new(420,
+                                    [ { to_tag, maps:get(to_tag, Options) }
+                                    ]),
+            Resp0 = ersip_sipmsg:reply(Reply, SipMsg),
+            Resp1 = ersip_sipmsg:set(unsupported, Unsupported, Resp0),
+            { reply,  Resp1 };
+        { error, _ } = Error ->
+            Error
+    end.
+
 
 -spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> reply_or_error().
 maybe_reply_options(SipMessage, #{ reply_on_options := true, proxy_params := _ } = Options) ->
@@ -232,8 +281,26 @@ maybe_add_accept_language(Options, Resp) ->
     Resp.
 
 -spec maybe_add_supported(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_supported(Options, Resp) ->
+maybe_add_supported(#{ proxy_params := #{ supported := Supported } }, Resp) ->
+    ersip_sipmsg:set(supported, Supported, Resp);
+maybe_add_supported(_, Resp) ->
     Resp.
 
+
+-spec loop_detect(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
 loop_detect(SipMessage, Options) ->
     { ok, SipMessage }.
+
+-spec check_supported(Required, validate_options()) -> all_supported | Unsupported when
+      Required    :: ersip_hdr_opttag_list:option_tag_list(),
+      Unsupported :: ersip_hdr_opttag_list:option_tag_list().
+check_supported(Required, #{ proxy_params := #{ supported := Supported } }) ->
+    Intersect = ersip_hdr_opttag_list:intersect(Required, Supported),
+    case Intersect =:= Required of
+        true ->
+            all_supported;
+        false ->
+            ersip_hdr_opttag_list:subtract(Required, Supported)
+    end;
+check_supported(Required, _) ->
+    Required.

@@ -27,7 +27,11 @@
                       | maxforwards
                       | topmost_via
                       | content_type
-                      | allow.
+                      | allow
+                      | supported
+                      | unsupported
+                      | require
+                      | proxy_require.
 
 -record(descr, { name         :: binary(),
                  printname    :: undefined | binary(),
@@ -54,7 +58,11 @@ all_known_headers() ->
       maxforwards,
       topmost_via,
       content_type,
-      allow
+      allow,
+      supported,
+      unsupported,
+      require,
+      proxy_require
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -253,5 +261,33 @@ header_descr(allow) ->
             required     = optional,
             parse_fun    = fun ersip_hdr_allow:parse/1,
             assemble_fun = fun ersip_hdr_allow:build/2
+          };
+header_descr(supported) ->
+    #descr{ name         = <<"supported">>,
+            printname    = <<"Supported">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
+            assemble_fun = fun ersip_hdr_opttag_list:build/2
+          };
+header_descr(unsupported) ->
+    #descr{ name         = <<"unsupported">>,
+            printname    = <<"Unsupported">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
+            assemble_fun = fun ersip_hdr_opttag_list:build/2
+          };
+header_descr(require) ->
+    #descr{ name         = <<"require">>,
+            printname    = <<"Require">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
+            assemble_fun = fun ersip_hdr_opttag_list:build/2
+          };
+header_descr(proxy_require) ->
+    #descr{ name         = <<"proxy-require">>,
+            printname    = <<"Proxy-Require">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
+            assemble_fun = fun ersip_hdr_opttag_list:build/2
           }.
 

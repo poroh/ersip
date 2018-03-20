@@ -197,12 +197,17 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
                          <<"CANCEL">>,
                          <<"BYE">>
                        ],
+    SupportedList = [ <<"100rel">>, <<"timers">> ],
     AllowMethods =
         ersip_hdr_allow:from_list(
           [ ersip_method:make(M) || M <- AllowMethodsList ]),
+    Supported =
+        ersip_hdr_opttag_list:from_list(
+          [ ersip_option_tag:make(S) || S <- SupportedList ]),
     Options = #{ reply_on_options => true,
                  proxy_params => #{
-                   allow => AllowMethods
+                   allow => AllowMethods,
+                   supported => Supported
                   }
                },
     { reply, RespMsg } = request_validation(raw_message(Msg), Options),
@@ -210,8 +215,9 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"OK">>, Reason),
     RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
-    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ allow ]),
+    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ allow, supported ]),
     ?assertEqual(AllowMethods, ersip_sipmsg:get(allow, RespSipMsg)),
+    ?assertEqual(Supported, ersip_sipmsg:get(supported, RespSipMsg)),
     ok.
 
 request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
@@ -235,8 +241,92 @@ request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
     ok.
 
 
-%%%===================================================================
-%%% Helpers
+request_validation_proxy_require_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Proxy-Require: gin"
+            ?crlf ?crlf
+          >>,
+    { reply, RespMsg } = request_validation(raw_message(Msg)),
+    ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
+    Reason = ersip_sipmsg:reason(RespMsg),
+    ?assertEqual(<<"Bad Extension">>, Reason),
+    RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
+    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ unsupported ]),
+    Unsupported = ersip_hdr_opttag_list:from_list([ ersip_option_tag:make(<<"gin">>) ]),
+    ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, RespSipMsg)),
+    ok.
+
+
+request_validation_proxy_require_no_required_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Proxy-Require: gin"
+            ?crlf ?crlf
+          >>,
+    SupportedList = [ <<"100rel">>, <<"timers">> ],
+    Supported =
+        ersip_hdr_opttag_list:from_list(
+          [ ersip_option_tag:make(S) || S <- SupportedList ]),
+    Options = #{ proxy_params => #{ supported => Supported } },
+    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+    ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
+    Reason = ersip_sipmsg:reason(RespMsg),
+    ?assertEqual(<<"Bad Extension">>, Reason),
+    RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
+    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ unsupported ]),
+    Unsupported = ersip_hdr_opttag_list:from_list([ ersip_option_tag:make(<<"gin">>) ]),
+    ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, RespSipMsg)),
+    ok.
+
+request_validation_proxy_require_all_supported_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Proxy-Require: gin"
+            ?crlf ?crlf
+          >>,
+    SupportedList = [ <<"gin">> ],
+    Supported =
+        ersip_hdr_opttag_list:from_list(
+          [ ersip_option_tag:make(S) || S <- SupportedList ]),
+    Options = #{ proxy_params => #{ supported => Supported } },
+    { ok, _ } = request_validation(raw_message(Msg), Options),
+    ok.
+
+
+request_validation_proxy_require_cannot_reply_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Proxy-Require: gin"
+            ?crlf ?crlf
+          >>,
+    ?assertMatch({ error, _ }, request_validation(raw_message(Msg))),
+    ok.
+
+
 %%%===================================================================
 
 raw_message(Bin) ->

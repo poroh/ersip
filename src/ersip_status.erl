@@ -55,5 +55,6 @@ reason_impl(100) -> <<"Trying">>;
 reason_impl(200) -> <<"OK">>;
 reason_impl(404) -> <<"Not Found">>;
 reason_impl(416) -> <<"Unsupported URI Scheme">>;
+reason_impl(420) -> <<"Bad Extension">>;
 reason_impl(483) -> <<"Too many hops">>;
 reason_impl(_)   -> <<"Unknown Status">>.

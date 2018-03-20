@@ -147,7 +147,7 @@ serialize(#sipmsg{} = SipMsg) ->
 
 -spec serialize_bin(sipmsg()) -> binary().
 serialize_bin(#sipmsg{} = SipMsg) ->
-    ersip_msg:serialize_bin(raw_message(SipMsg)).
+    iolist_to_binary(serialize(SipMsg)).
 
 -spec find(known_header(), sipmsg()) -> Result when
       Result :: { ok, term() }

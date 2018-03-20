@@ -209,7 +209,29 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
     ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"OK">>, Reason),
-    ?debugFmt("~n~s~n", [ ersip_sipmsg:serialize_bin(RespMsg) ]),
+    RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
+    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ allow ]),
+    ?assertEqual(AllowMethods, ersip_sipmsg:get(allow, RespSipMsg)),
+    ok.
+
+request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
+    Msg = <<"OPTIONS sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 0"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf ?crlf
+          >>,
+    Options = #{ reply_on_options => true, proxy_params => #{} },
+    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+    ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
+    Reason = ersip_sipmsg:reason(RespMsg),
+    ?assertEqual(<<"OK">>, Reason),
+    RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
+    ?assertEqual(ersip_hdr:new(<<"Allow">>), ersip_msg:get(<<"Allow">>, RespRawMsg)),
     ok.
 
 

@@ -44,7 +44,9 @@ available.
      - Transaction table
      - Non-INVITE transaction
      - INVITE transaction
+  + Statefull proxy support
   + Dialog support
+  + Authorization and proxy authorization
   + High-level UA support
   + SIP proxy support 
 
@@ -60,25 +62,28 @@ To do this this library provides high-level building blocks:
 
   + SIP parser
   + SIP message
+  + Proxy functions
+  + Stateless proxy functions
+  + Statefull proxy object description
   + Transactions
   + UAs
 
 All layers and objects has well-defined interface and well-defined
-side effects that need to be implemented.
+side effects/callbacks that need to be implemented.
 
+## SIP message representation
 
-## Side effects
+There is two levels of messages available:
 
-Following side effects must be implemented to use library
+  + Low level message (ersip_msg:message())
+  + SIP message (ersip_sipmsg:sip_msg()
 
-  + Timer set
-  + Send message
-  + UA's side effects
+### Low level message
 
-## Transport-layer interaction
+Provides simplies level of parsing and lowlevel header manipulation.
+It consist of 
 
-When transport layer receives new portion of data it need to feed
-buffer inside the UA.
+  + First line parsed data
+  + Set of low-level headers
+  + Not parsed body
 
-When UA needs to send new message it returns appropriate side-effect
-return code.

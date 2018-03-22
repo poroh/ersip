@@ -23,9 +23,7 @@
            %% to 0. This flag triggers this behavior.
            reply_on_options  => boolean(),
            %% Proxy parameters
-           proxy_params      => proxy_params(),
-           %% Optional loop detection is performed by proxy.
-           loop_detect       => boolean()
+           proxy_params      => proxy_params()
          }.
 -type validate_result()  :: { ok, ersip_sipmsg:sipmsg() }
                           | { reply, ersip_sipmsg:sipmsg() }
@@ -52,6 +50,9 @@
            %% Also this set is reported in OPTIONS reply in supported
            %% header field
            supported => ersip_hdr_opttag_list:option_tag_list()
+
+           %% Optional loop detection is performed by proxy.
+           %% loop_detect => boolean()
 
            %% Todo: realm and proxy-authorization
          }.
@@ -154,9 +155,8 @@ val_max_forwards(SipMessage, Options) ->
     end.
 
 -spec val_loop_detect(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
-val_loop_detect(SipMessage, #{ loop_detect := true } = Options) ->
-    loop_detect(SipMessage, Options);
-val_loop_detect(SipMessage, #{}) ->
+val_loop_detect(SipMessage, Options) ->
+    %% TODO: implement it eventually
     { ok, SipMessage }.
 
 %% 5. Proxy-Require check
@@ -299,11 +299,6 @@ maybe_add_supported(#{ proxy_params := #{ supported := Supported } }, Resp) ->
     ersip_sipmsg:set(supported, Supported, Resp);
 maybe_add_supported(_, Resp) ->
     Resp.
-
-
--spec loop_detect(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
-loop_detect(SipMessage, Options) ->
-    { ok, SipMessage }.
 
 -spec check_supported(Required, validate_options()) -> all_supported | Unsupported when
       Required    :: ersip_hdr_opttag_list:option_tag_list(),

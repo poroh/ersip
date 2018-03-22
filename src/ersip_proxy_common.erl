@@ -52,6 +52,8 @@
            %% Also this set is reported in OPTIONS reply in supported
            %% header field
            supported => ersip_hdr_opttag_list:option_tag_list()
+
+           %% Todo: realm and proxy-authorization
          }.
 
 %%%===================================================================
@@ -84,7 +86,8 @@ request_validation(RawMessage, Options) ->
                   fun val_uri_scheme/2,
                   fun val_max_forwards/2,
                   fun val_loop_detect/2,
-                  fun val_proxy_require/2
+                  fun val_proxy_require/2,
+                  fun val_proxy_authorization/2
                 ]).
 
 %%%===================================================================
@@ -177,6 +180,17 @@ val_proxy_require(SipMessage, Options) ->
                     make_bad_extension(SipMessage, Options, Unsupported)
             end
     end.
+
+%% 6. Proxy-Authorization check
+%%
+%% If an element requires credentials before forwarding a request, the
+%% request MUST be inspected as described in Section 22.3.  That
+%% section also defines what the element must do if the inspection
+%% fails.
+-spec val_proxy_authorization(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
+val_proxy_authorization(SipMessage, Options) ->
+    %% TODO: implement it eventually
+    { ok, SipMessage }.
 
 
 -spec make_bad_request(ersip_msg:message(), validate_options(), ParseError) -> Result when

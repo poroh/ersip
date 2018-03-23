@@ -28,13 +28,13 @@
                       | topmost_via
                       | content_type
                       | allow
+                      | route
                       | supported
                       | unsupported
                       | require
                       | proxy_require.
 
 -record(descr, { name         :: binary(),
-                 printname    :: undefined | binary(),
                  required     :: header_required(),
                  parse_fun    :: parse_fun_type(),
                  assemble_fun :: undefined | assemble_fun_type()
@@ -109,13 +109,14 @@ copy_headers(HeaderList, SrcSipMsg, DstSipMsg) ->
 
 -spec set_header(known_header() | binary(), Value :: term(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 set_header(Header, Value, SipMsg) when is_atom(Header) ->
-    #descr{ printname = Name,
+    #descr{ name = Name,
             assemble_fun = AssembleF
           } = header_descr(Header),
+    PrintName  = ersip_hdr_names:print_form(Name),
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
-    RawHdr     = AssembleF(Name, Value),
+    RawHdr     = AssembleF(PrintName, Value),
     NewHeaders = OldHeaders#{ Header => Value },
     NewRawMsg  = ersip_msg:set_header(RawHdr, OldRawMsg),
 
@@ -208,84 +209,78 @@ copy_raw_header(HdrAtom, SrcSipMsg, DstSipMsg) when is_atom(HdrAtom) ->
 -spec header_descr(known_header()) -> #descr{}.
 header_descr(from) ->
     #descr{ name         = <<"from">>,
-            printname    = <<"From">>,
             required     = all,
             parse_fun    = fun ersip_hdr_fromto:parse/1,
             assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(to) ->
     #descr{ name         = <<"to">>,
-            printname    = <<"To">>,
             required     = all,
             parse_fun    = fun ersip_hdr_fromto:parse/1,
             assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(cseq) ->
     #descr{ name         = <<"cseq">>,
-            printname    = <<"CSeq">>,
             required     = all,
             parse_fun    = fun ersip_hdr_cseq:parse/1,
             assemble_fun = fun ersip_hdr_cseq:build/2
           };
 header_descr(callid) ->
     #descr{ name         = <<"call-id">>,
-            printname    = <<"Call-Id">>,
             required     = all,
             parse_fun    = fun ersip_hdr_callid:parse/1,
             assemble_fun = fun ersip_hdr_callid:build/2
           };
 header_descr(maxforwards) ->
     #descr{ name         = <<"max-forwards">>,
-            printname    = <<"Max-Forwards">>,
             required     = optional, %% It was optional in RFC2543
             parse_fun    = fun ersip_hdr_maxforwards:parse/1,
             assemble_fun = fun ersip_hdr_maxforwards:build/2
           };
 header_descr(topmost_via) ->
     #descr{ name         = <<"via">>,
-            printname    = undefined,
             required     = all,
             parse_fun    = fun ersip_hdr_via:topmost_via/1,
             assemble_fun = undefined
           };
 header_descr(content_type) ->
     #descr{ name         = <<"content-type">>,
-            printname    = <<"Content-Type">>,
             required     = with_body,
             parse_fun    = fun ersip_hdr_content_type:parse/1,
             assemble_fun = fun ersip_hdr_content_type:build/2
           };
+header_descr(route) ->
+    #descr{ name         = <<"route">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_route:parse/1,
+            assemble_fun = fun ersip_hdr_route:build/2
+          };
 header_descr(allow) ->
     #descr{ name         = <<"allow">>,
-            printname    = <<"Allow">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_allow:parse/1,
             assemble_fun = fun ersip_hdr_allow:build/2
           };
 header_descr(supported) ->
     #descr{ name         = <<"supported">>,
-            printname    = <<"Supported">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_opttag_list:parse/1,
             assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(unsupported) ->
     #descr{ name         = <<"unsupported">>,
-            printname    = <<"Unsupported">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_opttag_list:parse/1,
             assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(require) ->
     #descr{ name         = <<"require">>,
-            printname    = <<"Require">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_opttag_list:parse/1,
             assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(proxy_require) ->
     #descr{ name         = <<"proxy-require">>,
-            printname    = <<"Proxy-Require">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_opttag_list:parse/1,
             assemble_fun = fun ersip_hdr_opttag_list:build/2

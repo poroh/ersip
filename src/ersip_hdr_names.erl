@@ -8,7 +8,9 @@
 
 -module(ersip_hdr_names).
 
--export([ compact_form/1 ]).
+-export([ compact_form/1,
+          print_form/1
+        ]).
 
 %%%===================================================================
 %%% API
@@ -22,6 +24,10 @@ compact_form({ lower, HeaderName }) when is_binary(HeaderName) ->
     compact_form_map(HeaderName);
 compact_form(HeaderName) when is_binary(HeaderName) ->
     compact_form({ lower, ersip_bin:to_lower(HeaderName) }).
+
+-spec print_form(LowerHeaderName :: binary()) -> binary().
+print_form(LowerHeaderName) ->
+    print_form_map(LowerHeaderName).
 
 %%%===================================================================
 %%% Internal implementation
@@ -50,3 +56,19 @@ compact_form_map(<<"supported">>          ) -> <<"k">>;
 compact_form_map(<<"to">>                 ) -> <<"t">>;
 compact_form_map(<<"via">>                ) -> <<"v">>;
 compact_form_map(Other) -> Other.
+
+-spec print_form_map(binary()) -> binary().
+print_form_map(<<"from">>)          -> <<"From">>;
+print_form_map(<<"to">>  )          -> <<"To">>;
+print_form_map(<<"cseq">>)          -> <<"CSeq">>;
+print_form_map(<<"call-id">>)       -> <<"Call-Id">>;
+print_form_map(<<"max-forwards">>)  -> <<"Max-Forwards">>;
+print_form_map(<<"content-type">>)  -> <<"Content-Type">>;
+print_form_map(<<"route">>)         -> <<"Route">>;
+print_form_map(<<"allow">>)         -> <<"Allow">>;
+print_form_map(<<"supported">>)     -> <<"Supported">>;
+print_form_map(<<"unsupported">>)   -> <<"Unsupported">>;
+print_form_map(<<"require">>)       -> <<"Require">>;
+print_form_map(<<"proxy-require">>) -> <<"Proxy-Require">>;
+print_form_map(Binary) ->
+    Binary.

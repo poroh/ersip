@@ -28,7 +28,7 @@
                       | topmost_via
                       | content_type
                       | allow
-                      | route
+                      | topmost_route
                       | supported
                       | unsupported
                       | require
@@ -59,6 +59,7 @@ all_known_headers() ->
       topmost_via,
       content_type,
       allow,
+      topmost_route,
       supported,
       unsupported,
       require,
@@ -249,11 +250,11 @@ header_descr(content_type) ->
             parse_fun    = fun ersip_hdr_content_type:parse/1,
             assemble_fun = fun ersip_hdr_content_type:build/2
           };
-header_descr(route) ->
+header_descr(topmost_route) ->
     #descr{ name         = <<"route">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_route:parse/1,
-            assemble_fun = fun ersip_hdr_route:build/2
+            assemble_fun = undefined
           };
 header_descr(allow) ->
     #descr{ name         = <<"allow">>,

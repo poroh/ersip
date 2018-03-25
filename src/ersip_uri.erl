@@ -13,6 +13,7 @@
           make_key/1,
           parse/1,
           assemble/1,
+          params/1,
           set_param/3 ]).
 -export_type([ uri/0, scheme/0 ]).
 
@@ -47,6 +48,13 @@ scheme(#uri{ scheme = S }) ->
     S.
 
 -spec make(Parts :: [ list(uri_part()) ]) -> uri().
+make(Bin) when is_binary(Bin) ->
+    case parse(Bin) of
+        { ok, URI } ->
+            URI;
+        { error, _ } = Error ->
+            error(Error)
+    end;
 make(Parts) ->
     Init = #uri{ host = { ipv4, { 0, 0, 0, 0 } } },
     lists:foldl(fun(Option, URI) ->
@@ -123,6 +131,10 @@ assemble(#uri{} = URI) ->
       end,
       assemble_params(URI#uri.params)
     ].
+
+-spec params(uri()) -> uri_params().
+params(#uri{ params = Params }) ->
+    Params.
 
 %% @doc set paramter of the URI
 -spec set_param(uri_param_name(), term(), uri()) -> uri().

@@ -177,7 +177,8 @@ uri_make_test() ->
                                   { host, { hostname, <<"atlanta.com">> } },
                                   { port, 5061 } ])),
     ?assertError(badarg, ersip_uri:make([ { host, { hostname, <<"a-b">> } } ])),
-    ?assertError(badarg, ersip_uri:make([ { x, { user, <<"a-b">> } } ])).
+    ?assertError(badarg, ersip_uri:make([ { x, { user, <<"a-b">> } } ])),
+    ?assertError({error, _ }, ersip_uri:make(<<"x">>)).
 
 uri_compare_test() ->
         %% RFC 3261 test cases:

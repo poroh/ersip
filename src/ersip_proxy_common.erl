@@ -62,7 +62,13 @@
 
            %% Record-route functions that checks that this proxy is
            %% generated this route/record-route header
-           check_rroute_fun => check_rroute_fun()
+           check_rroute_fun => check_rroute_fun(),
+
+           %% Record-route header if proxy need to stay on dialog
+           %% messages. This URI need to be resolved to proxy's IP
+           %% address. Function check_rroute_fun(record_route_uri)
+           %% need to return true for next requests.
+           record_route_uri => ersip_sipmsg:uri()
          }.
 
 %%%===================================================================
@@ -122,7 +128,8 @@ forward_request(Target, SipMsg, ProxyParams) ->
                 end,
                 SipMsg,
                 [ fun fwd_set_ruri/3,
-                  fun fwd_max_forwards/3
+                  fun fwd_max_forwards/3,
+                  fun fwd_record_route/3
                 ]).
 
 %%%===================================================================
@@ -435,8 +442,11 @@ fwd_set_ruri(TargetURI, SipMsg, _ProxyParams) ->
     ersip_sipmsg:set_ruri(CleanURI, SipMsg).
 
 
+%% 16.6 Request Forwarding
+%%
+%% 3. Max-Forwards
 -spec fwd_max_forwards(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_max_forwards(_, SipMsg, _ProxyParams) ->
+fwd_max_forwards(_TargetURI, SipMsg, _ProxyParams) ->
     case ersip_sipmsg:find(maxforwards, SipMsg) of
         { ok, MaxForwards } ->
             %% If the copy contains a Max-Forwards header field, the proxy
@@ -449,3 +459,27 @@ fwd_max_forwards(_, SipMsg, _ProxyParams) ->
         { error, _ } = Error ->
             error(Error)
     end.
+
+%% 16.6 Request Forwarding
+%%
+%% 4. Record-Route
+-spec fwd_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR0 }) ->
+    RR1 = ersip_uri:clear_not_allowed_parts(record_route, RR0),
+    %% The URI placed in the Record-Route header field value MUST be a
+    %% SIP or SIPS URI. This URI MUST contain an lr parameter (see
+    %% Section 19.1.1).
+    RR2 = ersip_uri:set_param(lr, true, RR1),
+    RRRoute = ersip_hdr_route:make_route(RR2),
+    RRSet0 =
+        case ersip_sipmsg:find(record_route, SipMsg) of
+            { ok, ExistRRSet } ->
+                ExistRRSet;
+            not_found ->
+                ersip_route_set:new()
+        end,
+    RRSet1 = ersip_route_set:add_first(RRRoute, RRSet0),
+    io:format("~p~n", [ RRSet1 ]),
+    ersip_sipmsg:set(record_route, RRSet1, SipMsg);
+fwd_record_route(_TargetURI, SipMsg, _ProxyParams) ->
+    SipMsg.

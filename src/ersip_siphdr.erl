@@ -29,6 +29,7 @@
                       | content_type
                       | allow
                       | route
+                      | record_route
                       | supported
                       | unsupported
                       | require
@@ -62,7 +63,9 @@ all_known_headers() ->
       supported,
       unsupported,
       require,
-      proxy_require
+      proxy_require,
+      route,
+      record_route
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -251,6 +254,12 @@ header_descr(content_type) ->
           };
 header_descr(route) ->
     #descr{ name         = <<"route">>,
+            required     = optional,
+            parse_fun    = fun ersip_hdr_route:parse/1,
+            assemble_fun = fun ersip_hdr_route:build/2
+          };
+header_descr(record_route) ->
+    #descr{ name         = <<"record-route">>,
             required     = optional,
             parse_fun    = fun ersip_hdr_route:parse/1,
             assemble_fun = fun ersip_hdr_route:build/2

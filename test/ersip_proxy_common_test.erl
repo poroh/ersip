@@ -558,6 +558,58 @@ forward_request_invalid_maxforwars_test() ->
     ?assertError({ error, {invalid_maxforwards, _} },
                  ersip_proxy_common:forward_request(Target, SipMsg, ProxyOpts)).
 
+forward_request_record_route_add_test() ->
+    %% Check that proxy adds Max-From to the request
+    BobURI = <<"sip:bob@biloxi.com">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
+    ProxyOpts = #{ record_route_uri => ThisProxyURI },
+    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
+    RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
+    ?assertEqual(ersip_uri:set_param(lr, true, ThisProxyURI), RecordRouteURI),
+    ok.
+
+forward_request_record_route_append_test() ->
+    %% Check that proxy adds Max-From to the request
+    BobURI = <<"sip:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Record-Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
+    ProxyOpts = #{ record_route_uri => ThisProxyURI },
+    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
+    RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
+    RecordRouteURI2 = ersip_hdr_route:uri(ersip_route_set:last(RecordRouteSet)),
+    ?assertEqual(ersip_uri:set_param(lr, true, ThisProxyURI), RecordRouteURI),
+    ?assertEqual(ersip_uri:make(AnotherProxyURI), RecordRouteURI2),
+    ok.
+
 %%%===================================================================
 
 raw_message(Bin) ->

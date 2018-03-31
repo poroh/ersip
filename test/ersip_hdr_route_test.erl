@@ -42,6 +42,11 @@ bad_middle_test() ->
     H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>,?,<sip:bob@biloxi.com>">>, H),
     ?assertMatch({ error, _ }, ersip_hdr_route:parse(H1)).
 
+invalid_rr_param_test() ->
+    H = ersip_hdr:new(<<"Route">>),
+    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x">>, H),
+    ?assertMatch({ error, _ }, ersip_hdr_route:parse(H1)).
+
 empty_route_test() ->
     H = ersip_hdr:new(<<"Route">>),
     Empty = ersip_route_set:new(),

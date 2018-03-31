@@ -65,6 +65,7 @@ print_form_map(<<"call-id">>)       -> <<"Call-Id">>;
 print_form_map(<<"max-forwards">>)  -> <<"Max-Forwards">>;
 print_form_map(<<"content-type">>)  -> <<"Content-Type">>;
 print_form_map(<<"route">>)         -> <<"Route">>;
+print_form_map(<<"record-route">>)  -> <<"Record-Route">>;
 print_form_map(<<"allow">>)         -> <<"Allow">>;
 print_form_map(<<"supported">>)     -> <<"Supported">>;
 print_form_map(<<"unsupported">>)   -> <<"Unsupported">>;

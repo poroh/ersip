@@ -177,6 +177,10 @@ set_part(_, _) ->
 clear_not_allowed_parts(ruri, #uri{ params = P } = URI) ->
     URI#uri{ params = maps:without([ method ], P),
              headers = #{}
+           };
+clear_not_allowed_parts(record_route, #uri{ params = P } = URI) ->
+    URI#uri{ params = maps:without([ method, ttl ], P),
+             headers = #{}
            }.
 
 %%%===================================================================

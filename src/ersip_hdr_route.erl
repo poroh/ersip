@@ -10,7 +10,8 @@
 
 -export([ uri/1,
           params/1,
-          parse/1
+          parse/1,
+          make_route/1
         ]).
 
 -export_type([ route/0 ]).
@@ -56,6 +57,15 @@ parse(Header) ->
             { ok, ersip_route_set:reverse(RevRouteSet) };
         Error ->
             Error
+    end.
+
+-spec make_route(binary()) -> route().
+make_route(Bin) when is_binary(Bin) ->
+    case parse_route(Bin) of
+        { ok, Route } ->
+            Route;
+        { error, _ } = Error ->
+            error(Error)
     end.
 
 %%%===================================================================

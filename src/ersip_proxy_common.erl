@@ -8,7 +8,9 @@
 
 -module(ersip_proxy_common).
 
--export([ request_validation/2 ]).
+-export([ request_validation/2,
+          process_route_info/2
+        ]).
 
 %%%===================================================================
 %%% Types
@@ -29,7 +31,8 @@
                           | { reply, ersip_sipmsg:sipmsg() }
                           | { error, term() }.
 
--type scheme_val_fun() :: fun((binary() | sip) -> boolean()).
+-type scheme_val_fun()   :: fun((binary() | sip) -> boolean()).
+-type check_rroute_fun() :: fun((ersip_hdr_route:route()) -> boolean()).
 -type reply_or_error() :: { reply, ersip_sipmsg:sipmsg() }
                         | { error, term() }.
 -type proxy_params() ::
@@ -49,12 +52,16 @@
            %%
            %% Also this set is reported in OPTIONS reply in supported
            %% header field
-           supported => ersip_hdr_opttag_list:option_tag_list()
+           supported => ersip_hdr_opttag_list:option_tag_list(),
 
            %% Optional loop detection is performed by proxy.
            %% loop_detect => boolean()
 
            %% Todo: realm and proxy-authorization
+
+           %% Record-route functions that checks that this proxy is
+           %% generated this route/record-route header
+           check_rroute_fun => check_rroute_fun()
          }.
 
 %%%===================================================================
@@ -89,6 +96,19 @@ request_validation(RawMessage, Options) ->
                   fun val_loop_detect/2,
                   fun val_proxy_require/2,
                   fun val_proxy_authorization/2
+                ]).
+
+%% 16.4 Route Information Preprocessing
+-spec process_route_info(ersip_sipmsg:sipmsg(), proxy_params()) ->
+                                ersip_sipmsg:sipmsg().
+process_route_info(SipMsg, ProxyParams) ->
+    lists:foldl(fun(RIFun, Message) ->
+                        RIFun(Message, ProxyParams)
+                end,
+                SipMsg,
+                [ fun ri_strict_route/2,
+                  fun ri_process_maddr/2,
+                  fun ri_maybe_remove_route/2
                 ]).
 
 %%%===================================================================
@@ -313,3 +333,77 @@ check_supported(Required, #{ proxy_params := #{ supported := Supported } }) ->
     end;
 check_supported(Required, _) ->
     Required.
+
+%% Strict routing handling in according to 16.4
+%%
+%% The proxy MUST inspect the Request-URI of the request.  If the
+%% Request-URI of the request contains a value this proxy previously
+%% placed into a Record-Route header field (see Section 16.6 item 4),
+%% the proxy MUST replace the Request-URI in the request with the last
+%% value from the Route header field, and remove that value from the
+%% Route header field.  The proxy MUST then proceed as if it received
+%% this modified request.
+-spec ri_strict_route(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+ri_strict_route(SipMsg, #{ check_rroute_fun := CheckRRFun }) when is_function(CheckRRFun) ->
+    RURI  = ersip_sipmsg:ruri(SipMsg),
+    case CheckRRFun(RURI) of
+        true ->
+            case ersip_sipmsg:find(route, SipMsg) of
+                { ok, RouteSet } ->
+                    LastRoute = ersip_route_set:last(RouteSet),
+                    SipMsg0 = ersip_sipmsg:set_ruri(ersip_hdr_route:uri(LastRoute), SipMsg),
+                    remove_last_route(SipMsg0);
+                _ ->
+                    SipMsg
+            end;
+        false ->
+            %% This is loose routing
+            SipMsg
+    end;
+ri_strict_route(SipMsg, #{}) ->
+    %% We cannot detect if route is from record route
+    SipMsg.
+
+%% maddr processing in according to 16.4
+%%
+%% If the Request-URI contains a maddr parameter, the proxy MUST check
+%% to see if its value is in the set of addresses or domains the proxy
+%% is configured to be responsible for.  If the Request-URI has a
+%% maddr parameter with a value the proxy is responsible for, and the
+%% request was received using the port and transport indicated
+%% (explicitly or by default) in the Request-URI, the proxy MUST strip
+%% the maddr and any non-default port or transport parameter and
+%% continue processing as if those values had not been present in the
+%% request.
+-spec ri_process_maddr(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+ri_process_maddr(SipMsg, ProxyParams) ->
+    %% TODO: maddr: implement it eventually
+    SipMsg.
+
+%% Remove route in according to 16.4
+%%
+%% If the first value in the Route header field indicates this proxy,
+%% the proxy MUST remove that value from the request.
+-spec ri_maybe_remove_route(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+ri_maybe_remove_route(SipMsg, #{ check_rroute_fun := CheckRRFun }) ->
+    case ersip_sipmsg:find(route, SipMsg) of
+        { ok, RouteSet } ->
+            FirstRoute = ersip_route_set:first(RouteSet),
+            URI = ersip_hdr_route:uri(FirstRoute),
+            case CheckRRFun(URI) of
+                false ->
+                    SipMsg;
+                true ->
+                    RouteSet1 = ersip_route_set:remove_first(RouteSet),
+                    ersip_sipmsg:set(route, RouteSet1, SipMsg)
+            end;
+        _ ->
+            SipMsg
+    end;
+ri_maybe_remove_route(SipMsg, _ProxyParams) ->
+    SipMsg.
+
+remove_last_route(SipMsg) ->
+    RouteSet0 = ersip_sipmsg:get(route, SipMsg),
+    RouteSet1 = ersip_route_set:remove_last(RouteSet0),
+    ersip_sipmsg:set(route, RouteSet1, SipMsg).

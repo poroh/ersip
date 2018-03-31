@@ -10,7 +10,9 @@
 
 -export([ uri/1,
           params/1,
+          make/1,
           parse/1,
+          build/2,
           make_route/1
         ]).
 
@@ -44,6 +46,17 @@ uri(#route{ uri = URI }) ->
 params(#route{ params = P }) ->
     P.
 
+-spec make(binary()) -> route_set().
+make(Binary) ->
+    H0 = ersip_hdr:new(<<"Route">>),
+    H1 = ersip_hdr:add_value(Binary, H0),
+    case parse(H1) of
+        { ok, RouteSet } ->
+            RouteSet;
+        { error, _ } = Error  ->
+            error(Error)
+    end.
+
 -spec parse(ersip_hdr:header()) -> parse_result().
 parse(Header) ->
     MaybeRevRouteSet =
@@ -58,6 +71,17 @@ parse(Header) ->
         Error ->
             Error
     end.
+
+
+-spec build(HeaderName :: binary(), route_set()) -> ersip_hdr:header().
+build(HdrName, { route_set, _ } = RouteSet) ->
+    Hdr = ersip_hdr:new(HdrName),
+    ersip_route_set:foldl(
+      fun(Route, HdrAcc) ->
+              ersip_hdr:add_value(assemble_route(Route), HdrAcc)
+      end,
+      Hdr,
+      RouteSet).
 
 -spec make_route(binary()) -> route().
 make_route(Bin) when is_binary(Bin) ->
@@ -100,6 +124,20 @@ parse_route(Bin) ->
         { error, _ } = Error ->
             Error
     end.
+
+
+-spec assemble_route(route_set()) -> iolist().
+assemble_route(#route{} = Route) ->
+    #route{ display_name = DN,
+            uri = URI,
+            params = ParamsList
+          } = Route,
+    [ ersip_nameaddr:assemble(DN, URI),
+      lists:map(fun({ Key, Value }) ->
+                        [ <<";">>, Key, <<"=">>, Value ]
+                end,
+                ParamsList)
+    ].
 
 -spec parse_route_params(binary()) -> ersip_parser_aux:parse_result([ route_param() ]).
 parse_route_params(<<$;, Bin/binary>>) ->

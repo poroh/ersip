@@ -327,6 +327,169 @@ request_validation_proxy_require_cannot_reply_test() ->
     ok.
 
 
+process_route_info_strict_routing_test() ->
+    %% Checking strict routing information update:
+    %%
+    %% If RURI is this proxy then it must be replaced by value from
+    %% last Route, last Route must be removed from the message.
+    BobURI = <<"sip:bob@biloxi.com">>,
+    ThisProxyURI = <<"sip:this.proxy.org">>,
+    NextProxyURI = <<"sip:next.proxy.org">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", ThisProxyURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Route: <", NextProxyURI/binary, ">"
+            ?crlf "Route: <", BobURI/binary, ">"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{ check_rroute_fun =>
+               fun(URI) ->
+                       ersip_uri:make(ThisProxyURI) == URI
+               end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
+    ok.
+
+
+process_route_info_loose_routing_test() ->
+    %% Checking loose routing information update:
+    %%
+    %% Need to remove this proxy from the route information
+    BobURI = <<"sip:bob@biloxi.com">>,
+    ThisProxyURI = <<"sip:this.proxy.org">>,
+    NextProxyURI = <<"sip:next.proxy.org">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Route: <", ThisProxyURI/binary, ">"
+            ?crlf "Route: <", NextProxyURI/binary, ">"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{ check_rroute_fun =>
+               fun(URI) ->
+                       ersip_uri:make(ThisProxyURI) == URI
+               end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
+    ok.
+
+process_route_info_no_rrcecker_test() ->
+    %% If no record-route detector provided then message is passed
+    %% without modifications
+    BobURI = <<"sip:bob@biloxi.com">>,
+    ThisProxyURI = <<"sip:this.proxy.org">>,
+    NextProxyURI = <<"sip:next.proxy.org">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Route: <", ThisProxyURI/binary, ">"
+            ?crlf "Route: <", NextProxyURI/binary, ">"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ExpectedRouteSet = ersip_hdr_route:make(<<"<", ThisProxyURI/binary, ">, <", NextProxyURI/binary, ">">>),
+    ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
+    ok.
+
+process_route_info_no_routes_loose_route_test() ->
+    %% If no route headers - do not do anything
+    BobURI = <<"sip:bob@biloxi.com">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{ check_rroute_fun =>
+               fun(_URI) ->
+                       false
+               end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg)),
+    ok.
+
+process_route_info_no_routes_strict_route_test() ->
+    %% If no route headers - do not do anything
+    BobURI = <<"sip:bob@biloxi.com">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{ check_rroute_fun =>
+               fun(_URI) ->
+                       true
+               end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg)),
+    ok.
+
+
 %%%===================================================================
 
 raw_message(Bin) ->
@@ -339,3 +502,14 @@ request_validation(RawMsg, Opts) ->
 
 request_validation(RawMsg) ->
     request_validation(RawMsg, #{}).
+
+process_route_info(RawMsg, Opts) ->
+    { ok, SipMsg } = request_validation(RawMsg, Opts),
+    ersip_proxy_common:process_route_info(SipMsg, Opts).
+
+rebuild_sipmsg(SipMsg) ->
+    SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
+    P  = ersip_parser:new_dgram(SipMsgBin),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg1 } = ersip_sipmsg:parse(PMsg, all),
+    SipMsg1.

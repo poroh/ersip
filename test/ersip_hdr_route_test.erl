@@ -25,6 +25,13 @@ topmost_route_test() ->
     ?assertEqual(#{ lr => true }, ersip_uri:params(URIWithLR)),
     ok.
 
+make_route_test() ->
+    Route = ersip_hdr_route:make(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(ersip_route_set:first(Route))),
+    ?assertError({ error, _ }, ersip_hdr_route:make(<<"?">>)),
+    ?assertError({ error, _ }, ersip_hdr_route:make_route(<<"?">>)),
+    ok.
+
 bad_topmost_test() ->
     H = ersip_hdr:new(<<"Route">>),
     H1 = ersip_hdr:add_value(<<"?">>, H),
@@ -41,13 +48,18 @@ empty_route_test() ->
     ?assertEqual(true, ersip_route_set:is_empty(Empty)),
     ?assertEqual({ ok,  Empty}, ersip_hdr_route:parse(H)).
 
+rebuild_route_test() ->
+    rebuild(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
+    rebuild(<<"<sip:alice@atlanta.com>;test=1,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
+    rebuild(<<"<sip:alice@atlanta.com>">>).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 
 create(RouteBin) ->
     HRoute = ersip_hdr:new(<<"Route">>),
-    ersip_hdr:add_value(RouteBin, HRoute). 
+    ersip_hdr:add_value(RouteBin, HRoute).
 
 topmost_route(RouteBin) ->
     HRoute = create(RouteBin),
@@ -56,3 +68,8 @@ topmost_route(RouteBin) ->
         Error ->
             error(Error)
     end.
+
+rebuild(Bin) ->
+    Route = ersip_hdr_route:make(Bin),
+    { ok, Route1 } = ersip_hdr_route:parse(ersip_hdr_route:build(<<"Route">>, Route)),
+    ?assertEqual(Route, Route1).

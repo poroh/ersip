@@ -38,5 +38,6 @@ first_and_last_test() ->
 
     ?assertEqual(Len1, ersip_route_set:remove_first(Len2)),
     ?assertError({ error, _ }, ersip_route_set:remove_first(Empty)),
+    ?assertError({ error, _ }, ersip_route_set:remove_last(Empty)),
     ok.
     

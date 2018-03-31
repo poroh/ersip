@@ -24,12 +24,12 @@
                  params = []  :: [ route_param() ]
                }).
 -type route()     :: #route{}.
--type route_set() :: [ route() ].
+-type route_set() :: ersip_route_set:route_set().
 -type route_param() :: { Key :: binary(), Value :: binary() }.
 -type parse_result() :: { ok, route_set() }
                       | { error, term() }.
 
--type maybe_rev_route_set() :: { ok, [ route() ] }
+-type maybe_rev_route_set() :: { ok, route_set() }
                              | { error, term() }.
 %%%===================================================================
 %%% API
@@ -49,11 +49,11 @@ parse(Header) ->
         lists:foldl(fun(IORoute, Acc) ->
                             add_to_maybe_route_set(iolist_to_binary(IORoute), Acc)
                     end,
-                    { ok, [] },
+                    { ok, ersip_route_set:new() },
                     ersip_hdr:raw_values(Header)),
     case MaybeRevRouteSet of
-        { ok, RevRoutes } ->
-            { ok, lists:reverse(RevRoutes) };
+        { ok, RevRouteSet } ->
+            { ok, ersip_route_set:reverse(RevRouteSet) };
         Error ->
             Error
     end.
@@ -68,7 +68,7 @@ add_to_maybe_route_set(_, { error, _ } = Error) ->
 add_to_maybe_route_set(Bin, { ok, RouteSet }) ->
     case parse_route(Bin) of
         { ok, Route } ->
-            { ok, [ Route | RouteSet ] };
+            { ok, ersip_route_set:add_first(Route, RouteSet) };
         { error, _ } = Error ->
             Error
     end.

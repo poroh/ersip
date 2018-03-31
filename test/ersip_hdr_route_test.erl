@@ -37,7 +37,9 @@ bad_middle_test() ->
 
 empty_route_test() ->
     H = ersip_hdr:new(<<"Route">>),
-    ?assertMatch({ ok, [] }, ersip_hdr_route:parse(H)).
+    Empty = ersip_route_set:new(),
+    ?assertEqual(true, ersip_route_set:is_empty(Empty)),
+    ?assertEqual({ ok,  Empty}, ersip_hdr_route:parse(H)).
 
 %%%===================================================================
 %%% Helpers
@@ -50,7 +52,7 @@ create(RouteBin) ->
 topmost_route(RouteBin) ->
     HRoute = create(RouteBin),
     case ersip_hdr_route:parse(HRoute) of
-        { ok, [ Route | _ ] } -> Route;
+        { ok, RouteSet } -> ersip_route_set:first(RouteSet);
         Error ->
             error(Error)
     end.

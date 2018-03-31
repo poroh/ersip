@@ -410,6 +410,31 @@ get_parts_test() ->
     ?assertEqual({ method, <<"INVITE">> }, ersip_sipmsg:method(SipMsg)),
     ok.
 
+
+set_ruri_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    SipMsg0 = create_sipmsg(Msg),
+    RURIBin = <<"sip:alice@atlanta.com">>,
+    RURI = ersip_uri:make(RURIBin),
+    SipMsg1 = ersip_sipmsg:set_ruri(RURI, SipMsg0),
+    ?assertEqual(RURI, ersip_sipmsg:ruri(SipMsg1)),
+    SipMsg2 = rebuild_sipmsg(SipMsg1),
+    ?assertEqual(RURI, ersip_sipmsg:ruri(SipMsg2)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -418,3 +443,10 @@ create_sipmsg(Msg) ->
     { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
     { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
     SipMsg.
+
+rebuild_sipmsg(SipMsg) ->
+    SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
+    P  = ersip_parser:new_dgram(SipMsgBin),
+    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    { ok, SipMsg1 } = ersip_sipmsg:parse(PMsg, all),
+    SipMsg1.

@@ -80,7 +80,7 @@ ruri(#sipmsg{ ruri = RURI }) ->
 -spec set_ruri(ersip_uri:uri(), sipmsg()) -> sipmsg().
 set_ruri(URI, #sipmsg{} = SipMsg) ->
     SipMsg0 = SipMsg#sipmsg{ ruri = URI },
-    RawMsg = ersip_msg:set(ruri, URI, raw_message(SipMsg0)),
+    RawMsg = ersip_msg:set(ruri, ersip_uri:assemble(URI), raw_message(SipMsg0)),
     set_raw_message(RawMsg, SipMsg0).
 
 -spec status(ersip_sipmsg:sipmsg()) -> undefined | ersip_status:code().

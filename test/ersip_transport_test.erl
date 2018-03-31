@@ -39,6 +39,14 @@ is_datagram_test() ->
     ?assertEqual(false, ersip_transport:is_datagram(make_transport(tcp))),
     ?assertError({ error, _ }, ersip_transport:is_datagram(make_transport(<<"unknowntranport">>))).
 
+is_tls_test() ->
+    ?assertEqual(false, ersip_transport:is_tls(make_transport(udp))),
+    ?assertEqual(false, ersip_transport:is_tls(make_transport(ws))),
+    ?assertEqual(true,  ersip_transport:is_tls(make_transport(wss))),
+    ?assertEqual(true,  ersip_transport:is_tls(make_transport(tls))),
+    ?assertEqual(false, ersip_transport:is_tls(make_transport(tcp))),
+    ?assertError({ error, _ }, ersip_transport:is_tls(make_transport(<<"unknowntranport">>))).
+
 assemble_test() ->
     ?assertEqual(<<"UDP">>, ersip_transport:assemble_upper(make_transport(udp))),
     ?assertEqual(<<"WS">>,  ersip_transport:assemble_upper(make_transport(ws))),

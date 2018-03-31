@@ -35,5 +35,8 @@ first_and_last_test() ->
     Len2 = ersip_route_set:add_first(Route2, Len1),
     ?assertEqual(Route1, ersip_route_set:last(Len2)),
     ?assertEqual(Route2, ersip_route_set:first(Len2)),
+
+    ?assertEqual(Len1, ersip_route_set:remove_first(Len2)),
+    ?assertError({ error, _ }, ersip_route_set:remove_first(Empty)),
     ok.
     

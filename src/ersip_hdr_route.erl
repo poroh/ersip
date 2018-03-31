@@ -48,7 +48,7 @@ uri(#route{ uri = URI }) ->
 params(#route{ params = P }) ->
     P.
 
--spec make(binary()) -> route_set().
+-spec make(iolist()) -> route_set().
 make(Binary) ->
     H0 = ersip_hdr:new(<<"Route">>),
     H1 = ersip_hdr:add_value(Binary, H0),
@@ -85,7 +85,7 @@ build(HdrName, { route_set, _ } = RouteSet) ->
       Hdr,
       RouteSet).
 
--spec make_route(binary()) -> route().
+-spec make_route(binary() | ersip_uri:uri()) -> route().
 make_route(#uri{} = URI) ->
     #route{ display_name = { display_name, [] }, uri = URI };
 make_route(Bin) when is_binary(Bin) ->
@@ -130,7 +130,7 @@ parse_route(Bin) ->
     end.
 
 
--spec assemble_route(route_set()) -> iolist().
+-spec assemble_route(route()) -> iolist().
 assemble_route(#route{} = Route) ->
     #route{ display_name = DN,
             uri = URI,

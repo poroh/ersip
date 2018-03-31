@@ -27,7 +27,7 @@
 %%% API
 %%%===================================================================
 
--spec make(ersip_hdr:header() | binary()) -> maxforwards().
+-spec make(ersip_hdr:header() | binary() | non_neg_integer()) -> maxforwards().
 make(Number) when is_integer(Number), Number >= 0 ->
     { maxforwards, Number };
 make(Bin) when is_binary(Bin) ->

@@ -21,6 +21,7 @@
           has_body/1,
           get/2,
           set/3,
+          source/1,
           raw_header/2,
           parse/2,
           serialize/1,
@@ -126,9 +127,13 @@ raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
     ersip_siphdr:set_header(HdrAtom, Value, Msg).
 
+-spec source(sipmsg()) -> undefined | ersip_source:source().
+source(#sipmsg{} = SipMsg) ->
+    ersip_msg:source(raw_message(SipMsg)).
+
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.
--spec parse(ersip_msg:message(), [ known_header() ] | all) -> Result when
+-spec parse(ersip_msg:message() | sipmsg(), [ known_header() ] | all) -> Result when
       Result :: { ok, sipmsg() }
               | { error, term() }.
 parse(#sipmsg{} = SipMsg, all) ->

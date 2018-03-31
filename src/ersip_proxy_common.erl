@@ -34,7 +34,8 @@
 
 -type scheme_val_fun()   :: fun((binary() | sip) -> boolean()).
 -type check_rroute_fun() :: fun((ersip_hdr_route:route()) -> boolean()).
--type reply_or_error() :: { reply, ersip_sipmsg:sipmsg() }
+-type reply()          :: { reply, ersip_sipmsg:sipmsg() }.
+-type reply_or_error() :: reply()
                         | { error, term() }.
 -type proxy_params() ::
         #{ %% If 'allow' option is set then proxy is restricted to pass
@@ -68,7 +69,7 @@
            %% messages. This URI need to be resolved to proxy's IP
            %% address. Function check_rroute_fun(record_route_uri)
            %% need to return true for next requests.
-           record_route_uri => ersip_sipmsg:uri()
+           record_route_uri => ersip_uri:uri()
          }.
 
 %%%===================================================================
@@ -129,7 +130,8 @@ forward_request(Target, SipMsg, ProxyParams) ->
                 SipMsg,
                 [ fun fwd_set_ruri/3,
                   fun fwd_max_forwards/3,
-                  fun fwd_record_route/3
+                  fun fwd_record_route/3,
+                  fun fwd_check_record_route/3
                 ]).
 
 %%%===================================================================
@@ -282,13 +284,13 @@ make_bad_extension(SipMessage, Options, Unsupported) ->
     end.
 
 
--spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> reply_or_error().
+-spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> reply().
 maybe_reply_options(SipMessage, #{ reply_on_options := true, proxy_params := _ } = Options) ->
     make_options_reply(SipMessage, Options);
 maybe_reply_options(SipMessage, Options) ->
     make_reply(SipMessage, Options, 483).
 
--spec make_options_reply(ersip_sipmsg:sipmsg(), validate_options()) -> reply_or_error().
+-spec make_options_reply(ersip_sipmsg:sipmsg(), validate_options()) -> reply().
 make_options_reply(SipMessage, Options) ->
     Reply = ersip_reply:new(200,
                             [ { to_tag, maps:get(to_tag, Options) }
@@ -479,7 +481,69 @@ fwd_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR0 }) ->
                 ersip_route_set:new()
         end,
     RRSet1 = ersip_route_set:add_first(RRRoute, RRSet0),
-    io:format("~p~n", [ RRSet1 ]),
     ersip_sipmsg:set(record_route, RRSet1, SipMsg);
 fwd_record_route(_TargetURI, SipMsg, _ProxyParams) ->
     SipMsg.
+
+%% Check record route in accoring to the clause (RFC 3261 16.6 bullet 4):
+%%
+-spec fwd_check_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_check_record_route(_TargetURI, SipMsg, #{ record_route := RR }) ->
+    %% If the Request-URI contains a SIPS URI, or the topmost Route
+    %% header field value (after the post processing of bullet 6)
+    %% contains a SIPS URI, the URI placed into the Record-Route header
+    %% field MUST be a SIPS URI.
+    case nexthop_scheme_is({ scheme, sips }, SipMsg) of
+        true ->
+            case { scheme, sips } == ersip_uri:scheme(RR) of
+                true ->
+                    ok;
+                false ->
+                    error({ error, { record_route_must_be_sips } })
+            end;
+        false ->
+            ok
+    end,
+    SipMsg;
+fwd_check_record_route(_TargetURI, SipMsg, _ProxyParams) ->
+    %% Note: No record-route is defined by proxy in this clause.
+    %%
+    %% Furthermore, if the request was not received over TLS, the
+    %% proxy MUST insert a Record-Route header field.  In a similar
+    %% fashion, a proxy that receives a request over TLS, but
+    %% generates a request without a SIPS URI in the Request-URI or
+    %% topmost Route header field value (after the post processing of
+    %% bullet 6), MUST insert a Record-Route header field that is not
+    %% a SIPS URI.
+    case ersip_sipmsg:source(SipMsg) of
+        undefined ->
+            ok;
+        Source ->
+            IsTLS = ersip_source:is_tls(Source),
+            case (not IsTLS) andalso nexthop_scheme_is({ scheme, sips }, SipMsg) of
+                true ->
+                    error({ error, { record_route_required, sips_transform } });
+                false ->
+                    ok
+            end,
+            case IsTLS andalso nexthop_scheme_is({ scheme, sip }, SipMsg) of
+                true ->
+                    error({ error, { record_route_required, sip_transform } });
+                false ->
+                    ok
+            end
+    end,
+    SipMsg.
+
+-spec nexthop_scheme_is(ersip_uri:scheme(), ersip_sipmsg:sipmsg()) -> boolean().
+nexthop_scheme_is(Scheme, SipMsg) ->
+    RURISchemeMatch = Scheme == ersip_uri:scheme(ersip_sipmsg:ruri(SipMsg)),
+    TopRouteScemeMatch =
+        case ersip_sipmsg:find(route, SipMsg) of
+            { ok, RouteSet } ->
+                TopRoute = ersip_route_set:first(RouteSet),
+                Scheme == ersip_uri:scheme(ersip_hdr_route:uri(TopRoute));
+            not_found ->
+                false
+        end,
+    RURISchemeMatch orelse TopRouteScemeMatch.

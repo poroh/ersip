@@ -77,6 +77,11 @@ conn_data(Binary, #sip_conn{ parser = Parser } = Conn) ->
 %%% Internal Implementation
 %%%===================================================================
 
+-spec source(sip_conn()) -> ersip_source:source().
+source(#sip_conn{ remote_addr = Peer, transport = T, options = Opts }) ->
+    SourceId = maps:get(source_id, Opts, undefined),
+    ersip_source:new(Peer, T, SourceId).
+
 -spec remote_ip(sip_conn()) -> ersip_host:host().
 remote_ip(#sip_conn{ remote_addr = { RemoteIP, _ } }) ->
     RemoteIP.
@@ -89,7 +94,8 @@ save_parser(Parser, SipConn) ->
 receive_raw(Msg, #sip_conn{} = Conn) ->
     case maybe_add_received(Msg, Conn) of
         { ok, NewMsg } ->
-            { Conn, [ ersip_conn_se:new_message(NewMsg) ]};
+            NewMsgWithSrc = ersip_msg:set_source(source(Conn), NewMsg),
+            { Conn, [ ersip_conn_se:new_message(NewMsgWithSrc) ]};
         { error, _ } = Error ->
             return_se(ersip_conn_se:bad_message(Msg, Error), Conn)
     end.

@@ -173,7 +173,9 @@ set_part(_, _) ->
 %% lr-param      --          o      -    -       -          o         o
 %% other-param   --          o      o    o       o          o         o
 %% headers       --          -      -    -       o          -         o
--spec clear_not_allowed_parts(ruri, uri()) -> uri().
+-spec clear_not_allowed_parts(Type, uri()) -> uri() when
+      Type :: ruri
+            | record_route.
 clear_not_allowed_parts(ruri, #uri{ params = P } = URI) ->
     URI#uri{ params = maps:without([ method ], P),
              headers = #{}

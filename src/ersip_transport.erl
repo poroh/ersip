@@ -10,6 +10,7 @@
 
 -export([ make/1,
           is_datagram/1,
+          is_tls/1,
           parse/1,
           parse_port_number/1,
           default_port/1,
@@ -73,6 +74,20 @@ is_datagram({ transport, tls }) ->
 is_datagram({ transport, tcp }) ->
     false;
 is_datagram({ other_transport, Binary }) when is_binary(Binary) ->
+    error({error, { unknown_transport_type, Binary }}).
+
+-spec is_tls(known_transport()) -> boolean().
+is_tls({ transport, udp }) ->
+    false;
+is_tls({ transport, tcp }) ->
+    false;
+is_tls({ transport, ws }) ->
+    false;
+is_tls({ transport, tls }) ->
+    true;
+is_tls({ transport, wss }) ->
+    true;
+is_tls({ other_transport, Binary }) when is_binary(Binary) ->
     error({error, { unknown_transport_type, Binary }}).
 
 -spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(port_number()).

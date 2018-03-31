@@ -8,8 +8,6 @@
 
 -module(ersip_status).
 
--include_lib("eunit/include/eunit.hrl").
-
 -export([ response_type/1,
           reason_phrase/1,
           bad_request_reason/1
@@ -42,7 +40,7 @@ reason_phrase(Code) ->
     reason_impl(Code).
 
 
--spec bad_request_reason(code()) -> reason().
+% -spec bad_request_reason({error, any()}) -> reason().
 bad_request_reason({error, {header_error, {maxforwards, _}}}) ->
     <<"Invalid max-forwards value">>;
 bad_request_reason({error, _ }) ->

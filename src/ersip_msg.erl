@@ -14,6 +14,8 @@
           set_header/2,
           add/3,
           get/2,
+          source/1,
+          set_source/2,
           serialize/1,
           serialize_bin/1
         ]).
@@ -32,7 +34,9 @@
                                         | { response, 100..699 | undefined, binary() | undefined }
                                         | undefined,
                    headers = #{}       :: #{ binary() := ersip_hdr:header() },
-                   body    = []        :: iolist()
+                   body    = []        :: iolist(),
+                   source = undefined  :: undefined 
+                                        | ersip_source:source()
                  }).
 
 -type header_name() :: binary().
@@ -133,6 +137,14 @@ add(HeaderName, Value, #message{ headers = H } = Message) ->
             Updated = ersip_hdr:add_value(V, Current),
             Message#message{ headers = H#{ Key => Updated } }
     end.
+
+-spec source(message()) -> undefined | ersip_source:source().
+source(#message{ source = Source }) ->
+    Source.
+
+-spec set_source(ersip_source:source(), message()) -> message().
+set_source(Source, #message{} = Message) ->
+    Message#message{ source = Source }.
 
 -spec serialize_bin(message()) -> binary().
 serialize_bin(#message{} = Message) ->

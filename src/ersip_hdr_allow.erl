@@ -20,7 +20,7 @@
 %%% Types
 %%%===================================================================
 
--type allow() :: { allow, gb_sets:item(ersip_method:method()) }.
+-type allow() :: { allow, gb_sets:set(ersip_method:method()) }.
 
 %%%===================================================================
 %%% API
@@ -66,7 +66,7 @@ build(HdrName, { allow, _ } = Allow) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value([ assemble(Allow) ], Hdr).
 
--spec assemble(allow()) ->  binary().
+-spec assemble(allow()) ->  iolist().
 assemble({ allow, _ } = Allow) ->
     ersip_iolist:join(<<", ">>,
                       [ ersip_method:to_binary(Method)

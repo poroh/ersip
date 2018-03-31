@@ -29,7 +29,7 @@
 %%% API
 %%%===================================================================
 
--spec from_list([ binary() ]) -> option_tag_list().
+-spec from_list([ ersip_option_tag:option_tag() ]) -> option_tag_list().
 from_list(OptionTagList) ->
     { option_tag_list, gb_sets:from_list(OptionTagList) }.
 
@@ -49,7 +49,7 @@ subtract({ option_tag_list, S1 }, { option_tag_list, S2 }) ->
       Result :: { ok, option_tag_list() }
               | { error, Error },
       Error :: no_header
-             | { invalid_option_tag_list, binary() }.
+             | { invalid_option_tag_list, term() }.
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
@@ -78,7 +78,7 @@ build(HdrName, { option_tag_list, _ } = OptionTagList) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value([ assemble(OptionTagList) ], Hdr).
 
--spec assemble(option_tag_list()) ->  binary().
+-spec assemble(option_tag_list()) ->  iolist().
 assemble({option_tag_list, _ } = OptionTagList) ->
     ersip_iolist:join(<<", ">>,
                       [ ersip_option_tag:to_binary(OptionTag)

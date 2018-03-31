@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -25,14 +25,19 @@ topmost_route_test() ->
     ?assertEqual(#{ lr => true }, ersip_uri:params(URIWithLR)),
     ok.
 
-no_topmost_test() ->
-    H = ersip_hdr:new(<<"Route">>),
-    H1 = ersip_hdr:add_value(<<"?">>, H),
-    ?assertMatch({ error, _ }, ersip_hdr_route:topmost_route(H1)).
-
 bad_topmost_test() ->
     H = ersip_hdr:new(<<"Route">>),
-    ?assertMatch({ error, _ }, ersip_hdr_route:topmost_route(H)).
+    H1 = ersip_hdr:add_value(<<"?">>, H),
+    ?assertMatch({ error, _ }, ersip_hdr_route:parse(H1)).
+
+bad_middle_test() ->
+    H = ersip_hdr:new(<<"Route">>),
+    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>,?,<sip:bob@biloxi.com>">>, H),
+    ?assertMatch({ error, _ }, ersip_hdr_route:parse(H1)).
+
+empty_route_test() ->
+    H = ersip_hdr:new(<<"Route">>),
+    ?assertMatch({ ok, [] }, ersip_hdr_route:parse(H)).
 
 %%%===================================================================
 %%% Helpers
@@ -44,5 +49,8 @@ create(RouteBin) ->
 
 topmost_route(RouteBin) ->
     HRoute = create(RouteBin),
-    { ok, Route } = ersip_hdr_route:topmost_route(HRoute),
-    Route.
+    case ersip_hdr_route:parse(HRoute) of
+        { ok, [ Route | _ ] } -> Route;
+        Error ->
+            error(Error)
+    end.

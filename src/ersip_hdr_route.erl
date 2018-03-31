@@ -10,7 +10,7 @@
 
 -export([ uri/1,
           params/1,
-          topmost_route/1
+          parse/1
         ]).
 
 -export_type([ route/0 ]).
@@ -23,12 +23,14 @@
                  uri          :: ersip_uri:uri(),
                  params = []  :: [ route_param() ]
                }).
--type route() :: #route{}.
+-type route()     :: #route{}.
+-type route_set() :: [ route() ].
 -type route_param() :: { Key :: binary(), Value :: binary() }.
-
--type parse_result() :: { ok, route() }
+-type parse_result() :: { ok, route_set() }
                       | { error, term() }.
 
+-type maybe_rev_route_set() :: { ok, [ route() ] }
+                             | { error, term() }.
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -41,20 +43,35 @@ uri(#route{ uri = URI }) ->
 params(#route{ params = P }) ->
     P.
 
--spec topmost_route(ersip_hdr:header()) -> parse_result().
-topmost_route(Header) ->
-    case ersip_hdr:raw_values(Header) of
-        [] ->
-            { error, no_route };
-        [ TopRoute | _ ]  ->
-            parse_route(iolist_to_binary(TopRoute))
+-spec parse(ersip_hdr:header()) -> parse_result().
+parse(Header) ->
+    MaybeRevRouteSet =
+        lists:foldl(fun(IORoute, Acc) ->
+                            add_to_maybe_route_set(iolist_to_binary(IORoute), Acc)
+                    end,
+                    { ok, [] },
+                    ersip_hdr:raw_values(Header)),
+    case MaybeRevRouteSet of
+        { ok, RevRoutes } ->
+            { ok, lists:reverse(RevRoutes) };
+        Error ->
+            Error
     end.
-
 
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 
+-spec add_to_maybe_route_set(binary(), maybe_rev_route_set()) -> maybe_rev_route_set().
+add_to_maybe_route_set(_, { error, _ } = Error) ->
+    Error;
+add_to_maybe_route_set(Bin, { ok, RouteSet }) ->
+    case parse_route(Bin) of
+        { ok, Route } ->
+            { ok, [ Route | RouteSet ] };
+        { error, _ } = Error ->
+            Error
+    end.
 
 -spec parse_route(binary()) -> parse_result().
 parse_route(Bin) ->

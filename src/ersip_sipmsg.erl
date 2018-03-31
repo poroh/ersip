@@ -15,6 +15,7 @@
           type/1,
           method/1,
           ruri/1,
+          set_ruri/2,
           status/1,
           reason/1,
           has_body/1,
@@ -75,6 +76,12 @@ method(#sipmsg{ method = Method }) ->
 -spec ruri(ersip_sipmsg:sipmsg()) -> ersip_uri:uri().
 ruri(#sipmsg{ ruri = RURI }) ->
     RURI.
+
+-spec set_ruri(ersip_uri:uri(), sipmsg()) -> sipmsg().
+set_ruri(URI, #sipmsg{} = SipMsg) ->
+    SipMsg0 = SipMsg#sipmsg{ ruri = URI },
+    RawMsg = ersip_msg:set(ruri, URI, raw_message(SipMsg0)),
+    set_raw_message(RawMsg, SipMsg0).
 
 -spec status(ersip_sipmsg:sipmsg()) -> undefined | ersip_status:code().
 status(#sipmsg{} = SipMsg) ->
@@ -334,7 +341,8 @@ reply_impl(Reply, SipMsg) ->
                 ersip_siphdr:copy_header(to, SipMsg, RSipMsg2);
             undefined ->
                 maybe_set_to_tag(Reply, SipMsg, RSipMsg2)
-        end.
+        end,
+    RSipMsg3.
 
 %% When a 100 (Trying) response is generated, any
 %% Timestamp header field present in the request MUST be

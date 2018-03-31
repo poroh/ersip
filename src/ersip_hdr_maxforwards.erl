@@ -11,6 +11,7 @@
 
 -export([ make/1,
           value/1,
+          dec/1,
           parse/1,
           build/2 ]).
 
@@ -27,6 +28,8 @@
 %%%===================================================================
 
 -spec make(ersip_hdr:header() | binary()) -> maxforwards().
+make(Number) when is_integer(Number), Number >= 0 ->
+    { maxforwards, Number };
 make(Bin) when is_binary(Bin) ->
     case parse_maxforwards(Bin) of
         { ok, MaxForwards } ->
@@ -45,6 +48,12 @@ make(Header) ->
 -spec value(maxforwards()) -> non_neg_integer().
 value({ maxforwards, V }) ->
     V.
+
+-spec dec(maxforwards()) -> maxforwards().
+dec({ maxforwards, X }) when X =< 0 ->
+    error({ error, negative_maxforwards });
+dec({ maxforwards, V }) ->
+    { maxforwards, V-1 }.
 
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: { ok, maxforwards() }

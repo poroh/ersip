@@ -14,7 +14,9 @@
           parse/1,
           assemble/1,
           params/1,
-          set_param/3 ]).
+          set_param/3,
+          clear_not_allowed_parts/2
+        ]).
 -export_type([ uri/0, scheme/0 ]).
 
 
@@ -156,6 +158,26 @@ set_part({ host, H },            #uri{} = URI) ->
 set_part(_, _) ->
     error(badarg).
 
+%%                                                       dialog
+%%                                           reg./redir. Contact/
+%%               default  Req.-URI  To  From  Contact   R-R/Route  external
+%% user          --          o      o    o       o          o         o
+%% password      --          o      o    o       o          o         o
+%% host          --          m      m    m       m          m         m
+%% port          (1)         o      -    -       o          o         o
+%% user-param    ip          o      o    o       o          o         o
+%% method        INVITE      -      -    -       -          -         o
+%% maddr-param   --          o      -    -       o          o         o
+%% ttl-param     1           o      -    -       o          -         o
+%% transp.-param (2)         o      -    -       o          o         o
+%% lr-param      --          o      -    -       -          o         o
+%% other-param   --          o      o    o       o          o         o
+%% headers       --          -      -    -       o          -         o
+-spec clear_not_allowed_parts(ruri, uri()) -> uri().
+clear_not_allowed_parts(ruri, #uri{ params = P } = URI) ->
+    URI#uri{ params = maps:without([ method ], P),
+             headers = #{}
+           }.
 
 %%%===================================================================
 %%% Internal implementation

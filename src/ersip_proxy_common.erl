@@ -9,7 +9,8 @@
 -module(ersip_proxy_common).
 
 -export([ request_validation/2,
-          process_route_info/2
+          process_route_info/2,
+          forward_request/3
         ]).
 
 %%%===================================================================
@@ -109,6 +110,19 @@ process_route_info(SipMsg, ProxyParams) ->
                 [ fun ri_strict_route/2,
                   fun ri_process_maddr/2,
                   fun ri_maybe_remove_route/2
+                ]).
+
+
+%% 16.6 Forward request to one target
+-spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg() when
+      Target :: ersip_uri:uri().
+forward_request(Target, SipMsg, ProxyParams) ->
+    lists:foldl(fun(FWDFun, Message) ->
+                        FWDFun(Target, Message, ProxyParams)
+                end,
+                SipMsg,
+                [ fun fwd_set_ruri/3,
+                  fun fwd_max_forwards/3
                 ]).
 
 %%%===================================================================
@@ -403,7 +417,35 @@ ri_maybe_remove_route(SipMsg, #{ check_rroute_fun := CheckRRFun }) ->
 ri_maybe_remove_route(SipMsg, _ProxyParams) ->
     SipMsg.
 
+-spec remove_last_route(ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 remove_last_route(SipMsg) ->
     RouteSet0 = ersip_sipmsg:get(route, SipMsg),
     RouteSet1 = ersip_route_set:remove_last(RouteSet0),
     ersip_sipmsg:set(route, RouteSet1, SipMsg).
+
+%% 16.6 Request Forwarding
+%%
+%% 2. Update the Request-URI
+-spec fwd_set_ruri(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_set_ruri(TargetURI, SipMsg, _ProxyParams) ->
+    %% The Request-URI in the copy's start line MUST be replaced with
+    %% the URI for this target.  If the URI contains any parameters
+    %% not allowed in a Request-URI, they MUST be removed.
+    CleanURI = ersip_uri:clear_not_allowed_parts(ruri, TargetURI),
+    ersip_sipmsg:set_ruri(CleanURI, SipMsg).
+
+
+-spec fwd_max_forwards(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_max_forwards(_, SipMsg, _ProxyParams) ->
+    case ersip_sipmsg:find(maxforwards, SipMsg) of
+        { ok, MaxForwards } ->
+            %% If the copy contains a Max-Forwards header field, the proxy
+            %% MUST decrement its value by one (1).
+            ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:dec(MaxForwards), SipMsg);
+        not_found ->
+            %% If the copy does not contain a Max-Forwards header field, the
+            %% proxy MUST add one with a field value, which SHOULD be 70.
+            ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:make(70), SipMsg);
+        { error, _ } = Error ->
+            error(Error)
+    end.

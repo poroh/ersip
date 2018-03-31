@@ -32,6 +32,13 @@ make_test() ->
     EmptyH1 = ersip_hdr:new(<<"Max-Forwards">>),
     ?assertError({ error, no_maxforwards }, ersip_hdr_maxforwards:make(EmptyH1)).
 
+dec_test() ->
+    MV0 = ersip_hdr_maxforwards:make(0),
+    MV1 = ersip_hdr_maxforwards:make(1),
+    ?assertError({ error, _ }, ersip_hdr_maxforwards:dec(MV0)),
+    ?assertEqual({ maxforwards, 0 }, ersip_hdr_maxforwards:dec(MV1)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

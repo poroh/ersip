@@ -489,6 +489,74 @@ process_route_info_no_routes_strict_route_test() ->
     ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg)),
     ok.
 
+forward_request_set_ruri_test() ->
+    %% Check that forward_request sets request URI to target and
+    %% decrements max-forwards
+    BobURI = <<"sip:bob@biloxi.com">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(69, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
+    ok.
+
+forward_request_add_maxforwars_test() ->
+    %% Check that proxy adds Max-From to the request
+    BobURI = <<"sip:bob@biloxi.com">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(70, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
+    ok.
+
+forward_request_invalid_maxforwars_test() ->
+    %% Check that proxy adds Max-From to the request
+    BobURI = <<"sip:bob@biloxi.com">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Max-Forwards: x"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    RawMsg = raw_message(Msg),
+    { ok, SipMsg } = ersip_sipmsg:parse(RawMsg, []),
+    Target = ersip_uri:make(BobURI),
+    ?assertError({ error, {invalid_maxforwards, _} },
+                 ersip_proxy_common:forward_request(Target, SipMsg, ProxyOpts)).
 
 %%%===================================================================
 
@@ -506,6 +574,12 @@ request_validation(RawMsg) ->
 process_route_info(RawMsg, Opts) ->
     { ok, SipMsg } = request_validation(RawMsg, Opts),
     ersip_proxy_common:process_route_info(SipMsg, Opts).
+
+forward_request(Target, RawMsg, Opts) when is_binary(Target) ->
+    forward_request(ersip_uri:make(Target), RawMsg, Opts);
+forward_request(Target, RawMsg, Opts) ->
+    { ok, SipMsg } = request_validation(RawMsg, Opts),
+    ersip_proxy_common:forward_request(Target, SipMsg, Opts).
 
 rebuild_sipmsg(SipMsg) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),

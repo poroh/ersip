@@ -125,6 +125,9 @@ process_route_info(SipMsg, ProxyParams) ->
 
 
 %% 16.6 Forward request to one target
+%%
+%% Steps 1..6. Other steps are local-policy specific and we do not
+%% want to implement them here.
 -spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg() when
       Target :: ersip_uri:uri().
 forward_request(Target, SipMsg, ProxyParams) ->

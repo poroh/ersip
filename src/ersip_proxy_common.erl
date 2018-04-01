@@ -62,13 +62,17 @@
            %% Todo: realm and proxy-authorization
 
            %% Record-route functions that checks that this proxy is
-           %% generated this route/record-route header
+           %% generated this route/record-route header. Most obvious
+           %% way of checking is domain name/ip address checking.
            check_rroute_fun => check_rroute_fun(),
 
            %% Record-route header if proxy need to stay on dialog
            %% messages. This URI need to be resolved to proxy's IP
            %% address. Function check_rroute_fun(record_route_uri)
            %% need to return true for next requests.
+           %%
+           %% Record-route is REQUIRED when proxy is on the border
+           %% between secure/not secure transport (see RFC 3261 16.6).
            record_route_uri => ersip_uri:uri()
          }.
 
@@ -131,6 +135,8 @@ forward_request(Target, SipMsg, ProxyParams) ->
                 [ fun fwd_set_ruri/3,
                   fun fwd_max_forwards/3,
                   fun fwd_record_route/3,
+                  fun fwd_add_headers/3,
+                  fun fwd_postprocess_routing/3,
                   fun fwd_check_record_route/3
                 ]).
 
@@ -485,6 +491,23 @@ fwd_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR0 }) ->
 fwd_record_route(_TargetURI, SipMsg, _ProxyParams) ->
     SipMsg.
 
+%% 16.6 Request Forwarding
+%%
+%% 5. Add Additional Header Fields
+-spec fwd_add_headers(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_add_headers(_TargetURI, SipMsg, _ProxyParams) ->
+    %% TODO: proxy add headres: implement it eventually
+    SipMsg.
+
+
+%% 16.6 Request Forwarding
+%%
+%% 6. Postprocess routing information
+-spec fwd_postprocess_routing(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
+fwd_postprocess_routing(_TargetURI, SipMsg, _ProxyParams) ->
+    %% TODO: proxy routing definition: implement it eventually
+    maybe_strict_router_workaround(SipMsg).
+
 %% Check record route in accoring to the clause (RFC 3261 16.6 bullet 4):
 %%
 -spec fwd_check_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
@@ -547,3 +570,50 @@ nexthop_scheme_is(Scheme, SipMsg) ->
                 false
         end,
     RURISchemeMatch orelse TopRouteScemeMatch.
+
+
+-spec maybe_strict_router_workaround(ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_strict_router_workaround(SipMsg) ->
+    %% If the copy contains a Route header field, the proxy MUST
+    %% inspect the URI in its first value.  If that URI does not
+    %% contain an lr parameter, the proxy MUST modify the copy
+    case ersip_sipmsg:find(route, SipMsg) of
+        not_found ->
+            SipMsg;
+        { ok, RouteSet } ->
+            FirstRoute = ersip_route_set:first(RouteSet),
+            URIParams  = ersip_uri:params(ersip_hdr_route:uri(FirstRoute)),
+            case maps:is_key(lr, URIParams) of
+                false ->
+                    %% If this is route to strict router then it is
+                    %% required to made some transformation to match
+                    %% request with strict routing requirements
+                    strict_router_workaround(SipMsg);
+                true ->
+                    SipMsg
+
+            end
+    end.
+
+%% 16.6 Request Forwarding
+%%
+%% 6. Postprocess routing information
+%%
+%% Route to strict router handling
+-spec strict_router_workaround(ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+strict_router_workaround(SipMsg0) ->
+    %% -  The proxy MUST place the Request-URI into the Route header
+    %%    field as the last value.
+    RURI = ersip_sipmsg:ruri(SipMsg0),
+    RouteSet0 = ersip_sipmsg:get(route, SipMsg0),
+    RURIRoute = ersip_hdr_route:make_route(RURI),
+    RouteSet1 = ersip_route_set:add_last(RURIRoute, RouteSet0),
+    %% -  The proxy MUST then place the first Route header field value
+    %%    into the Request-URI and remove that value from the Route
+    %%    header field.
+    FirstRoute = ersip_route_set:first(RouteSet1),
+    FirstRouteURI = ersip_hdr_route:uri(FirstRoute),
+    RouteSet2 = ersip_route_set:remove_first(RouteSet1),
+    SipMsg1 = ersip_sipmsg:set_ruri(FirstRouteURI, SipMsg0),
+    SipMsg2 = ersip_sipmsg:set(route, RouteSet2, SipMsg1),
+    SipMsg2.

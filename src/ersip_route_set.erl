@@ -11,6 +11,7 @@
 -export([ new/0,
           is_empty/1,
           add_first/2,
+          add_last/2,
           remove_first/1,
           remove_last/1,
           reverse/1,
@@ -45,6 +46,10 @@ is_empty({ route_set, _ }) ->
 -spec add_first(route(), route_set()) -> route_set().
 add_first(Route, { route_set, RR }) ->
     { route_set, [ Route | RR ] }.
+
+-spec add_last(route(), route_set()) -> route_set().
+add_last(Route, { route_set, RR }) ->
+    { route_set, RR ++ [ Route ] }.
 
 -spec remove_first(route_set()) -> route_set().
 remove_first({ route_set, [] }) ->

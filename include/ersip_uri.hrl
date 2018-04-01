@@ -35,7 +35,8 @@
                          maddr     => ersip_host:host(),
                          ttl       => 0..255,
                          user      => phone | ip | binary(),
-                         method    => binary()
+                         method    => binary(),
+                         lr        => true
                        }.
 -type uri_headers() ::  #{ binary() => binary() }.
 -type uri() :: #uri{}.

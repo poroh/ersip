@@ -736,7 +736,6 @@ forward_request_no_rr_sips_to_sip_by_route_test() ->
     ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
     ok.
 
-
 forward_request_no_rr_sips_to_sips_test() ->
     BobURI = <<"sips:bob@biloxi.com">>,
     Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
@@ -758,6 +757,35 @@ forward_request_no_rr_sips_to_sips_test() ->
     SipMsg0 = forward_request(BobURI, RawMsg1, ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(not_found, ersip_sipmsg:find(record_route, SipMsg)),
+    ok.
+
+forward_request_to_strict_router_test() ->
+    BobURI = <<"sip:bob@biloxi.com">>,
+    StrictRouterURI = <<"sip:stict.proxy.org">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Route: <", StrictRouterURI/binary, ">"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    %% Check no error here
+    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    %% Check strict routing requirements:
+    %% RURI is set tp StrictRouterURI
+    ?assertEqual(ersip_uri:make(StrictRouterURI), ersip_sipmsg:ruri(SipMsg)),
+    %% Last route is set to BobURI
+    RouteSet = ersip_sipmsg:get(route, SipMsg),
+    LastRoute = ersip_route_set:last(RouteSet),
+    ?assertEqual(ersip_uri:make(BobURI), ersip_hdr_route:uri(LastRoute)),
     ok.
 
 %%%===================================================================

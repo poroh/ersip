@@ -610,6 +610,156 @@ forward_request_record_route_append_test() ->
     ?assertEqual(ersip_uri:make(AnotherProxyURI), RecordRouteURI2),
     ok.
 
+forward_request_record_route_append_sips_test() ->
+    %% If the Request-URI contains a SIPS URI, or the topmost Route
+    %% header field value (after the post processing of bullet 6)
+    %% contains a SIPS URI, the URI placed into the Record-Route
+    %% header field MUST be a SIPS URI.
+    BobURI = <<"sips:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Record-Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sips:this.proxy.org">>),
+    ProxyOpts = #{ record_route_uri => ThisProxyURI },
+    _ = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ok.
+
+forward_request_record_route_append_not_sips_test() ->
+    %% If the Request-URI contains a SIPS URI, or the topmost Route
+    %% header field value (after the post processing of bullet 6)
+    %% contains a SIPS URI, the URI placed into the Record-Route
+    %% header field MUST be a SIPS URI.
+    BobURI = <<"sips:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Record-Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
+    ProxyOpts = #{ record_route_uri => ThisProxyURI },
+    ?assertError({ error, _}, forward_request(BobURI, raw_message(Msg), ProxyOpts)),
+    ok.
+
+forward_request_no_rr_sip_to_sips_test() ->
+    %% If the Request-URI contains a SIPS URI, or the topmost Route
+    %% header field value (after the post processing of bullet 6)
+    %% contains a SIPS URI, the URI placed into the Record-Route
+    %% header field MUST be a SIPS URI.
+    BobURI = <<"sips:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Record-Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    RawMsg0 = raw_message(Msg),
+    RawMsg1 = ersip_msg:set_source(udp_source(), RawMsg0),
+    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ok.
+
+forward_request_no_rr_sips_to_sip_test() ->
+    %% If the Request-URI contains a SIPS URI, or the topmost Route
+    %% header field value (after the post processing of bullet 6)
+    %% contains a SIPS URI, the URI placed into the Record-Route
+    %% header field MUST be a SIPS URI.
+    BobURI = <<"sip:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Record-Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    RawMsg0 = raw_message(Msg),
+    RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
+    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ok.
+
+forward_request_no_rr_sips_to_sip_by_route_test() ->
+    %% Check invariant:
+    %% Either Record-route is added or nexthop cannot be sip.
+    BobURI = <<"sips:bob@biloxi.com">>,
+    AnotherProxyURI = <<"sip:another.proxy.org;lr">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Route: <", AnotherProxyURI/binary, ">"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    RawMsg0 = raw_message(Msg),
+    RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
+    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ok.
+
+
+forward_request_no_rr_sips_to_sips_test() ->
+    BobURI = <<"sips:bob@biloxi.com">>,
+    Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    RawMsg0 = raw_message(Msg),
+    RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
+    %% Check no error here
+    SipMsg0 = forward_request(BobURI, RawMsg1, ProxyOpts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    ?assertEqual(not_found, ersip_sipmsg:find(record_route, SipMsg)),
+    ok.
+
 %%%===================================================================
 
 raw_message(Bin) ->
@@ -639,3 +789,15 @@ rebuild_sipmsg(SipMsg) ->
     { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
     { ok, SipMsg1 } = ersip_sipmsg:parse(PMsg, all),
     SipMsg1.
+
+
+peer() ->
+    { { 127, 0, 0, 1 }, 5060 }.
+
+udp_source() ->
+    Transport = ersip_transport:make(udp),
+    ersip_source:new(peer(), Transport, undefined).
+
+tls_source() ->
+    Transport = ersip_transport:make(tls),
+    ersip_source:new(peer(), Transport, undefined).

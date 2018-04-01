@@ -488,7 +488,7 @@ fwd_record_route(_TargetURI, SipMsg, _ProxyParams) ->
 %% Check record route in accoring to the clause (RFC 3261 16.6 bullet 4):
 %%
 -spec fwd_check_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_check_record_route(_TargetURI, SipMsg, #{ record_route := RR }) ->
+fwd_check_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR }) ->
     %% If the Request-URI contains a SIPS URI, or the topmost Route
     %% header field value (after the post processing of bullet 6)
     %% contains a SIPS URI, the URI placed into the Record-Route header
@@ -499,7 +499,7 @@ fwd_check_record_route(_TargetURI, SipMsg, #{ record_route := RR }) ->
                 true ->
                     ok;
                 false ->
-                    error({ error, { record_route_must_be_sips } })
+                    error({ error, record_route_must_be_sips })
             end;
         false ->
             ok

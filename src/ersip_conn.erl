@@ -65,6 +65,8 @@ conn_data(Binary, #sip_conn{ parser = undefined } = Conn) ->
     case ersip_parser:parse(Parser) of
         { { ok, Msg }, _ } ->
             receive_raw(Msg, Conn);
+        { more_data, _ } ->
+            return_se(ersip_conn_se:bad_message(Binary, truncated), Conn);
         { { error, _ } = Error, _ } ->
             return_se(ersip_conn_se:bad_message(Binary, Error), Conn)
     end;

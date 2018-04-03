@@ -66,7 +66,9 @@ print_form_test() ->
           <<"Supported">>,
           <<"Unsupported">>,
           <<"Require">>,
-          <<"Proxy-Require">> ],
+          <<"Proxy-Require">>,
+          <<"p-custom-header">>
+        ],
     [ test_print_form(Name) || Name <- PrintForms ].
 
 %%%===================================================================

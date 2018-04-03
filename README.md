@@ -3,16 +3,17 @@
 
 # Erlang SIP
 
-Some time ago I found that there are no opensource SIP library
-that does not force you to some software design. All libraries
-provides some framework that required in project if you want to use
-SIP.
+Some time ago I found that there are no opensource SIP library that
+does not force you to some software design. All libraries provides
+some framework that is required in your project if you want to use
+SIP. I beleive that this is wrong way.
 
 ## About Author
 
 Dmitry Poroh:
 
-Has huge (17 years) exprience in telecommunication areas. Among other projects I have developed:
+Has huge (17 years) exprience in telecommunication areas. Among other
+projects I have developed:
 
   + SMTP protocol (RFC2821)
   + HTTP/FTP proxy (RFC2616, RFC0959)
@@ -48,7 +49,8 @@ available.
   + Dialog support
   + Authorization and proxy authorization
   + High-level UA support
-  + SIP proxy support 
+  + SIP proxy support
+  + Detailed documentation and tutorials
 
 ## Basics
 
@@ -86,4 +88,20 @@ It consist of
   + First line parsed data
   + Set of low-level headers
   + Not parsed body
+
+## SIP message
+
+SIP message has low level message under the hood but also has some set
+of parsed headers. It provides interface for higher level manipulation
+of SIP messages. For example you can easy change some headers with
+your values. Code example:
+
+
+```
+NewRURI = ersip_uri:make(<<"sip:alice@atlanta.com">>),
+NewSipMsg = ersip_sipmsg:set_ruri(NewRURI, SipMsg)
+```
+
+After serialization message will contain this RURI instead previous
+one.
 

@@ -197,6 +197,12 @@ conn_stream_no_content_len_test() ->
     CallId1H = ersip_msg:get(<<"call-id">>, NewMsg1),
     ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallId1H)).
 
+conn_datagram_truncated_message_test() ->
+    RemoteIP = { 127, 0, 0, 1 },
+    Conn = create_conn(RemoteIP, 5090),
+    Msg = <<"INVITE">>,
+    { _, [ { bad_message, Msg, truncated } ] } = ersip_conn:conn_data(Msg, Conn).
+
 
 %%%===================================================================
 %%% Helpers

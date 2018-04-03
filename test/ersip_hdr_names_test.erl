@@ -50,3 +50,28 @@ compact_form_test() ->
               ?assertEqual(CompactForm, ersip_hdr_names:compact_form(FieldName))
       end,
      HeadersF).
+
+
+print_form_test() ->
+    PrintForms =
+        [ <<"From">>,
+          <<"To">>,
+          <<"CSeq">>,
+          <<"Call-Id">>,
+          <<"Max-Forwards">>,
+          <<"Content-Type">>,
+          <<"Route">>,
+          <<"Record-Route">>,
+          <<"Allow">>,
+          <<"Supported">>,
+          <<"Unsupported">>,
+          <<"Require">>,
+          <<"Proxy-Require">> ],
+    [ test_print_form(Name) || Name <- PrintForms ].
+
+%%%===================================================================
+%%% Helpers
+%%%===================================================================
+
+test_print_form(Bin) ->
+    ?assertEqual(Bin, ersip_hdr_names:print_form(ersip_bin:to_lower(Bin))).

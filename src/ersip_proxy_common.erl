@@ -76,6 +76,13 @@
            record_route_uri => ersip_uri:uri()
          }.
 
+-type forward_result() :: { ForwardMessage :: ersip_sipmsg:sipmsg(),
+                            ForwardOptions :: forward_options()
+                          }.
+-type forward_options() :: #{ target => ersip_sipmsg:uri(),
+                              routing => strict | loose
+                            }.
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -126,21 +133,23 @@ process_route_info(SipMsg, ProxyParams) ->
 
 %% 16.6 Forward request to one target
 %%
-%% Steps 1..6. Other steps are local-policy specific and we do not
+%% Steps 1..7. Other steps are local-policy specific and we do not
 %% want to implement them here.
--spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg() when
+-spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> forward_result() when
       Target :: ersip_uri:uri().
 forward_request(Target, SipMsg, ProxyParams) ->
-    lists:foldl(fun(FWDFun, Message) ->
-                        FWDFun(Target, Message, ProxyParams)
+    FwdResult = { SipMsg, #{ routing => loose } },
+    lists:foldl(fun(FWDFun, Result) ->
+                        FWDFun(Target, Result, ProxyParams)
                 end,
-                SipMsg,
+                FwdResult,
                 [ fun fwd_set_ruri/3,
                   fun fwd_max_forwards/3,
                   fun fwd_record_route/3,
                   fun fwd_add_headers/3,
                   fun fwd_postprocess_routing/3,
-                  fun fwd_check_record_route/3
+                  fun fwd_check_record_route/3,
+                  fun fwd_determine_nexhop/3
                 ]).
 
 %%%===================================================================
@@ -444,29 +453,31 @@ remove_last_route(SipMsg) ->
 %% 16.6 Request Forwarding
 %%
 %% 2. Update the Request-URI
--spec fwd_set_ruri(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_set_ruri(TargetURI, SipMsg, _ProxyParams) ->
+-spec fwd_set_ruri(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_set_ruri(TargetURI, { SipMsg, Opts }, _ProxyParams) ->
     %% The Request-URI in the copy's start line MUST be replaced with
     %% the URI for this target.  If the URI contains any parameters
     %% not allowed in a Request-URI, they MUST be removed.
     CleanURI = ersip_uri:clear_not_allowed_parts(ruri, TargetURI),
-    ersip_sipmsg:set_ruri(CleanURI, SipMsg).
+    { ersip_sipmsg:set_ruri(CleanURI, SipMsg), Opts }.
 
 
 %% 16.6 Request Forwarding
 %%
 %% 3. Max-Forwards
--spec fwd_max_forwards(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_max_forwards(_TargetURI, SipMsg, _ProxyParams) ->
+-spec fwd_max_forwards(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_max_forwards(_TargetURI, { SipMsg, FwdOpts }, _ProxyParams) ->
     case ersip_sipmsg:find(maxforwards, SipMsg) of
         { ok, MaxForwards } ->
             %% If the copy contains a Max-Forwards header field, the proxy
             %% MUST decrement its value by one (1).
-            ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:dec(MaxForwards), SipMsg);
+            SipMsg1 = ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:dec(MaxForwards), SipMsg),
+            { SipMsg1, FwdOpts };
         not_found ->
             %% If the copy does not contain a Max-Forwards header field, the
             %% proxy MUST add one with a field value, which SHOULD be 70.
-            ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:make(70), SipMsg);
+            SipMsg1 = ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:make(70), SipMsg),
+            { SipMsg1, FwdOpts };
         { error, _ } = Error ->
             error(Error)
     end.
@@ -474,8 +485,8 @@ fwd_max_forwards(_TargetURI, SipMsg, _ProxyParams) ->
 %% 16.6 Request Forwarding
 %%
 %% 4. Record-Route
--spec fwd_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR0 }) ->
+-spec fwd_record_route(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_record_route(_TargetURI, { SipMsg, FwdOpts }, #{ record_route_uri := RR0 }) ->
     RR1 = ersip_uri:clear_not_allowed_parts(record_route, RR0),
     %% The URI placed in the Record-Route header field value MUST be a
     %% SIP or SIPS URI. This URI MUST contain an lr parameter (see
@@ -490,31 +501,32 @@ fwd_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR0 }) ->
                 ersip_route_set:new()
         end,
     RRSet1 = ersip_route_set:add_first(RRRoute, RRSet0),
-    ersip_sipmsg:set(record_route, RRSet1, SipMsg);
-fwd_record_route(_TargetURI, SipMsg, _ProxyParams) ->
-    SipMsg.
+    SipMsg1 = ersip_sipmsg:set(record_route, RRSet1, SipMsg),
+    { SipMsg1, FwdOpts };
+fwd_record_route(_TargetURI, FwdResult, _ProxyParams) ->
+    FwdResult.
 
 %% 16.6 Request Forwarding
 %%
 %% 5. Add Additional Header Fields
--spec fwd_add_headers(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_add_headers(_TargetURI, SipMsg, _ProxyParams) ->
+-spec fwd_add_headers(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_add_headers(_TargetURI, FwdResult, _ProxyParams) ->
     %% TODO: proxy add headres: implement it eventually
-    SipMsg.
+    FwdResult.
 
 
 %% 16.6 Request Forwarding
 %%
 %% 6. Postprocess routing information
--spec fwd_postprocess_routing(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_postprocess_routing(_TargetURI, SipMsg, _ProxyParams) ->
+-spec fwd_postprocess_routing(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_postprocess_routing(_TargetURI, FwdResult, _ProxyParams) ->
     %% TODO: proxy routing definition: implement it eventually
-    maybe_strict_router_workaround(SipMsg).
+    maybe_strict_router_workaround(FwdResult).
 
 %% Check record route in accoring to the clause (RFC 3261 16.6 bullet 4):
 %%
--spec fwd_check_record_route(ersip_uri:uri(), ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-fwd_check_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR }) ->
+-spec fwd_check_record_route(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, #{ record_route_uri := RR }) ->
     %% If the Request-URI contains a SIPS URI, or the topmost Route
     %% header field value (after the post processing of bullet 6)
     %% contains a SIPS URI, the URI placed into the Record-Route header
@@ -530,8 +542,8 @@ fwd_check_record_route(_TargetURI, SipMsg, #{ record_route_uri := RR }) ->
         false ->
             ok
     end,
-    SipMsg;
-fwd_check_record_route(_TargetURI, SipMsg, _ProxyParams) ->
+    FwdResult;
+fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, _ProxyParams) ->
     %% Note: No record-route is defined by proxy in this clause.
     %%
     %% Furthermore, if the request was not received over TLS, the
@@ -559,7 +571,32 @@ fwd_check_record_route(_TargetURI, SipMsg, _ProxyParams) ->
                     ok
             end
     end,
-    SipMsg.
+    FwdResult.
+
+%% 16.6 Request Forwarding
+%%
+%% 7. Determine Next-Hop Address, Port, and Transport
+%%
+-spec fwd_determine_nexhop(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
+fwd_determine_nexhop(_Target, { SipMsg, #{ routing := strict } = FwdOpts }, _ProxyOpts) ->
+    %% If the proxy has reformatted the request to send to a
+    %% strict-routing element as described in step 6 above, the proxy
+    %% MUST apply those procedures to the Request-URI of the request.
+    TargetURI = ersip_sipmsg:ruri(SipMsg),
+    { SipMsg, FwdOpts#{ target => TargetURI } };
+fwd_determine_nexhop(_Target, { SipMsg, #{ routing := loose } = FwdOpts }, _ProxyOpts) ->
+    %% Otherwise, the proxy MUST apply the procedures to the first
+    %% value in the Route header field, if present, else the
+    %% Request-URI.
+    TargetURI =
+        case ersip_sipmsg:find(route, SipMsg) of
+            { ok, RouteSet } ->
+                Route = ersip_route_set:first(RouteSet),
+                ersip_hdr_route:uri(Route);
+            not_found ->
+                ersip_sipmsg:ruri(SipMsg)
+        end,
+    { SipMsg, FwdOpts#{ target => TargetURI } }.
 
 -spec nexthop_scheme_is(ersip_uri:scheme(), ersip_sipmsg:sipmsg()) -> boolean().
 nexthop_scheme_is(Scheme, SipMsg) ->
@@ -575,14 +612,14 @@ nexthop_scheme_is(Scheme, SipMsg) ->
     RURISchemeMatch orelse TopRouteScemeMatch.
 
 
--spec maybe_strict_router_workaround(ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_strict_router_workaround(SipMsg) ->
+-spec maybe_strict_router_workaround(forward_result()) -> forward_result().
+maybe_strict_router_workaround({ SipMsg, _ } = FwdResult) ->
     %% If the copy contains a Route header field, the proxy MUST
     %% inspect the URI in its first value.  If that URI does not
     %% contain an lr parameter, the proxy MUST modify the copy
     case ersip_sipmsg:find(route, SipMsg) of
         not_found ->
-            SipMsg;
+            FwdResult;
         { ok, RouteSet } ->
             FirstRoute = ersip_route_set:first(RouteSet),
             URIParams  = ersip_uri:params(ersip_hdr_route:uri(FirstRoute)),
@@ -591,9 +628,9 @@ maybe_strict_router_workaround(SipMsg) ->
                     %% If this is route to strict router then it is
                     %% required to made some transformation to match
                     %% request with strict routing requirements
-                    strict_router_workaround(SipMsg);
+                    strict_router_workaround(FwdResult);
                 true ->
-                    SipMsg
+                    FwdResult
 
             end
     end.
@@ -603,8 +640,8 @@ maybe_strict_router_workaround(SipMsg) ->
 %% 6. Postprocess routing information
 %%
 %% Route to strict router handling
--spec strict_router_workaround(ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-strict_router_workaround(SipMsg0) ->
+-spec strict_router_workaround(forward_result()) -> forward_result().
+strict_router_workaround({ SipMsg0, FwdOpts }) ->
     %% -  The proxy MUST place the Request-URI into the Route header
     %%    field as the last value.
     RURI = ersip_sipmsg:ruri(SipMsg0),
@@ -619,4 +656,4 @@ strict_router_workaround(SipMsg0) ->
     RouteSet2 = ersip_route_set:remove_first(RouteSet1),
     SipMsg1 = ersip_sipmsg:set_ruri(FirstRouteURI, SipMsg0),
     SipMsg2 = ersip_sipmsg:set(route, RouteSet2, SipMsg1),
-    SipMsg2.
+    { SipMsg2, FwdOpts#{ routing => strict } }.

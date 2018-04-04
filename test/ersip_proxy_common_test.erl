@@ -493,7 +493,6 @@ forward_request_set_ruri_test() ->
     %% Check that forward_request sets request URI to target and
     %% decrements max-forwards
     BobURI = <<"sip:bob@biloxi.com">>,
-    %% Check strict-routing message recovery
     Msg = <<"INVITE sip:bobby-online@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
@@ -508,7 +507,9 @@ forward_request_set_ruri_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts = #{},
-    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ExpectedTarget = ersip_uri:make(BobURI),
+    ?assertMatch(#{ target := ExpectedTarget }, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(69, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
@@ -530,7 +531,7 @@ forward_request_add_maxforwars_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts = #{},
-    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(70, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
     ok.
@@ -575,7 +576,7 @@ forward_request_record_route_add_test() ->
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
     ProxyOpts = #{ record_route_uri => ThisProxyURI },
-    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
     RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
@@ -601,7 +602,7 @@ forward_request_record_route_append_test() ->
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
     ProxyOpts = #{ record_route_uri => ThisProxyURI },
-    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
     RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
@@ -754,7 +755,7 @@ forward_request_no_rr_sips_to_sips_test() ->
     RawMsg0 = raw_message(Msg),
     RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
     %% Check no error here
-    SipMsg0 = forward_request(BobURI, RawMsg1, ProxyOpts),
+    { SipMsg0, _ } = forward_request(BobURI, RawMsg1, ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(not_found, ersip_sipmsg:find(record_route, SipMsg)),
     ok.
@@ -777,7 +778,9 @@ forward_request_to_strict_router_test() ->
           >>,
     ProxyOpts = #{},
     %% Check no error here
-    SipMsg0 = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ExpectedTarget = ersip_uri:make(StrictRouterURI),
+    ?assertMatch(#{ target := ExpectedTarget }, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     %% Check strict routing requirements:
     %% RURI is set tp StrictRouterURI
@@ -786,6 +789,33 @@ forward_request_to_strict_router_test() ->
     RouteSet = ersip_sipmsg:get(route, SipMsg),
     LastRoute = ersip_route_set:last(RouteSet),
     ?assertEqual(ersip_uri:make(BobURI), ersip_hdr_route:uri(LastRoute)),
+    ok.
+
+forward_request_to_loose_router_test() ->
+    BobURI = <<"sip:bob@biloxi.com">>,
+    LooseRouterURI = <<"sip:stict.proxy.org;lr">>,
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Route: <", LooseRouterURI/binary, ">"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts = #{},
+    %% Check no error here
+    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ExpectedTarget = ersip_uri:make(LooseRouterURI),
+    ?assertMatch(#{ target := ExpectedTarget }, Opts),
+    SipMsg = rebuild_sipmsg(SipMsg0),
+    %% Check strict routing requirements:
+    %% RURI is set tp StrictRouterURI
+    ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ok.
 
 %%%===================================================================

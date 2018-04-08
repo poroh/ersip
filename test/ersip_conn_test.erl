@@ -204,6 +204,35 @@ conn_datagram_truncated_message_test() ->
     { _, [ { bad_message, Msg, truncated } ] } = ersip_conn:conn_data(Msg, Conn).
 
 
+add_via_test() ->
+    %% Check adding sent-by by connection object.
+    LocalIP  = { 127, 0, 0, 2 },
+    RemoteIP = { 127, 0, 0, 1 },
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    %% 1. received added if domain name:
+    Msg =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: deadbeef",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test"
+        >>,
+    RawMsg = parse_msg(Msg),
+    Branch = ersip_branch:make_rfc3261(<<"12345">>),
+    RawMsg1 = ersip_conn:add_via(RawMsg, Branch, Conn),
+    ViaH = ersip_msg:get(<<"via">>, RawMsg1),
+    {ok, TopMost} = ersip_hdr_via:topmost_via(ViaH),
+    LocalHost = ersip_host:make(<<"127.0.0.2">>),
+    ?assertEqual({sent_by, LocalHost, 5061}, ersip_hdr_via:sent_by(TopMost)),
+    ?assertEqual({sent_protocol, <<"SIP">>, <<"2.0">>, UDP}, ersip_hdr_via:sent_protocol(TopMost)).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -229,3 +258,8 @@ check_no_received(Msg, Conn) ->
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     { ok, Via } = ersip_hdr_via:topmost_via(ViaH),
     ?assertMatch(error, maps:find(received, ersip_hdr_via:params(Via))).
+
+parse_msg(Msg) ->
+    P  = ersip_parser:new_dgram(Msg),
+    { {ok, RawMsg}, _P2 } = ersip_parser:parse(P),
+    RawMsg.

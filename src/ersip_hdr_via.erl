@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_via).
 
--export([ topmost_via/1,
+-export([ new/4,
+          topmost_via/1,
           sent_protocol/1,
           params/1,
           set_param/3,
@@ -27,14 +28,14 @@
 %%% Types
 %%%===================================================================
 
--record(via, { sent_protocol  :: sent_protocol(),
-               sent_by        :: internal_sent_by(),
-               via_params     :: via_params()
+-record(via, {sent_protocol  :: sent_protocol(),
+              sent_by        :: internal_sent_by(),
+              via_params     :: via_params()
              }).
 -type via()           :: #via{}.
--type sent_protocol() :: { sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport() }.
--type sent_by()       :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() }.
--type internal_sent_by() :: { sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port }.
+-type sent_protocol() :: {sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport()}.
+-type sent_by()       :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number() }.
+-type internal_sent_by() :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port}.
 -type via_params()    :: map().
 -type known_via_params() :: branch
                           | maddr
@@ -44,6 +45,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
+new(Address, Port, Transport, Branch) ->
+    #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
+         sent_by = {sent_by, Address, Port},
+         via_params = #{ branch => Branch }
+        }.
 
 -spec topmost_via(ersip_hdr:header()) -> Result when
       Result :: { ok, via() }

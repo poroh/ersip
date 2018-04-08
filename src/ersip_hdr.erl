@@ -14,6 +14,7 @@
           add_value/2,
           add_values/2,
           raw_values/1,
+          add_topmost/2,
           replace_topmost/2,
           serialize_rev_iolist/2,
           as_integer/1
@@ -74,6 +75,12 @@ add_values(Values, #header{} = Hdr) ->
 -spec raw_values(header()) -> [ iolist() ].
 raw_values(#header{ values = Vs }) ->
     Vs.
+
+-spec add_topmost(Value, header()) -> header() when
+      Value :: iolist().
+add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
+    Values = comma_split(Key, Value),
+    Hdr#header{values = Values ++ V }.
 
 -spec replace_topmost(Value, header()) -> header() when
       Value :: iolist().

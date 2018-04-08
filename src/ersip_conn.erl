@@ -11,7 +11,8 @@
 -module(ersip_conn).
 
 -export([ new/6,
-          conn_data/2
+          conn_data/2,
+          add_via/3
         ]).
 -export_type([ sip_conn/0 ]).
 
@@ -74,6 +75,13 @@ conn_data(Binary, #sip_conn{ parser = Parser } = Conn) ->
     %% Stream transport
     NewParser = ersip_parser:add_binary(Binary, Parser),
     parse_data({ save_parser(NewParser, Conn), [] }).
+
+-spec add_via(ersip_msg:message(), ersip_branch:branch(), sip_conn()) -> ersip_msg:message().
+add_via(Msg, Branch, #sip_conn{ local_addr =  { LocalAddr, LocalPort }, transport = SIPTransport }) ->
+    ViaH = ersip_msg:get(<<"via">>, Msg),
+    Via = ersip_hdr_via:new(LocalAddr, LocalPort, SIPTransport, Branch),
+    ViaH1 = ersip_hdr:add_topmost(ersip_hdr_via:assemble(Via), ViaH),
+    ersip_msg:set_header(ViaH1, Msg).
 
 %%%===================================================================
 %%% Internal Implementation

@@ -79,7 +79,7 @@
 -type forward_result() :: { ForwardMessage :: ersip_sipmsg:sipmsg(),
                             ForwardOptions :: forward_options()
                           }.
--type forward_options() :: #{ target => ersip_sipmsg:uri(),
+-type forward_options() :: #{ nexthop => ersip_sipmsg:uri(),
                               routing => strict | loose
                             }.
 
@@ -582,13 +582,13 @@ fwd_determine_nexhop(_Target, { SipMsg, #{ routing := strict } = FwdOpts }, _Pro
     %% If the proxy has reformatted the request to send to a
     %% strict-routing element as described in step 6 above, the proxy
     %% MUST apply those procedures to the Request-URI of the request.
-    TargetURI = ersip_sipmsg:ruri(SipMsg),
-    { SipMsg, FwdOpts#{ target => TargetURI } };
+    NexthopURI = ersip_sipmsg:ruri(SipMsg),
+    { SipMsg, FwdOpts#{ nexthop => NexthopURI } };
 fwd_determine_nexhop(_Target, { SipMsg, #{ routing := loose } = FwdOpts }, _ProxyOpts) ->
     %% Otherwise, the proxy MUST apply the procedures to the first
     %% value in the Route header field, if present, else the
     %% Request-URI.
-    TargetURI =
+    NexthopURI =
         case ersip_sipmsg:find(route, SipMsg) of
             { ok, RouteSet } ->
                 Route = ersip_route_set:first(RouteSet),
@@ -596,7 +596,7 @@ fwd_determine_nexhop(_Target, { SipMsg, #{ routing := loose } = FwdOpts }, _Prox
             not_found ->
                 ersip_sipmsg:ruri(SipMsg)
         end,
-    { SipMsg, FwdOpts#{ target => TargetURI } }.
+    { SipMsg, FwdOpts#{ nexthop => NexthopURI } }.
 
 -spec nexthop_scheme_is(ersip_uri:scheme(), ersip_sipmsg:sipmsg()) -> boolean().
 nexthop_scheme_is(Scheme, SipMsg) ->

@@ -508,8 +508,8 @@ forward_request_set_ruri_test() ->
           >>,
     ProxyOpts = #{},
     { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
-    ExpectedTarget = ersip_uri:make(BobURI),
-    ?assertMatch(#{ target := ExpectedTarget }, Opts),
+    ExpectedNexthop = ersip_uri:make(BobURI),
+    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(69, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
@@ -779,8 +779,8 @@ forward_request_to_strict_router_test() ->
     ProxyOpts = #{},
     %% Check no error here
     { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
-    ExpectedTarget = ersip_uri:make(StrictRouterURI),
-    ?assertMatch(#{ target := ExpectedTarget }, Opts),
+    ExpectedNexthop = ersip_uri:make(StrictRouterURI),
+    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     %% Check strict routing requirements:
     %% RURI is set tp StrictRouterURI
@@ -810,8 +810,8 @@ forward_request_to_loose_router_test() ->
     ProxyOpts = #{},
     %% Check no error here
     { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
-    ExpectedTarget = ersip_uri:make(LooseRouterURI),
-    ?assertMatch(#{ target := ExpectedTarget }, Opts),
+    ExpectedNexthop = ersip_uri:make(LooseRouterURI),
+    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     %% Check strict routing requirements:
     %% RURI is set tp StrictRouterURI

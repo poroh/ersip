@@ -264,6 +264,18 @@ uri_assemeble_test() ->
     reassemble_check(<<"tel:b;myparam">>),
     ok.
 
+get_parts_test() ->
+    URI = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
+    Scheme = {scheme, sip},
+    User   = {user, <<"bob">>},
+    Host   = {host, ersip_host:make(<<"1.1.1.1">>)},
+    Port   = {port, 5091},
+    ?assertEqual(Scheme, ersip_uri:get(scheme, URI)),
+    ?assertEqual(User,   ersip_uri:get(user, URI)),
+    ?assertEqual(Host,   ersip_uri:get(host, URI)),
+    ?assertEqual(Port,   ersip_uri:get(port, URI)),
+    ?assertEqual([ Scheme, Port, Host ], ersip_uri:get([ scheme, port, host ], URI)),
+    ok.
 
 %%%===================================================================
 %%% Helpers

@@ -9,6 +9,7 @@
 -module(ersip_uri).
 
 -export([ scheme/1,
+          get/2,
           make/1,
           make_key/1,
           parse/1,
@@ -34,6 +35,10 @@
                         | lr
                         | binary().
 
+-type uri_part_name() :: scheme
+                       | user
+                       | host
+                       | port.
 -type uri_part() :: scheme()
                   | { user, binary() }
                   | { host, ersip_host:host() }
@@ -48,6 +53,19 @@
 -spec scheme(uri()) -> scheme().
 scheme(#uri{ scheme = S }) ->
     S.
+
+-spec get(Parts, uri()) -> Result when
+      Parts :: uri_part_name()
+             | [ uri_part_name() ],
+      Result :: uri_part()
+              | [ uri_part() ].
+get(Part, URI) when is_atom(Part) ->
+    get_part(Part, URI);
+get(Parts, URI) when is_list(Parts) ->
+    lists:map(fun(Part) ->
+                      get_part(Part, URI)
+              end,
+              Parts).
 
 -spec make(Parts :: [ list(uri_part()) ]) -> uri().
 make(Bin) when is_binary(Bin) ->
@@ -157,6 +175,16 @@ set_part({ host, H },            #uri{} = URI) ->
     end;
 set_part(_, _) ->
     error(badarg).
+
+-spec get_part(uri_part_name(), uri()) -> uri_part().
+get_part(scheme, #uri{ scheme = Scheme }) ->
+    Scheme;
+get_part(user, #uri{ user = User }) ->
+    User;
+get_part(port, #uri{ port = Port }) ->
+    { port, Port };
+get_part(host, #uri{ host = Host }) ->
+    { host, Host }.
 
 %%                                                       dialog
 %%                                           reg./redir. Contact/

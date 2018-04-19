@@ -44,7 +44,7 @@ encode_impl(<<>>, _, 0, L) ->
     list_to_binary(L);
 encode_impl(<<>>, #char_table{size = S, tfun = TF} = CT, X, L) when X < S ->
     encode_impl(<<>>, CT, 0, [TF(X) | L]);
-encode_impl(Bin, #char_table{size = S, tfun = TF} = CT, X, L) when X > S ->
+encode_impl(Bin, #char_table{size = S, tfun = TF} = CT, X, L) when X >= S ->
     encode_impl(Bin, CT, X div S, [ TF(X rem S) | L ]);
 encode_impl(<<Byte:8, Rest/binary>>, #char_table{size = S} =CT, X, L) when X =< S ->
     encode_impl(Rest, CT, X * 256 + Byte, L).

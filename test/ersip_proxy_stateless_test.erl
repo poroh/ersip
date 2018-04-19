@@ -56,11 +56,7 @@ branch_generation_rfc3261_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    Branch1 = stateless_branch(Msg1),
-    Branch2 = stateless_branch(Msg2),
-    Branch3 = stateless_branch(Msg3),
-    ?assertEqual(Branch1, Branch2),
-    ?assertNotEqual(Branch1, Branch3),
+    three_message_check(Msg1, Msg2, Msg3),
     ok.
 
 branch_generation_rfc2543_test() ->
@@ -103,11 +99,7 @@ branch_generation_rfc2543_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    Branch1 = stateless_branch(Msg1),
-    Branch2 = stateless_branch(Msg2),
-    Branch3 = stateless_branch(Msg3),
-    ?assertEqual(Branch1, Branch2),
-    ?assertNotEqual(Branch1, Branch3),
+    three_message_check(Msg1, Msg2, Msg3),
     ok.
 
 branch_generation_rfc2543_with_branch_test() ->
@@ -150,16 +142,21 @@ branch_generation_rfc2543_with_branch_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    Branch1 = stateless_branch(Msg1),
-    Branch2 = stateless_branch(Msg2),
-    Branch3 = stateless_branch(Msg3),
-    ?assertEqual(Branch1, Branch2),
-    ?assertNotEqual(Branch1, Branch3),
+    three_message_check(Msg1, Msg2, Msg3),
     ok.
 
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
+
+three_message_check(Eq1, Eq2, Neq) ->
+    Branch1 = stateless_branch(Eq1),
+    Branch2 = stateless_branch(Eq2),
+    Branch3 = stateless_branch(Neq),
+    [?assert(ersip_branch:is_rfc3261(B)) || B <- [Branch1, Branch2, Branch3]],
+    ?assertEqual(Branch1, Branch2),
+    ?assertNotEqual(Branch1, Branch3).
+
 
 stateless_branch(Bin) ->
     ersip_proxy_stateless:branch(sip_message(Bin)).

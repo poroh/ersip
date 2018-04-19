@@ -41,6 +41,8 @@ available.
   + Essential headers support (completed)
   + High-level SIP message (completed)
   + Stateless proxy support (in-progress)
+     - Request passing (completed)
+     - Response passing (in-progress)
   + Transaction support
      - Transaction table
      - Non-INVITE transaction

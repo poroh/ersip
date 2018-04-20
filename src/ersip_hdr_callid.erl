@@ -9,20 +9,20 @@
 -module(ersip_hdr_callid).
 -include("ersip_sip_abnf.hrl").
 
--export([ make/1,
-          make_key/1,
-          parse/1,
-          build/2,
-          assemble/1
+-export([make/1,
+         make_key/1,
+         parse/1,
+         build/2,
+         assemble/1
         ]).
 
--export_type([ callid/0 ]).
+-export_type([callid/0]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--type callid() :: { callid, binary() }.
+-type callid() :: {callid, binary()}.
 
 %%%===================================================================
 %%% API
@@ -31,63 +31,63 @@
 -spec make(ersip_hdr:header() | binary()) -> callid().
 make(Bin) when is_binary(Bin) ->
     case parse_callid(Bin) of
-        { ok, CallId } ->
+        {ok, CallId} ->
             CallId;
         Error ->
             error(Error)
     end;
 make(Header) ->
     case parse(Header) of
-        { ok, CallId } ->
+        {ok, CallId} ->
             CallId;
         Error ->
             error(Error)
     end.
 
 -spec make_key(callid()) -> callid().
-make_key({ callid, _} = C) ->
+make_key({callid, _} = C) ->
     C.
 
 -spec parse(ersip_hdr:header()) -> Result when
-      Result :: { ok, callid() }
-              | { error, Error },
+      Result :: {ok, callid()}
+              | {error, Error},
       Error :: no_callid
-             | { invalid_callid, binary() }.
+             | {invalid_callid, binary()}.
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
-            { error, no_callid };
-        [ CallIdIOList ]  ->
+            {error, no_callid};
+        [CallIdIOList]  ->
             parse_callid(iolist_to_binary(CallIdIOList));
         _ ->
-            { error, multiple_callids }
+            {error, multiple_callids}
     end.
 
 -spec build(HeaderName :: binary(), callid()) -> ersip_hdr:header().
-build(HdrName, { callid, _ } = CallId) ->
+build(HdrName, {callid, _} = CallId) ->
     Hdr = ersip_hdr:new(HdrName),
-    ersip_hdr:add_value([ assemble(CallId) ], Hdr).
+    ersip_hdr:add_value([assemble(CallId)], Hdr).
 
 -spec assemble(callid()) ->  binary().
-assemble({ callid, CallIdBin }) ->
+assemble({callid, CallIdBin}) ->
     CallIdBin.
 
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 
-%% callid   =  word [ "@" word ]
+%% callid   =  word ["@" word]
 -spec parse_callid(binary()) -> Result when
-      Result :: { ok, callid() }
-              | { error, Error },
-      Error  :: { invalid_callid, binary() }.
+      Result :: {ok, callid()}
+              | {error, Error},
+      Error  :: {invalid_callid, binary()}.
 parse_callid(Binary) ->
     Words = binary:split(Binary, <<"@">>),
     case lists:all(fun is_word/1, Words) of
         true ->
-            { ok, { callid, Binary } };
+            {ok, {callid, Binary}};
         false ->
-            { error, { invalid_callid, Binary } }
+            {error, {invalid_callid, Binary}}
     end.
 
 %% word     =  1*(alphanum / "-" / "." / "!" / "%" / "*" /

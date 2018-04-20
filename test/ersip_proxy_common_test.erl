@@ -30,7 +30,7 @@ request_validation_success_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ?assertMatch({ ok, _ }, request_validation(raw_message(Msg))),
+    ?assertMatch({ok, _}, request_validation(raw_message(Msg))),
     ok.
 
 request_validation_success_no_maxforwards_test() ->
@@ -46,7 +46,7 @@ request_validation_success_no_maxforwards_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ?assertMatch({ ok, _ }, request_validation(raw_message(Msg))),
+    ?assertMatch({ok, _}, request_validation(raw_message(Msg))),
     ok.
 
 request_validation_bad_maxforwards_test() ->
@@ -63,7 +63,7 @@ request_validation_bad_maxforwards_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    { reply, BadMsg } = request_validation(raw_message(Msg)),
+    {reply, BadMsg} = request_validation(raw_message(Msg)),
     ?assertEqual(400, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assert(binary:match(ersip_bin:to_lower(Reason), <<"max-forwards">>) =/= nomatch),
@@ -83,9 +83,9 @@ request_validation_unsupported_scheme_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    { reply, BadMsg } = request_validation(raw_message(Msg),
-                                           #{ scheme_val_fun => fun(_) -> false end
-                                            }),
+    {reply, BadMsg} = request_validation(raw_message(Msg),
+                                         #{scheme_val_fun => fun(_) -> false end
+                                          }),
     ?assertEqual(416, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assertEqual(<<"Unsupported URI Scheme">>, Reason),
@@ -104,10 +104,10 @@ request_validation_unsupported_scheme_cannot_reply_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ?assertMatch({ error, _ },
+    ?assertMatch({error, _},
                  request_validation(
                    raw_message(Msg),
-                   #{ scheme_val_fun => fun(_) -> false end
+                   #{scheme_val_fun => fun(_) -> false end
                     })),
     ok.
 
@@ -124,7 +124,7 @@ request_validation_no_resp_to_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ?assertMatch({ error, _ }, request_validation(raw_message(Msg))),
+    ?assertMatch({error, _}, request_validation(raw_message(Msg))),
     ok.
 
 request_validation_no_resp_from_test() ->
@@ -140,7 +140,7 @@ request_validation_no_resp_from_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ?assertMatch({ error, _ }, request_validation(raw_message(Msg))),
+    ?assertMatch({error, _}, request_validation(raw_message(Msg))),
     ok.
 
 request_validation_maxforwards_is_zero_test() ->
@@ -157,7 +157,7 @@ request_validation_maxforwards_is_zero_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    { reply, BadMsg } = request_validation(raw_message(Msg)),
+    {reply, BadMsg} = request_validation(raw_message(Msg)),
     ?assertEqual(483, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assertEqual(<<"Too many hops">>, Reason),
@@ -174,7 +174,7 @@ request_validation_maxforwards_is_zero_options_test() ->
             ?crlf "CSeq: 314159 INVITE"
             ?crlf ?crlf
           >>,
-    { reply, BadMsg } = request_validation(raw_message(Msg)),
+    {reply, BadMsg} = request_validation(raw_message(Msg)),
     ?assertEqual(483, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assertEqual(<<"Too many hops">>, Reason),
@@ -191,31 +191,31 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
             ?crlf "CSeq: 314159 INVITE"
             ?crlf ?crlf
           >>,
-    AllowMethodsList = [ <<"INVITE">>,
-                         <<"ACK">>,
-                         <<"OPTIONS">>,
-                         <<"CANCEL">>,
-                         <<"BYE">>
+    AllowMethodsList = [<<"INVITE">>,
+                        <<"ACK">>,
+                        <<"OPTIONS">>,
+                        <<"CANCEL">>,
+                        <<"BYE">>
                        ],
-    SupportedList = [ <<"100rel">>, <<"timers">> ],
+    SupportedList = [<<"100rel">>, <<"timers">>],
     AllowMethods =
         ersip_hdr_allow:from_list(
-          [ ersip_method:make(M) || M <- AllowMethodsList ]),
+          [ersip_method:make(M) || M <- AllowMethodsList]),
     Supported =
         ersip_hdr_opttag_list:from_list(
-          [ ersip_option_tag:make(S) || S <- SupportedList ]),
-    Options = #{ reply_on_options => true,
-                 proxy_params => #{
-                   allow => AllowMethods,
-                   supported => Supported
-                  }
+          [ersip_option_tag:make(S) || S <- SupportedList]),
+    Options = #{reply_on_options => true,
+                proxy_params => #{
+                  allow => AllowMethods,
+                  supported => Supported
+                 }
                },
-    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+    {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"OK">>, Reason),
     RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
-    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ allow, supported ]),
+    {ok, RespSipMsg} = ersip_sipmsg:parse(RespRawMsg, [allow, supported]),
     ?assertEqual(AllowMethods, ersip_sipmsg:get(allow, RespSipMsg)),
     ?assertEqual(Supported, ersip_sipmsg:get(supported, RespSipMsg)),
     ok.
@@ -231,8 +231,8 @@ request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
             ?crlf "CSeq: 314159 INVITE"
             ?crlf ?crlf
           >>,
-    Options = #{ reply_on_options => true, proxy_params => #{} },
-    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+    Options = #{reply_on_options => true, proxy_params => #{}},
+    {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"OK">>, Reason),
@@ -253,13 +253,13 @@ request_validation_proxy_require_test() ->
             ?crlf "Proxy-Require: gin"
             ?crlf ?crlf
           >>,
-    { reply, RespMsg } = request_validation(raw_message(Msg)),
+    {reply, RespMsg} = request_validation(raw_message(Msg)),
     ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"Bad Extension">>, Reason),
     RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
-    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ unsupported ]),
-    Unsupported = ersip_hdr_opttag_list:from_list([ ersip_option_tag:make(<<"gin">>) ]),
+    {ok, RespSipMsg} = ersip_sipmsg:parse(RespRawMsg, [unsupported]),
+    Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>)]),
     ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, RespSipMsg)),
     ok.
 
@@ -276,18 +276,18 @@ request_validation_proxy_require_no_required_test() ->
             ?crlf "Proxy-Require: gin"
             ?crlf ?crlf
           >>,
-    SupportedList = [ <<"100rel">>, <<"timers">> ],
+    SupportedList = [<<"100rel">>, <<"timers">>],
     Supported =
         ersip_hdr_opttag_list:from_list(
-          [ ersip_option_tag:make(S) || S <- SupportedList ]),
-    Options = #{ proxy_params => #{ supported => Supported } },
-    { reply, RespMsg } = request_validation(raw_message(Msg), Options),
+          [ersip_option_tag:make(S) || S <- SupportedList]),
+    Options = #{proxy_params => #{supported => Supported}},
+    {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
     ?assertEqual(<<"Bad Extension">>, Reason),
     RespRawMsg = raw_message(ersip_sipmsg:serialize_bin(RespMsg)),
-    { ok, RespSipMsg } = ersip_sipmsg:parse(RespRawMsg, [ unsupported ]),
-    Unsupported = ersip_hdr_opttag_list:from_list([ ersip_option_tag:make(<<"gin">>) ]),
+    {ok, RespSipMsg} = ersip_sipmsg:parse(RespRawMsg, [unsupported]),
+    Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>)]),
     ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, RespSipMsg)),
     ok.
 
@@ -303,12 +303,12 @@ request_validation_proxy_require_all_supported_test() ->
             ?crlf "Proxy-Require: gin"
             ?crlf ?crlf
           >>,
-    SupportedList = [ <<"gin">> ],
+    SupportedList = [<<"gin">>],
     Supported =
         ersip_hdr_opttag_list:from_list(
-          [ ersip_option_tag:make(S) || S <- SupportedList ]),
-    Options = #{ proxy_params => #{ supported => Supported } },
-    { ok, _ } = request_validation(raw_message(Msg), Options),
+          [ersip_option_tag:make(S) || S <- SupportedList]),
+    Options = #{proxy_params => #{supported => Supported}},
+    {ok, _} = request_validation(raw_message(Msg), Options),
     ok.
 
 
@@ -323,7 +323,7 @@ request_validation_proxy_require_cannot_reply_test() ->
             ?crlf "Proxy-Require: gin"
             ?crlf ?crlf
           >>,
-    ?assertMatch({ error, _ }, request_validation(raw_message(Msg))),
+    ?assertMatch({error, _}, request_validation(raw_message(Msg))),
     ok.
 
 
@@ -352,10 +352,10 @@ process_route_info_strict_routing_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts =
-        #{ check_rroute_fun =>
-               fun(URI) ->
-                       ersip_uri:make(ThisProxyURI) == URI
-               end
+        #{check_rroute_fun =>
+              fun(URI) ->
+                      ersip_uri:make(ThisProxyURI) == URI
+              end
          },
     SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
@@ -389,10 +389,10 @@ process_route_info_loose_routing_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts =
-        #{ check_rroute_fun =>
-               fun(URI) ->
-                       ersip_uri:make(ThisProxyURI) == URI
-               end
+        #{check_rroute_fun =>
+              fun(URI) ->
+                      ersip_uri:make(ThisProxyURI) == URI
+              end
          },
     SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
@@ -449,10 +449,10 @@ process_route_info_no_routes_loose_route_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts =
-        #{ check_rroute_fun =>
-               fun(_URI) ->
-                       false
-               end
+        #{check_rroute_fun =>
+              fun(_URI) ->
+                      false
+              end
          },
     SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
@@ -478,10 +478,10 @@ process_route_info_no_routes_strict_route_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts =
-        #{ check_rroute_fun =>
-               fun(_URI) ->
-                       true
-               end
+        #{check_rroute_fun =>
+              fun(_URI) ->
+                      true
+              end
          },
     SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
@@ -507,9 +507,9 @@ forward_request_set_ruri_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts = #{},
-    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    {SipMsg0, Opts} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ExpectedNexthop = ersip_uri:make(BobURI),
-    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
+    ?assertMatch(#{nexthop := ExpectedNexthop}, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(69, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
@@ -531,7 +531,7 @@ forward_request_add_maxforwars_test() ->
             ?crlf ?crlf "Test"
           >>,
     ProxyOpts = #{},
-    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(70, ersip_hdr_maxforwards:value(ersip_sipmsg:get(maxforwards, SipMsg))),
     ok.
@@ -554,9 +554,9 @@ forward_request_invalid_maxforwars_test() ->
           >>,
     ProxyOpts = #{},
     RawMsg = raw_message(Msg),
-    { ok, SipMsg } = ersip_sipmsg:parse(RawMsg, []),
+    {ok, SipMsg} = ersip_sipmsg:parse(RawMsg, []),
     Target = ersip_uri:make(BobURI),
-    ?assertError({ error, {invalid_maxforwards, _} },
+    ?assertError({error, {invalid_maxforwards, _}},
                  ersip_proxy_common:forward_request(Target, SipMsg, ProxyOpts)).
 
 forward_request_record_route_add_test() ->
@@ -575,8 +575,8 @@ forward_request_record_route_add_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{ record_route_uri => ThisProxyURI },
-    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
     RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
@@ -601,8 +601,8 @@ forward_request_record_route_append_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{ record_route_uri => ThisProxyURI },
-    { SipMsg0, _ } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
     RecordRouteURI = ersip_hdr_route:uri(ersip_route_set:first(RecordRouteSet)),
@@ -632,7 +632,7 @@ forward_request_record_route_append_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sips:this.proxy.org">>),
-    ProxyOpts = #{ record_route_uri => ThisProxyURI },
+    ProxyOpts = #{record_route_uri => ThisProxyURI},
     _ = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ok.
 
@@ -657,8 +657,8 @@ forward_request_record_route_append_not_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{ record_route_uri => ThisProxyURI },
-    ?assertError({ error, _}, forward_request(BobURI, raw_message(Msg), ProxyOpts)),
+    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    ?assertError({error, _}, forward_request(BobURI, raw_message(Msg), ProxyOpts)),
     ok.
 
 forward_request_no_rr_sip_to_sips_test() ->
@@ -684,7 +684,7 @@ forward_request_no_rr_sip_to_sips_test() ->
     ProxyOpts = #{},
     RawMsg0 = raw_message(Msg),
     RawMsg1 = ersip_msg:set_source(udp_source(), RawMsg0),
-    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ?assertError({error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
     ok.
 
 forward_request_no_rr_sips_to_sip_test() ->
@@ -710,7 +710,7 @@ forward_request_no_rr_sips_to_sip_test() ->
     ProxyOpts = #{},
     RawMsg0 = raw_message(Msg),
     RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
-    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ?assertError({error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
     ok.
 
 forward_request_no_rr_sips_to_sip_by_route_test() ->
@@ -734,7 +734,7 @@ forward_request_no_rr_sips_to_sip_by_route_test() ->
     ProxyOpts = #{},
     RawMsg0 = raw_message(Msg),
     RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
-    ?assertError({ error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
+    ?assertError({error, _}, forward_request(BobURI, RawMsg1, ProxyOpts)),
     ok.
 
 forward_request_no_rr_sips_to_sips_test() ->
@@ -755,7 +755,7 @@ forward_request_no_rr_sips_to_sips_test() ->
     RawMsg0 = raw_message(Msg),
     RawMsg1 = ersip_msg:set_source(tls_source(), RawMsg0),
     %% Check no error here
-    { SipMsg0, _ } = forward_request(BobURI, RawMsg1, ProxyOpts),
+    {SipMsg0, _} = forward_request(BobURI, RawMsg1, ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(not_found, ersip_sipmsg:find(record_route, SipMsg)),
     ok.
@@ -778,9 +778,9 @@ forward_request_to_strict_router_test() ->
           >>,
     ProxyOpts = #{},
     %% Check no error here
-    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    {SipMsg0, Opts} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ExpectedNexthop = ersip_uri:make(StrictRouterURI),
-    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
+    ?assertMatch(#{nexthop := ExpectedNexthop}, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     %% Check strict routing requirements:
     %% RURI is set tp StrictRouterURI
@@ -809,9 +809,9 @@ forward_request_to_loose_router_test() ->
           >>,
     ProxyOpts = #{},
     %% Check no error here
-    { SipMsg0, Opts } = forward_request(BobURI, raw_message(Msg), ProxyOpts),
+    {SipMsg0, Opts} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ExpectedNexthop = ersip_uri:make(LooseRouterURI),
-    ?assertMatch(#{ nexthop := ExpectedNexthop }, Opts),
+    ?assertMatch(#{nexthop := ExpectedNexthop}, Opts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     %% Check strict routing requirements:
     %% RURI is set tp StrictRouterURI
@@ -822,35 +822,35 @@ forward_request_to_loose_router_test() ->
 
 raw_message(Bin) ->
     P  = ersip_parser:new_dgram(Bin),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     PMsg.
 
 request_validation(RawMsg, Opts) ->
-    ersip_proxy_common:request_validation(RawMsg, Opts#{ to_tag => { tag, <<"12345">> } }).
+    ersip_proxy_common:request_validation(RawMsg, Opts#{to_tag => {tag, <<"12345">>}}).
 
 request_validation(RawMsg) ->
     request_validation(RawMsg, #{}).
 
 process_route_info(RawMsg, Opts) ->
-    { ok, SipMsg } = request_validation(RawMsg, Opts),
+    {ok, SipMsg} = request_validation(RawMsg, Opts),
     ersip_proxy_common:process_route_info(SipMsg, Opts).
 
 forward_request(Target, RawMsg, Opts) when is_binary(Target) ->
     forward_request(ersip_uri:make(Target), RawMsg, Opts);
 forward_request(Target, RawMsg, Opts) ->
-    { ok, SipMsg } = request_validation(RawMsg, Opts),
+    {ok, SipMsg} = request_validation(RawMsg, Opts),
     ersip_proxy_common:forward_request(Target, SipMsg, Opts).
 
 rebuild_sipmsg(SipMsg) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
     P  = ersip_parser:new_dgram(SipMsgBin),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg1 } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg1} = ersip_sipmsg:parse(PMsg, all),
     SipMsg1.
 
 
 peer() ->
-    { { 127, 0, 0, 1 }, 5060 }.
+    {{127, 0, 0, 1}, 5060}.
 
 udp_source() ->
     Transport = ersip_transport:make(udp),

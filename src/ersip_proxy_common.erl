@@ -8,9 +8,9 @@
 
 -module(ersip_proxy_common).
 
--export([ request_validation/2,
-          process_route_info/2,
-          forward_request/3
+-export([request_validation/2,
+         process_route_info/2,
+         forward_request/3
         ]).
 
 %%%===================================================================
@@ -18,7 +18,7 @@
 %%%===================================================================
 
 -type validate_options() ::
-        #{ %% Mandatory option: To tag used for replies
+        #{%% Mandatory option: To tag used for replies
            to_tag         := ersip_hdr_fromto:tag(),
            %% Validator of the scheme.
            scheme_val_fun => scheme_val_fun(),
@@ -28,17 +28,17 @@
            %% Proxy parameters
            proxy_params      => proxy_params()
          }.
--type validate_result()  :: { ok, ersip_sipmsg:sipmsg() }
-                          | { reply, ersip_sipmsg:sipmsg() }
-                          | { error, term() }.
+-type validate_result()  :: {ok, ersip_sipmsg:sipmsg()}
+                          | {reply, ersip_sipmsg:sipmsg()}
+                          | {error, term()}.
 
 -type scheme_val_fun()   :: fun((binary() | sip) -> boolean()).
 -type check_rroute_fun() :: fun((ersip_hdr_route:route()) -> boolean()).
--type reply()          :: { reply, ersip_sipmsg:sipmsg() }.
+-type reply()          :: {reply, ersip_sipmsg:sipmsg()}.
 -type reply_or_error() :: reply()
-                        | { error, term() }.
+                        | {error, term()}.
 -type proxy_params() ::
-        #{ %% If 'allow' option is set then proxy is restricted to pass
+        #{%% If 'allow' option is set then proxy is restricted to pass
            %% only methods that are included in this set. If proxy
            %% replies on OPTIONS request it adds Allow header to
            %% expose this restrictions.
@@ -76,11 +76,11 @@
            record_route_uri => ersip_uri:uri()
          }.
 
--type forward_result() :: { ForwardMessage :: ersip_sipmsg:sipmsg(),
-                            ForwardOptions :: forward_options()
+-type forward_result() :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
+                           ForwardOptions :: forward_options()
                           }.
--type forward_options() :: #{ nexthop => ersip_sipmsg:uri(),
-                              routing => strict | loose
+-type forward_options() :: #{nexthop => ersip_sipmsg:uri(),
+                             routing => strict | loose
                             }.
 
 %%%===================================================================
@@ -101,20 +101,20 @@
 %%
 -spec request_validation(ersip_msg:message(), validate_options()) -> validate_result().
 request_validation(RawMessage, Options) ->
-    lists:foldl(fun(ValFun, { ok, Message }) ->
+    lists:foldl(fun(ValFun, {ok, Message}) ->
                         ValFun(Message, Options);
-                   (_, { reply, _ReplyMsg } = Reply) ->
+                   (_, {reply, _ReplyMsg} = Reply) ->
                         Reply;
-                   (_, { error, _ } = Error) ->
+                   (_, {error, _} = Error) ->
                         Error
                 end,
-                { ok, RawMessage },
-                [ fun val_reasonable_syntax/2,
-                  fun val_uri_scheme/2,
-                  fun val_max_forwards/2,
-                  fun val_loop_detect/2,
-                  fun val_proxy_require/2,
-                  fun val_proxy_authorization/2
+                {ok, RawMessage},
+                [fun val_reasonable_syntax/2,
+                 fun val_uri_scheme/2,
+                 fun val_max_forwards/2,
+                 fun val_loop_detect/2,
+                 fun val_proxy_require/2,
+                 fun val_proxy_authorization/2
                 ]).
 
 %% 16.4 Route Information Preprocessing
@@ -125,9 +125,9 @@ process_route_info(SipMsg, ProxyParams) ->
                         RIFun(Message, ProxyParams)
                 end,
                 SipMsg,
-                [ fun ri_strict_route/2,
-                  fun ri_process_maddr/2,
-                  fun ri_maybe_remove_route/2
+                [fun ri_strict_route/2,
+                 fun ri_process_maddr/2,
+                 fun ri_maybe_remove_route/2
                 ]).
 
 
@@ -138,18 +138,18 @@ process_route_info(SipMsg, ProxyParams) ->
 -spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> forward_result() when
       Target :: ersip_uri:uri().
 forward_request(Target, SipMsg, ProxyParams) ->
-    FwdResult = { SipMsg, #{ routing => loose } },
+    FwdResult = {SipMsg, #{routing => loose}},
     lists:foldl(fun(FWDFun, Result) ->
                         FWDFun(Target, Result, ProxyParams)
                 end,
                 FwdResult,
-                [ fun fwd_set_ruri/3,
-                  fun fwd_max_forwards/3,
-                  fun fwd_record_route/3,
-                  fun fwd_add_headers/3,
-                  fun fwd_postprocess_routing/3,
-                  fun fwd_check_record_route/3,
-                  fun fwd_determine_nexhop/3
+                [fun fwd_set_ruri/3,
+                 fun fwd_max_forwards/3,
+                 fun fwd_record_route/3,
+                 fun fwd_add_headers/3,
+                 fun fwd_postprocess_routing/3,
+                 fun fwd_check_record_route/3,
+                 fun fwd_determine_nexhop/3
                 ]).
 
 %%%===================================================================
@@ -161,14 +161,14 @@ forward_request(Target, SipMsg, ProxyParams) ->
 %% parsing".
 -spec val_reasonable_syntax(ersip_msg:message(), validate_options()) -> validate_result().
 val_reasonable_syntax(RawMessage, Options) ->
-    case ersip_sipmsg:parse(RawMessage, [ maxforwards, proxy_require ]) of
-        { ok, _SipMsg } = R ->
+    case ersip_sipmsg:parse(RawMessage, [maxforwards, proxy_require]) of
+        {ok, _SipMsg} = R ->
             R;
-        { error, _ } = ParseError ->
+        {error, _} = ParseError ->
             case make_bad_request(RawMessage, Options, ParseError) of
-                { ok, Reply } ->
-                    { reply, Reply };
-                { error, _ } = Error ->
+                {ok, Reply} ->
+                    {reply, Reply};
+                {error, _} = Error ->
                     Error
             end
     end.
@@ -180,7 +180,7 @@ val_uri_scheme(SipMessage, Options) ->
     RURI = ersip_sipmsg:ruri(SipMessage),
     case Val(ersip_uri:scheme(RURI)) of
         true ->
-            { ok, SipMessage };
+            {ok, SipMessage};
         false ->
             %% If the Request-URI has a URI whose scheme is not
             %% understood by the proxy, the proxy SHOULD reject the
@@ -195,20 +195,20 @@ val_max_forwards(SipMessage, Options) ->
         not_found ->
             %% If the request does not contain a Max-Forwards header
             %% field, this check is passed.
-            { ok, SipMessage };
-        { ok, { maxforwards, Value } } when Value > 0  ->
+            {ok, SipMessage};
+        {ok, {maxforwards, Value}} when Value > 0  ->
             %% If the request contains a Max-Forwards header field
             %% with a field value greater than zero, the check is
             %% passed.
-            { ok, SipMessage };
-        { ok, { maxforwards, 0 } } ->
+            {ok, SipMessage};
+        {ok, {maxforwards, 0}} ->
             %% If the request contains a Max-Forwards header field with a field
             %% value of zero (0), the element MUST NOT forward the request.  If
             %% the request was for OPTIONS, the element MAY act as the final
             %% recipient and respond per Section 11.  Otherwise, the element MUST
             %% return a 483 (Too many hops) response.
             case ersip_sipmsg:method(SipMessage) of
-                { method, <<"OPTIONS">> } ->
+                {method, <<"OPTIONS">>} ->
                     maybe_reply_options(SipMessage, Options);
                 _ ->
                     make_reply(SipMessage, Options, 483)
@@ -218,7 +218,7 @@ val_max_forwards(SipMessage, Options) ->
 -spec val_loop_detect(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
 val_loop_detect(SipMessage, Options) ->
     %% TODO: implement it eventually
-    { ok, SipMessage }.
+    {ok, SipMessage}.
 
 %% 5. Proxy-Require check
 %%
@@ -232,11 +232,11 @@ val_loop_detect(SipMessage, Options) ->
 val_proxy_require(SipMessage, Options) ->
     case ersip_sipmsg:find(proxy_require, SipMessage) of
         not_found ->
-            { ok, SipMessage };
-        { ok, Required } ->
+            {ok, SipMessage};
+        {ok, Required} ->
             case check_supported(Required, Options) of
                 all_supported ->
-                    { ok, SipMessage };
+                    {ok, SipMessage};
                 Unsupported ->
                     make_bad_extension(SipMessage, Options, Unsupported)
             end
@@ -251,59 +251,59 @@ val_proxy_require(SipMessage, Options) ->
 -spec val_proxy_authorization(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
 val_proxy_authorization(SipMessage, Options) ->
     %% TODO: implement it eventually
-    { ok, SipMessage }.
+    {ok, SipMessage}.
 
 
 -spec make_bad_request(ersip_msg:message(), validate_options(), ParseError) -> Result when
-      ParseError :: { error, term() },
-      Result     :: { ok, ersip_sipmsg:sipmsg() }
-                  | { error, term() }.
+      ParseError :: {error, term()},
+      Result     :: {ok, ersip_sipmsg:sipmsg()}
+                  | {error, term()}.
 make_bad_request(RawMessage, Options, ParseError) ->
-    case ersip_sipmsg:parse(RawMessage, [ to, from, callid, cseq ]) of
-        { ok, SipMsg } ->
+    case ersip_sipmsg:parse(RawMessage, [to, from, callid, cseq]) of
+        {ok, SipMsg} ->
             Reply = ersip_reply:new(400,
-                                    [ { reason, ersip_status:bad_request_reason(ParseError) },
-                                      { to_tag, maps:get(to_tag, Options) }
+                                    [{reason, ersip_status:bad_request_reason(ParseError)},
+                                     {to_tag, maps:get(to_tag, Options)}
                                     ]),
-            { ok, ersip_sipmsg:reply(Reply, SipMsg) };
-        { error, _ } = Error ->
+            {ok, ersip_sipmsg:reply(Reply, SipMsg)};
+        {error, _} = Error ->
             Error
     end.
 
 
 -spec make_reply(ersip_sipmsg:sipmsg(), validate_options(), Code) -> Result when
       Code       :: ersip_status:code(),
-      Result     :: { reply, ersip_sipmsg:sipmsg() }
-                  | { error, term() }.
+      Result     :: {reply, ersip_sipmsg:sipmsg()}
+                  | {error, term()}.
 make_reply(SipMessage, Options, Code) ->
-    case ersip_sipmsg:parse(SipMessage, [ to, from, callid, cseq ]) of
-        { ok, SipMessage1 } ->
+    case ersip_sipmsg:parse(SipMessage, [to, from, callid, cseq]) of
+        {ok, SipMessage1} ->
             Reply = ersip_reply:new(Code,
-                                    [ { to_tag, maps:get(to_tag, Options) }
+                                    [{to_tag, maps:get(to_tag, Options)}
                                     ]),
-            { reply, ersip_sipmsg:reply(Reply, SipMessage1) };
-        { error, _ } = Error ->
+            {reply, ersip_sipmsg:reply(Reply, SipMessage1)};
+        {error, _} = Error ->
             Error
     end.
 
 -spec make_bad_extension(ersip_sipmsg:sipmsg(), validate_options(), Unsupported) -> reply_or_error() when
       Unsupported :: ersip_hdr_opttag_list:option_tag_list().
 make_bad_extension(SipMessage, Options, Unsupported) ->
-    case ersip_sipmsg:parse(SipMessage, [ to, from, callid, cseq ]) of
-        { ok, SipMsg } ->
+    case ersip_sipmsg:parse(SipMessage, [to, from, callid, cseq]) of
+        {ok, SipMsg} ->
             Reply = ersip_reply:new(420,
-                                    [ { to_tag, maps:get(to_tag, Options) }
+                                    [{to_tag, maps:get(to_tag, Options)}
                                     ]),
             Resp0 = ersip_sipmsg:reply(Reply, SipMsg),
             Resp1 = ersip_sipmsg:set(unsupported, Unsupported, Resp0),
-            { reply,  Resp1 };
-        { error, _ } = Error ->
+            {reply,  Resp1};
+        {error, _} = Error ->
             Error
     end.
 
 
 -spec maybe_reply_options(ersip_sipmsg:sipmsg(), validate_options()) -> reply().
-maybe_reply_options(SipMessage, #{ reply_on_options := true, proxy_params := _ } = Options) ->
+maybe_reply_options(SipMessage, #{reply_on_options := true, proxy_params := _} = Options) ->
     make_options_reply(SipMessage, Options);
 maybe_reply_options(SipMessage, Options) ->
     make_reply(SipMessage, Options, 483).
@@ -311,7 +311,7 @@ maybe_reply_options(SipMessage, Options) ->
 -spec make_options_reply(ersip_sipmsg:sipmsg(), validate_options()) -> reply().
 make_options_reply(SipMessage, Options) ->
     Reply = ersip_reply:new(200,
-                            [ { to_tag, maps:get(to_tag, Options) }
+                            [{to_tag, maps:get(to_tag, Options)}
                             ]),
     %% The response to an OPTIONS is constructed using the standard rules
     %% for a SIP response as discussed in Section 8.2.6.
@@ -329,16 +329,16 @@ make_options_reply(SipMessage, Options) ->
                             Fun(Options, Resp)
                     end,
                     Resp200,
-                    [ fun maybe_add_allow/2,
-                      fun maybe_add_accept/2,
-                      fun maybe_add_accept_encoding/2,
-                      fun maybe_add_accept_language/2,
-                      fun maybe_add_supported/2
+                    [fun maybe_add_allow/2,
+                     fun maybe_add_accept/2,
+                     fun maybe_add_accept_encoding/2,
+                     fun maybe_add_accept_language/2,
+                     fun maybe_add_supported/2
                     ]),
-    { reply, Enriched }.
+    {reply, Enriched}.
 
 -spec maybe_add_allow(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_allow(#{ proxy_params := #{ allow := Allow } }, Resp) ->
+maybe_add_allow(#{proxy_params := #{allow := Allow}}, Resp) ->
     ersip_sipmsg:set(allow, Allow, Resp);
 maybe_add_allow(_, Resp) ->
     Resp.
@@ -356,7 +356,7 @@ maybe_add_accept_language(Options, Resp) ->
     Resp.
 
 -spec maybe_add_supported(validate_options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_supported(#{ proxy_params := #{ supported := Supported } }, Resp) ->
+maybe_add_supported(#{proxy_params := #{supported := Supported}}, Resp) ->
     ersip_sipmsg:set(supported, Supported, Resp);
 maybe_add_supported(_, Resp) ->
     Resp.
@@ -364,7 +364,7 @@ maybe_add_supported(_, Resp) ->
 -spec check_supported(Required, validate_options()) -> all_supported | Unsupported when
       Required    :: ersip_hdr_opttag_list:option_tag_list(),
       Unsupported :: ersip_hdr_opttag_list:option_tag_list().
-check_supported(Required, #{ proxy_params := #{ supported := Supported } }) ->
+check_supported(Required, #{proxy_params := #{supported := Supported}}) ->
     Intersect = ersip_hdr_opttag_list:intersect(Required, Supported),
     case Intersect =:= Required of
         true ->
@@ -385,12 +385,12 @@ check_supported(Required, _) ->
 %% Route header field.  The proxy MUST then proceed as if it received
 %% this modified request.
 -spec ri_strict_route(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-ri_strict_route(SipMsg, #{ check_rroute_fun := CheckRRFun }) when is_function(CheckRRFun) ->
+ri_strict_route(SipMsg, #{check_rroute_fun := CheckRRFun}) when is_function(CheckRRFun) ->
     RURI  = ersip_sipmsg:ruri(SipMsg),
     case CheckRRFun(RURI) of
         true ->
             case ersip_sipmsg:find(route, SipMsg) of
-                { ok, RouteSet } ->
+                {ok, RouteSet} ->
                     LastRoute = ersip_route_set:last(RouteSet),
                     SipMsg0 = ersip_sipmsg:set_ruri(ersip_hdr_route:uri(LastRoute), SipMsg),
                     remove_last_route(SipMsg0);
@@ -426,9 +426,9 @@ ri_process_maddr(SipMsg, ProxyParams) ->
 %% If the first value in the Route header field indicates this proxy,
 %% the proxy MUST remove that value from the request.
 -spec ri_maybe_remove_route(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-ri_maybe_remove_route(SipMsg, #{ check_rroute_fun := CheckRRFun }) ->
+ri_maybe_remove_route(SipMsg, #{check_rroute_fun := CheckRRFun}) ->
     case ersip_sipmsg:find(route, SipMsg) of
-        { ok, RouteSet } ->
+        {ok, RouteSet} ->
             FirstRoute = ersip_route_set:first(RouteSet),
             URI = ersip_hdr_route:uri(FirstRoute),
             case CheckRRFun(URI) of
@@ -454,31 +454,31 @@ remove_last_route(SipMsg) ->
 %%
 %% 2. Update the Request-URI
 -spec fwd_set_ruri(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
-fwd_set_ruri(TargetURI, { SipMsg, Opts }, _ProxyParams) ->
+fwd_set_ruri(TargetURI, {SipMsg, Opts}, _ProxyParams) ->
     %% The Request-URI in the copy's start line MUST be replaced with
     %% the URI for this target.  If the URI contains any parameters
     %% not allowed in a Request-URI, they MUST be removed.
     CleanURI = ersip_uri:clear_not_allowed_parts(ruri, TargetURI),
-    { ersip_sipmsg:set_ruri(CleanURI, SipMsg), Opts }.
+    {ersip_sipmsg:set_ruri(CleanURI, SipMsg), Opts}.
 
 
 %% 16.6 Request Forwarding
 %%
 %% 3. Max-Forwards
 -spec fwd_max_forwards(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
-fwd_max_forwards(_TargetURI, { SipMsg, FwdOpts }, _ProxyParams) ->
+fwd_max_forwards(_TargetURI, {SipMsg, FwdOpts}, _ProxyParams) ->
     case ersip_sipmsg:find(maxforwards, SipMsg) of
-        { ok, MaxForwards } ->
+        {ok, MaxForwards} ->
             %% If the copy contains a Max-Forwards header field, the proxy
             %% MUST decrement its value by one (1).
             SipMsg1 = ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:dec(MaxForwards), SipMsg),
-            { SipMsg1, FwdOpts };
+            {SipMsg1, FwdOpts};
         not_found ->
             %% If the copy does not contain a Max-Forwards header field, the
             %% proxy MUST add one with a field value, which SHOULD be 70.
             SipMsg1 = ersip_sipmsg:set(maxforwards, ersip_hdr_maxforwards:make(70), SipMsg),
-            { SipMsg1, FwdOpts };
-        { error, _ } = Error ->
+            {SipMsg1, FwdOpts};
+        {error, _} = Error ->
             error(Error)
     end.
 
@@ -486,7 +486,7 @@ fwd_max_forwards(_TargetURI, { SipMsg, FwdOpts }, _ProxyParams) ->
 %%
 %% 4. Record-Route
 -spec fwd_record_route(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
-fwd_record_route(_TargetURI, { SipMsg, FwdOpts }, #{ record_route_uri := RR0 }) ->
+fwd_record_route(_TargetURI, {SipMsg, FwdOpts}, #{record_route_uri := RR0}) ->
     RR1 = ersip_uri:clear_not_allowed_parts(record_route, RR0),
     %% The URI placed in the Record-Route header field value MUST be a
     %% SIP or SIPS URI. This URI MUST contain an lr parameter (see
@@ -495,14 +495,14 @@ fwd_record_route(_TargetURI, { SipMsg, FwdOpts }, #{ record_route_uri := RR0 }) 
     RRRoute = ersip_hdr_route:make_route(RR2),
     RRSet0 =
         case ersip_sipmsg:find(record_route, SipMsg) of
-            { ok, ExistRRSet } ->
+            {ok, ExistRRSet} ->
                 ExistRRSet;
             not_found ->
                 ersip_route_set:new()
         end,
     RRSet1 = ersip_route_set:add_first(RRRoute, RRSet0),
     SipMsg1 = ersip_sipmsg:set(record_route, RRSet1, SipMsg),
-    { SipMsg1, FwdOpts };
+    {SipMsg1, FwdOpts};
 fwd_record_route(_TargetURI, FwdResult, _ProxyParams) ->
     FwdResult.
 
@@ -526,24 +526,24 @@ fwd_postprocess_routing(_TargetURI, FwdResult, _ProxyParams) ->
 %% Check record route in accoring to the clause (RFC 3261 16.6 bullet 4):
 %%
 -spec fwd_check_record_route(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
-fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, #{ record_route_uri := RR }) ->
+fwd_check_record_route(_TargetURI, {SipMsg, _} = FwdResult, #{record_route_uri := RR}) ->
     %% If the Request-URI contains a SIPS URI, or the topmost Route
     %% header field value (after the post processing of bullet 6)
     %% contains a SIPS URI, the URI placed into the Record-Route header
     %% field MUST be a SIPS URI.
-    case nexthop_scheme_is({ scheme, sips }, SipMsg) of
+    case nexthop_scheme_is({scheme, sips}, SipMsg) of
         true ->
-            case { scheme, sips } == ersip_uri:scheme(RR) of
+            case {scheme, sips} == ersip_uri:scheme(RR) of
                 true ->
                     ok;
                 false ->
-                    error({ error, record_route_must_be_sips })
+                    error({error, record_route_must_be_sips})
             end;
         false ->
             ok
     end,
     FwdResult;
-fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, _ProxyParams) ->
+fwd_check_record_route(_TargetURI, {SipMsg, _} = FwdResult, _ProxyParams) ->
     %% Note: No record-route is defined by proxy in this clause.
     %%
     %% Furthermore, if the request was not received over TLS, the
@@ -558,15 +558,15 @@ fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, _ProxyParams) ->
             ok;
         Source ->
             IsTLS = ersip_source:is_tls(Source),
-            case (not IsTLS) andalso nexthop_scheme_is({ scheme, sips }, SipMsg) of
+            case (not IsTLS) andalso nexthop_scheme_is({scheme, sips}, SipMsg) of
                 true ->
-                    error({ error, { record_route_required, sips_transform } });
+                    error({error, {record_route_required, sips_transform}});
                 false ->
                     ok
             end,
-            case IsTLS andalso nexthop_scheme_is({ scheme, sip }, SipMsg) of
+            case IsTLS andalso nexthop_scheme_is({scheme, sip}, SipMsg) of
                 true ->
-                    error({ error, { record_route_required, sip_transform } });
+                    error({error, {record_route_required, sip_transform}});
                 false ->
                     ok
             end
@@ -578,32 +578,32 @@ fwd_check_record_route(_TargetURI, { SipMsg, _ } = FwdResult, _ProxyParams) ->
 %% 7. Determine Next-Hop Address, Port, and Transport
 %%
 -spec fwd_determine_nexhop(ersip_uri:uri(), forward_result(), proxy_params()) -> forward_result().
-fwd_determine_nexhop(_Target, { SipMsg, #{ routing := strict } = FwdOpts }, _ProxyOpts) ->
+fwd_determine_nexhop(_Target, {SipMsg, #{routing := strict} = FwdOpts}, _ProxyOpts) ->
     %% If the proxy has reformatted the request to send to a
     %% strict-routing element as described in step 6 above, the proxy
     %% MUST apply those procedures to the Request-URI of the request.
     NexthopURI = ersip_sipmsg:ruri(SipMsg),
-    { SipMsg, FwdOpts#{ nexthop => NexthopURI } };
-fwd_determine_nexhop(_Target, { SipMsg, #{ routing := loose } = FwdOpts }, _ProxyOpts) ->
+    {SipMsg, FwdOpts#{nexthop => NexthopURI}};
+fwd_determine_nexhop(_Target, {SipMsg, #{routing := loose} = FwdOpts}, _ProxyOpts) ->
     %% Otherwise, the proxy MUST apply the procedures to the first
     %% value in the Route header field, if present, else the
     %% Request-URI.
     NexthopURI =
         case ersip_sipmsg:find(route, SipMsg) of
-            { ok, RouteSet } ->
+            {ok, RouteSet} ->
                 Route = ersip_route_set:first(RouteSet),
                 ersip_hdr_route:uri(Route);
             not_found ->
                 ersip_sipmsg:ruri(SipMsg)
         end,
-    { SipMsg, FwdOpts#{ nexthop => NexthopURI } }.
+    {SipMsg, FwdOpts#{nexthop => NexthopURI}}.
 
 -spec nexthop_scheme_is(ersip_uri:scheme(), ersip_sipmsg:sipmsg()) -> boolean().
 nexthop_scheme_is(Scheme, SipMsg) ->
     RURISchemeMatch = Scheme == ersip_uri:scheme(ersip_sipmsg:ruri(SipMsg)),
     TopRouteScemeMatch =
         case ersip_sipmsg:find(route, SipMsg) of
-            { ok, RouteSet } ->
+            {ok, RouteSet} ->
                 TopRoute = ersip_route_set:first(RouteSet),
                 Scheme == ersip_uri:scheme(ersip_hdr_route:uri(TopRoute));
             not_found ->
@@ -613,14 +613,14 @@ nexthop_scheme_is(Scheme, SipMsg) ->
 
 
 -spec maybe_strict_router_workaround(forward_result()) -> forward_result().
-maybe_strict_router_workaround({ SipMsg, _ } = FwdResult) ->
+maybe_strict_router_workaround({SipMsg, _} = FwdResult) ->
     %% If the copy contains a Route header field, the proxy MUST
     %% inspect the URI in its first value.  If that URI does not
     %% contain an lr parameter, the proxy MUST modify the copy
     case ersip_sipmsg:find(route, SipMsg) of
         not_found ->
             FwdResult;
-        { ok, RouteSet } ->
+        {ok, RouteSet} ->
             FirstRoute = ersip_route_set:first(RouteSet),
             URIParams  = ersip_uri:params(ersip_hdr_route:uri(FirstRoute)),
             case maps:is_key(lr, URIParams) of
@@ -641,7 +641,7 @@ maybe_strict_router_workaround({ SipMsg, _ } = FwdResult) ->
 %%
 %% Route to strict router handling
 -spec strict_router_workaround(forward_result()) -> forward_result().
-strict_router_workaround({ SipMsg0, FwdOpts }) ->
+strict_router_workaround({SipMsg0, FwdOpts}) ->
     %% -  The proxy MUST place the Request-URI into the Route header
     %%    field as the last value.
     RURI = ersip_sipmsg:ruri(SipMsg0),
@@ -656,4 +656,4 @@ strict_router_workaround({ SipMsg0, FwdOpts }) ->
     RouteSet2 = ersip_route_set:remove_first(RouteSet1),
     SipMsg1 = ersip_sipmsg:set_ruri(FirstRouteURI, SipMsg0),
     SipMsg2 = ersip_sipmsg:set(route, RouteSet2, SipMsg1),
-    { SipMsg2, FwdOpts#{ routing => strict } }.
+    {SipMsg2, FwdOpts#{routing => strict}}.

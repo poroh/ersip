@@ -46,7 +46,7 @@ make_rfc3261(Bin) ->
 %% @doc Create comparable key for branch parameter.
 -spec make_key(branch()) -> branch_key().
 make_key({branch, Bin}) ->
-    { branch_key, ersip_bin:to_lower(Bin)};
+    {branch_key, ersip_bin:to_lower(Bin)};
 make_key({branch_key, _} = Key) ->
     Key.
 

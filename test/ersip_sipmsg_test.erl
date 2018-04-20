@@ -31,16 +31,16 @@ parse_request_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
-    ?assertEqual({display_name, [ <<"Bob">> ]}, ersip_hdr_fromto:display_name(To)),
+    ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
-    ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
+    ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)).
 
 
@@ -59,17 +59,17 @@ parse_request_append_all_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg0 } = ersip_sipmsg:parse(PMsg,  [ from ]),
-    { ok, SipMsg } = ersip_sipmsg:parse(SipMsg0, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg0} = ersip_sipmsg:parse(PMsg,  [from]),
+    {ok, SipMsg} = ersip_sipmsg:parse(SipMsg0, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
-    ?assertEqual({display_name, [ <<"Bob">> ]}, ersip_hdr_fromto:display_name(To)),
+    ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
-    ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
+    ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)).
 
 parse_response_test() ->
@@ -87,16 +87,16 @@ parse_response_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
-    ?assertEqual({display_name, [ <<"Bob">> ]}, ersip_hdr_fromto:display_name(To)),
+    ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
-    ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
+    ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)).
 
 parse_response_error_test() ->
@@ -114,8 +114,8 @@ parse_response_error_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    ?assertMatch({ error, { invalid_cseq, _ } }, ersip_sipmsg:parse(PMsg, [ content_type ])).
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    ?assertMatch({error, {invalid_cseq, _}}, ersip_sipmsg:parse(PMsg, [content_type])).
 
 parse_request_without_body_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -131,16 +131,16 @@ parse_request_without_body_test() ->
             ?crlf ?crlf
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
-    ?assertEqual({display_name, [ <<"Bob">> ]}, ersip_hdr_fromto:display_name(To)),
+    ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
-    ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
+    ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)),
     ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)).
 
@@ -158,10 +158,10 @@ parse_request_with_body_no_content_type_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    ?assertEqual({error,{ header_error,
-                          { content_type,
-                            {no_required_header,<<"content-type">>}}}},
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    ?assertEqual({error,{header_error,
+                         {content_type,
+                          {no_required_header,<<"content-type">>}}}},
                  ersip_sipmsg:parse(PMsg, all)).
 
 parse_request_with_invalid_ruri_test() ->
@@ -177,8 +177,8 @@ parse_request_with_invalid_ruri_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    ?assertMatch({error,{ invalid_ruri, _}},
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    ?assertMatch({error,{invalid_ruri, _}},
                  ersip_sipmsg:parse(PMsg, all)).
 
 parse_on_demand_test() ->
@@ -196,16 +196,16 @@ parse_on_demand_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, []),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, []),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
-    ?assertEqual({display_name, [ <<"Bob">> ]}, ersip_hdr_fromto:display_name(To)),
+    ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
-    ?assertEqual({sent_by, { hostname, <<"pc33.atlanta.com">> }, 5060 },
+    ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)).
 
 parse_no_required_field_test() ->
@@ -222,8 +222,8 @@ parse_no_required_field_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    ?assertMatch({ error, _ }, ersip_sipmsg:parse(PMsg, all)).
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    ?assertMatch({error, _}, ersip_sipmsg:parse(PMsg, all)).
 
 
 parse_on_demand_parse_error_test() ->
@@ -241,10 +241,10 @@ parse_on_demand_parse_error_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, []),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, []),
     ?assertEqual(ersip_hdr_callid:make(CallId), ersip_sipmsg:get(callid, SipMsg)),
-    ?assertError({error, _ }, ersip_sipmsg:get(content_type, SipMsg)).
+    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)).
 
 reply_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -262,10 +262,10 @@ reply_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
-    ToTag = { tag, <<"4212312424">> },
-    ReplyOpts = ersip_reply:new(404, [ { to_tag, ToTag } ]),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    ToTag = {tag, <<"4212312424">>},
+    ReplyOpts = ersip_reply:new(404, [{to_tag, ToTag}]),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     %% The From field of the response MUST equal the From header field of
     %% the request.
@@ -307,8 +307,8 @@ reply_notag_error_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ReplyOpts = ersip_reply:new(404),
     ?assertError({error, no_to_tag_specified}, ersip_sipmsg:reply(ReplyOpts, SipMsg)),
     ok.
@@ -329,9 +329,9 @@ reply_indialog_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
-    ReplyOpts = ersip_reply:new(404, [ { reason, <<"My Not Found">> } ]),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    ReplyOpts = ersip_reply:new(404, [{reason, <<"My Not Found">>}]),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     %% The From field of the response MUST equal the From header field of
     %% the request.
@@ -367,8 +367,8 @@ reply_100_trying_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ReplyOpts = ersip_reply:new(100),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     %% The From field of the response MUST equal the From header field of
@@ -407,7 +407,7 @@ get_parts_test() ->
     SipMsg = create_sipmsg(Msg),
     ?assertEqual(undefined, ersip_sipmsg:status(SipMsg)),
     ?assertEqual(undefined, ersip_sipmsg:reason(SipMsg)),
-    ?assertEqual({ method, <<"INVITE">> }, ersip_sipmsg:method(SipMsg)),
+    ?assertEqual({method, <<"INVITE">>}, ersip_sipmsg:method(SipMsg)),
     ok.
 
 
@@ -440,13 +440,13 @@ set_ruri_test() ->
 %%%===================================================================
 create_sipmsg(Msg) ->
     P  = ersip_parser:new_dgram(Msg),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     SipMsg.
 
 rebuild_sipmsg(SipMsg) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
     P  = ersip_parser:new_dgram(SipMsgBin),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg1 } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg1} = ersip_sipmsg:parse(PMsg, all),
     SipMsg1.

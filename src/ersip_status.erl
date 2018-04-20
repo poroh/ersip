@@ -8,13 +8,13 @@
 
 -module(ersip_status).
 
--export([ response_type/1,
-          reason_phrase/1,
-          bad_request_reason/1
+-export([response_type/1,
+         reason_phrase/1,
+         bad_request_reason/1
         ]).
--export_type([ response_type/0,
-               code/0,
-               reason/0 ]).
+-export_type([response_type/0,
+              code/0,
+              reason/0]).
 
 %%%===================================================================
 %%% Types
@@ -40,10 +40,10 @@ reason_phrase(Code) ->
     reason_impl(Code).
 
 
-% -spec bad_request_reason({error, any()}) -> reason().
+                                                % -spec bad_request_reason({error, any()}) -> reason().
 bad_request_reason({error, {header_error, {maxforwards, _}}}) ->
     <<"Invalid max-forwards value">>;
-bad_request_reason({error, _ }) ->
+bad_request_reason({error, _}) ->
     <<"Bad Request">>.
 
 %%%===================================================================

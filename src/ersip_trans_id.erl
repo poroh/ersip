@@ -8,24 +8,24 @@
 
 -module(ersip_trans_id).
 
--export([ make_uas/1 ]).
--export_type([ transaction_id/0 ]).
+-export([make_uas/1]).
+-export_type([transaction_id/0]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--record(tid_rfc3261, { branch_id :: ersip_branch:branch_key(),
-                       sent_by   :: ersip_hdr_via:sent_by(),
-                       method    :: ersip_method:method()
+-record(tid_rfc3261, {branch_id :: ersip_branch:branch_key(),
+                      sent_by   :: ersip_hdr_via:sent_by(),
+                      method    :: ersip_method:method()
                      }).
 -record(tid_rfc2543,
-        { callid      :: ersip_hdr_callid:callid(),
-          ruri        :: ersip_uri:uri(),
-          from_tag    :: ersip_hdr_fromto:tag_key() | undefined,
-          to_tag      :: ersip_hdr_fromto:tag_key() | undefined,
-          cseq        :: ersip_hdr_cseq:cseq(),
-          topmost_via :: ersip_hdr_via:via()
+        {callid      :: ersip_hdr_callid:callid(),
+         ruri        :: ersip_uri:uri(),
+         from_tag    :: ersip_hdr_fromto:tag_key() | undefined,
+         to_tag      :: ersip_hdr_fromto:tag_key() | undefined,
+         cseq        :: ersip_hdr_cseq:cseq(),
+         topmost_via :: ersip_hdr_via:via()
         }).
 -type tid_rfc3261() :: #tid_rfc3261{}.
 -type tid_rfc2543() :: #tid_rfc2543{}.
@@ -74,12 +74,12 @@ make_rfc3261_tid(TopmostVia, Message) ->
     Method    = ersip_sipmsg:method(Message),
     EffMethod = 
         case Method of
-            { method, <<"ACK">> } -> ersip_method:make(<<"INVITE">>);
+            {method, <<"ACK">>} -> ersip_method:make(<<"INVITE">>);
             M -> M
         end,
-    #tid_rfc3261{ method  = EffMethod,
-                  sent_by = SentByKey,
-                  branch_id = ersip_branch:make_key(Branch) }.
+    #tid_rfc3261{method  = EffMethod,
+                 sent_by = SentByKey,
+                 branch_id = ersip_branch:make_key(Branch)}.
 
 -spec make_rfc2543_tid(ersip_hdr_via:via(), ersip_sipmsg:sipmsg()) -> tid_rfc2543().
 make_rfc2543_tid(TopmostVia, Message) ->
@@ -90,21 +90,21 @@ make_rfc2543_tid(TopmostVia, Message) ->
     To     = ersip_sipmsg:get(to,   Message),
     CSeq   = ersip_sipmsg:get(cseq, Message),
     case Method of
-        { method, <<"INVITE">> } ->
+        {method, <<"INVITE">>} ->
             %% The INVITE request matches a transaction if the
             %% Request-URI, To tag, From tag, Call-ID, CSeq, and top
             %% Via header field match those of the INVITE request
             %% which created the transaction.  In this case, the
             %% INVITE is a retransmission of the original one that
             %% created the transaction.
-            #tid_rfc2543{ callid      = ersip_hdr_callid:make_key(CallId),
-                          ruri        = ersip_uri:make_key(RURI),
-                          from_tag    = ersip_hdr_fromto:tag_key(From),
-                          to_tag      = ersip_hdr_fromto:tag_key(To),
-                          cseq        = ersip_hdr_cseq:make_key(CSeq),
-                          topmost_via = ersip_hdr_via:make_key(TopmostVia)
+            #tid_rfc2543{callid      = ersip_hdr_callid:make_key(CallId),
+                         ruri        = ersip_uri:make_key(RURI),
+                         from_tag    = ersip_hdr_fromto:tag_key(From),
+                         to_tag      = ersip_hdr_fromto:tag_key(To),
+                         cseq        = ersip_hdr_cseq:make_key(CSeq),
+                         topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         };
-        { method,  <<"ACK">> } ->
+        {method,  <<"ACK">>} ->
             %% The ACK request matches a transaction if the Request-
             %% URI, From tag, Call-ID, CSeq number (not the method), and top Via
             %% header field match those of the INVITE request which created the
@@ -112,12 +112,12 @@ make_rfc2543_tid(TopmostVia, Message) ->
             %% response sent by the server transaction.
             INVITE = ersip_method:make(<<"INVITE">>),
             ACKCSeq = ersip_hdr_cseq:make(INVITE, ersip_hdr_cseq:number(CSeq)),
-            #tid_rfc2543{ callid      = ersip_hdr_callid:make_key(CallId),
-                          ruri        = ersip_uri:make_key(RURI),
-                          from_tag    = ersip_hdr_fromto:tag_key(From),
-                          to_tag      = undefined,
-                          cseq        = ACKCSeq,
-                          topmost_via = ersip_hdr_via:make_key(TopmostVia)
+            #tid_rfc2543{callid      = ersip_hdr_callid:make_key(CallId),
+                         ruri        = ersip_uri:make_key(RURI),
+                         from_tag    = ersip_hdr_fromto:tag_key(From),
+                         to_tag      = undefined,
+                         cseq        = ACKCSeq,
+                         topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         };
         _ ->
             %% For all other request methods, a request is matched to
@@ -126,12 +126,12 @@ make_rfc2543_tid(TopmostVia, Message) ->
             %% header field match those of the request that created
             %% the transaction.  Matching is done based on the
             %% matching rules defined for each of those header fields.
-            #tid_rfc2543{ callid      = ersip_hdr_callid:make_key(CallId),
-                          ruri        = ersip_uri:make_key(RURI),
-                          from_tag    = ersip_hdr_fromto:tag_key(From),
-                          to_tag      = ersip_hdr_fromto:tag_key(To),
-                          cseq        = ersip_hdr_cseq:make_key(CSeq),
-                          topmost_via = ersip_hdr_via:make_key(TopmostVia)
+            #tid_rfc2543{callid      = ersip_hdr_callid:make_key(CallId),
+                         ruri        = ersip_uri:make_key(RURI),
+                         from_tag    = ersip_hdr_fromto:tag_key(From),
+                         to_tag      = ersip_hdr_fromto:tag_key(To),
+                         cseq        = ersip_hdr_cseq:make_key(CSeq),
+                         topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         }
     end.    
 

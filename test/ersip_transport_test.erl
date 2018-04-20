@@ -15,12 +15,12 @@
 %%%===================================================================
 
 parse_port_number_test() ->
-    ?assertEqual({ ok, 5060, <<>>},      ersip_transport:parse_port_number(<<"5060">>)),
-    ?assertEqual({ ok, 80, <<" ">>},     ersip_transport:parse_port_number(<<"80 ">>)),
-    ?assertEqual({ ok, 5061, <<"foo">>}, ersip_transport:parse_port_number(<<"5061foo">>)),
-    ?assertMatch({ error, _ },           ersip_transport:parse_port_number(<<"0">>)),
-    ?assertMatch({ error, _ },           ersip_transport:parse_port_number(<<"100000">>)),
-    ?assertMatch({ error, _ },           ersip_transport:parse_port_number(<<"-1">>)).
+    ?assertEqual({ok, 5060, <<>>},      ersip_transport:parse_port_number(<<"5060">>)),
+    ?assertEqual({ok, 80, <<" ">>},     ersip_transport:parse_port_number(<<"80 ">>)),
+    ?assertEqual({ok, 5061, <<"foo">>}, ersip_transport:parse_port_number(<<"5061foo">>)),
+    ?assertMatch({error, _},           ersip_transport:parse_port_number(<<"0">>)),
+    ?assertMatch({error, _},           ersip_transport:parse_port_number(<<"100000">>)),
+    ?assertMatch({error, _},           ersip_transport:parse_port_number(<<"-1">>)).
 
 default_port_test() ->
     ?assertEqual(5060, ersip_transport:default_port(make_transport(udp))),
@@ -37,7 +37,7 @@ is_datagram_test() ->
     ?assertEqual(true,  ersip_transport:is_datagram(make_transport(wss))),
     ?assertEqual(false, ersip_transport:is_datagram(make_transport(tls))),
     ?assertEqual(false, ersip_transport:is_datagram(make_transport(tcp))),
-    ?assertError({ error, _ }, ersip_transport:is_datagram(make_transport(<<"unknowntranport">>))).
+    ?assertError({error, _}, ersip_transport:is_datagram(make_transport(<<"unknowntranport">>))).
 
 is_tls_test() ->
     ?assertEqual(false, ersip_transport:is_tls(make_transport(udp))),
@@ -45,7 +45,7 @@ is_tls_test() ->
     ?assertEqual(true,  ersip_transport:is_tls(make_transport(wss))),
     ?assertEqual(true,  ersip_transport:is_tls(make_transport(tls))),
     ?assertEqual(false, ersip_transport:is_tls(make_transport(tcp))),
-    ?assertError({ error, _ }, ersip_transport:is_tls(make_transport(<<"unknowntranport">>))).
+    ?assertError({error, _}, ersip_transport:is_tls(make_transport(<<"unknowntranport">>))).
 
 assemble_test() ->
     ?assertEqual(<<"UDP">>, ersip_transport:assemble_upper(make_transport(udp))),

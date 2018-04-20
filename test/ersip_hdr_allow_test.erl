@@ -34,9 +34,9 @@ create(Bin) ->
 
 parse_success(Bin) ->
     AllowH = create(Bin),
-    { ok, Allow } = ersip_hdr_allow:parse(AllowH),
+    {ok, Allow} = ersip_hdr_allow:parse(AllowH),
     Allow.
 
 parse_fail(Bin) ->
     AllowH = create(Bin),
-    ?assertMatch({ error, _ }, ersip_hdr_allow:parse(AllowH)).
+    ?assertMatch({error, _}, ersip_hdr_allow:parse(AllowH)).

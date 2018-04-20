@@ -38,8 +38,8 @@ reason_text_test() ->
     test_phrase(199, "Unknown Status").
 
 bad_request_reason_test() ->
-    test_bad_request_reason("Bad Request",  { error, some_error }),
-    test_bad_request_reason("Max-Forwards", { error, {header_error,{maxforwards,some}}}),
+    test_bad_request_reason("Bad Request",  {error, some_error}),
+    test_bad_request_reason("Max-Forwards", {error, {header_error,{maxforwards,some}}}),
     ok.
 
 %%%===================================================================

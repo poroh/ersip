@@ -40,36 +40,36 @@ compact_form_test() ->
     HeadersF =
         lists:map(
           fun(Binary) ->
-                  [ FieldName, CompactForm, _ ] =
-                      binary:split(Binary, <<"\t">>, [ global ]),
-                  { FieldName, CompactForm }
+                  [FieldName, CompactForm, _] =
+                      binary:split(Binary, <<"\t">>, [global]),
+                  {FieldName, CompactForm}
           end,
           HeadersL),
     lists:foreach(
       fun({FieldName, CompactForm}) ->
               ?assertEqual(CompactForm, ersip_hdr_names:compact_form(FieldName))
       end,
-     HeadersF).
+      HeadersF).
 
 
 print_form_test() ->
     PrintForms =
-        [ <<"From">>,
-          <<"To">>,
-          <<"CSeq">>,
-          <<"Call-Id">>,
-          <<"Max-Forwards">>,
-          <<"Content-Type">>,
-          <<"Route">>,
-          <<"Record-Route">>,
-          <<"Allow">>,
-          <<"Supported">>,
-          <<"Unsupported">>,
-          <<"Require">>,
-          <<"Proxy-Require">>,
-          <<"p-custom-header">>
+        [<<"From">>,
+         <<"To">>,
+         <<"CSeq">>,
+         <<"Call-Id">>,
+         <<"Max-Forwards">>,
+         <<"Content-Type">>,
+         <<"Route">>,
+         <<"Record-Route">>,
+         <<"Allow">>,
+         <<"Supported">>,
+         <<"Unsupported">>,
+         <<"Require">>,
+         <<"Proxy-Require">>,
+         <<"p-custom-header">>
         ],
-    [ test_print_form(Name) || Name <- PrintForms ].
+    [test_print_form(Name) || Name <- PrintForms].
 
 %%%===================================================================
 %%% Helpers

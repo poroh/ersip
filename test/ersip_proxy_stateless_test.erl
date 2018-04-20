@@ -18,130 +18,130 @@
 
 branch_generation_rfc3261_test() ->
     Msg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 INVITE"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg2 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg3 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK1234"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK1234"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     three_message_check(Msg1, Msg2, Msg3),
     ok.
 
 branch_generation_rfc2543_test() ->
     Msg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 INVITE"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg2 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg3 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=canged_tag_1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=canged_tag_1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     three_message_check(Msg1, Msg2, Msg3),
     ok.
 
 branch_generation_rfc2543_with_branch_test() ->
     Msg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 INVITE"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg2 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     Msg3 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=canged_tag_1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 ACK"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=rfc2543branch"
+             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=canged_tag_1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+             ?crlf "CSeq: 314159 ACK"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4"
+             ?crlf ?crlf "Test"
+           >>,
     three_message_check(Msg1, Msg2, Msg3),
     ok.
 

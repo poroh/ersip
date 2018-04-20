@@ -8,8 +8,8 @@
 
 -module(ersip_hdr_names).
 
--export([ compact_form/1,
-          print_form/1
+-export([compact_form/1,
+         print_form/1
         ]).
 
 %%%===================================================================
@@ -18,12 +18,12 @@
 
 %% @doc transform header to its compact form
 -spec compact_form(HeaderName) -> binary() when
-      HeaderName :: { lower, binary() }
+      HeaderName :: {lower, binary()}
                   | binary().
-compact_form({ lower, HeaderName }) when is_binary(HeaderName) ->
+compact_form({lower, HeaderName}) when is_binary(HeaderName) ->
     compact_form_map(HeaderName);
 compact_form(HeaderName) when is_binary(HeaderName) ->
-    compact_form({ lower, ersip_bin:to_lower(HeaderName) }).
+    compact_form({lower, ersip_bin:to_lower(HeaderName)}).
 
 -spec print_form(LowerHeaderName :: binary()) -> binary().
 print_form(LowerHeaderName) ->

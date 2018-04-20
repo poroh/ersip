@@ -23,7 +23,7 @@ parse_test() ->
     ok.
 
 option_tag_test() ->
-    ?assertError({ error, _ }, ersip_option_tag:make(<<"^">>)).
+    ?assertError({error, _}, ersip_option_tag:make(<<"^">>)).
 
 %%%===================================================================
 %%% Helpers
@@ -37,9 +37,9 @@ create(Bin) ->
 
 parse_success(Bin) ->
     OpttagListH = create(Bin),
-    { ok, OpttagList } = ersip_hdr_opttag_list:parse(OpttagListH),
+    {ok, OpttagList} = ersip_hdr_opttag_list:parse(OpttagListH),
     OpttagList.
 
 parse_fail(Bin) ->
     OpttagListH = create(Bin),
-    ?assertMatch({ error, _ }, ersip_hdr_opttag_list:parse(OpttagListH)).
+    ?assertMatch({error, _}, ersip_hdr_opttag_list:parse(OpttagListH)).

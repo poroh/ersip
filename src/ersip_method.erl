@@ -8,42 +8,42 @@
 
 -module(ersip_method).
 
--export([ parse/1,
-          make/1,
-          to_binary/1
+-export([parse/1,
+         make/1,
+         to_binary/1
         ]).
--export_type([ method/0 ]).
+-export_type([method/0]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--type method() :: { method, binary() }.
+-type method() :: {method, binary()}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec parse(binary()) ->  { ok, method() }
-                        | { error, Error } when
-      Error :: { invalid_method, binary() }.
+-spec parse(binary()) ->  {ok, method()}
+                              | {error, Error} when
+      Error :: {invalid_method, binary()}.
 parse(Bin) ->
     case ersip_parser_aux:check_token(Bin) of
         true ->
-            { ok, { method, Bin } };
+            {ok, {method, Bin}};
         false ->
-            { error, { invalid_method, Bin } }
+            {error, {invalid_method, Bin}}
     end.
 
 -spec to_binary(method()) -> binary().
-to_binary({ method, Bin }) ->
+to_binary({method, Bin}) ->
     Bin.
 
 -spec make(binary()) -> method(). 
 make(Bin) ->
     case parse(Bin) of
-        { ok, M } ->
+        {ok, M} ->
             M;
-        { error, _ } = Error ->
+        {error, _} = Error ->
             error(Error)
     end.

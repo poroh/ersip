@@ -17,10 +17,10 @@
 is_emtpy_test() ->
     ?assertEqual(true, ersip_iolist:is_empty(<<>>)),
     ?assertEqual(true, ersip_iolist:is_empty([])),
-    ?assertEqual(true, ersip_iolist:is_empty([ <<>> ])),
-    ?assertEqual(true, ersip_iolist:is_empty([ [], <<>> ])),
-    ?assertEqual(true, ersip_iolist:is_empty([ [], [<<>>] ])),
-    ?assertEqual(true, ersip_iolist:is_empty([ [], [] ])).
+    ?assertEqual(true, ersip_iolist:is_empty([<<>>])),
+    ?assertEqual(true, ersip_iolist:is_empty([[], <<>>])),
+    ?assertEqual(true, ersip_iolist:is_empty([[], [<<>>]])),
+    ?assertEqual(true, ersip_iolist:is_empty([[], []])).
 
 trim_head_lws_test() ->
     ?assertEqual([], ersip_iolist:trim_head_lws([<<>>])),

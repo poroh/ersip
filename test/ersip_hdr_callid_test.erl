@@ -36,17 +36,17 @@ parse_test() ->
     parse_fail(<<"a@b,c@d">>).
 
 make_test() ->
-    ?assertError({ error, _ }, ersip_hdr_callid:make(<<"a@@b">>)),
+    ?assertError({error, _}, ersip_hdr_callid:make(<<"a@@b">>)),
     H = create_header(<<"a@@b">>),
-    ?assertError({ error, _ }, ersip_hdr_callid:make(H)),
+    ?assertError({error, _}, ersip_hdr_callid:make(H)),
     H1 = create_header(<<"a@b">>),
     ?assertEqual(make(<<"a@b">>), ersip_hdr_callid:make(H1)),
     EmptyH1 = ersip_hdr:new(<<"Call-ID">>),
-    ?assertError({ error, no_callid }, ersip_hdr_callid:make(EmptyH1)).
+    ?assertError({error, no_callid}, ersip_hdr_callid:make(EmptyH1)).
 
 make_key_test() ->
     ?assertEqual(make(<<"a@b">>), ersip_hdr_callid:make_key(make(<<"a@b">>))).
-    
+
 reassemble_test() ->
     reassemble(<<"a@b">>),
     reassemble(<<"a">>),
@@ -54,10 +54,10 @@ reassemble_test() ->
 
 build_test() ->
     CallIdH = create_header(<<"a@b">>),
-    { ok, CallId } = ersip_hdr_callid:parse(CallIdH),
+    {ok, CallId} = ersip_hdr_callid:parse(CallIdH),
     ?assertEqual(CallIdH, ersip_hdr_callid:build(<<"Call-ID">>, CallId)).
-    
-    
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -74,11 +74,11 @@ parse_call_id(Bin) ->
     ersip_hdr_callid:parse(CallIDH).
 
 parse_success(Bin) ->
-    ?assertEqual({ ok, make(Bin) }, parse_call_id(Bin)).
+    ?assertEqual({ok, make(Bin)}, parse_call_id(Bin)).
 
 parse_fail(Bin) ->
-    ?assertMatch({ error, _ }, parse_call_id(Bin)).
-    
+    ?assertMatch({error, _}, parse_call_id(Bin)).
+
 reassemble(Bin) ->
     CallId = make(Bin),
     ?assertEqual(Bin, iolist_to_binary(ersip_hdr_callid:assemble(CallId))).

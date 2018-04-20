@@ -18,69 +18,69 @@
 
 uas_transaction_id_rfc3261_equal_test() ->
     InviteMsg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-      ?crlf "Max-Forwards: 70"
-      ?crlf "To: Bob <sip:bob@biloxi.com>"
-      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
-      ?crlf "CSeq: 314159 INVITE"
-      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-      ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 0"
-      ?crlf ?crlf
-          >>,
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314159 INVITE"
+                   ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     InviteMsg2 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-      ?crlf "Max-Forwards: 70"
-      ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
-      ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
-      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
-      ?crlf "CSeq: 314160 INVITE"
-      ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
-      ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 0"
-      ?crlf ?crlf
-          >>,
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314160 INVITE"
+                   ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     InviteMsg3 = <<"ACK sip:bob@biloxi.com SIP/2.0"
-      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-      ?crlf "Max-Forwards: 70"
-      ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
-      ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
-      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
-      ?crlf "CSeq: 314160 ACK"
-      ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
-      ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 0"
-      ?crlf ?crlf
-          >>,
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314160 ACK"
+                   ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     ?assertEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg2)),
     ?assertEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg3)).
 
 uas_transaction_id_rfc3261_not_equal_test() ->
     InviteMsg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-      ?crlf "Max-Forwards: 70"
-      ?crlf "To: Bob <sip:bob@biloxi.com>"
-      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
-      ?crlf "CSeq: 314159 INVITE"
-      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-      ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 0"
-      ?crlf ?crlf
-          >>,
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314159 INVITE"
+                   ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     InviteMsg2 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds_1"
-      ?crlf "Max-Forwards: 70"
-      ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
-      ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
-      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
-      ?crlf "CSeq: 314160 INVITE"
-      ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
-      ?crlf "Content-Type: application/sdp"
-      ?crlf "Content-Length: 0"
-      ?crlf ?crlf
-          >>,
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds_1"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314160 INVITE"
+                   ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     ?assertNotEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg2)).
 
 
@@ -131,7 +131,7 @@ uas_transaction_id_rfc2543_equal_without_branch_test() ->
                  calc_uas_trans_id(AckMsg)).
 
 uas_transaction_id_rfc2543_non_invite_test() ->
-   Register0 =
+    Register0 =
         <<"REGISTER sip:bell-tel.com SIP/2.0" ?crlf
           "Via: SIP/2.0/UDP saturn.bell-tel.com" ?crlf
           "From: sip:watson@bell-tel.com" ?crlf
@@ -141,7 +141,7 @@ uas_transaction_id_rfc2543_non_invite_test() ->
           "Contact: <sip:watson@saturn.bell-tel.com:3890;transport=udp>" ?crlf
           "Expires: 7200" ?crlf
           "" ?crlf>>,
-   Register1 =
+    Register1 =
         <<"REGISTER sip:bell-tel.com SIP/2.0" ?crlf
           "Via: SIP/2.0/UDP saturn.bell-tel.com" ?crlf
           "From: sip:watson@bell-tel.com" ?crlf
@@ -160,8 +160,8 @@ uas_transaction_id_rfc2543_non_invite_test() ->
 
 make_sipmsg(Binary) ->
     P  = ersip_parser:new_dgram(Binary),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, all),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     SipMsg.
 
 calc_uas_trans_id(Binary) ->

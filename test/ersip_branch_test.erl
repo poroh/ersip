@@ -76,7 +76,7 @@ assert_not_equal(Bin1, Bin2) ->
 make_key(Bin) ->
     Branch = ersip_branch:make(Bin),
     ersip_branch:make_key(Branch).
-    
+
 check_reassemble(Binary) ->
     Branch = ersip_branch:make(Binary),
     ?assertEqual(Binary, iolist_to_binary(ersip_branch:assemble(Branch))).

@@ -45,7 +45,7 @@ copy_hdr_test() ->
             ?crlf ?crlf "Test"
           >>,
     SipMsg2 = parse_sip_message(MsgBin2),
-    SipMsg3 = ersip_siphdr:copy_headers([ from, to, maxforwards, callid ],
+    SipMsg3 = ersip_siphdr:copy_headers([from, to, maxforwards, callid],
                                         SipMsg, SipMsg2),
 
     MaxForwards = ersip_sipmsg:get(maxforwards, SipMsg3),
@@ -79,6 +79,6 @@ set_hdr_test() ->
 
 parse_sip_message(Bin) ->
     P  = ersip_parser:new_dgram(Bin),
-    { {ok, PMsg}, _P2 } = ersip_parser:parse(P),
-    { ok, SipMsg } = ersip_sipmsg:parse(PMsg, [ from, to, maxforwards ]),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, [from, to, maxforwards]),
     SipMsg.

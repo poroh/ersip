@@ -16,11 +16,11 @@
 
 as_integer_test() ->
     H0 = ersip_hdr:new(<<"Content-Length">>),
-    H1 = ersip_hdr:add_value([ <<"1">>, <<"0">> ], H0),
+    H1 = ersip_hdr:add_value([<<"1">>, <<"0">>], H0),
     ?assertEqual({ok, 10}, ersip_hdr:as_integer(H1)),
     %% For headers that are proteced from separation by ",":
     CommaProtectedHeader = ersip_hdr:new(<<"www-authenticate">>),
-    CommaProtectedHeader1 = ersip_hdr:add_value([ <<"1">>, <<"0">> ], CommaProtectedHeader),
+    CommaProtectedHeader1 = ersip_hdr:add_value([<<"1">>, <<"0">>], CommaProtectedHeader),
     ?assertEqual({ok, 10}, ersip_hdr:as_integer(CommaProtectedHeader1)).
 
 make_key_test() ->
@@ -30,13 +30,13 @@ make_key_test() ->
 
 serialize_headers_test() ->
     ClH0 = ersip_hdr:new(<<"Content-Length">>),
-    ClH1 = ersip_hdr:add_value([ <<"1">>, <<"0">> ], ClH0),
+    ClH1 = ersip_hdr:add_value([<<"1">>, <<"0">>], ClH0),
     ?assertEqual(<<"Content-Length: 10">>, serialize_to_bin(ClH1)),
 
     Via0 = ersip_hdr:new(<<"Via">>),
     Via1 = ersip_hdr:add_values(
-             [ <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>,
-               <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>
+             [<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>,
+              <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>
              ],
              Via0),
     ?assertEqual(<<"Via: SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1\r\n"
@@ -46,18 +46,18 @@ serialize_headers_test() ->
 comma_split_test() ->
     H0 = ersip_hdr:new(<<"route">>),
     H1 = ersip_hdr:add_values(
-           [ <<"<sip:alice@atlanta.com>">>,
-             <<"<sip:bob@biloxi.com>">>,
-             <<"<sip:carol@chicago.com>">>
+           [<<"<sip:alice@atlanta.com>">>,
+            <<"<sip:bob@biloxi.com>">>,
+            <<"<sip:carol@chicago.com>">>
            ],
            H0),
     H2 = ersip_hdr:add_values(
-           [ <<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>">>,
-             <<"<sip:carol@chicago.com>">>
+           [<<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>">>,
+            <<"<sip:carol@chicago.com>">>
            ],
            H0),
     H3 = ersip_hdr:add_values(
-           [ <<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>, <sip:carol@chicago.com>">>
+           [<<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>, <sip:carol@chicago.com>">>
            ],
            H0),
     ?assertEqual(H1, H2),
@@ -66,9 +66,9 @@ comma_split_test() ->
 allow_compact_test() ->
     H0 = ersip_hdr:new(<<"Allow">>),
     H1 = ersip_hdr:add_values(
-           [ <<"ACK">>,
-             <<"INVITE">>,
-             <<"OPTIONS">>
+           [<<"ACK">>,
+            <<"INVITE">>,
+            <<"OPTIONS">>
            ],
            H0),
     ?assertEqual(<<"Allow: ACK, INVITE, OPTIONS">>,
@@ -77,8 +77,8 @@ allow_compact_test() ->
 contact_test() ->
     H0 = ersip_hdr:new(<<"Contact">>),
     H1 = ersip_hdr:add_values(
-           [ <<"sip:a@b">>,
-             <<"sip:a@c">>
+           [<<"sip:a@b">>,
+            <<"sip:a@c">>
            ],
            H0),
     ?assertEqual(<<"Contact: sip:a@b\r\n"
@@ -90,7 +90,7 @@ allow_empty_test() ->
     H1 = ersip_hdr:add_values(
            [],
            H0),
-    ?assertEqual(<<"A: B">>, serialize_to_bin_append(H1, [ <<"A: B">> ])).
+    ?assertEqual(<<"A: B">>, serialize_to_bin_append(H1, [<<"A: B">>])).
 
 no_split_exceptions_test() ->
     %% The exceptions to this rule are the WWW-Authenticate,
@@ -131,4 +131,4 @@ serialize_to_bin_append(Header, Src) ->
 check_no_comma_split(HeaderName, Value) ->
     H0 = ersip_hdr:new(HeaderName),
     H1 = ersip_hdr:add_value(Value, H0),
-    ?assertEqual([ Value ], ersip_hdr:raw_values(H1)).
+    ?assertEqual([Value], ersip_hdr:raw_values(H1)).

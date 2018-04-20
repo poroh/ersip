@@ -24,8 +24,8 @@ is_empty_test() ->
 
 first_and_last_test() ->
     Empty = ersip_route_set:new(),
-    ?assertError({ error, _ }, ersip_route_set:last(Empty)),
-    ?assertError({ error, _ }, ersip_route_set:first(Empty)),
+    ?assertError({error, _}, ersip_route_set:last(Empty)),
+    ?assertError({error, _}, ersip_route_set:first(Empty)),
     Route1 = ersip_hdr_route:make_route(<<"<sip:a@b>">>),
     Len1 = ersip_route_set:add_first(Route1, Empty),
     ?assertEqual(Route1, ersip_route_set:last(Len1)),
@@ -37,7 +37,7 @@ first_and_last_test() ->
     ?assertEqual(Route2, ersip_route_set:first(Len2)),
 
     ?assertEqual(Len1, ersip_route_set:remove_first(Len2)),
-    ?assertError({ error, _ }, ersip_route_set:remove_first(Empty)),
-    ?assertError({ error, _ }, ersip_route_set:remove_last(Empty)),
+    ?assertError({error, _}, ersip_route_set:remove_first(Empty)),
+    ?assertError({error, _}, ersip_route_set:remove_last(Empty)),
     ok.
-    
+

@@ -9,12 +9,12 @@
 -module(ersip_bin).
 -include("ersip_sip_abnf.hrl").
 
--export([ to_lower/1,
-          to_upper/1,
-          trim_lws/1,
-          trim_head_lws/1,
-          trim_tail_lws/1,
-          unquote_rfc_2396/1
+-export([to_lower/1,
+         to_upper/1,
+         trim_lws/1,
+         trim_head_lws/1,
+         trim_tail_lws/1,
+         unquote_rfc_2396/1
         ]).
 
 %%%===================================================================
@@ -55,7 +55,7 @@ trim_tail_lws(Bin) ->
     LastChar = binary:at(Bin, Len-1),
     case LastChar of
         Char when ?is_LWS_char(Char)->
-            trim_tail_lws(binary:part(Bin, { 0, Len-1 }));
+            trim_tail_lws(binary:part(Bin, {0, Len-1}));
         _ ->
             Bin
     end.
@@ -87,9 +87,9 @@ unquote_rfc_2396_iter(<<$%, Hex1/utf8, Hex2/utf8, Rest/binary>>, Acc)
        ((Hex2 >= $0 andalso Hex2 =< $9)
         orelse (Hex2 >= $A andalso Hex2 =< $F)
         orelse (Hex2 >= $a andalso Hex2 =< $f)) ->
-    unquote_rfc_2396_iter(Rest, [ update_hex(update_hex(0, Hex1), Hex2) | Acc ]);
+    unquote_rfc_2396_iter(Rest, [update_hex(update_hex(0, Hex1), Hex2) | Acc]);
 unquote_rfc_2396_iter(<<C/utf8, Rest/binary>>, Acc) ->
-    unquote_rfc_2396_iter(Rest, [ C | Acc ]).
+    unquote_rfc_2396_iter(Rest, [C | Acc]).
 
 %% @private
 %% @doc Helper for makeing HEX HEX to the character value

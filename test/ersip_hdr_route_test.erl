@@ -42,10 +42,24 @@ bad_middle_test() ->
     H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>,?,<sip:bob@biloxi.com>">>, H),
     ?assertMatch({error, _}, ersip_hdr_route:parse(H1)).
 
+route_with_inval_lr_test() ->
+    Route = topmost_route(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(Route)),
+    RouteWithExt = topmost_route(<<"<sip:alice@atlanta.com>;extension=1">>),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(RouteWithExt)),
+    ?assertEqual([{<<"extension">>, <<"1">>}], ersip_hdr_route:params(RouteWithExt)),
+    RouteWithInvalLR = topmost_route(<<"<sip:alice@atlanta.com>;lr">>),
+    URIWithInvalLR = ersip_hdr_route:uri(RouteWithInvalLR),
+    ?assertEqual(#{}, ersip_uri:params(URIWithInvalLR)),
+    ok.
+
 invalid_rr_param_test() ->
     H = ersip_hdr:new(<<"Route">>),
-    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x">>, H),
-    ?assertMatch({error, _}, ersip_hdr_route:parse(H1)).
+    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x&">>, H),
+    ?assertMatch({error, _}, ersip_hdr_route:parse(H1)),
+    H2 = ersip_hdr:new(<<"Route">>),
+    H3 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x&=x">>, H2),
+    ?assertMatch({error, _}, ersip_hdr_route:parse(H3)).
 
 empty_route_test() ->
     H = ersip_hdr:new(<<"Route">>),
@@ -56,6 +70,7 @@ empty_route_test() ->
 rebuild_route_test() ->
     rebuild(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
     rebuild(<<"<sip:alice@atlanta.com>;test=1,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
+    rebuild(<<"<sip:alice@atlanta.com>;lr">>),
     rebuild(<<"<sip:alice@atlanta.com>">>).
 
 %%%===================================================================

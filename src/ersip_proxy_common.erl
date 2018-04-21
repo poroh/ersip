@@ -169,7 +169,7 @@ forward_request(Target, SipMsg, ProxyParams) ->
 %% parsing".
 -spec val_reasonable_syntax(ersip_msg:message(), validate_options()) -> validate_result().
 val_reasonable_syntax(RawMessage, Options) ->
-    case ersip_sipmsg:parse(RawMessage, [maxforwards, proxy_require]) of
+    case ersip_sipmsg:parse(RawMessage, [maxforwards, proxy_require, record_route, route]) of
         {ok, _SipMsg} = R ->
             R;
         {error, _} = ParseError ->

@@ -138,7 +138,9 @@ assemble_route(#route{} = Route) ->
           } = Route,
     [ersip_nameaddr:assemble(DN, URI),
      lists:map(fun({Key, Value}) when is_binary(Value) ->
-                       [<<";">>, Key, <<"=">>, Value]
+                       [<<";">>, Key, <<"=">>, Value];
+                  ({Key, novalue})  ->
+                       [<<";">>, Key]
                end,
                ParamsList)
     ].
@@ -153,7 +155,21 @@ parse_route_params(Bin) ->
                                 <<";">>,
                                 Bin).
 
+-spec route_params_validator(binary(), binary() | novalue) -> Result when
+      Result :: {ok, {binary(), novalue}}
+              | {ok, {binary(), binary()}}
+              | {error, {invalid_rr_param, binary()}}.
+route_params_validator(Key, novalue) ->
+    case ersip_parser_aux:check_token(Key) of
+        true ->
+            {ok, {Key, novalue}};
+        false ->
+            {error, {invalid_rr_param, Key}}
+    end;
 route_params_validator(Key, Value) when is_binary(Value) ->
-    {ok, {Key, Value}};
-route_params_validator(Key, Value) ->
-    {error, {invalid_rr_param, {Key, Value}}}.
+    case ersip_parser_aux:check_token(Key) of
+        true ->
+            {ok, {Key, Value}};
+        false ->
+            {error, {invalid_rr_param, Key}}
+    end.

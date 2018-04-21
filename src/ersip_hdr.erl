@@ -16,6 +16,7 @@
          raw_values/1,
          add_topmost/2,
          replace_topmost/2,
+         take_topmost/1,
          serialize_rev_iolist/2,
          as_integer/1
         ]).
@@ -86,6 +87,14 @@ add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
       Value :: iolist().
 replace_topmost(Value, #header{values = [_|Rest]} = H) ->
     H#header{values = [Value | Rest]}.
+
+-spec take_topmost(header()) -> Result when
+      Result :: {ok, Value :: iolist(), header()}
+              | {error, no_header}.
+take_topmost(#header{values = []}) ->
+    {error, no_header};
+take_topmost(#header{values = [V | Rest]} = H) ->
+    {ok, V, H#header{values = Rest}}.
 
 %% @doc serialize header values in reverse iolist If Acc is not empty
 %% then also adds CR LF before adding header. If header has more than

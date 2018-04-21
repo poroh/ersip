@@ -12,7 +12,8 @@
 
 -export([new/6,
          conn_data/2,
-         add_via/3
+         add_via/3,
+         take_via/2
         ]).
 -export_type([sip_conn/0]).
 
@@ -50,7 +51,7 @@ new(LocalAddr, LocalPort, RemoteAddr, RemotePort, SIPTransport, Options) ->
        remote_addr = {ersip_host:make(RemoteAddr), RemotePort},
        transport  = SIPTransport,
        options    = Options,
-       parser     = 
+       parser     =
            case IsDgram of
                false ->
                    ersip_parser:new(ParserOptions);
@@ -60,7 +61,7 @@ new(LocalAddr, LocalPort, RemoteAddr, RemotePort, SIPTransport, Options) ->
       }.
 
 -spec conn_data(binary(), sip_conn()) -> result().
-conn_data(Binary, #sip_conn{parser = undefined} = Conn) -> 
+conn_data(Binary, #sip_conn{parser = undefined} = Conn) ->
     %% Datagram transport
     Parser = ersip_parser:new_dgram(Binary),
     case ersip_parser:parse(Parser) of
@@ -71,17 +72,42 @@ conn_data(Binary, #sip_conn{parser = undefined} = Conn) ->
         {{error, _} = Error, _} ->
             return_se(ersip_conn_se:bad_message(Binary, Error), Conn)
     end;
-conn_data(Binary, #sip_conn{parser = Parser} = Conn) -> 
+conn_data(Binary, #sip_conn{parser = Parser} = Conn) ->
     %% Stream transport
     NewParser = ersip_parser:add_binary(Binary, Parser),
     parse_data({save_parser(NewParser, Conn), []}).
 
 -spec add_via(ersip_msg:message(), ersip_branch:branch(), sip_conn()) -> ersip_msg:message().
-add_via(Msg, Branch, #sip_conn{local_addr =  {LocalAddr, LocalPort}, transport = SIPTransport}) ->
+add_via(Msg, Branch, #sip_conn{local_addr = {LocalAddr, LocalPort}, transport = SIPTransport}) ->
     ViaH = ersip_msg:get(<<"via">>, Msg),
     Via = ersip_hdr_via:new(LocalAddr, LocalPort, SIPTransport, Branch),
     ViaH1 = ersip_hdr:add_topmost(ersip_hdr_via:assemble(Via), ViaH),
     ersip_msg:set_header(ViaH1, Msg).
+
+-spec take_via(ersip_msg:message(), sip_conn()) -> Result when
+      Result :: {ok, ersip_hdr_via:via(), ersip_msg:message()}
+              | {error, no_via}
+              | {error, {bad_via, term()}}
+              | {error, {via_mismatch, binary(), binary()}}.
+take_via(Msg, #sip_conn{} = SIPConn) ->
+    ViaH = ersip_msg:get(<<"via">>, Msg),
+    case ersip_hdr:take_topmost(ViaH) of
+        {error, no_header} ->
+            {error, no_via};
+        {ok, Value, NewViaH} ->
+            case ersip_hdr_via:parse(Value) of
+                {ok, Via} ->
+                    case check_via_match(Via, SIPConn) of
+                        match ->
+                            {ok, Via, ersip_msg:set_header(NewViaH, Msg)};
+                        {mismatch, Expected, Got} ->
+                            {error, {via_mismatch, Expected, Got}}
+                    end;
+                {error, Reason} ->
+                    {error, {bad_via, Reason}}
+            end
+    end.
+
 
 %%%===================================================================
 %%% Internal Implementation
@@ -133,7 +159,7 @@ add_side_effects_to_head({Conn, SideEffect}, SE) ->
     {Conn, SE ++ SideEffect}.
 
 
-%% @doc 
+%% @doc
 %% When the server transport receives a request over any transport, it
 %% MUST examine the value of the "sent-by" parameter in the top Via
 %% header field value.  If the host portion of the "sent-by" parameter
@@ -167,3 +193,37 @@ add_received(Via, ViaH, Conn, Msg) ->
     Via1  = ersip_hdr_via:set_param(received, remote_ip(Conn), Via),
     ViaH1 = ersip_hdr:replace_topmost(ersip_hdr_via:assemble(Via1), ViaH),
     ersip_msg:set_header(ViaH1, Msg).
+
+-spec check_via_match(ersip_hdr_via:via(), sip_conn()) -> Result when
+      Result :: match
+              | {mismatch, Expected :: binary(), Got :: binary()}.
+check_via_match(Via, #sip_conn{local_addr = {LocalAddr, LocalPort}, transport = SIPTransport} = SipConn) ->
+    Match = check_via_match_address(Via, SipConn)
+        andalso check_via_match_transport(Via, SipConn),
+    case Match of
+        true ->
+            match;
+        false ->
+            Expected = ersip_hdr_via:new(LocalAddr, LocalPort, SIPTransport),
+            ExpectedBin = iolist_to_binary(ersip_hdr_via:assemble(Expected)),
+            GotBin = iolist_to_binary(ersip_hdr_via:assemble(Via)),
+            {mismatch, ExpectedBin, GotBin}
+    end.
+
+-spec check_via_match_address(ersip_hdr_via:via(), sip_conn()) -> boolean().
+check_via_match_address(Via, #sip_conn{local_addr = {LocalAddr, LocalPort}}) ->
+    case ersip_hdr_via:sent_by(Via) of
+        {sent_by, LocalAddr, LocalPort} ->
+            true;
+        _ ->
+            false
+    end.
+
+-spec check_via_match_transport(ersip_hdr_via:via(), sip_conn()) -> boolean().
+check_via_match_transport(Via, #sip_conn{transport = SIPTransport}) ->
+    case ersip_hdr_via:sent_protocol(Via) of
+        {sent_protocol, <<"SIP">>, <<"2.0">>, SIPTransport} ->
+            true;
+        _ ->
+            false
+    end.

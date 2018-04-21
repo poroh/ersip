@@ -233,6 +233,162 @@ add_via_test() ->
     ?assertEqual({sent_by, LocalHost, 5061}, ersip_hdr_via:sent_by(TopMost)),
     ?assertEqual({sent_protocol, <<"SIP">>, <<"2.0">>, UDP}, ersip_hdr_via:sent_protocol(TopMost)).
 
+take_via_test() ->
+    %% Check taking via from response.
+    LocalIP  = {127, 0, 0, 2},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "Via: SIP/2.0/UDP 127.0.0.2:5061;branch=z9hG4bKhjhs8ass877" ?crlf
+           " ;received=192.0.2.4" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    Result = ersip_conn:take_via(RawMsg, Conn1),
+    ?assertMatch({ok, _, _}, Result),
+    {ok, Via, RawMsgNoVia} = Result,
+    %% 1. Smoke check of taken Via:
+    LocalHost = ersip_host:make(<<"127.0.0.2">>),
+    ?assertEqual({sent_by, LocalHost, 5061}, ersip_hdr_via:sent_by(Via)),
+    %% 2. Check no via after take
+    check_no_via(RawMsgNoVia),
+    ok.
+
+take_via_neg_no_via_test() ->
+    %% Check that error is returned if no via in response.
+    LocalIP  = {127, 0, 0, 2},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    %% Note that it is synthetic test. We cannot get message without
+    %% Via from connection.
+    RawMsg = parse_msg(Msg),
+    Result = ersip_conn:take_via(RawMsg, Conn),
+    ?assertMatch({error, no_via}, Result),
+    ok.
+
+take_via_neg_bad_via_test() ->
+    %% Check that error is returned if via is malformed.
+    LocalIP  = {127, 0, 0, 2},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "Via: SIP/2.0/UDP 127.0.0.2:5061&branch=z9hG4bKhjhs8ass877" ?crlf
+           " ;received=192.0.2.4" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    %% Note that it is synthetic test. We cannot get message with bad
+    %% topmost Via from connection.
+    RawMsg = parse_msg(Msg),
+    Result = ersip_conn:take_via(RawMsg, Conn),
+    ?assertMatch({error, {bad_via, _}}, Result),
+    ok.
+
+take_via_neg_host_mismatch_test() ->
+    %% Check that error returned if host in via does not match
+    %% connection.
+    LocalIP  = {127, 0, 0, 2},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "Via: SIP/2.0/UDP 127.0.1.2:5061;branch=z9hG4bKhjhs8ass877" ?crlf
+           " ;received=192.0.2.4" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    Result = ersip_conn:take_via(RawMsg, Conn1),
+    ?assertMatch({error, {via_mismatch, _, _}}, Result),
+    ok.
+
+take_via_neg_transport_mismatch_test() ->
+    %% Check that error returned if transport in sent-protocol does
+    %% not match connection.
+    LocalIP  = {127, 0, 0, 2},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5061, RemoteIP, 5060, UDP, #{}),
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "Via: SIP/2.0/TCP 127.0.0.2:5061;branch=z9hG4bKhjhs8ass877" ?crlf
+           " ;received=192.0.2.4" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    Result = ersip_conn:take_via(RawMsg, Conn1),
+    ?assertMatch({error, {via_mismatch, _, _}}, Result),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -263,3 +419,8 @@ parse_msg(Msg) ->
     P  = ersip_parser:new_dgram(Msg),
     {{ok, RawMsg}, _P2} = ersip_parser:parse(P),
     RawMsg.
+
+check_no_via(RawMsgNoVia) ->
+    ViaH = ersip_msg:get(<<"via">>, RawMsgNoVia),
+    ?assertEqual({error, no_via}, ersip_hdr_via:topmost_via(ViaH)).
+

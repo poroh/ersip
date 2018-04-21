@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_via).
 
--export([new/4,
+-export([new/3,
+         new/4,
          topmost_via/1,
          sent_protocol/1,
          params/1,
@@ -17,7 +18,8 @@
          sent_by/1,
          sent_by_key/1,
          make_key/1,
-         assemble/1
+         assemble/1,
+         parse/1
         ]).
 
 -export_type([via/0,
@@ -45,6 +47,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport()) -> via().
+new(Address, Port, Transport) ->
+    #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
+         sent_by = {sent_by, Address, Port},
+         via_params = #{}
+        }.
 
 -spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
 new(Address, Port, Transport, Branch) ->
@@ -133,6 +142,10 @@ assemble(#via{} = Via) ->
      end,
      assemble_params(Params)
     ].
+
+-spec parse(iolist()) -> {ok, via()} | {error, term()}.
+parse(IOList) ->
+    parse_via(iolist_to_binary(IOList)).
 
 %%%===================================================================
 %%% Internal implementation

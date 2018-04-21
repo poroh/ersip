@@ -76,12 +76,13 @@
            record_route_uri => ersip_uri:uri()
          }.
 
--type forward_result() :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
-                           ForwardOptions :: forward_options()
-                          }.
+-type forward_result()  :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
+                            ForwardOptions :: forward_options()
+                           }.
 -type forward_options() :: #{nexthop => ersip_sipmsg:uri(),
                              routing => strict | loose
                             }.
+
 
 %%%===================================================================
 %%% API
@@ -151,6 +152,7 @@ forward_request(Target, SipMsg, ProxyParams) ->
                  fun fwd_check_record_route/3,
                  fun fwd_determine_nexhop/3
                 ]).
+
 
 %%%===================================================================
 %%% Internal Implementation
@@ -657,3 +659,5 @@ strict_router_workaround({SipMsg0, FwdOpts}) ->
     SipMsg1 = ersip_sipmsg:set_ruri(FirstRouteURI, SipMsg0),
     SipMsg2 = ersip_sipmsg:set(route, RouteSet2, SipMsg1),
     {SipMsg2, FwdOpts#{routing => strict}}.
+
+

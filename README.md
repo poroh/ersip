@@ -40,9 +40,9 @@ available.
   + Basic low-level parser (completed)
   + Essential headers support (completed)
   + High-level SIP message (completed)
-  + Stateless proxy support (in-progress)
+  + Stateless proxy support (completed)
      - Request passing (completed)
-     - Response passing (in-progress)
+     - Response passing (completed)
   + Transaction support
      - Transaction table
      - Non-INVITE transaction

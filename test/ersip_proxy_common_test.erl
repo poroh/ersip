@@ -16,6 +16,83 @@
 
 -define(crlf, "\r\n").
 
+stateless_proxy_forward_to_proxy_test() ->
+    %% Checking strict routing information update:
+    %%
+    %% If RURI is this proxy then it must be replaced by value from
+    %% last Route, last Route must be removed from the message.
+    BobURI = <<"sip:bob@biloxi.com">>,
+    ThisProxyURI = <<"sip:this.proxy.org">>,
+    NextProxyURI = <<"sip:next.proxy.org">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Route: <", ThisProxyURI/binary, ">"
+            ?crlf "Route: <", NextProxyURI/binary, ">"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{check_rroute_fun =>
+              fun(URI) ->
+                      ersip_uri:make(ThisProxyURI) == URI
+              end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    Target = ersip_uri:make(NextProxyURI),
+    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOpts),
+    ?assertEqual(Target, NexthopURI),
+    %% Check route has only one element NextProxyURI.
+    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg2)),
+    ok.
+
+stateless_proxy_forward_to_ua_test() ->
+    %% Checking strict routing information update:
+    %%
+    %% If RURI is this proxy then it must be replaced by value from
+    %% last Route, last Route must be removed from the message.
+    BobURI = <<"sip:bob@biloxi.com">>,
+    ThisProxyURI = <<"sip:this.proxy.org">>,
+    %% Check strict-routing message recovery
+    Msg = <<"INVITE ", BobURI/binary, " SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Route: <", ThisProxyURI/binary, ">"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ProxyOpts =
+        #{check_rroute_fun =>
+              fun(URI) ->
+                      ersip_uri:make(ThisProxyURI) == URI
+              end
+         },
+    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    Target = ersip_uri:make(BobURI),
+    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOpts),
+    ?assertEqual(Target, NexthopURI),
+    %% Check route has only one element NextProxyURI.
+    ?assertEqual(ersip_route_set:new(), ersip_sipmsg:get(route, SipMsg2)),
+    ok.
+
+
+
 request_validation_success_test() ->
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -326,6 +403,48 @@ request_validation_proxy_require_cannot_reply_test() ->
     ?assertMatch({error, _}, request_validation(raw_message(Msg))),
     ok.
 
+proxy_params_check_no_check_fun_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
+    ?assertError({error, _},
+                 process_route_info(
+                   raw_message(Msg),
+                   #{record_route_uri => ThisProxyURI
+                    })),
+    ok.
+
+proxy_params_check_no_validate_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
+    %%% Check that invalid options are ignored if no_validate => true
+    process_route_info(
+      raw_message(Msg),
+      #{no_validate => true,
+        record_route_uri => ThisProxyURI
+       }),
+    ok.
 
 process_route_info_strict_routing_test() ->
     %% Checking strict routing information update:
@@ -364,7 +483,6 @@ process_route_info_strict_routing_test() ->
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
     ok.
 
-
 process_route_info_loose_routing_test() ->
     %% Checking loose routing information update:
     %%
@@ -401,7 +519,7 @@ process_route_info_loose_routing_test() ->
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
     ok.
 
-process_route_info_no_rrcecker_test() ->
+process_route_info_no_rr_checker_test() ->
     %% If no record-route detector provided then message is passed
     %% without modifications
     BobURI = <<"sip:bob@biloxi.com">>,
@@ -575,7 +693,9 @@ forward_request_record_route_add_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    ProxyOpts = #{record_route_uri => ThisProxyURI,
+                  check_rroute_fun => fun(X) -> ThisProxyURI == X end
+                 },
     {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
@@ -601,7 +721,9 @@ forward_request_record_route_append_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    ProxyOpts = #{record_route_uri => ThisProxyURI,
+                  check_rroute_fun => fun(X) -> ThisProxyURI == X end
+                 },
     {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
@@ -632,7 +754,9 @@ forward_request_record_route_append_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sips:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    ProxyOpts = #{record_route_uri => ThisProxyURI,
+                  check_rroute_fun => fun(X) -> X == ThisProxyURI end
+                 },
     _ = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ok.
 
@@ -657,7 +781,9 @@ forward_request_record_route_append_not_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI},
+    ProxyOpts = #{record_route_uri => ThisProxyURI,
+                  check_rroute_fun => fun(X) -> X == ThisProxyURI end
+                 },
     ?assertError({error, _}, forward_request(BobURI, raw_message(Msg), ProxyOpts)),
     ok.
 
@@ -817,6 +943,7 @@ forward_request_to_loose_router_test() ->
     %% RURI is set tp StrictRouterURI
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ok.
+
 
 %%%===================================================================
 

@@ -38,7 +38,11 @@
 -type reply_or_error() :: reply()
                         | {error, term()}.
 -type proxy_params() ::
-        #{%% If 'allow' option is set then proxy is restricted to pass
+        #{
+           %% Prevent options validation (may increase performance
+           %% after debug finish.
+           no_validate => boolean(),
+           %% If 'allow' option is set then proxy is restricted to pass
            %% only methods that are included in this set. If proxy
            %% replies on OPTIONS request it adds Allow header to
            %% expose this restrictions.
@@ -122,6 +126,7 @@ request_validation(RawMessage, Options) ->
 -spec process_route_info(ersip_sipmsg:sipmsg(), proxy_params()) ->
                                 ersip_sipmsg:sipmsg().
 process_route_info(SipMsg, ProxyParams) ->
+    validate_proxy_params(ProxyParams),
     lists:foldl(fun(RIFun, Message) ->
                         RIFun(Message, ProxyParams)
                 end,
@@ -139,6 +144,7 @@ process_route_info(SipMsg, ProxyParams) ->
 -spec forward_request(Target, ersip_sipmsg:sipmsg(), proxy_params()) -> forward_result() when
       Target :: ersip_uri:uri().
 forward_request(Target, SipMsg, ProxyParams) ->
+    validate_proxy_params(ProxyParams),
     FwdResult = {SipMsg, #{routing => loose}},
     lists:foldl(fun(FWDFun, Result) ->
                         FWDFun(Target, Result, ProxyParams)
@@ -591,9 +597,8 @@ fwd_determine_nexhop(_Target, {SipMsg, #{routing := loose} = FwdOpts}, _ProxyOpt
     %% value in the Route header field, if present, else the
     %% Request-URI.
     NexthopURI =
-        case ersip_sipmsg:find(route, SipMsg) of
-            {ok, RouteSet} ->
-                Route = ersip_route_set:first(RouteSet),
+        case first_route_from_route_set(SipMsg) of
+            {ok, Route} ->
                 ersip_hdr_route:uri(Route);
             not_found ->
                 ersip_sipmsg:ruri(SipMsg)
@@ -604,9 +609,8 @@ fwd_determine_nexhop(_Target, {SipMsg, #{routing := loose} = FwdOpts}, _ProxyOpt
 nexthop_scheme_is(Scheme, SipMsg) ->
     RURISchemeMatch = Scheme == ersip_uri:scheme(ersip_sipmsg:ruri(SipMsg)),
     TopRouteScemeMatch =
-        case ersip_sipmsg:find(route, SipMsg) of
-            {ok, RouteSet} ->
-                TopRoute = ersip_route_set:first(RouteSet),
+        case first_route_from_route_set(SipMsg) of
+            {ok, TopRoute} ->
                 Scheme == ersip_uri:scheme(ersip_hdr_route:uri(TopRoute));
             not_found ->
                 false
@@ -619,11 +623,10 @@ maybe_strict_router_workaround({SipMsg, _} = FwdResult) ->
     %% If the copy contains a Route header field, the proxy MUST
     %% inspect the URI in its first value.  If that URI does not
     %% contain an lr parameter, the proxy MUST modify the copy
-    case ersip_sipmsg:find(route, SipMsg) of
+    case first_route_from_route_set(SipMsg) of
         not_found ->
             FwdResult;
-        {ok, RouteSet} ->
-            FirstRoute = ersip_route_set:first(RouteSet),
+        {ok, FirstRoute} ->
             URIParams  = ersip_uri:params(ersip_hdr_route:uri(FirstRoute)),
             case maps:is_key(lr, URIParams) of
                 false ->
@@ -633,7 +636,22 @@ maybe_strict_router_workaround({SipMsg, _} = FwdResult) ->
                     strict_router_workaround(FwdResult);
                 true ->
                     FwdResult
+            end
+    end.
 
+-spec first_route_from_route_set(ersip_sipmsg:sipmsg()) -> Result when
+      Result :: not_found
+              | {ok, ersip_hdr_route:route()}.
+first_route_from_route_set(SipMsg) ->
+    case ersip_sipmsg:find(route, SipMsg) of
+        not_found ->
+            not_found;
+        {ok, RouteSet} ->
+            case ersip_route_set:is_empty(RouteSet) of
+                true ->
+                    not_found;
+                false ->
+                    {ok, ersip_route_set:first(RouteSet)}
             end
     end.
 
@@ -661,3 +679,15 @@ strict_router_workaround({SipMsg0, FwdOpts}) ->
     {SipMsg2, FwdOpts#{routing => strict}}.
 
 
+-spec validate_proxy_params(proxy_params()) -> ok.
+validate_proxy_params(#{no_validate := true}) ->
+    ok;
+validate_proxy_params(ProxyParams) ->
+    case ProxyParams of
+        #{record_route_uri := _, check_rroute_fun := _} ->
+            ok;
+        #{record_route_uri := _} ->
+            error({error, {required_proxy_option, check_rroute_fun}});
+        _ ->
+            ok
+    end.

@@ -34,14 +34,14 @@
 %%%===================================================================
 
 -spec new(ersip_status:code()) -> options().
-new(Status) when is_integer(Status) 
+new(Status) when is_integer(Status)
                  andalso Status >= 100
                  andalso Status =< 699 ->
     #options{status = Status}.
 
 -spec new(ersip_status:code(), Params) -> options() when
-      Params :: [param_pair()].         
-new(Status, Params) when is_integer(Status) 
+      Params :: [param_pair()].
+new(Status, Params) when is_integer(Status)
                          andalso Status >= 100
                          andalso Status =< 699 ->
     Opts0 = #options{status = Status},
@@ -50,7 +50,7 @@ new(Status, Params) when is_integer(Status)
                 Params).
 
 -spec status(#options{}) -> ersip_status:code().
-status(#options{status = Status}) -> 
+status(#options{status = Status}) ->
     Status.
 
 -spec reason(#options{}) -> binary().
@@ -71,4 +71,3 @@ add_param({to_tag, Tag}, #options{} = Opts) ->
     Opts#options{to_tag = Tag};
 add_param({reason, Reason}, #options{} = Opts) ->
     Opts#options{reason = Reason}.
-

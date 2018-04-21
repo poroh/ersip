@@ -9,7 +9,8 @@
 -module(ersip_conn_se).
 
 -export([bad_message/2,
-         new_message/1,
+         new_request/1,
+         new_response/2,
          disconnect/1
         ]).
 
@@ -32,9 +33,13 @@
 bad_message(Error, Data) ->
     {bad_message, Error, Data}.
 
--spec new_message(ersip_msg:message()) -> {new_message, ersip_msg:message()}.
-new_message(Message) ->
-    {new_message, Message}.
+-spec new_request(ersip_msg:message()) -> {new_request, ersip_msg:message()}.
+new_request(Message) ->
+    {new_request, Message}.
+
+-spec new_response(ersip_hdr_via:via(), ersip_msg:message()) -> {new_response, ersip_msg:message()}.
+new_response(Via, Message) ->
+    {new_response, Via, Message}.
 
 -spec disconnect({error, term()}) -> side_effect().
 disconnect(Error) ->

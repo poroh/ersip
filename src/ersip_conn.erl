@@ -128,12 +128,31 @@ save_parser(Parser, SipConn) ->
 
 -spec receive_raw(ersip_msg:message(), sip_conn()) -> result().
 receive_raw(Msg, #sip_conn{} = Conn) ->
+    case ersip_msg:get(type, Msg) of
+        request ->
+            receive_request(Msg, Conn);
+        response ->
+            receive_response(Msg, Conn)
+    end.
+
+-spec receive_request(ersip_msg:message(), sip_conn()) -> result().
+receive_request(Msg, Conn) ->
     case maybe_add_received(Msg, Conn) of
         {ok, NewMsg} ->
             NewMsgWithSrc = ersip_msg:set_source(source(Conn), NewMsg),
-            {Conn, [ersip_conn_se:new_message(NewMsgWithSrc)]};
+            {Conn, [ersip_conn_se:new_request(NewMsgWithSrc)]};
         {error, _} = Error ->
             return_se(ersip_conn_se:bad_message(Msg, Error), Conn)
+    end.
+
+-spec receive_response(ersip_msg:message(), sip_conn()) -> result().
+receive_response(Msg, Conn) ->
+    case take_via(Msg, Conn) of
+        {ok, Via, NewMsg} ->
+            NewMsgWithSrc = ersip_msg:set_source(source(Conn), NewMsg),
+            {Conn, [ersip_conn_se:new_response(Via, NewMsgWithSrc)]};
+        {error, _} = Error ->
+            {Conn, [ersip_conn_se:bad_message(Msg, Error)]}
     end.
 
 -spec parse_data(result()) -> result().

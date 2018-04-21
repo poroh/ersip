@@ -47,6 +47,15 @@ is_tls_test() ->
     ?assertEqual(false, ersip_transport:is_tls(make_transport(tcp))),
     ?assertError({error, _}, ersip_transport:is_tls(make_transport(<<"unknowntranport">>))).
 
+is_reliable_test() ->
+    ?assertEqual(false,  ersip_transport:is_reliable(make_transport(udp))),
+    ?assertEqual(true,   ersip_transport:is_reliable(make_transport(ws))),
+    ?assertEqual(true,   ersip_transport:is_reliable(make_transport(wss))),
+    ?assertEqual(true,   ersip_transport:is_reliable(make_transport(tls))),
+    ?assertEqual(true,   ersip_transport:is_reliable(make_transport(tcp))),
+    ?assertError({error, _}, ersip_transport:is_reliable(make_transport(<<"unknowntranport">>))).
+
+
 assemble_test() ->
     ?assertEqual(<<"UDP">>, ersip_transport:assemble_upper(make_transport(udp))),
     ?assertEqual(<<"WS">>,  ersip_transport:assemble_upper(make_transport(ws))),

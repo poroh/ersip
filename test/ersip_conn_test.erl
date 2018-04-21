@@ -160,7 +160,7 @@ conn_stream_test() ->
           ?crlf "Content-Length: 4"
           ?crlf ?crlf "Test"
         >>,
-    {_, [{new_message, NewMsg1}, {new_message, NewMsg2}]} = ersip_conn:conn_data(Msgs, Conn),
+    {_, [{new_request, NewMsg1}, {new_request, NewMsg2}]} = ersip_conn:conn_data(Msgs, Conn),
     CallId1H = ersip_msg:get(<<"call-id">>, NewMsg1),
     CallId2H = ersip_msg:get(<<"call-id">>, NewMsg2),
     ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallId1H)),
@@ -193,7 +193,7 @@ conn_stream_no_content_len_test() ->
           ?crlf "Content-Type: application/sdp"
           ?crlf ?crlf "Test"
         >>,
-    {_, [{new_message, NewMsg1}, {disconnect, {error, _}}]} = ersip_conn:conn_data(Msgs, Conn),
+    {_, [{new_request, NewMsg1}, {disconnect, {error, _}}]} = ersip_conn:conn_data(Msgs, Conn),
     CallId1H = ersip_msg:get(<<"call-id">>, NewMsg1),
     ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallId1H)).
 
@@ -257,15 +257,12 @@ take_via_test() ->
            "Content-Type: application/sdp" ?crlf
            "Content-Length: 4" ?crlf ?crlf
            "Test">>,
-    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
-    Result = ersip_conn:take_via(RawMsg, Conn1),
-    ?assertMatch({ok, _, _}, Result),
-    {ok, Via, RawMsgNoVia} = Result,
-    %% 1. Smoke check of taken Via:
+    {_, [{new_response, Via, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    %% 1. Smoke check of Via:
     LocalHost = ersip_host:make(<<"127.0.0.2">>),
     ?assertEqual({sent_by, LocalHost, 5061}, ersip_hdr_via:sent_by(Via)),
-    %% 2. Check no via after take
-    check_no_via(RawMsgNoVia),
+    %% 2. Check no via in response
+    check_no_via(RawMsg),
     ok.
 
 take_via_neg_no_via_test() ->
@@ -353,9 +350,8 @@ take_via_neg_host_mismatch_test() ->
            "Content-Type: application/sdp" ?crlf
            "Content-Length: 4" ?crlf ?crlf
            "Test">>,
-    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
-    Result = ersip_conn:take_via(RawMsg, Conn1),
-    ?assertMatch({error, {via_mismatch, _, _}}, Result),
+    ?assertMatch({_, [{bad_message, _Msg, {error, {via_mismatch, _, _}}}]},
+                 ersip_conn:conn_data(Msg, Conn)),
     ok.
 
 take_via_neg_transport_mismatch_test() ->
@@ -383,9 +379,8 @@ take_via_neg_transport_mismatch_test() ->
            "Content-Type: application/sdp" ?crlf
            "Content-Length: 4" ?crlf ?crlf
            "Test">>,
-    {Conn1, [{new_message, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
-    Result = ersip_conn:take_via(RawMsg, Conn1),
-    ?assertMatch({error, {via_mismatch, _, _}}, Result),
+    ?assertMatch({_, [{bad_message, _Msg, {error, {via_mismatch, _, _}}}]},
+                 ersip_conn:conn_data(Msg, Conn)),
     ok.
 
 
@@ -403,14 +398,14 @@ create_stream_conn(RemoteAddr, RemotePort) ->
 
 
 check_received(RemoteIp, Msg, Conn) ->
-    {_, [{new_message, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
     RemoteHost = ersip_host:make(RemoteIp),
     ?assertMatch(#{received := RemoteHost}, ersip_hdr_via:params(Via)).
 
 check_no_received(Msg, Conn) ->
-    {_, [{new_message, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
     ?assertMatch(error, maps:find(received, ersip_hdr_via:params(Via))).
@@ -423,4 +418,3 @@ parse_msg(Msg) ->
 check_no_via(RawMsgNoVia) ->
     ViaH = ersip_msg:get(<<"via">>, RawMsgNoVia),
     ?assertEqual({error, no_via}, ersip_hdr_via:topmost_via(ViaH)).
-

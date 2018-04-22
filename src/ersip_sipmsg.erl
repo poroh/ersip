@@ -379,13 +379,14 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
         100 ->
             ersip_siphdr:copy_header(to, SipMsg, RSipMsg);
         _ ->
-            NewTo =
+            ToTag =
                 case ersip_reply:to_tag(Reply) of
                     undefined ->
-                        error({error, no_to_tag_specified});
-                    ToTag ->
-                        To = get(to, SipMsg),
-                        ersip_hdr_fromto:set_tag(ToTag, To)
+                        {tag, ersip_id:token(crypto:strong_rand_bytes(8))};
+                    Tag ->
+                        Tag
                 end,
+            To = ersip_sipmsg:get(to, SipMsg),
+            NewTo = ersip_hdr_fromto:set_tag(ToTag, To),
             set(to, NewTo, RSipMsg)
     end.

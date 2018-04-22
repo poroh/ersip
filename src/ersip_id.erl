@@ -39,7 +39,7 @@ token(Bin) ->
 encode(Bin, TokenTab) ->
     encode_impl(Bin, TokenTab, 0, []).
 
--spec encode_impl(binary(), char_table(), non_neg_integer(), list()) -> binary().
+-spec encode_impl(binary(), char_table(), non_neg_integer(), [byte()]) -> binary().
 encode_impl(<<>>, _, 0, L) ->
     list_to_binary(L);
 encode_impl(<<>>, #char_table{size = S, tfun = TF} = CT, X, L) when X < S ->

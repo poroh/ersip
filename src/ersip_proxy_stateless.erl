@@ -36,7 +36,7 @@
 %% field, the Call-ID header field, the CSeq number (but not method),
 %% and the Request-URI from the received request.  One of these fields
 %% will always vary across two different transactions.
--spec branch(ersip_sipmsg:sipmsg()) -> ersip_branch:banch().
+-spec branch(ersip_sipmsg:sipmsg()) -> ersip_branch:branch().
 branch(SipMsg) ->
     TopMostVia = ersip_sipmsg:get(topmost_via, SipMsg),
     case ersip_hdr_via:branch(TopMostVia) of

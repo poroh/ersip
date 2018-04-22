@@ -21,26 +21,31 @@
 %%%===================================================================
 
 %% Bad datagram received.
--type side_effect() :: {bad_message, {error, term()}, binary()}
-                     | {new_message, ersip_msg:message()}
-                     | {disconnect, {error, term()}}.
+-type side_effect() :: bad_message()
+                     | new_request()
+                     | new_response()
+                     | disconnect().
+-type bad_message()  :: {bad_message, Reason :: term(), binary() | ersip_msg:message()}.
+-type new_request()  :: {new_request, ersip_msg:message()}.
+-type new_response() :: {new_response, ersip_hdr_via:via(), ersip_msg:message()}.
+-type disconnect()   :: {disconnect, {error, term()}}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec bad_message({error, term()}, binary() | ersip_msg:message()) -> side_effect().
-bad_message(Error, Data) ->
-    {bad_message, Error, Data}.
+-spec bad_message(binary() | ersip_msg:message(), Reason :: term()) -> bad_message().
+bad_message(Data, Error) ->
+    {bad_message, Data, Error}.
 
--spec new_request(ersip_msg:message()) -> {new_request, ersip_msg:message()}.
+-spec new_request(ersip_msg:message()) -> new_request().
 new_request(Message) ->
     {new_request, Message}.
 
--spec new_response(ersip_hdr_via:via(), ersip_msg:message()) -> {new_response, ersip_msg:message()}.
+-spec new_response(ersip_hdr_via:via(), ersip_msg:message()) -> new_response().
 new_response(Via, Message) ->
     {new_response, Via, Message}.
 
--spec disconnect({error, term()}) -> side_effect().
+-spec disconnect({error, term()}) -> disconnect().
 disconnect(Error) ->
     {disconnect, Error}.

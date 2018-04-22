@@ -83,7 +83,7 @@
 -type forward_result()  :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
                             ForwardOptions :: forward_options()
                            }.
--type forward_options() :: #{nexthop => ersip_sipmsg:uri(),
+-type forward_options() :: #{nexthop => ersip_uri:uri(),
                              routing => strict | loose
                             }.
 

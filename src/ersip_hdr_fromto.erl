@@ -118,8 +118,9 @@ assemble(#fromto{} = FromTo) ->
     DisplayName = display_name(FromTo),
     URI = uri(FromTo),
     NameAddr = ersip_nameaddr:assemble(DisplayName, URI),
-    [NameAddr, assemble_params(params(FromTo))].
-
+    [NameAddr, assemble_params(params(FromTo))];
+assemble({tag, TagBin}) when is_binary(TagBin) ->
+    TagBin.
 
 %%%===================================================================
 %%% Internal Implementation

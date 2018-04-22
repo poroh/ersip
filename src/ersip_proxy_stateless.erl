@@ -71,16 +71,12 @@ branch(SipMsg) ->
 process_response(PrevVia, RawMsg) ->
     case ersip_sipmsg:parse(RawMsg, [topmost_via]) of
         {ok, SipMsg} ->
-            case ersip_sipmsg:find(topmost_via, SipMsg) of
-                not_found ->
-                    {drop, <<"No Via to forward response">>};
-                {ok, Via} ->
-                    case check_via_branch(ersip_hdr_via:branch(PrevVia)) of
-                        match ->
-                            {forward, Via, SipMsg};
-                        mismatch ->
-                            {drop, <<"Via is not match">>}
-                    end
+            Via = ersip_sipmsg:get(topmost_via, SipMsg),
+            case check_via_branch(ersip_hdr_via:branch(PrevVia)) of
+                match ->
+                    {forward, Via, SipMsg};
+                mismatch ->
+                    {drop, via_not_match}
             end;
         {error, _} = Error ->
             {drop, {parse_error, Error}}

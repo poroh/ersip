@@ -58,21 +58,21 @@ make_uas(Message) ->
 -spec make_rfc3261_tid(ersip_hdr_via:via(), ersip_sipmsg:sipmsg()) -> tid_rfc3261().
 make_rfc3261_tid(TopmostVia, Message) ->
     %% The request matches a transaction if:
-    %% 
+    %%
     %%    1. the branch parameter in the request is equal to the one in the
     %%       top Via header field of the request that created the
     %%       transaction, and
-    %% 
+    %%
     %%    2. the sent-by value in the top Via of the request is equal to the
     %%       one in the request that created the transaction, and
-    %% 
+    %%
     %%    3. the method of the request matches the one that created the
     %%       transaction, except for ACK, where the method of the request
     %%       that created the transaction is INVITE.
     Branch    = ersip_hdr_via:branch(TopmostVia),
     SentByKey = ersip_hdr_via:sent_by_key(TopmostVia),
     Method    = ersip_sipmsg:method(Message),
-    EffMethod = 
+    EffMethod =
         case Method of
             {method, <<"ACK">>} -> ersip_method:make(<<"INVITE">>);
             M -> M
@@ -133,13 +133,14 @@ make_rfc2543_tid(TopmostVia, Message) ->
                          cseq        = ersip_hdr_cseq:make_key(CSeq),
                          topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         }
-    end.    
+    end.
 
 %% If the branch parameter in the top Via header field is
 %% not present, or does not contain the magic cookie, the
 %% following procedures are used.  These exist to handle
 %% backwards compatibility with RFC 2543 compliant
 %% implementations.
+-spec is_rfc3261(undefined | ersip_branch:branch()) -> boolean().
 is_rfc3261(undefined) ->
     false;
 is_rfc3261(Branch) ->

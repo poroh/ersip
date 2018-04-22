@@ -19,7 +19,7 @@
 %%% Types
 %%%===================================================================
 
--type result()  :: {uas(), [ersip_uas_fsm_se:effect()]}.
+-type result()  :: {uas(), [ersip_trans_se:effect()]}.
 -type event()   :: enter
                  | retransmit
                  | {send_resp, ersip_status:response_type(), Response :: term()}
@@ -62,7 +62,7 @@ new(Id, ReliableTranport, Request, Options) ->
 %% {send_resp, RespType, message} - send response with defined type.
 %% retransmit                       - message retransmit received by UAC
 %%
-%% Side effects are defined in module ersip_uas_fsm_se
+%% Side effects are defined in module ersip_trans_se
 %%
 -spec event(Event, uas()) -> result() when
       Event :: {timer, timer_j}
@@ -90,8 +90,8 @@ new_impl(Id, Reliable, Request, Options) ->
                options   = maps:merge(?default_options, Options),
                transport = Reliable
               },
-    {UAS, [ersip_uas_fsm_se:new_trans(UAS),
-           ersip_uas_fsm_se:tu_result(Request, id(UAS))]}.
+    {UAS, [ersip_trans_se:new_trans(UAS),
+           ersip_trans_se:tu_result(Request)]}.
 
 %%
 %% Trying state
@@ -107,7 +107,7 @@ new_impl(Id, Reliable, Request, Options) ->
     UAS1 = set_state(fun 'Proceeding'/2, UAS),
     UAS2 = UAS1#uas{last_resp = Resp},
     {UAS3, SideEffects} = process_event(enter, UAS2),
-    {UAS3,  [ersip_uas_fsm_se:send(Resp, id(UAS)) | SideEffects]};
+    {UAS3,  [ersip_trans_se:send(Resp) | SideEffects]};
 'Trying'({send_resp, final, Resp}, UAS) ->
     completed(Resp, UAS).
 
@@ -121,14 +121,14 @@ new_impl(Id, Reliable, Request, Options) ->
     %% while in the "Proceeding" state MUST be passed to the transport
     %% layer for transmission.
     UAS1 = UAS#uas{last_resp = Resp},
-    {UAS1, [ersip_uas_fsm_se:send(Resp, id(UAS))]};
+    {UAS1, [ersip_trans_se:send(Resp)]};
 'Proceeding'({send_resp, final, Resp}, UAS) ->
     completed(Resp, UAS);
 'Proceeding'(retransmit, UAS) ->
     %% If a retransmission of the request is received while in the
     %% "Proceeding" state, the most recently sent provisional response
     %% MUST be passed to the transport layer for retransmission.
-    {UAS, [ersip_uas_fsm_se:send(UAS#uas.last_resp, id(UAS))]}.
+    {UAS, [ersip_trans_se:send(UAS#uas.last_resp)]}.
 
 %%
 %% Completed state
@@ -150,7 +150,7 @@ new_impl(Id, Reliable, Request, Options) ->
 'Completed'(retransmit, UAS) ->
     %% final response to the transport layer for retransmission
     %% whenever a retransmission of the request is received
-    {UAS, [ersip_uas_fsm_se:send(UAS#uas.last_resp, id(UAS))]};
+    {UAS, [ersip_trans_se:send(UAS#uas.last_resp)]};
 'Completed'({send_resp, _, _}, UAS) ->
     %% Any other final responses passed by the TU to the server
     %% transaction MUST be discarded while in the "Completed" state.
@@ -168,7 +168,7 @@ new_impl(Id, Reliable, Request, Options) ->
 'Terminated'(enter, UAS) ->
     %% The server transaction MUST be destroyed the instant it enters
     %% the "Terminated" state
-    {UAS, [ersip_uas_fsm_se:clear_trans(UAS)]}.
+    {UAS, [ersip_trans_se:clear_trans(UAS)]}.
 
 %%
 %% Helpers
@@ -178,7 +178,7 @@ completed(Resp, UAS) ->
     UAS1 = UAS#uas{last_resp = Resp},
     UAS2 = set_state(fun 'Completed'/2, UAS1),
     {UAS3, SideEffects} = process_event(enter, UAS2),
-    {UAS3, [ersip_uas_fsm_se:send(Resp, id(UAS)) | SideEffects]}.
+    {UAS3, [ersip_trans_se:send(Resp) | SideEffects]}.
 
 -spec process_event(Event :: term(), uas()) -> result().
 process_event(Event, #uas{state = StateF} = UAS) ->
@@ -190,4 +190,4 @@ set_state(State, UAS) ->
 
 -spec set_timer_j(pos_integer(), uas()) -> result().
 set_timer_j(Timeout, UAS) ->
-    {UAS, [ersip_uas_fsm_se:set_timer(Timeout, timer_j, id(UAS))]}.
+    {UAS, [ersip_trans_se:set_timer(Timeout, timer_j)]}.

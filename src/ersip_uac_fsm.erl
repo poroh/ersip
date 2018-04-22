@@ -18,7 +18,7 @@
 %%% Types
 %%%===================================================================
 
--type result() :: {uac(), [ersip_uac_fsm_se:effect()]}.
+-type result() :: {uac(), [ersip_trans_se:effect()]}.
 -type clear_reason() :: completed
                       | timeout.
 -type request() :: term().
@@ -116,7 +116,7 @@ new_impl(Id, ReliableTransport, Request, Options) ->
               },
     UAC1 = UAC#uac{timer_e_timeout = ?T1(UAC)},
     {UAC2, SideEffects} =  process_event('enter', UAC1),
-    {UAC2, [ersip_uac_fsm_se:new_trans(UAC2) | SideEffects]}.
+    {UAC2, [ersip_trans_se:new_trans(UAC2) | SideEffects]}.
 
 %%
 %% Trying state
@@ -169,7 +169,7 @@ new_impl(Id, ReliableTransport, Request, Options) ->
             %% SHOULD move to the "Proceeding" state.
             UAC1 = set_state(fun 'Proceeding'/2, UAC),
             {UAC2, SideEffects} = process_event(enter, UAC1),
-            {UAC2, [ersip_uac_fsm_se:tu_result(Msg, id(UAC)) | SideEffects]};
+            {UAC2, [ersip_trans_se:tu_result(Msg) | SideEffects]};
         final ->
             %% If a final response (status codes 200-699) is
             %% received while in the "Trying" state, the
@@ -178,7 +178,7 @@ new_impl(Id, ReliableTransport, Request, Options) ->
             %% "Completed" state.
             UAC1 = set_state(fun 'Completed'/2, UAC),
             {UAC2, SideEffects} = process_event(enter, UAC1),
-            {UAC2, [ersip_uac_fsm_se:tu_result(Msg, id(UAC)) | SideEffects]}
+            {UAC2, [ersip_trans_se:tu_result(Msg) | SideEffects]}
     end.
 
 %%
@@ -224,7 +224,7 @@ new_impl(Id, ReliableTransport, Request, Options) ->
             %% "Completed" state.
             UAC1 = set_state(fun 'Completed'/2, UAC),
             {UAC2, SideEffects} = process_event(enter, UAC1),
-            {UAC2, [ersip_uac_fsm_se:tu_result(Msg, id(UAC)) | SideEffects]}
+            {UAC2, [ersip_trans_se:tu_result(Msg) | SideEffects]}
     end.
 
 %%
@@ -262,7 +262,7 @@ new_impl(Id, ReliableTransport, Request, Options) ->
 'Terminated'(enter, UAC) ->
     %% Once the transaction is in the terminated state, it MUST be
     %% destroyed immediately.
-    {UAC, [ersip_uac_fsm_se:clear_trans(UAC)]}.
+    {UAC, [ersip_trans_se:clear_trans(UAC)]}.
 
 %%
 %% Helpers
@@ -283,9 +283,9 @@ set_state(State, UAC) ->
 process_event(Event, #uac{state = StateF} = UAC) ->
     StateF(Event, UAC).
 
--spec send_request(uac()) -> {ersip_uac_fsm_se:effect(), uac()}.
+-spec send_request(uac()) -> {ersip_trans_se:effect(), uac()}.
 send_request(UAC) ->
-    {ersip_uac_fsm_se:send(UAC#uac.request, id(UAC)), UAC}.
+    {ersip_trans_se:send(UAC#uac.request), UAC}.
 
 -spec maybe_set_timer_e(uac()) -> uac() | result().
 maybe_set_timer_e(#uac{reliable_transport = reliable} = UAC) ->
@@ -294,19 +294,19 @@ maybe_set_timer_e(#uac{reliable_transport = unreliable} = UAC ) ->
     Timeout = UAC#uac.timer_e_timeout,
     set_timer(timer_e, Timeout, UAC).
 
--spec set_timer_f(uac()) -> {ersip_uac_fsm_se:effect(), uac()}.
+-spec set_timer_f(uac()) -> {ersip_trans_se:effect(), uac()}.
 set_timer_f(UAC) ->
     set_timer(timer_f, 64*?T1(UAC), UAC).
 
--spec set_timer_k(uac()) -> {ersip_uac_fsm_se:effect(), uac()}.
+-spec set_timer_k(uac()) -> {ersip_trans_se:effect(), uac()}.
 set_timer_k(#uac{reliable_transport = unreliable} = UAC ) ->
     set_timer(timer_k, ?T4(UAC), UAC).
 
--spec set_timer(timer_type(), pos_integer(), uac()) -> {ersip_uac_fsm_se:effect(), uac()}.
+-spec set_timer(timer_type(), pos_integer(), uac()) -> {ersip_trans_se:effect(), uac()}.
 set_timer(Type, Time, UAC) ->
     TimerRef = {Type, make_ref()},
     TimerFun = make_timer_fun(TimerRef),
-    {ersip_uac_fsm_se:set_timer(Time, TimerFun, id(UAC)), add_timer(TimerRef, UAC)}.
+    {ersip_trans_se:set_timer(Time, TimerFun), add_timer(TimerRef, UAC)}.
 
 -spec add_timer({timer_type(), reference()}, uac()) -> uac().
 add_timer({TimerType, _} = Ref, UAC) ->

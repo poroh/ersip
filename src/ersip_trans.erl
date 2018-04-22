@@ -9,11 +9,13 @@
 -module(ersip_trans).
 -export([id/1]).
 
--type trans() :: ersip_uac_fsm:uac()
-               | ersip_uas_fsm:uas().
--type tid()   :: {tid, ersip_trans_id:transaction_id()}.
+-type trans()  :: ersip_uac_fsm:uac()
+                | ersip_uas_fsm:uas().
+-type tid()    :: {tid, ersip_trans_id:transaction_id()}.
 
--export_type([trans/0, tid/0]).
+-export_type([trans/0,
+              tid/0
+             ]).
 
 %%%===================================================================
 %%% API
@@ -28,7 +30,7 @@ id(Trans) ->
 %%%===================================================================
 
 call_trans_module(FunId, Transaction, Args) ->
-    Module = 
+    Module =
         case classify(Transaction) of
             uac -> ersip_uac_fsm;
             uas -> ersip_uas_fsm

@@ -3,12 +3,12 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% UAC non-invite transaction
+%% Client non-invite transaction
 %%
 %% Pure FSM implementation - transformation events to side effects.
 %%
 
--module(ersip_uac_fsm).
+-module(ersip_trans_client).
 
 -export([new/4, event/2, clear_reason/1, id/1]).
 

@@ -1,14 +1,14 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% UAS non-invite transaction
+%% Server non-INVITE transaction
 %%
 %% Pure FSM implementation - transformation events to side effects.
 %%
 
--module(ersip_uas_fsm).
+-module(ersip_trans_server).
 
 -export([new/4,
          event/2,

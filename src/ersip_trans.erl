@@ -32,8 +32,8 @@ id(Trans) ->
 call_trans_module(FunId, Transaction, Args) ->
     Module =
         case classify(Transaction) of
-            uac -> ersip_uac_fsm;
-            uas -> ersip_uas_fsm
+            uac -> ersip_trans_client;
+            uas -> ersip_trans_server
         end,
     erlang:apply(Module, FunId, Args).
 

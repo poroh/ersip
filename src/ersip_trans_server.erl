@@ -13,34 +13,35 @@
 -export([new/4,
          event/2,
          id/1]).
--export_type([uas/0]).
+-export_type([trans_server/0
+             ]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--type result()  :: {uas(), [ersip_trans_se:effect()]}.
+-type result()  :: {trans_server(), [ersip_trans_se:effect()]}.
 -type event()   :: enter
                  | retransmit
                  | {send_resp, ersip_status:response_type(), Response :: term()}
-                 | {timer, TimerFun :: fun((uas()) -> result())}.
+                 | {timer, TimerFun :: fun((trans_server()) -> result())}.
 -type request()  :: term().
 -type response() :: term().
 
--record(uas, {id                         :: ersip_trans:tid(),
-              state     = fun 'Trying'/2 :: fun((event(), uas()) -> result()),
-              last_resp = undefined      :: response() | undefined,
-              transport                  :: reliable | unreliable,
-              options                    :: ersip:uas_options()
-             }).
+-record(trans_server, {id                         :: ersip_trans:tid(),
+                       state     = fun 'Trying'/2 :: fun((event(), trans_server()) -> result()),
+                       last_resp = undefined      :: response() | undefined,
+                       transport                  :: reliable | unreliable,
+                       options                    :: ersip:sip_options()
+                      }).
 
--type uas() :: #uas{}.
+-type trans_server() :: #trans_server{}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-%% @doc Create new UAS transaction. Result of creation is UAS state
+%% @doc Create new ServerTrans transaction. Result of creation is ServerTrans state
 %% and set of side effects that produced because of creation.
 %%
 %% Request is not interpretted in any way.
@@ -48,13 +49,13 @@
       Id       :: ersip_trans:tid(),
       Reliable :: reliable | unreliable,
       Request  :: request(),
-      Options  :: ersip:uas_options().
+      Options  :: ersip:sip_options().
 new(Id, ReliableTranport, Request, Options) ->
     new_impl(Id, ReliableTranport, Request, Options).
 
-%% @doc Process event by UAS.
+%% @doc Process event by ServerTrans.
 %%
-%% Function retuns new UAS state and side effects that must be done by
+%% Function retuns new ServerTrans state and side effects that must be done by
 %% caller.
 %%
 %% Defined events:
@@ -64,14 +65,14 @@ new(Id, ReliableTranport, Request, Options) ->
 %%
 %% Side effects are defined in module ersip_trans_se
 %%
--spec event(Event, uas()) -> result() when
+-spec event(Event, trans_server()) -> result() when
       Event :: {timer, timer_j}
              | {send_resp, ersip_status:response_type(), response()}
              | retransmit.
-event(Evt, UAS) ->
-    process_event(Evt, UAS).
+event(Evt, ServerTrans) ->
+    process_event(Evt, ServerTrans).
 
-id(#uas{id = X}) ->
+id(#trans_server{id = X}) ->
     X.
 
 %%%===================================================================
@@ -80,114 +81,114 @@ id(#uas{id = X}) ->
 
 -define(default_options,
         #{sip_t1 => 500}).
--define(T1(UAS), maps:get(sip_t1, UAS#uas.options)).
+-define(T1(ServerTrans), maps:get(sip_t1, ServerTrans#trans_server.options)).
 
 new_impl(Id, Reliable, Request, Options) ->
     %% The state machine is initialized in the "Trying" state and is
     %% passed a request other than INVITE or ACK when initialized.
     %% This request is passed up to the TU.
-    UAS = #uas{id        = Id,
+    ServerTrans = #trans_server{id        = Id,
                options   = maps:merge(?default_options, Options),
                transport = Reliable
               },
-    {UAS, [ersip_trans_se:new_trans(UAS),
+    {ServerTrans, [ersip_trans_se:new_trans(ServerTrans),
            ersip_trans_se:tu_result(Request)]}.
 
 %%
 %% Trying state
 %%
-'Trying'(retransmit, UAS) ->
+'Trying'(retransmit, ServerTrans) ->
     %% Once in the "Trying" state, any further request
     %% retransmissions are discarded.
-    {UAS, []};
-'Trying'({send_resp, provisional, Resp}, UAS) ->
+    {ServerTrans, []};
+'Trying'({send_resp, provisional, Resp}, ServerTrans) ->
     %% While in the "Trying" state, if the TU passes a provisional
     %% response to the server transaction, the server transaction MUST
     %% enter the "Proceeding" state.
-    UAS1 = set_state(fun 'Proceeding'/2, UAS),
-    UAS2 = UAS1#uas{last_resp = Resp},
-    {UAS3, SideEffects} = process_event(enter, UAS2),
-    {UAS3,  [ersip_trans_se:send(Resp) | SideEffects]};
-'Trying'({send_resp, final, Resp}, UAS) ->
-    completed(Resp, UAS).
+    ServerTrans1 = set_state(fun 'Proceeding'/2, ServerTrans),
+    ServerTrans2 = ServerTrans1#trans_server{last_resp = Resp},
+    {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
+    {ServerTrans3,  [ersip_trans_se:send(Resp) | SideEffects]};
+'Trying'({send_resp, final, Resp}, ServerTrans) ->
+    completed(Resp, ServerTrans).
 
 %%
 %% Proceeding state
 %%
-'Proceeding'(enter, UAS) ->
-    {UAS, []};
-'Proceeding'({send_resp, provisional, Resp}, UAS) ->
+'Proceeding'(enter, ServerTrans) ->
+    {ServerTrans, []};
+'Proceeding'({send_resp, provisional, Resp}, ServerTrans) ->
     %% Any further provisional responses that are received from the TU
     %% while in the "Proceeding" state MUST be passed to the transport
     %% layer for transmission.
-    UAS1 = UAS#uas{last_resp = Resp},
-    {UAS1, [ersip_trans_se:send(Resp)]};
-'Proceeding'({send_resp, final, Resp}, UAS) ->
-    completed(Resp, UAS);
-'Proceeding'(retransmit, UAS) ->
+    ServerTrans1 = ServerTrans#trans_server{last_resp = Resp},
+    {ServerTrans1, [ersip_trans_se:send(Resp)]};
+'Proceeding'({send_resp, final, Resp}, ServerTrans) ->
+    completed(Resp, ServerTrans);
+'Proceeding'(retransmit, ServerTrans) ->
     %% If a retransmission of the request is received while in the
     %% "Proceeding" state, the most recently sent provisional response
     %% MUST be passed to the transport layer for retransmission.
-    {UAS, [ersip_trans_se:send(UAS#uas.last_resp)]}.
+    {ServerTrans, [ersip_trans_se:send(ServerTrans#trans_server.last_resp)]}.
 
 %%
 %% Completed state
 %%
-'Completed'(enter, UAS) ->
+'Completed'(enter, ServerTrans) ->
     %% When the server transaction enters the "Completed" state, it
     %% MUST set Timer J to fire in 64*T1 seconds for unreliable
     %% transports, and zero seconds for reliable transports.
-    case UAS#uas.transport of
+    case ServerTrans#trans_server.transport of
         reliable ->
             %% The server transaction remains in this state until
             %% Timer J fires, at which point it MUST transition to the
             %% "Terminated" state.
-            UAS1 = set_state(fun 'Terminated'/2, UAS),
-            process_event(enter, UAS1);
+            ServerTrans1 = set_state(fun 'Terminated'/2, ServerTrans),
+            process_event(enter, ServerTrans1);
         unreliable ->
-            set_timer_j(64 * ?T1(UAS), UAS)
+            set_timer_j(64 * ?T1(ServerTrans), ServerTrans)
     end;
-'Completed'(retransmit, UAS) ->
+'Completed'(retransmit, ServerTrans) ->
     %% final response to the transport layer for retransmission
     %% whenever a retransmission of the request is received
-    {UAS, [ersip_trans_se:send(UAS#uas.last_resp)]};
-'Completed'({send_resp, _, _}, UAS) ->
+    {ServerTrans, [ersip_trans_se:send(ServerTrans#trans_server.last_resp)]};
+'Completed'({send_resp, _, _}, ServerTrans) ->
     %% Any other final responses passed by the TU to the server
     %% transaction MUST be discarded while in the "Completed" state.
-    {UAS, []};
-'Completed'({timer, timer_j}, UAS) ->
+    {ServerTrans, []};
+'Completed'({timer, timer_j}, ServerTrans) ->
     %% The server transaction remains in this state until
     %% Timer J fires, at which point it MUST transition to the
     %% "Terminated" state.
-    UAS1 = set_state(fun 'Terminated'/2, UAS),
-    process_event(enter, UAS1).
+    ServerTrans1 = set_state(fun 'Terminated'/2, ServerTrans),
+    process_event(enter, ServerTrans1).
 
 %%
 %% Terminated state
 %%
-'Terminated'(enter, UAS) ->
+'Terminated'(enter, ServerTrans) ->
     %% The server transaction MUST be destroyed the instant it enters
     %% the "Terminated" state
-    {UAS, [ersip_trans_se:clear_trans(UAS)]}.
+    {ServerTrans, [ersip_trans_se:clear_trans(ServerTrans)]}.
 
 %%
 %% Helpers
 %%
--spec completed(response(), uas()) -> result().
-completed(Resp, UAS) ->
-    UAS1 = UAS#uas{last_resp = Resp},
-    UAS2 = set_state(fun 'Completed'/2, UAS1),
-    {UAS3, SideEffects} = process_event(enter, UAS2),
-    {UAS3, [ersip_trans_se:send(Resp) | SideEffects]}.
+-spec completed(response(), trans_server()) -> result().
+completed(Resp, ServerTrans) ->
+    ServerTrans1 = ServerTrans#trans_server{last_resp = Resp},
+    ServerTrans2 = set_state(fun 'Completed'/2, ServerTrans1),
+    {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
+    {ServerTrans3, [ersip_trans_se:send(Resp) | SideEffects]}.
 
--spec process_event(Event :: term(), uas()) -> result().
-process_event(Event, #uas{state = StateF} = UAS) ->
-    StateF(Event, UAS).
+-spec process_event(Event :: term(), trans_server()) -> result().
+process_event(Event, #trans_server{state = StateF} = ServerTrans) ->
+    StateF(Event, ServerTrans).
 
--spec set_state(fun((Event :: term(), uas()) -> result()), uas()) -> uas().
-set_state(State, UAS) ->
-    UAS#uas{state = State}.
+-spec set_state(fun((Event :: term(), trans_server()) -> result()), trans_server()) -> trans_server().
+set_state(State, ServerTrans) ->
+    ServerTrans#trans_server{state = State}.
 
--spec set_timer_j(pos_integer(), uas()) -> result().
-set_timer_j(Timeout, UAS) ->
-    {UAS, [ersip_trans_se:set_timer(Timeout, timer_j)]}.
+-spec set_timer_j(pos_integer(), trans_server()) -> result().
+set_timer_j(Timeout, ServerTrans) ->
+    {ServerTrans, [ersip_trans_se:set_timer(Timeout, timer_j)]}.

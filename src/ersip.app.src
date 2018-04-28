@@ -5,7 +5,8 @@
   {mod, { ersip_app, []}},
   {applications,
    [kernel,
-    stdlib
+    stdlib,
+    crypto
    ]},
   {env,[]},
   {modules, []},

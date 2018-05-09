@@ -54,7 +54,7 @@
                           to           => ersip_hdr_fromto:fromto(),
                           callid       => ersip_hdr_callid:callid(),
                           cseq         => ersip_hdr_cseq:cseq(),
-                          maxforwards  => pos_integer(),
+                          maxforwards  => ersip_hdr_maxforwards:maxforwards(),
                           topmost_via  => ersip_hdr_via:via()
                          }.
 

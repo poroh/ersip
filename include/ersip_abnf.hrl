@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% RFC2234 ABNF for Syntax Specifications 
+%% RFC2234 ABNF for Syntax Specifications
 %% Useful syntax defines
 %%
 
@@ -15,4 +15,3 @@
 
 %% HEXDIG         =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
 -define(is_HEXDIG(X), (?is_DIGIT(X) orelse (X >= $A andalso X =< $F))).
-

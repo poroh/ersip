@@ -11,18 +11,13 @@
 -include_lib("eunit/include/eunit.hrl").
 
 uac_reliable_test() ->
-    Tid = <<"transaction id">>,
-    {ClientTrans0, SideEffects0} = ersip_trans_client:new(Tid, reliable, message, #{}),
+    {ClientTrans0, SideEffects0} = ersip_trans_client:new(reliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
-    %% New transaction is created:
-    ?assertMatch(ClientTrans0, maps:get(new_trans, SideEffectsMap0)),
     %% Message is sent
     ?assertMatch(message, maps:get(send, SideEffectsMap0)),
     %% Transaction timer is set:
     ?assertMatch({32000, _}, maps:get(set_timer, SideEffectsMap0)),
     {_, TransactionTimer} = maps:get(set_timer, SideEffectsMap0),
-    %% ID is set:
-    ?assertEqual(Tid, ersip_trans_client:id(ClientTrans0)),
 
     %% Branch 1: (No reply at all)
     %% Check transaction timer fired:
@@ -77,19 +72,14 @@ uac_reliable_test() ->
     ?assertEqual(completed, ersip_trans_client:clear_reason(ClientTrans_5_1)).
 
 uac_unreliable_test() ->
-    Tid = <<"transaction unrel id">>,
-    {ClientTrans0, SideEffects0} = ersip_trans_client:new(Tid, unreliable, message, #{}),
+    {ClientTrans0, SideEffects0} = ersip_trans_client:new(unreliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
-    %% New transaction is created:
-    ?assertMatch(ClientTrans0, maps:get(new_trans, SideEffectsMap0)),
     %% Message is sent
     ?assertMatch(message, maps:get(send, SideEffectsMap0)),
     %% Transaction timer is set:
     [{500,   RetransmitTimer},
      {32000, TransactionTimer}
     ] = lists:sort(proplists:get_all_values(set_timer, SideEffects0)),
-    %% ID is set:
-    ?assertEqual(Tid, ersip_trans_client:id(ClientTrans0)),
 
     %% --------------------
     %% Branch 1: (No reply at all)

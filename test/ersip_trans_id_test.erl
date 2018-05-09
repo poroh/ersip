@@ -16,7 +16,7 @@
 %%% Cases
 %%%===================================================================
 
-uas_transaction_id_rfc3261_equal_test() ->
+server_transaction_id_rfc3261_equal_test() ->
     InviteMsg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
                    ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
                    ?crlf "Max-Forwards: 70"
@@ -53,10 +53,10 @@ uas_transaction_id_rfc3261_equal_test() ->
                    ?crlf "Content-Length: 0"
                    ?crlf ?crlf
                  >>,
-    ?assertEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg2)),
-    ?assertEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg3)).
+    ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(InviteMsg2)),
+    ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(InviteMsg3)).
 
-uas_transaction_id_rfc3261_not_equal_test() ->
+server_transaction_id_rfc3261_not_equal_test() ->
     InviteMsg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
                    ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
                    ?crlf "Max-Forwards: 70"
@@ -81,10 +81,10 @@ uas_transaction_id_rfc3261_not_equal_test() ->
                    ?crlf "Content-Length: 0"
                    ?crlf ?crlf
                  >>,
-    ?assertNotEqual(calc_uas_trans_id(InviteMsg1), calc_uas_trans_id(InviteMsg2)).
+    ?assertNotEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(InviteMsg2)).
 
 
-uas_transaction_id_rfc2543_equal_test() ->
+server_transaction_id_rfc2543_equal_test() ->
     InviteMsg =
         <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
           "Via:     SIP/2.0/UDP sip.ieee.org ;branch=1" ?crlf
@@ -104,10 +104,10 @@ uas_transaction_id_rfc2543_equal_test() ->
           "Call-ID: 31415@c.bell-tel.com" ?crlf
           "CSeq:    1 ACK" ?crlf
           "" ?crlf>>,
-    ?assertEqual(calc_uas_trans_id(InviteMsg),
-                 calc_uas_trans_id(AckMsg)).
+    ?assertEqual(calc_server_trans_id(InviteMsg),
+                 calc_server_trans_id(AckMsg)).
 
-uas_transaction_id_rfc2543_equal_without_branch_test() ->
+server_transaction_id_rfc2543_equal_without_branch_test() ->
     InviteMsg =
         <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
           "Via:     SIP/2.0/UDP sip.ieee.org" ?crlf
@@ -127,10 +127,10 @@ uas_transaction_id_rfc2543_equal_without_branch_test() ->
           "Call-ID: 31415@c.bell-tel.com" ?crlf
           "CSeq:    1 ACK" ?crlf
           "" ?crlf>>,
-    ?assertEqual(calc_uas_trans_id(InviteMsg),
-                 calc_uas_trans_id(AckMsg)).
+    ?assertEqual(calc_server_trans_id(InviteMsg),
+                 calc_server_trans_id(AckMsg)).
 
-uas_transaction_id_rfc2543_non_invite_test() ->
+server_transaction_id_rfc2543_non_invite_test() ->
     Register0 =
         <<"REGISTER sip:bell-tel.com SIP/2.0" ?crlf
           "Via: SIP/2.0/UDP saturn.bell-tel.com" ?crlf
@@ -151,8 +151,8 @@ uas_transaction_id_rfc2543_non_invite_test() ->
           "Contact: <sip:watson@saturn.bell-tel.com:3890;transport=udp>" ?crlf
           "Expires: 200" ?crlf
           "" ?crlf>>,
-    ?assertEqual(calc_uas_trans_id(Register0),
-                 calc_uas_trans_id(Register1)).
+    ?assertEqual(calc_server_trans_id(Register0),
+                 calc_server_trans_id(Register1)).
 
 %%%===================================================================
 %%% Helpers
@@ -164,6 +164,6 @@ make_sipmsg(Binary) ->
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     SipMsg.
 
-calc_uas_trans_id(Binary) ->
+calc_server_trans_id(Binary) ->
     SipMsg = make_sipmsg(Binary),
-    ersip_trans_id:make_uas(SipMsg).
+    ersip_trans_id:make_server(SipMsg).

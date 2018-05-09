@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% RFC3261 SIP ABNF  
+%% RFC3261 SIP ABNF
 %% Useful syntax defines
 %%
 
@@ -16,8 +16,8 @@
 %% mark        =  "-" / "_" / "." / "!" / "~" / "*" / "'"
 %%                 / "(" / ")"
 -define(is_mark(X),
-        (X =:= $- 
-         orelse X =:= $_ 
+        (X =:= $-
+         orelse X =:= $_
          orelse X =:= $.
          orelse X =:= $!
          orelse X =:= $~
@@ -27,7 +27,7 @@
          orelse X =:= $))).
 
 %% unreserved  =  alphanum / mark
--define(is_unreserved(X), (?is_alphanum(X) orelse ?is_mark(X))).    
+-define(is_unreserved(X), (?is_alphanum(X) orelse ?is_mark(X))).
 
 %% user-unreserved  =  "&" / "=" / "+" / "$" / "," / ";" / "?" / "/"
 -define(is_user_unreserved(X),

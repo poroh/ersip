@@ -15,7 +15,7 @@
                %%    destination host does not have a notion of users or when the
                %%    host itself is the resource being identified.  If the @ sign is
                %%    present in a SIP or SIPS URI, the user field MUST NOT be empty.
-               user   = undefined :: undefined  
+               user   = undefined :: undefined
                                    | { user, binary() },
                %% host: The host providing the SIP resource.  The host part contains
                %%    either a fully-qualified domain name or numeric IPv4 or IPv6

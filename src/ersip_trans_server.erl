@@ -10,9 +10,8 @@
 
 -module(ersip_trans_server).
 
--export([new/4,
-         event/2,
-         id/1]).
+-export([new/3,
+         event/2]).
 -export_type([trans_server/0
              ]).
 
@@ -28,8 +27,7 @@
 -type request()  :: term().
 -type response() :: term().
 
--record(trans_server, {id                         :: ersip_trans:tid(),
-                       state     = fun 'Trying'/2 :: fun((event(), trans_server()) -> result()),
+-record(trans_server, {state     = fun 'Trying'/2 :: fun((event(), trans_server()) -> result()),
                        last_resp = undefined      :: response() | undefined,
                        transport                  :: reliable | unreliable,
                        options                    :: ersip:sip_options()
@@ -45,13 +43,12 @@
 %% and set of side effects that produced because of creation.
 %%
 %% Request is not interpretted in any way.
--spec new(Id, Reliable, Request, Options) -> result() when
-      Id       :: ersip_trans:tid(),
+-spec new(Reliable, Request, Options) -> result() when
       Reliable :: reliable | unreliable,
       Request  :: request(),
       Options  :: ersip:sip_options().
-new(Id, ReliableTranport, Request, Options) ->
-    new_impl(Id, ReliableTranport, Request, Options).
+new(ReliableTranport, Request, Options) ->
+    new_impl(ReliableTranport, Request, Options).
 
 %% @doc Process event by ServerTrans.
 %%
@@ -72,9 +69,6 @@ new(Id, ReliableTranport, Request, Options) ->
 event(Evt, ServerTrans) ->
     process_event(Evt, ServerTrans).
 
-id(#trans_server{id = X}) ->
-    X.
-
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
@@ -83,16 +77,15 @@ id(#trans_server{id = X}) ->
         #{sip_t1 => 500}).
 -define(T1(ServerTrans), maps:get(sip_t1, ServerTrans#trans_server.options)).
 
-new_impl(Id, Reliable, Request, Options) ->
+new_impl(Reliable, Request, Options) ->
     %% The state machine is initialized in the "Trying" state and is
     %% passed a request other than INVITE or ACK when initialized.
     %% This request is passed up to the TU.
-    ServerTrans = #trans_server{id        = Id,
-               options   = maps:merge(?default_options, Options),
-               transport = Reliable
-              },
-    {ServerTrans, [ersip_trans_se:new_trans(ServerTrans),
-           ersip_trans_se:tu_result(Request)]}.
+    ServerTrans =
+        #trans_server{options   = maps:merge(?default_options, Options),
+                      transport = Reliable
+                     },
+    {ServerTrans, [ersip_trans_se:tu_result(Request)]}.
 
 %%
 %% Trying state

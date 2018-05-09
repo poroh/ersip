@@ -11,14 +11,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 uas_reliable_test() ->
-    Tid = <<"transaction id">>,
-    {UAS0, SideEffects0} = ersip_trans_server:new(Tid, reliable, message, #{}),
+    {UAS0, SideEffects0} = ersip_trans_server:new(reliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
-    %% New transaction is created:
-    ?assertMatch(UAS0, maps:get(new_trans, SideEffectsMap0)),
     ?assertMatch(message, maps:get(tu_result, SideEffectsMap0)),
-    %% ID is set:
-    ?assertEqual(Tid, ersip_trans_server:id(UAS0)),
 
     %% Branch 1: (Retransmit before provisional response is ignored)
     {UAS0, []} = ersip_trans_server:event(retransmit, UAS0),
@@ -60,14 +55,9 @@ uas_reliable_test() ->
     ?assertMatch(UAS_3_0, maps:get(clear_trans, SideEffectsMap_3_0)).
 
 uas_unreliable_test() ->
-    Tid = <<"unreliable transaction id">>,
-    {UAS0, SideEffects0} = ersip_trans_server:new(Tid, unreliable, message, #{}),
+    {UAS0, SideEffects0} = ersip_trans_server:new(unreliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
-    %% New transaction is created:
-    ?assertMatch(UAS0, maps:get(new_trans, SideEffectsMap0)),
     ?assertMatch(message, maps:get(tu_result, SideEffectsMap0)),
-    %% ID is set:
-    ?assertEqual(Tid, ersip_trans_server:id(UAS0)),
 
     %% Branch 1: (Sending final response without provisional)
     {UAS_1_0, SideEffects_1_0} = ersip_trans_server:event({send_resp, final, resp_msg_final}, UAS0),

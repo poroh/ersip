@@ -10,10 +10,9 @@
 
 -module(ersip_trans_client).
 
--export([new/4,
+-export([new/3,
          event/2,
-         clear_reason/1,
-         id/1
+         clear_reason/1
         ]).
 
 -export_type([trans_client/0,
@@ -30,8 +29,7 @@
                       | timeout.
 -type request() :: term().
 
--record(trans_client, {id                           :: ersip_trans:tid(),
-                       state       = fun 'Trying'/2 :: non_inv_state(),
+-record(trans_client, {state       = fun 'Trying'/2 :: non_inv_state(),
                        request                      :: term(),
                        options                      :: map(),
                        reliable_transport           :: reliable | unreliable,
@@ -50,12 +48,11 @@
 %% creation.
 %%
 %% Request is not interpretted in any way.
--spec new(Id, Transport, Request, ersip:sip_options()) -> result() when
-      Id        :: ersip_trans:tid(),
+-spec new(Transport, Request, ersip:sip_options()) -> result() when
       Transport :: reliable | unreliable,
       Request   :: request().
-new(Id, Transport, Request, Options) ->
-    new_impl(Id, Transport, Request, Options).
+new(Transport, Request, Options) ->
+    new_impl(Transport, Request, Options).
 
 %% @doc Process event by client transaction.
 %%
@@ -76,11 +73,6 @@ event({timer, TimerFun}, ClientTrans) ->
     TimerFun(ClientTrans);
 event(Evt, ClientTrans) ->
     process_event(Evt, ClientTrans).
-
-%% @doc Get tranaction ID.
--spec id(trans_client()) -> ersip_trans:tid().
-id(#trans_client{id = X}) ->
-    X.
 
 %% @doc Get transaction clear reason. It is guaranteed that after
 %% clear_trans side effect tranaction has defined clear reason.
@@ -111,20 +103,17 @@ clear_reason(#trans_client{clear_reason = X}) ->
 -define(T2(ClientTrans), maps:get(sip_t2, ClientTrans#trans_client.options)).
 -define(T4(ClientTrans), maps:get(sip_t4, ClientTrans#trans_client.options)).
 
--spec new_impl(Id, Transport, Request, ersip:sip_options()) -> result() when
-      Id        :: ersip_trans:tid(),
+-spec new_impl(Transport, Request, ersip:sip_options()) -> result() when
       Transport :: reliable | unreliable,
       Request   :: request().
-new_impl(Id, ReliableTransport, Request, Options) ->
-    ClientTrans = #trans_client{id      = Id,
-                                request = Request,
+new_impl(ReliableTransport, Request, Options) ->
+    ClientTrans = #trans_client{request = Request,
                                 options = maps:merge(?default_options, Options),
                                 reliable_transport = ReliableTransport,
                                 state   = fun 'Trying'/2
                                },
     ClientTrans1 = ClientTrans#trans_client{timer_e_timeout = ?T1(ClientTrans)},
-    {ClientTrans2, SideEffects} =  process_event('enter', ClientTrans1),
-    {ClientTrans2, [ersip_trans_se:new_trans(ClientTrans2) | SideEffects]}.
+    process_event('enter', ClientTrans1).
 
 %%
 %% Trying state

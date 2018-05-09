@@ -31,6 +31,7 @@
 -type send()        :: {send,        ersip_sipmsg:sipmsg()}.
 -type set_timer()   :: {set_timer,   {timeout(), TimerEv :: timer_event()}}.
 -type timer_event() :: term().
+
 %%%===================================================================
 %%% API
 %%%===================================================================

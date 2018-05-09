@@ -66,6 +66,22 @@ new(ReliableTranport, Request, Options) ->
       Event :: {timer, timer_j}
              | {send_resp, ersip_status:response_type(), response()}
              | retransmit.
+event({received, SipMsg}, ServerTrans) ->
+    case ersip_sipmsg:type(SipMsg) of
+        request ->
+            %% Only can be the retransmit
+            process_event(retransmit, ServerTrans);
+        response ->
+            error({api_error, <<"response cannot match server transaction">>})
+    end;
+event({send, SipMsg}, ServerTrans) ->
+    case ersip_sipmsg:type(SipMsg) of
+        request ->
+            error({api_error, <<"cannot send request using sever transaction">>});
+        response ->
+            RespType = ersip_status:response_type(ersip_sipmsg:status(SipMsg)),
+            process_event({send_resp, RespType, SipMsg}, ServerTrans)
+    end;
 event(Evt, ServerTrans) ->
     process_event(Evt, ServerTrans).
 

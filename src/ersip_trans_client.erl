@@ -62,6 +62,7 @@ new(Transport, Request, Options) ->
 %% Defined events:
 %% {timer, TimerFun}         - timer alarm that was requested by previous side effect
 %% {resp, RespType, message} - response with type is recieved by client transcation.
+%% {received, SipMsg}        - same as {resp, _, _} but more high level .
 %%
 %% Side effects are defined in module ersip_trans_se
 %%
@@ -71,6 +72,15 @@ new(Transport, Request, Options) ->
       TimerFun :: fun((trans_client()) -> result()).
 event({timer, TimerVal}, ClientTrans) ->
     timer_fired(TimerVal, ClientTrans);
+event({recieved, SipMsg}, ClientTrans) ->
+    case ersip_sipmsg:type(SipMsg) of
+        request ->
+            %% Client transaction cannot match any requests.
+            error({api_error, <<"request cannot match client transaction">>});
+        response ->
+            RespType = ersip_status:response_type(ersip_sipmsg:status(SipMsg)),
+            process_event({resp, RespType, SipMsg}, ClientTrans)
+    end;
 event(Evt, ClientTrans) ->
     process_event(Evt, ClientTrans).
 

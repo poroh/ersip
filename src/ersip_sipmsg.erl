@@ -180,7 +180,9 @@ find(HdrAtom, #sipmsg{headers = H} = Msg) ->
             end
     end.
 
--spec reply(ersip_reply:options(), sipmsg()) -> sipmsg().
+-spec reply(ersip_reply:options() | ersip_status:code(), sipmsg()) -> sipmsg().
+reply(Code, SipMsg) when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
+    reply_impl(ersip_reply:new(Code), SipMsg);
 reply(Reply, SipMsg) ->
     reply_impl(Reply, SipMsg).
 

@@ -9,6 +9,7 @@
 -module(ersip_trans).
 -export([new_server/2,
          new_client/3,
+         event/2,
          id/1]).
 
 -export_type([trans/0,
@@ -68,8 +69,10 @@ new_client(OutReq, Transport, Options) ->
     {Trans, wrap_se_list(SE, Trans)}.
 
 -spec event(trans_event(), trans()) -> result().
-event(Event, Trans) ->
-    call_trans_module(event, Trans, [Event]).
+event(Event, #trans{instance = Instance} = Trans) ->
+    {NewInstance, SE} = call_trans_module(event, Trans, [Event, Instance]),
+    NewTrans = Trans#trans{instance = NewInstance},
+    {NewTrans, wrap_se_list(SE, NewTrans)}.
 
 -spec id(trans()) -> tid().
 id(#trans{id = Id}) ->

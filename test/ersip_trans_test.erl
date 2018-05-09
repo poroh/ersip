@@ -16,41 +16,36 @@
 %%% Cases
 %%%===================================================================
 
-new_server_transaction_test() ->
-    Msg = <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
-            "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
-            "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
-            "To: <sip:1000@192.168.100.11:5060>" ?crlf
-            "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
-            "Call-ID: 1197534344" ?crlf
-            "CSeq: 4 REGISTER" ?crlf
-            "Max-Forwards: 69" ?crlf
-            "Expires: 3600" ?crlf
-            "Content-Length: 0" ?crlf
-            "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
-            "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
-            "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
-            ?crlf>>,
-    SipMsg = create_sipmsg(Msg, make_default_source()),
+server_transaction_new_test() ->
+    SipMsg = default_register_request(),
     {ServerTrans, SE} = ersip_trans:new_server(SipMsg, default_sip_options()),
     ?assertEqual(ersip_trans:id(ServerTrans), ersip_trans_id:make_server(SipMsg)),
-    ?assertEqual([ersip_trans_se:tu_result(SipMsg)], SE).
+    ?assertEqual([ersip_trans_se:tu_result(SipMsg)], SE),
+    ok.
+
+server_transaction_retransmit_test() ->
+    SipMsg = default_register_request(),
+    {ServerTrans, SE} = ersip_trans:new_server(SipMsg, default_sip_options()),
+    ?assertEqual({tu_result, SipMsg}, lists:keyfind(tu_result, 1, SE)),
+    ProvResp = ersip_sipmsg:reply(100, SipMsg),
+    {ServerTrans1, SE1} = ersip_trans:event({send, ProvResp}, ServerTrans),
+    ?assertEqual({send, ProvResp}, lists:keyfind(send, 1, SE1)),
+    %% Received retransmit:
+    {ServerTrans2, SE2} = ersip_trans:event({received, SipMsg}, ServerTrans1),
+    ?assertEqual({send, ProvResp}, lists:keyfind(send, 1, SE2)),
+    %% Send respons on the transaction:
+    FinalResp = ersip_sipmsg:reply(200, SipMsg),
+    {ServerTrans3, SE3} = ersip_trans:event({send, FinalResp}, ServerTrans2),
+    ?assertEqual({send, FinalResp}, lists:keyfind(send, 1, SE3)),
+    %% Received retransmit after final resp:
+    {_ServerTrans4, SE4} = ersip_trans:event({received, SipMsg}, ServerTrans3),
+    %% Final response is retransmitted:
+    ?assertEqual({send, FinalResp}, lists:keyfind(send, 1, SE4)),
+    ok.
+
 
 new_client_transaction_test() ->
-    Msg = <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
-            "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
-            "To: <sip:1000@192.168.100.11:5060>" ?crlf
-            "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
-            "Call-ID: 1197534344" ?crlf
-            "CSeq: 4 REGISTER" ?crlf
-            "Max-Forwards: 69" ?crlf
-            "Expires: 3600" ?crlf
-            "Content-Length: 0" ?crlf
-            "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
-            "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
-            "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
-            ?crlf>>,
-    SipMsg = create_sipmsg(Msg, make_default_source()),
+    SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
     OutReq = ersip_request:new(SipMsg, Branch),
     {ServerTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
@@ -83,4 +78,24 @@ udp_transport() ->
 
 default_sip_options() ->
     #{}.
+
+default_register_request() ->
+    Msg = register_request(),
+    create_sipmsg(Msg, make_default_source()).
+
+register_request() ->
+    <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
+      "To: <sip:1000@192.168.100.11:5060>" ?crlf
+      "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
+      "Call-ID: 1197534344" ?crlf
+      "CSeq: 4 REGISTER" ?crlf
+      "Max-Forwards: 69" ?crlf
+      "Expires: 3600" ?crlf
+      "Content-Length: 0" ?crlf
+      "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
+      "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
+      "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
+      ?crlf>>.
 

@@ -39,20 +39,20 @@ uas_reliable_test() ->
     ?assertMatch(resp_msg_prov_1, maps:get(send, SideEffectsMap_2_1_2)),
 
     %% Branch 2.2: (Final after provisional response)
-    {UAS_2_2_0, SideEffects_2_2_0} = ersip_trans_server:event({send_resp, final, resp_msg_final}, UAS_2_0),
+    {_UAS_2_2_0, SideEffects_2_2_0} = ersip_trans_server:event({send_resp, final, resp_msg_final}, UAS_2_0),
     SideEffectsMap_2_2_0 = maps:from_list(SideEffects_2_2_0),
     %% Final response is sent
     ?assertMatch(resp_msg_final, maps:get(send, SideEffectsMap_2_2_0)),
     %% Transaction is cleared
-    ?assertMatch(UAS_2_2_0, maps:get(clear_trans, SideEffectsMap_2_2_0)),
+    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_2_2_0)),
 
     %% Branch 3: (Sending final response without provisional)
-    {UAS_3_0, SideEffects_3_0} = ersip_trans_server:event({send_resp, final, resp_msg_final}, UAS0),
+    {_UAS_3_0, SideEffects_3_0} = ersip_trans_server:event({send_resp, final, resp_msg_final}, UAS0),
     SideEffectsMap_3_0 = maps:from_list(SideEffects_3_0),
     %% Response with provisional resp:
     ?assertMatch(resp_msg_final, maps:get(send, SideEffectsMap_3_0)),
     %% Transaction is cleared
-    ?assertMatch(UAS_3_0, maps:get(clear_trans, SideEffectsMap_3_0)).
+    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_3_0)).
 
 uas_unreliable_test() ->
     {UAS0, SideEffects0} = ersip_trans_server:new(unreliable, message, #{}),
@@ -74,7 +74,7 @@ uas_unreliable_test() ->
     %% transaction MUST be discarded while in the "Completed" state.
     {UAS_1_1, []} = ersip_trans_server:event({send_resp, final, more_final}, UAS_1_1),
     %% Timer J fired => clear transaction
-    {UAS_1_2, SideEffects_1_2} = ersip_trans_server:event({timer, timer_j}, UAS_1_1),
+    {_UAS_1_2, SideEffects_1_2} = ersip_trans_server:event({timer, timer_j}, UAS_1_1),
     SideEffectsMap_1_2 = maps:from_list(SideEffects_1_2),
     %% Transaction is cleared
-    ?assertMatch(UAS_1_2, maps:get(clear_trans, SideEffectsMap_1_2)).
+    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_1_2)).

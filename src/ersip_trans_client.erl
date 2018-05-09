@@ -69,8 +69,8 @@ new(Transport, Request, Options) ->
       Event :: {timer, TimerFun}
              | {resp, ersip_status:response_type(), term()},
       TimerFun :: fun((trans_client()) -> result()).
-event({timer, TimerFun}, ClientTrans) ->
-    TimerFun(ClientTrans);
+event({timer, TimerVal}, ClientTrans) ->
+    timer_fired(TimerVal, ClientTrans);
 event(Evt, ClientTrans) ->
     process_event(Evt, ClientTrans).
 
@@ -259,7 +259,7 @@ new_impl(ReliableTransport, Request, Options) ->
 'Terminated'(enter, ClientTrans) ->
     %% Once the transaction is in the terminated state, it MUST be
     %% destroyed immediately.
-    {ClientTrans, [ersip_trans_se:clear_trans(ClientTrans)]}.
+    {ClientTrans, [ersip_trans_se:clear_trans()]}.
 
 %%
 %% Helpers
@@ -302,8 +302,8 @@ set_timer_k(#trans_client{reliable_transport = unreliable} = ClientTrans ) ->
 -spec set_timer(timer_type(), pos_integer(), trans_client()) -> {ersip_trans_se:effect(), trans_client()}.
 set_timer(Type, Time, ClientTrans) ->
     TimerRef = {Type, make_ref()},
-    TimerFun = make_timer_fun(TimerRef),
-    {ersip_trans_se:set_timer(Time, TimerFun), add_timer(TimerRef, ClientTrans)}.
+    TimerEvent = make_timer_event(TimerRef),
+    {ersip_trans_se:set_timer(Time, TimerEvent), add_timer(TimerRef, ClientTrans)}.
 
 -spec add_timer({timer_type(), reference()}, trans_client()) -> trans_client().
 add_timer({TimerType, _} = Ref, ClientTrans) ->
@@ -322,13 +322,11 @@ clear_timer(TimerType, #trans_client{timers = Timers} = ClientTrans) ->
             ClientTrans
     end.
 
--spec make_timer_fun(TimerVal) -> TimerFun when
-      TimerFun :: fun((trans_client()) -> result()),
+-spec make_timer_event(TimerVal) -> TimerEvent when
+      TimerEvent :: {timer, TimerVal},
       TimerVal :: {timer_type(), reference()}.
-make_timer_fun(TimerVal) ->
-    fun(ClientTrans) ->
-            timer_fired(TimerVal, ClientTrans)
-    end.
+make_timer_event(TimerVal) ->
+    {timer, TimerVal}.
 
 -spec timer_fired({timer_type(), reference()}, trans_client()) -> result().
 timer_fired(Timer, #trans_client{timers = Timers} = ClientTrans) ->

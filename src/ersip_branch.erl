@@ -10,6 +10,7 @@
 
 -export([make/1,
          make_rfc3261/1,
+         make_random/1,
          make_key/1,
          assemble/1,
          is_rfc3261/1
@@ -29,7 +30,6 @@
 %%% API
 %%%===================================================================
 
-%% @doc Create branch parameter
 -spec make(binary()) -> branch().
 make(Bin) ->
     {branch, Bin}.
@@ -42,6 +42,10 @@ make_rfc3261(Bin) ->
         false ->
             {branch, <<"z9hG4bK", Bin/binary>>}
     end.
+
+-spec make_random(NumBytes :: pos_integer()) -> branch().
+make_random(NumBytes) ->
+    make_rfc3261(ersip_id:token(crypto:strong_rand_bytes(8))).
 
 %% @doc Create comparable key for branch parameter.
 -spec make_key(branch()) -> branch_key().

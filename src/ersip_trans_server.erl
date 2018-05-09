@@ -162,7 +162,7 @@ new_impl(Reliable, Request, Options) ->
 'Terminated'(enter, ServerTrans) ->
     %% The server transaction MUST be destroyed the instant it enters
     %% the "Terminated" state
-    {ServerTrans, [ersip_trans_se:clear_trans(ServerTrans)]}.
+    {ServerTrans, [ersip_trans_se:clear_trans()]}.
 
 %%
 %% Helpers

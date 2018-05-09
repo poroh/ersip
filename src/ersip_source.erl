@@ -11,6 +11,7 @@
 
 -export([new/3,
          source_id/1,
+         transport/1,
          is_tls/1]).
 -export_type([source/0]).
 
@@ -40,6 +41,10 @@ new(Peer, Transport, SourceId) ->
 -spec source_id(source()) -> term().
 source_id(#source{source_id = SId}) ->
     SId.
+
+-spec transport(source()) -> ersip_transport:transport().
+transport(#source{transport = T}) ->
+    T.
 
 -spec is_tls(source()) -> boolean().
 is_tls(#source{transport = T}) ->

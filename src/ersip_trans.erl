@@ -60,7 +60,6 @@ new_client(OutReq, Transport, Options) ->
 id(#trans{id = Id}) ->
     Id.
 
-
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
@@ -82,3 +81,4 @@ transport_type_by_transport(Transport) ->
         false ->
             unreliable
     end.
+

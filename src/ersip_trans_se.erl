@@ -8,11 +8,14 @@
 
 -module(ersip_trans_se).
 
--export([clear_trans/1,
+-export([clear_trans/0,
+         clear_trans/1,
          send/1,
          tu_result/1,
          set_timer/2
         ]).
+
+-export_type([effect/0]).
 
 %%%===================================================================
 %%% Types
@@ -23,22 +26,24 @@
                 | send()
                 | set_timer().
 
--type clear_trans() :: {clear_trans, ersip_trans:trans()}.
+-type clear_trans() :: {clear_trans, ersip_trans_id:transaction_id() | unknown}.
 -type tu_result()   :: {tu_result,   ersip_sipmsg:sipmsg()}.
 -type send()        :: {send,        ersip_sipmsg:sipmsg()}.
--type set_timer()   :: {set_timer,   {timeout(), TimerEv :: term()}}.
-
--export_type([effect/0]).
-
+-type set_timer()   :: {set_timer,   {timeout(), TimerEv :: timer_event()}}.
+-type timer_event() :: term().
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 %% @doc Delete transaction. Transaction must be removed if it saved
 %% somewhere.
--spec clear_trans(ersip_trans:trans()) -> clear_trans().
-clear_trans(Trans) ->
-    {clear_trans, Trans}.
+-spec clear_trans() -> clear_trans().
+clear_trans() ->
+    {clear_trans, unknown}.
+
+-spec clear_trans(ersip_trans_id:transaction_id()) -> clear_trans().
+clear_trans(TransId) ->
+    {clear_trans, TransId}.
 
 %% @doc Inform transaction user about transaction result.
 -spec tu_result(ersip_sipmsg:sipmsg()) -> tu_result().
@@ -51,7 +56,8 @@ send(SipMsg) ->
     {send, SipMsg}.
 
 %% @doc Set timer for specified time interval. After timeout is
-%% expired TimerEv must be sent to the transaction.
--spec set_timer(timeout(), TimerEv :: term()) -> set_timer().
+%% expired TimerFun must be called to process timer event.
+-spec set_timer(timeout(), timer_event()) -> set_timer().
 set_timer(Timeout, TimerEv) ->
     {set_timer, {Timeout, TimerEv}}.
+

@@ -9,6 +9,7 @@
 -module(ersip_request).
 
 -export([new_stateless_proxy/1,
+         new/2,
          branch/1,
          send_via_conn/2
         ]).
@@ -33,6 +34,12 @@
 new_stateless_proxy(SipMsg) ->
     #request{sipmsg = SipMsg,
              branch = ersip_proxy_stateless:branch(SipMsg)
+            }.
+
+-spec new(ersip_sipmsg:sipmsg(), ersip_branch:branch()) -> request().
+new(SipMsg, {branch, _} = Branch) ->
+    #request{sipmsg = SipMsg,
+             branch = Branch
             }.
 
 -spec branch(request()) -> ersip_branch:branch().

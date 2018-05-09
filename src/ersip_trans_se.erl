@@ -51,7 +51,9 @@ tu_result(SipMsg) ->
     {tu_result, SipMsg}.
 
 %% @doc Send message.
--spec send(ersip_sipmsg:sipmsg()) -> send().
+-spec send(RequestOrResp) -> send() when
+      RequestOrResp :: ersip_sipmsg:sipmsg()
+                     | ersip_request:request().
 send(SipMsg) ->
     {send, SipMsg}.
 

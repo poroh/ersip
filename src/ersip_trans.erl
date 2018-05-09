@@ -54,7 +54,7 @@ new_client(OutReq, Transport, Options) ->
                    module = ersip_trans_client,
                    instance = Instance
                   },
-    {Trans, SE}.
+    {Trans, wrap_se_list(SE, Trans)}.
 
 -spec id(trans()) -> tid().
 id(#trans{id = Id}) ->
@@ -81,4 +81,15 @@ transport_type_by_transport(Transport) ->
         false ->
             unreliable
     end.
+
+
+-spec wrap_se_list([ersip_trans_se:effect()], trans()) -> ersip_trans_se:effect().
+wrap_se_list(SideEffects, Trans) ->
+    lists:map(fun(SE) -> wrap_se(SE, Trans) end, SideEffects).
+
+-spec wrap_se(ersip_trans_se:effect(), trans()) -> ersip_trans_se:effect().
+wrap_se({clear_trans, _}, #trans{id = Id}) ->
+    {clear_trans, Id};
+wrap_se(SE, _Trans) ->
+    SE.
 

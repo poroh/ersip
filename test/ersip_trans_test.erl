@@ -55,7 +55,7 @@ new_client_transaction_test() ->
     OutReq = ersip_request:new(SipMsg, Branch),
     {ServerTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
     ?assertEqual(ersip_trans:id(ServerTrans), Branch),
-    %% ?assertEqual([ersip_trans_se:tu_result(SipMsg)], SE),
+    ?assertEqual(ersip_trans_se:send(OutReq), lists:keyfind(send, 1, SE)),
     ok.
 
 %%%===================================================================

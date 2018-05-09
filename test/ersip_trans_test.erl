@@ -43,6 +43,17 @@ server_transaction_retransmit_test() ->
     ?assertEqual({send, FinalResp}, lists:keyfind(send, 1, SE4)),
     ok.
 
+server_transaction_invalid_api_test() ->
+    SipMsg = default_register_request(),
+    {ServerTrans, _} = ersip_trans:new_server(SipMsg, default_sip_options()),
+    ProvResp = ersip_sipmsg:reply(100, SipMsg),
+    %% Check: cannot receive response in server transaction (responses
+    %% cannot match any server transaction).
+    ?assertError({api_error, _}, ersip_trans:event({received, ProvResp}, ServerTrans)),
+    %% Check: cannot send request in server transaction (transaction
+    %% user reply on request).
+    ?assertError({api_error, _}, ersip_trans:event({send, SipMsg}, ServerTrans)),
+    ok.
 
 new_client_transaction_test() ->
     SipMsg = default_register_request(),

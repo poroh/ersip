@@ -55,13 +55,43 @@ server_transaction_invalid_api_test() ->
     ?assertError({api_error, _}, ersip_trans:event({send, SipMsg}, ServerTrans)),
     ok.
 
-new_client_transaction_test() ->
+client_transaction_new_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
     OutReq = ersip_request:new(SipMsg, Branch),
-    {ServerTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
-    ?assertEqual(ersip_trans:id(ServerTrans), Branch),
+    {ClientTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    ?assertEqual(ersip_trans:id(ClientTrans), Branch),
     ?assertEqual(ersip_trans_se:send(OutReq), lists:keyfind(send, 1, SE)),
+    ok.
+
+client_transaction_complete_test() ->
+    SipMsg = default_register_request(),
+    Branch = ersip_branch:make_random(7),
+    OutReq = ersip_request:new(SipMsg, Branch),
+    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    %% Get remote message:
+    RemoteMsg = send_req_via_default_conn(OutReq),
+    %% Make response on remote message:
+    Remote100Trying = ersip_sipmsg:reply(100, RemoteMsg),
+    {ClientTrans1, SE1} = ersip_trans:event({received, Remote100Trying}, ClientTrans),
+    ?assertEqual({tu_result, Remote100Trying}, lists:keyfind(tu_result, 1, SE1)),
+    Remote200OK = ersip_sipmsg:reply(200, RemoteMsg),
+    {ClientTrans2, SE2} = ersip_trans:event({received, Remote200OK}, ClientTrans1),
+    ?assertEqual({tu_result, Remote200OK}, lists:keyfind(tu_result, 1, SE2)),
+    %% Ignore retransmits of response:
+    {_ClientTrans3, SE3} = ersip_trans:event({received, Remote200OK}, ClientTrans2),
+    ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
+    ok.
+
+
+client_transaction_invalid_api_test() ->
+    SipMsg = default_register_request(),
+    Branch = ersip_branch:make_random(7),
+    OutReq = ersip_request:new(SipMsg, Branch),
+    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    %% Get remote message:
+    RemoteMsg = send_req_via_default_conn(OutReq),
+    ?assertError({api_error, _}, ersip_trans:event({received, RemoteMsg}, ClientTrans)),
     ok.
 
 %%%===================================================================
@@ -110,3 +140,9 @@ register_request() ->
       "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
       ?crlf>>.
 
+send_req_via_default_conn(OutReq) ->
+    RemoteMsg = iolist_to_binary(ersip_request:send_via_conn(OutReq, default_udp_conn())),
+    create_sipmsg(RemoteMsg, make_default_source()).
+
+default_udp_conn() ->
+    ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, udp_transport(), #{}).

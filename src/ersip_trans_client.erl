@@ -72,7 +72,7 @@ new(Transport, Request, Options) ->
       TimerFun :: fun((trans_client()) -> result()).
 event({timer, TimerVal}, ClientTrans) ->
     timer_fired(TimerVal, ClientTrans);
-event({recieved, SipMsg}, ClientTrans) ->
+event({received, SipMsg}, ClientTrans) ->
     case ersip_sipmsg:type(SipMsg) of
         request ->
             %% Client transaction cannot match any requests.

@@ -10,7 +10,9 @@
 -export([new_server/2,
          new_client/3,
          event/2,
-         id/1]).
+         id/1,
+         server_id/1,
+         client_id/1]).
 
 -export_type([trans/0,
               tid/0
@@ -49,7 +51,7 @@
 %%% @doc Create server transaction by message.
 -spec new_server(ersip_sipmsg:sipmsg(), ersip:sip_options()) -> result().
 new_server(SipMsg, Options) ->
-    Id = ersip_trans_id:make_server(SipMsg),
+    Id = server_id(SipMsg),
     {Instance, SE} = ersip_trans_server:new(transport_type_by_source(SipMsg), SipMsg, Options),
     Trans = #trans{id       = Id,
                    module   = ersip_trans_server,
@@ -59,7 +61,7 @@ new_server(SipMsg, Options) ->
 
 -spec new_client(ersip_request:request(), ersip_transport:transport(), ersip:sip_options()) -> result().
 new_client(OutReq, Transport, Options) ->
-    Id = ersip_request:branch(OutReq),
+    Id = client_id(OutReq),
     TransportType = transport_type_by_transport(Transport),
     {Instance, SE} = ersip_trans_client:new(TransportType, OutReq, Options),
     Trans = #trans{id = Id,
@@ -77,6 +79,17 @@ event(Event, #trans{instance = Instance} = Trans) ->
 -spec id(trans()) -> tid().
 id(#trans{id = Id}) ->
     Id.
+
+%% @doc Create server transaction identifier by incoming request.
+-spec server_id(ersip_sipmsg:sipmsg()) -> tid().
+server_id(InSipMsg) ->
+    ersip_trans_id:make_server(InSipMsg).
+
+%% @doc Create client transaction identifier by filled outgoint
+%% request.
+-spec client_id(ersip_sipmsg:sipmsg()) -> tid().
+client_id(OutSipMsg) ->
+    ersip_request:branch(OutSipMsg).
 
 %%%===================================================================
 %%% Internal implementation
@@ -99,7 +112,6 @@ transport_type_by_transport(Transport) ->
         false ->
             unreliable
     end.
-
 
 -spec wrap_se_list([ersip_trans_se:effect()], trans()) -> ersip_trans_se:effect().
 wrap_se_list(SideEffects, Trans) ->

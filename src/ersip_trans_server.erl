@@ -82,8 +82,8 @@ event({send, SipMsg}, ServerTrans) ->
             RespType = ersip_status:response_type(ersip_sipmsg:status(SipMsg)),
             process_event({send_resp, RespType, SipMsg}, ServerTrans)
     end;
-event(Evt, ServerTrans) ->
-    process_event(Evt, ServerTrans).
+event({timer, _} = TimerEv, ServerTrans) ->
+    process_event(TimerEv, ServerTrans).
 
 %%%===================================================================
 %%% Internal implementation

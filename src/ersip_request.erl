@@ -11,6 +11,7 @@
 -export([new_stateless_proxy/1,
          new/2,
          branch/1,
+         sipmsg/1,
          send_via_conn/2
         ]).
 
@@ -45,6 +46,10 @@ new(SipMsg, {branch, _} = Branch) ->
 -spec branch(request()) -> ersip_branch:branch().
 branch(#request{branch = Branch}) ->
     Branch.
+
+-spec sipmsg(request()) -> ersip_sipmsg:sipmsg().
+sipmsg(#request{sipmsg = SipMsg}) ->
+    SipMsg.
 
 %% @doc send request via SIP connection.
 -spec send_via_conn(request(), ersip_conn:sip_conn()) -> iolist().

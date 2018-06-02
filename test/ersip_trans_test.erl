@@ -58,9 +58,10 @@ server_transaction_invalid_api_test() ->
 client_transaction_new_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
+    Method = ersip_sipmsg:method(SipMsg),
     OutReq = ersip_request:new(SipMsg, Branch),
     {ClientTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
-    ?assertEqual(ersip_trans:id(ClientTrans), Branch),
+    ?assertEqual({Branch, Method}, ersip_trans:id(ClientTrans)),
     ?assertEqual(ersip_trans_se:send(OutReq), lists:keyfind(send, 1, SE)),
     ok.
 

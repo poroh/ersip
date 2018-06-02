@@ -87,9 +87,23 @@ server_id(InSipMsg) ->
 
 %% @doc Create client transaction identifier by filled outgoint
 %% request.
--spec client_id(ersip_sipmsg:sipmsg()) -> tid().
-client_id(OutSipMsg) ->
-    ersip_request:branch(OutSipMsg).
+-spec client_id(ersip_request:request()) -> tid().
+client_id(OutReq) ->
+    %% 17.1.3 Matching Responses to Client Transactions
+    %%
+    %% 1.  If the response has the same value of the branch parameter in
+    %%     the top Via header field as the branch parameter in the top
+    %%     Via header field of the request that created the transaction.
+    %%
+    %% 2.  If the method parameter in the CSeq header field matches the
+    %%     method of the request that created the transaction.  The
+    %%     method is needed since a CANCEL request constitutes a
+    %%     different transaction, but shares the same value of the branch
+    %%     parameter.
+    CSeqHdr = ersip_sipmsg:get(cseq, ersip_request:sipmsg(OutReq)),
+    Method = ersip_hdr_cseq:method(CSeqHdr),
+    Branch = ersip_request:branch(OutReq),
+    {Branch, Method}.
 
 %%%===================================================================
 %%% Internal implementation

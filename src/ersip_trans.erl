@@ -8,7 +8,7 @@
 
 -module(ersip_trans).
 -export([new_server/2,
-         new_client/3,
+         new_client/2,
          event/2,
          id/1,
          server_id/1,
@@ -61,22 +61,24 @@ new_server(SipMsg, Options) ->
                   },
     {Trans, SE}.
 
--spec new_client(ersip_request:request(), ersip_transport:transport(), ersip:sip_options()) -> result().
-new_client(OutReq, Transport, Options) ->
+-spec new_client(ersip_request:request(), ersip:sip_options()) -> result().
+new_client(OutReq, Options) ->
     Id = client_id(OutReq),
+    NexthopURI = ersip_request:nexthop(OutReq),
+    Transport = ersip_transport:make_by_uri(NexthopURI),
     TransportType = transport_type_by_transport(Transport),
     {Instance, SE} = ersip_trans_client:new(TransportType, OutReq, Options),
     Trans = #trans{id = Id,
                    module = ersip_trans_client,
                    instance = Instance
                   },
-    {Trans, wrap_se_list(SE, Trans)}.
+    {Trans, SE}.
 
 -spec event(trans_event(), trans()) -> result().
 event(Event, #trans{instance = Instance} = Trans) ->
     {NewInstance, SE} = call_trans_module(event, Trans, [Event, Instance]),
     NewTrans = Trans#trans{instance = NewInstance},
-    {NewTrans, wrap_se_list(SE, NewTrans)}.
+    {NewTrans, SE}.
 
 -spec id(trans()) -> tid().
 id(#trans{id = Id}) ->
@@ -137,14 +139,4 @@ transport_type_by_transport(Transport) ->
         false ->
             unreliable
     end.
-
--spec wrap_se_list([ersip_trans_se:effect()], trans()) -> ersip_trans_se:effect().
-wrap_se_list(SideEffects, Trans) ->
-    lists:map(fun(SE) -> wrap_se(SE, Trans) end, SideEffects).
-
--spec wrap_se(ersip_trans_se:effect(), trans()) -> ersip_trans_se:effect().
-wrap_se({clear_trans, _}, #trans{id = Id}) ->
-    {clear_trans, Id};
-wrap_se(SE, _Trans) ->
-    SE.
 

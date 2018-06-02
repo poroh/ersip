@@ -8,8 +8,7 @@
 
 -module(ersip_trans_se).
 
--export([clear_trans/0,
-         clear_trans/1,
+-export([clear_trans/1,
          send_request/1,
          send_response/1,
          tu_result/1,
@@ -28,12 +27,14 @@
                 | send_response()
                 | set_timer().
 
--type clear_trans()   :: {clear_trans,   ersip_trans_id:transaction_id() | unknown}.
+-type clear_trans()   :: {clear_trans,   clear_reason()}.
 -type tu_result()     :: {tu_result,     ersip_sipmsg:sipmsg()}.
 -type send_request()  :: {send_request,  ersip_request:request()}.
 -type send_response() :: {send_response, ersip_sipmsg:sipmsg()}.
 -type set_timer()     :: {set_timer,     {timeout(), TimerEv :: timer_event()}}.
 -type timer_event()   :: term().
+-type clear_reason()  :: normal
+                       | timeout.
 
 %%%===================================================================
 %%% API
@@ -41,13 +42,9 @@
 
 %% @doc Delete transaction. Transaction must be removed if it saved
 %% somewhere.
--spec clear_trans() -> clear_trans().
-clear_trans() ->
-    {clear_trans, unknown}.
-
--spec clear_trans(ersip_trans_id:transaction_id()) -> clear_trans().
-clear_trans(TransId) ->
-    {clear_trans, TransId}.
+-spec clear_trans(clear_reason()) -> clear_trans().
+clear_trans(Reason) ->
+    {clear_trans, Reason}.
 
 %% @doc Inform transaction user about transaction result.
 -spec tu_result(ersip_sipmsg:sipmsg()) -> tu_result().

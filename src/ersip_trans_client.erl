@@ -249,14 +249,14 @@ new_impl(ReliableTransport, Request, Options) ->
     %% transports, and zero seconds for reliable transports.
     collect_side_effects(ClientTrans, [fun set_timer_k/1]);
 'Completed'(enter, #trans_client{reliable_transport = reliable} = ClientTrans) ->
-    terminate(completed, ClientTrans);
+    terminate(normal, ClientTrans);
 'Completed'({resp, _, _}, ClientTrans) ->
     %% Just ignore response retransmission in 'Completed' state.q
     {ClientTrans, []};
 'Completed'(timer_k, ClientTrans) ->
     %% If Timer K fires while in this state, the client transaction
     %% MUST transition to the "Terminated" state.
-    terminate(completed, ClientTrans);
+    terminate(normal, ClientTrans);
 'Completed'(_, ClientTrans) ->
     %%  Ignore other timers if any fired
     {ClientTrans, []}.
@@ -266,17 +266,16 @@ new_impl(ReliableTransport, Request, Options) ->
 %%
 -spec 'Terminated'(Event,   trans_client()) -> result() when
       Event :: enter.
-'Terminated'(enter, ClientTrans) ->
+'Terminated'(enter, #trans_client{clear_reason = Reason} = ClientTrans) ->
     %% Once the transaction is in the terminated state, it MUST be
     %% destroyed immediately.
-    {ClientTrans, [ersip_trans_se:clear_trans()]}.
+    {ClientTrans, [ersip_trans_se:clear_trans(Reason)]}.
 
 %%
 %% Helpers
 %%
 -spec terminate(Reason,  trans_client()) -> result() when
-      Reason :: timeout
-              | completed.
+      Reason :: ersip_trans_se:clear_reason().
 terminate(Reason, ClientTrans) ->
     ClientTrans1 = set_state(fun 'Terminated'/2, ClientTrans),
     ClientTrans2 = ClientTrans1#trans_client{clear_reason = Reason},

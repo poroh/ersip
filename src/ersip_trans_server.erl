@@ -178,7 +178,7 @@ new_impl(Reliable, Request, Options) ->
 'Terminated'(enter, ServerTrans) ->
     %% The server transaction MUST be destroyed the instant it enters
     %% the "Terminated" state
-    {ServerTrans, [ersip_trans_se:clear_trans()]}.
+    {ServerTrans, [ersip_trans_se:clear_trans(normal)]}.
 
 %%
 %% Helpers
@@ -200,4 +200,4 @@ set_state(State, ServerTrans) ->
 
 -spec set_timer_j(pos_integer(), trans_server()) -> result().
 set_timer_j(Timeout, ServerTrans) ->
-    {ServerTrans, [ersip_trans_se:set_timer(Timeout, timer_j)]}.
+    {ServerTrans, [ersip_trans_se:set_timer(Timeout, {timer, timer_j})]}.

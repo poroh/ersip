@@ -8,8 +8,8 @@
 
 -module(ersip_request).
 
--export([new_stateless_proxy/1,
-         new/2,
+-export([new_stateless_proxy/2,
+         new/3,
          branch/1,
          sipmsg/1,
          nexthop/1,
@@ -34,16 +34,18 @@
 %%%===================================================================
 
 %% @doc generate stateless proxy output request.
--spec new_stateless_proxy(ersip_sipmsg:sipmsg()) -> request().
-new_stateless_proxy(SipMsg) ->
+-spec new_stateless_proxy(ersip_sipmsg:sipmsg(), ersip_uri:uri()) -> request().
+new_stateless_proxy(SipMsg, Nexthop) ->
     #request{sipmsg = SipMsg,
-             branch = ersip_proxy_stateless:branch(SipMsg)
+             branch = ersip_proxy_stateless:branch(SipMsg),
+             nexthop = Nexthop
             }.
 
--spec new(ersip_sipmsg:sipmsg(), ersip_branch:branch()) -> request().
-new(SipMsg, {branch, _} = Branch) ->
+-spec new(ersip_sipmsg:sipmsg(), ersip_branch:branch(), ersip_uri:uri()) -> request().
+new(SipMsg, {branch, _} = Branch, Nexthop) ->
     #request{sipmsg = SipMsg,
-             branch = Branch
+             branch = Branch,
+             nexthop = Nexthop
             }.
 
 -spec branch(request()) -> ersip_branch:branch().

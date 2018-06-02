@@ -24,7 +24,7 @@ uac_reliable_test() ->
     {ClientTrans1, SideEffects_1_0} = ersip_trans_client:event(TransactionTimer, ClientTrans0),
     SideEffectsMap_1_0 = maps:from_list(SideEffects_1_0),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_1_0)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_1_0)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans1)),
 
     %% Branch 2: (Provisional response and no reply after):
@@ -36,7 +36,7 @@ uac_reliable_test() ->
     {ClientTrans_2_1, SideEffects_2_1} = ersip_trans_client:event(TransactionTimer, ClientTrans_2_0),
     SideEffectsMap_2_1 = maps:from_list(SideEffects_2_1),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_2_1)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_2_1)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans_2_1)),
 
     %% Branch 3: (Two provisional responses and no final reply):
@@ -49,7 +49,7 @@ uac_reliable_test() ->
     {ClientTrans_3_2, SideEffects_3_2} = ersip_trans_client:event(TransactionTimer, ClientTrans_3_1),
     SideEffectsMap_3_2 = maps:from_list(SideEffects_3_2),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_3_2)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_3_2)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans_3_2)),
 
     %% Branch 4: Final reply without provisional response:
@@ -58,8 +58,8 @@ uac_reliable_test() ->
     %% Final response is passed to transaction user:
     ?assertMatch(resp_msg, maps:get(tu_result, SideEffectsMap_4_0)),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_4_0)),
-    ?assertEqual(completed, ersip_trans_client:clear_reason(ClientTrans_4_0)),
+    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_4_0)),
+    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_4_0)),
 
     %% Branch 5: Final reply after provisional response:
     {ClientTrans_5_0, _SideEffects_5_0} = ersip_trans_client:event({resp, provisional, resp_msg}, ClientTrans0),
@@ -68,8 +68,8 @@ uac_reliable_test() ->
     %% Final response is passed to transaction user:
     ?assertMatch(resp_msg, maps:get(tu_result, SideEffectsMap_5_1)),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_5_1)),
-    ?assertEqual(completed, ersip_trans_client:clear_reason(ClientTrans_5_1)).
+    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_5_1)),
+    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_1)).
 
 uac_unreliable_test() ->
     {ClientTrans0, SideEffects0} = ersip_trans_client:new(unreliable, message, #{}),
@@ -98,7 +98,7 @@ uac_unreliable_test() ->
     {ClientTrans_1_2, SideEffects_1_2} = ersip_trans_client:event(TransactionTimer, ClientTrans_1_1),
     SideEffectsMap_1_2 = maps:from_list(SideEffects_1_2),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_1_2)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_1_2)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans_1_2)),
 
     %% --------------------
@@ -128,7 +128,7 @@ uac_unreliable_test() ->
     {ClientTrans_2_3, SideEffects_2_3} = ersip_trans_client:event(TransactionTimer, ClientTrans_2_2),
     SideEffectsMap_2_3 = maps:from_list(SideEffects_2_3),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_2_3)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_2_3)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans_2_3)),
 
     %% --------------------
@@ -143,7 +143,7 @@ uac_unreliable_test() ->
     {ClientTrans_3_2, SideEffects_3_2} = ersip_trans_client:event(TransactionTimer, ClientTrans_3_1),
     SideEffectsMap_3_2 = maps:from_list(SideEffects_3_2),
     %% Transaction is cleared
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_3_2)),
+    ?assertMatch(timeout, maps:get(clear_trans, SideEffectsMap_3_2)),
     ?assertEqual(timeout, ersip_trans_client:clear_reason(ClientTrans_3_2)),
 
     %% --------------------
@@ -164,8 +164,8 @@ uac_unreliable_test() ->
     %% TimerK fired => transaction terminated
     {ClientTrans_4_2, SideEffects_4_2} = ersip_trans_client:event(TimerK_4_0, ClientTrans_4_1),
     SideEffectsMap_4_2 = maps:from_list(SideEffects_4_2),
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_4_2)),
-    ?assertEqual(completed, ersip_trans_client:clear_reason(ClientTrans_4_2)),
+    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_4_2)),
+    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_4_2)),
 
     %% --------------------
     %% Branch 5: Final reply after provisional response:
@@ -184,5 +184,5 @@ uac_unreliable_test() ->
     %% TimerK fired => transaction terminated
     {ClientTrans_5_4, SideEffects_5_4} = ersip_trans_client:event(TimerK_5_1, ClientTrans_5_3),
     SideEffectsMap_5_4 = maps:from_list(SideEffects_5_4),
-    ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_5_4)),
-    ?assertEqual(completed, ersip_trans_client:clear_reason(ClientTrans_5_4)).
+    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_5_4)),
+    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_4)).

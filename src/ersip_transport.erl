@@ -9,6 +9,7 @@
 -module(ersip_transport).
 
 -export([make/1,
+         make_by_uri/1,
          is_datagram/1,
          is_tls/1,
          is_reliable/1,
@@ -44,6 +45,15 @@ make(V) ->
             T;
         _ ->
             error(badarg)
+    end.
+
+-spec make_by_uri(ersip_uri:uri()) -> transport().
+make_by_uri(URI) ->
+    case ersip_uri:params(URI) of
+        #{transport := Transport} ->
+            Transport;
+        _ ->
+            {transport, udp}
     end.
 
 -spec parse(binary() | transport_atom()) -> Result when

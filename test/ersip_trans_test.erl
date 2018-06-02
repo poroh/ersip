@@ -59,8 +59,8 @@ client_transaction_new_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
     Method = ersip_sipmsg:method(SipMsg),
-    OutReq = ersip_request:new(SipMsg, Branch),
-    {ClientTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
+    {ClientTrans, SE} = ersip_trans:new_client(OutReq, default_sip_options()),
     ?assertEqual({Branch, Method}, ersip_trans:id(ClientTrans)),
     ?assertEqual(ersip_trans_se:send_request(OutReq), lists:keyfind(send_request, 1, SE)),
     ok.
@@ -68,8 +68,8 @@ client_transaction_new_test() ->
 client_transaction_complete_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
-    OutReq = ersip_request:new(SipMsg, Branch),
-    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
+    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, default_sip_options()),
     %% Get remote message:
     RemoteMsg = send_req_via_default_conn(OutReq),
     %% Make response on remote message:
@@ -88,8 +88,8 @@ client_transaction_complete_test() ->
 client_transaction_invalid_api_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
-    OutReq = ersip_request:new(SipMsg, Branch),
-    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
+    OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
+    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, default_sip_options()),
     %% Get remote message:
     RemoteMsg = send_req_via_default_conn(OutReq),
     ?assertError({api_error, _}, ersip_trans:event({received, RemoteMsg}, ClientTrans)),
@@ -111,6 +111,9 @@ make_default_source() ->
 
 default_peer() ->
     {{127, 0, 0, 1}, 5060}.
+
+default_nexthop() ->
+    ersip_uri:make(<<"sip:127.0.0.2">>).
 
 udp_source(Peer) ->
     ersip_source:new(Peer, udp_transport(), undefined).

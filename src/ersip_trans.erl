@@ -32,7 +32,7 @@
 -type trans() :: #trans{}.
 -type trans_instance()  :: ersip_trans_client:trans_client()
                          | ersip_trans_server:trans_server().
--type tid() :: {tid, ersip_trans_id:transaction_id()}.
+-type tid() :: ersip_trans_id:transaction_id().
 -type result() :: {trans(), ersip_trans_se:effect()}.
 -type trans_event() :: event_timer()
                      | event_received()
@@ -107,7 +107,7 @@ client_id(OutReq) ->
     CSeqHdr = ersip_sipmsg:get(cseq, ersip_request:sipmsg(OutReq)),
     Method = ersip_hdr_cseq:method(CSeqHdr),
     Branch = ersip_request:branch(OutReq),
-    {Branch, Method}.
+    ersip_trans_id:make_client(Branch, Method).
 
 %% @doc Create client transaction id by response and trimmed topmost
 %% via
@@ -116,7 +116,7 @@ client_id(RecvVia, SipMsg) ->
     CSeqHdr = ersip_sipmsg:get(cseq, SipMsg),
     Method = ersip_hdr_cseq:method(CSeqHdr),
     Branch = ersip_hdr_via:branch(RecvVia),
-    {Branch, Method}.
+    ersip_trans_id:make_client(Branch, Method).
 
 %%%===================================================================
 %%% Internal implementation

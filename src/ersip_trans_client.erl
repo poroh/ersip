@@ -25,8 +25,7 @@
 %%%===================================================================
 
 -type result() :: {trans_client(), [ersip_trans_se:effect()]}.
--type clear_reason() :: completed
-                      | timeout.
+-type clear_reason() :: ersip_trans_se:clear_reason().
 -type request() :: term().
 
 -record(trans_client, {state       = fun 'Trying'/2 :: non_inv_state(),

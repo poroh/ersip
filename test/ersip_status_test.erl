@@ -35,6 +35,7 @@ response_type_test() ->
 reason_text_test() ->
     test_phrase(100, "Trying"),
     test_phrase(404, "Not Found"),
+    test_phrase(408, "Request Timeout"),
     test_phrase(199, "Unknown Status").
 
 bad_request_reason_test() ->

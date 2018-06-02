@@ -8,7 +8,9 @@
 
 -module(ersip_trans_id).
 
--export([make_server/1]).
+-export([make_server/1,
+         make_client/2
+        ]).
 -export_type([transaction_id/0]).
 
 %%%===================================================================
@@ -29,8 +31,10 @@
         }).
 -type tid_rfc3261() :: #tid_rfc3261{}.
 -type tid_rfc2543() :: #tid_rfc2543{}.
+-type tid_client()  :: {ersip_branch:branch_key(), ersip_method:method()}.
 -type transaction_id() :: tid_rfc3261()
-                        | tid_rfc2543().
+                        | tid_rfc2543()
+                        | tid_client().
 
 %%%===================================================================
 %%% API
@@ -50,6 +54,10 @@ make_server(SipMsg) ->
         false ->
             make_rfc2543_tid(TopmostVia, SipMsg)
     end.
+
+-spec make_client(ersip_branch:branch(), ersip_method:method()) -> transaction_id().
+make_client(Branch, Method) ->
+    {ersip_branch:make_key(Branch), Method}.
 
 %%%===================================================================
 %%% Internal implementation

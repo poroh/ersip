@@ -39,8 +39,7 @@ response_type(StatusCode) when StatusCode >= 100 andalso StatusCode =< 199 ->
 reason_phrase(Code) ->
     reason_impl(Code).
 
-
-                                                % -spec bad_request_reason({error, any()}) -> reason().
+%%-spec bad_request_reason({error, any()}) -> reason().
 bad_request_reason({error, {header_error, {maxforwards, _}}}) ->
     <<"Invalid max-forwards value">>;
 bad_request_reason({error, {header_error, {HeaderName, _}}}) when is_atom(HeaderName) ->

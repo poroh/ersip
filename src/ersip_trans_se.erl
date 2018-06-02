@@ -15,7 +15,9 @@
          set_timer/2
         ]).
 
--export_type([effect/0]).
+-export_type([effect/0,
+              clear_reason/0
+             ]).
 
 %%%===================================================================
 %%% Types

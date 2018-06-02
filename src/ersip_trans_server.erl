@@ -58,13 +58,13 @@ new(ReliableTranport, Request, Options) ->
 %% Defined events:
 %% {timer, timer_j}               - timer alarm that was requested by previous side effect
 %% {send_resp, RespType, message} - send response with defined type.
-%% retransmit                       - message retransmit received by UAC
+%% retransmit                     - message retransmit received by UAC
 %%
 %% Side effects are defined in module ersip_trans_se
 %%
 -spec event(Event, trans_server()) -> result() when
       Event :: {timer, timer_j}
-             | {send_resp, ersip_status:response_type(), response()}
+             | {send, ersip_sipmsg:sipmsg()}
              | retransmit.
 event({received, SipMsg}, ServerTrans) ->
     case ersip_sipmsg:type(SipMsg) of

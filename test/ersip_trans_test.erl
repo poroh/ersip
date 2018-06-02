@@ -61,7 +61,7 @@ client_transaction_new_test() ->
     Method = ersip_sipmsg:method(SipMsg),
     OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
     {ClientTrans, SE} = ersip_trans:new_client(OutReq, default_sip_options()),
-    ?assertEqual({Branch, Method}, ersip_trans:id(ClientTrans)),
+    ?assertEqual({ersip_branch:make_key(Branch), Method}, ersip_trans:id(ClientTrans)),
     ?assertEqual(ersip_trans_se:send_request(OutReq), lists:keyfind(send_request, 1, SE)),
     ok.
 

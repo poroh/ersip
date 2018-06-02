@@ -172,13 +172,8 @@ process_response_test() ->
     {new_response, PrevVia, RawRespMsg} = reply_via_conn(ReqSIPMsg, ersip_reply:new(200), Conn),
     ProcessResult = ersip_proxy_stateless:process_response(PrevVia, RawRespMsg),
 
-    %% Action is forward to pc33.atlanta.com
-    Atlanta = ersip_host:make(<<"pc33.atlanta.com">>),
-    ?assertMatch({forward, _, _}, ProcessResult),
-    {forward, TargetVia, SendMessage} = ProcessResult,
-    {sent_by, Host, Port} = ersip_hdr_via:sent_by(TargetVia),
-    ?assertEqual(ersip_host:make_key(Atlanta), ersip_host:make_key(Host)),
-    ?assertEqual(5060, Port),
+    ?assertMatch({forward, _}, ProcessResult),
+    {forward, SendMessage} = ProcessResult,
     %% Message is not changed:
     ?assertEqual(ersip_msg:serialize_bin(RawRespMsg), ersip_sipmsg:serialize_bin(SendMessage)),
     ok.

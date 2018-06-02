@@ -12,6 +12,8 @@
          new/2,
          branch/1,
          sipmsg/1,
+         nexthop/1,
+         set_nexthop/2,
          send_via_conn/2
         ]).
 
@@ -21,8 +23,9 @@
 %%% Types
 %%%===================================================================
 
--record(request, {sipmsg :: ersip_sipmsg:sipmsg(),
-                  branch :: ersip_branch:branch()
+-record(request, {sipmsg              :: ersip_sipmsg:sipmsg(),
+                  branch              :: ersip_branch:branch(),
+                  nexthop = undefined :: undefined | ersip_uri:uri()
                  }).
 -type request() :: #request{}.
 
@@ -50,6 +53,14 @@ branch(#request{branch = Branch}) ->
 -spec sipmsg(request()) -> ersip_sipmsg:sipmsg().
 sipmsg(#request{sipmsg = SipMsg}) ->
     SipMsg.
+
+-spec nexthop(request()) -> ersip_uri:uri().
+nexthop(#request{nexthop = NexthopURI}) ->
+    NexthopURI.
+
+-spec set_nexthop(NexthopURI :: ersip_uri:uri(), request()) -> request().
+set_nexthop(NexthopURI, #request{} = Req) ->
+    Req#request{nexthop = NexthopURI}.
 
 %% @doc send request via SIP connection.
 -spec send_via_conn(request(), ersip_conn:sip_conn()) -> iolist().

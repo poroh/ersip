@@ -14,7 +14,7 @@ uac_reliable_test() ->
     {ClientTrans0, SideEffects0} = ersip_trans_client:new(reliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
     %% Message is sent
-    ?assertMatch(message, maps:get(send, SideEffectsMap0)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap0)),
     %% Transaction timer is set:
     ?assertMatch({32000, _}, maps:get(set_timer, SideEffectsMap0)),
     {_, TransactionTimer} = maps:get(set_timer, SideEffectsMap0),
@@ -75,7 +75,7 @@ uac_unreliable_test() ->
     {ClientTrans0, SideEffects0} = ersip_trans_client:new(unreliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
     %% Message is sent
-    ?assertMatch(message, maps:get(send, SideEffectsMap0)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap0)),
     %% Transaction timer is set:
     [{500,   RetransmitTimer},
      {32000, TransactionTimer}
@@ -86,13 +86,13 @@ uac_unreliable_test() ->
     %% Retransmits #1
     {ClientTrans_1_0, SideEffects_1_0} = ersip_trans_client:event(RetransmitTimer, ClientTrans0),
     SideEffectsMap_1_0 = maps:from_list(SideEffects_1_0),
-    ?assertMatch(message, maps:get(send, SideEffectsMap_1_0)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap_1_0)),
     ?assertMatch({1000, _}, maps:get(set_timer, SideEffectsMap_1_0)),
     {_, RetransmitTimer_1_0} = maps:get(set_timer, SideEffectsMap_1_0),
     %% Retransmits #2
     {ClientTrans_1_1, SideEffects_1_1} = ersip_trans_client:event(RetransmitTimer_1_0, ClientTrans_1_0),
     SideEffectsMap_1_1 = maps:from_list(SideEffects_1_1),
-    ?assertMatch(message, maps:get(send, SideEffectsMap_1_1)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap_1_1)),
     ?assertMatch({2000, _}, maps:get(set_timer, SideEffectsMap_1_1)),
     %% Check transaction timer fired:
     {ClientTrans_1_2, SideEffects_1_2} = ersip_trans_client:event(TransactionTimer, ClientTrans_1_1),
@@ -114,14 +114,14 @@ uac_unreliable_test() ->
     %% Retransmits after provisional response:
     {ClientTrans_2_1, SideEffects_2_1} = ersip_trans_client:event(RetransmitTimer_2_0, ClientTrans_2_0),
     SideEffectsMap_2_1 = maps:from_list(SideEffects_2_1),
-    ?assertMatch(message, maps:get(send, SideEffectsMap_2_1)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap_2_1)),
     ?assertMatch({4000, _}, maps:get(set_timer, SideEffectsMap_2_1)),
     {_, RetransmitTimer_2_1} = maps:get(set_timer, SideEffectsMap_2_1),
 
     %% Retransmit #2
     {ClientTrans_2_2, SideEffects_2_2} = ersip_trans_client:event(RetransmitTimer_2_1, ClientTrans_2_1),
     SideEffectsMap_2_2 = maps:from_list(SideEffects_2_2),
-    ?assertMatch(message, maps:get(send, SideEffectsMap_2_2)),
+    ?assertMatch(message, maps:get(send_request, SideEffectsMap_2_2)),
     ?assertMatch({4000, _}, maps:get(set_timer, SideEffectsMap_2_2)),
 
     %% Transaction timer is fired

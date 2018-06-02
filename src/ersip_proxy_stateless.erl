@@ -16,9 +16,8 @@
 %%% Types
 %%%===================================================================
 
--type process_response_result() :: {forward, target(), ersip_sipmsg:sipmsg()}
+-type process_response_result() :: {forward, ersip_sipmsg:sipmsg()}
                                  | {drop, Reason :: term()}.
--type target() :: ersip_hdr_via:via().
 
 %%%===================================================================
 %%% API
@@ -71,10 +70,9 @@ branch(SipMsg) ->
 process_response(PrevVia, RawMsg) ->
     case ersip_sipmsg:parse(RawMsg, [topmost_via]) of
         {ok, SipMsg} ->
-            Via = ersip_sipmsg:get(topmost_via, SipMsg),
             case check_via_branch(ersip_hdr_via:branch(PrevVia)) of
                 match ->
-                    {forward, Via, SipMsg};
+                    {forward, SipMsg};
                 mismatch ->
                     {drop, via_not_match}
             end;

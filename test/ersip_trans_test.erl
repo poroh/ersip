@@ -29,18 +29,18 @@ server_transaction_retransmit_test() ->
     ?assertEqual({tu_result, SipMsg}, lists:keyfind(tu_result, 1, SE)),
     ProvResp = ersip_sipmsg:reply(100, SipMsg),
     {ServerTrans1, SE1} = ersip_trans:event({send, ProvResp}, ServerTrans),
-    ?assertEqual({send, ProvResp}, lists:keyfind(send, 1, SE1)),
+    ?assertEqual({send_response, ProvResp}, lists:keyfind(send_response, 1, SE1)),
     %% Received retransmit:
     {ServerTrans2, SE2} = ersip_trans:event({received, SipMsg}, ServerTrans1),
-    ?assertEqual({send, ProvResp}, lists:keyfind(send, 1, SE2)),
+    ?assertEqual({send_response, ProvResp}, lists:keyfind(send_response, 1, SE2)),
     %% Send respons on the transaction:
     FinalResp = ersip_sipmsg:reply(200, SipMsg),
     {ServerTrans3, SE3} = ersip_trans:event({send, FinalResp}, ServerTrans2),
-    ?assertEqual({send, FinalResp}, lists:keyfind(send, 1, SE3)),
+    ?assertEqual({send_response, FinalResp}, lists:keyfind(send_response, 1, SE3)),
     %% Received retransmit after final resp:
     {_ServerTrans4, SE4} = ersip_trans:event({received, SipMsg}, ServerTrans3),
     %% Final response is retransmitted:
-    ?assertEqual({send, FinalResp}, lists:keyfind(send, 1, SE4)),
+    ?assertEqual({send_response, FinalResp}, lists:keyfind(send_response, 1, SE4)),
     ok.
 
 server_transaction_invalid_api_test() ->
@@ -62,7 +62,7 @@ client_transaction_new_test() ->
     OutReq = ersip_request:new(SipMsg, Branch),
     {ClientTrans, SE} = ersip_trans:new_client(OutReq, udp_transport(), default_sip_options()),
     ?assertEqual({Branch, Method}, ersip_trans:id(ClientTrans)),
-    ?assertEqual(ersip_trans_se:send(OutReq), lists:keyfind(send, 1, SE)),
+    ?assertEqual(ersip_trans_se:send_request(OutReq), lists:keyfind(send_request, 1, SE)),
     ok.
 
 client_transaction_complete_test() ->

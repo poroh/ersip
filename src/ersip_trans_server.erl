@@ -117,7 +117,7 @@ new_impl(Reliable, Request, Options) ->
     ServerTrans1 = set_state(fun 'Proceeding'/2, ServerTrans),
     ServerTrans2 = ServerTrans1#trans_server{last_resp = Resp},
     {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
-    {ServerTrans3,  [ersip_trans_se:send(Resp) | SideEffects]};
+    {ServerTrans3,  [ersip_trans_se:send_response(Resp) | SideEffects]};
 'Trying'({send_resp, final, Resp}, ServerTrans) ->
     completed(Resp, ServerTrans).
 
@@ -131,14 +131,14 @@ new_impl(Reliable, Request, Options) ->
     %% while in the "Proceeding" state MUST be passed to the transport
     %% layer for transmission.
     ServerTrans1 = ServerTrans#trans_server{last_resp = Resp},
-    {ServerTrans1, [ersip_trans_se:send(Resp)]};
+    {ServerTrans1, [ersip_trans_se:send_response(Resp)]};
 'Proceeding'({send_resp, final, Resp}, ServerTrans) ->
     completed(Resp, ServerTrans);
 'Proceeding'(retransmit, ServerTrans) ->
     %% If a retransmission of the request is received while in the
     %% "Proceeding" state, the most recently sent provisional response
     %% MUST be passed to the transport layer for retransmission.
-    {ServerTrans, [ersip_trans_se:send(ServerTrans#trans_server.last_resp)]}.
+    {ServerTrans, [ersip_trans_se:send_response(ServerTrans#trans_server.last_resp)]}.
 
 %%
 %% Completed state
@@ -160,7 +160,7 @@ new_impl(Reliable, Request, Options) ->
 'Completed'(retransmit, ServerTrans) ->
     %% final response to the transport layer for retransmission
     %% whenever a retransmission of the request is received
-    {ServerTrans, [ersip_trans_se:send(ServerTrans#trans_server.last_resp)]};
+    {ServerTrans, [ersip_trans_se:send_response(ServerTrans#trans_server.last_resp)]};
 'Completed'({send_resp, _, _}, ServerTrans) ->
     %% Any other final responses passed by the TU to the server
     %% transaction MUST be discarded while in the "Completed" state.
@@ -188,7 +188,7 @@ completed(Resp, ServerTrans) ->
     ServerTrans1 = ServerTrans#trans_server{last_resp = Resp},
     ServerTrans2 = set_state(fun 'Completed'/2, ServerTrans1),
     {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
-    {ServerTrans3, [ersip_trans_se:send(Resp) | SideEffects]}.
+    {ServerTrans3, [ersip_trans_se:send_response(Resp) | SideEffects]}.
 
 -spec process_event(Event :: term(), trans_server()) -> result().
 process_event(Event, #trans_server{state = StateF} = ServerTrans) ->

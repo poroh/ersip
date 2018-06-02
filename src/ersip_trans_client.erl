@@ -292,7 +292,7 @@ process_event(Event, #trans_client{state = StateF} = ClientTrans) ->
 
 -spec send_request(trans_client()) -> {ersip_trans_se:effect(), trans_client()}.
 send_request(ClientTrans) ->
-    {ersip_trans_se:send(ClientTrans#trans_client.request), ClientTrans}.
+    {ersip_trans_se:send_request(ClientTrans#trans_client.request), ClientTrans}.
 
 -spec maybe_set_timer_e(trans_client()) -> trans_client() | result().
 maybe_set_timer_e(#trans_client{reliable_transport = reliable} = ClientTrans) ->

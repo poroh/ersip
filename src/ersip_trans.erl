@@ -12,7 +12,9 @@
          event/2,
          id/1,
          server_id/1,
-         client_id/1]).
+         client_id/1,
+         client_id/2
+        ]).
 
 -export_type([trans/0,
               tid/0
@@ -103,6 +105,15 @@ client_id(OutReq) ->
     CSeqHdr = ersip_sipmsg:get(cseq, ersip_request:sipmsg(OutReq)),
     Method = ersip_hdr_cseq:method(CSeqHdr),
     Branch = ersip_request:branch(OutReq),
+    {Branch, Method}.
+
+%% @doc Create client transaction id by response and trimmed topmost
+%% via
+-spec client_id(ersip_hdr_via:via(), ersip_sipmsg:sipmsg()) -> tid().
+client_id(RecvVia, SipMsg) ->
+    CSeqHdr = ersip_sipmsg:get(cseq, SipMsg),
+    Method = ersip_hdr_cseq:method(CSeqHdr),
+    Branch = ersip_hdr_via:branch(RecvVia),
     {Branch, Method}.
 
 %%%===================================================================

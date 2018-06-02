@@ -26,27 +26,27 @@ uas_reliable_test() ->
     {UAS_2_0, SideEffects_2_0} = ersip_trans_server:event(prov_response_event(), UAS0),
     SideEffectsMap_2_0 = maps:from_list(SideEffects_2_0),
     %% Response with provisional resp:
-    ?assertEqual(prov_response(), maps:get(send, SideEffectsMap_2_0)),
+    ?assertEqual(prov_response(), maps:get(send_response, SideEffectsMap_2_0)),
 
     %% Branch 2.1: (Retransmit after provisional response)
     {UAS_2_1_0, SideEffects_2_1_0} = ersip_trans_server:event(retransmit_event(), UAS_2_0),
     SideEffectsMap_2_1_0 = maps:from_list(SideEffects_2_1_0),
     %% Last provisional response sent
-    ?assertEqual(prov_response(), maps:get(send, SideEffectsMap_2_1_0)),
+    ?assertEqual(prov_response(), maps:get(send_response, SideEffectsMap_2_1_0)),
     %% Send one more provisional response:
     {UAS_2_1_1, SideEffects_2_1_1} = ersip_trans_server:event(prov_response_event_2(), UAS_2_1_0),
     SideEffectsMap_2_1_1 = maps:from_list(SideEffects_2_1_1),
-    ?assertEqual(prov_response_2(), maps:get(send, SideEffectsMap_2_1_1)),
+    ?assertEqual(prov_response_2(), maps:get(send_response, SideEffectsMap_2_1_1)),
     {_, SideEffects_2_1_2} = ersip_trans_server:event(retransmit_event(), UAS_2_1_1),
     SideEffectsMap_2_1_2 = maps:from_list(SideEffects_2_1_2),
     %% Last provisional response sent
-    ?assertEqual(prov_response_2(), maps:get(send, SideEffectsMap_2_1_2)),
+    ?assertEqual(prov_response_2(), maps:get(send_response, SideEffectsMap_2_1_2)),
 
     %% Branch 2.2: (Final after provisional response)
     {_UAS_2_2_0, SideEffects_2_2_0} = ersip_trans_server:event(final_response_event(), UAS_2_0),
     SideEffectsMap_2_2_0 = maps:from_list(SideEffects_2_2_0),
     %% Final response is sent
-    ?assertEqual(final_response(), maps:get(send, SideEffectsMap_2_2_0)),
+    ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_2_2_0)),
     %% Transaction is cleared
     ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_2_2_0)),
 
@@ -54,7 +54,7 @@ uas_reliable_test() ->
     {_UAS_3_0, SideEffects_3_0} = ersip_trans_server:event(final_response_event(), UAS0),
     SideEffectsMap_3_0 = maps:from_list(SideEffects_3_0),
     %% Response with provisional resp:
-    ?assertEqual(final_response(), maps:get(send, SideEffectsMap_3_0)),
+    ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_3_0)),
     %% Transaction is cleared
     ?assertMatch(unknown, maps:get(clear_trans, SideEffectsMap_3_0)).
 
@@ -67,13 +67,13 @@ uas_unreliable_test() ->
     {UAS_1_0, SideEffects_1_0} = ersip_trans_server:event(final_response_event(), UAS0),
     SideEffectsMap_1_0 = maps:from_list(SideEffects_1_0),
     %% Response with provisional resp:
-    ?assertEqual(final_response(), maps:get(send, SideEffectsMap_1_0)),
+    ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_1_0)),
     %% Timer J is set:
     ?assertMatch({32000, timer_j}, maps:get(set_timer, SideEffectsMap_1_0)),
     %% Retransmits cause send last response:
     {UAS_1_1, SideEffects_1_1} = ersip_trans_server:event(retransmit_event(), UAS_1_0),
     SideEffectsMap_1_1 = maps:from_list(SideEffects_1_1),
-    ?assertEqual(final_response(), maps:get(send, SideEffectsMap_1_1)),
+    ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_1_1)),
     %% Any other final responses passed by the TU to the server
     %% transaction MUST be discarded while in the "Completed" state.
     {UAS_1_1, []} = ersip_trans_server:event(final_response_event(), UAS_1_1),

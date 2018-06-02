@@ -10,7 +10,8 @@
 
 -export([clear_trans/0,
          clear_trans/1,
-         send/1,
+         send_request/1,
+         send_response/1,
          tu_result/1,
          set_timer/2
         ]).
@@ -23,14 +24,16 @@
 
 -type effect() :: clear_trans()
                 | tu_result()
-                | send()
+                | send_request()
+                | send_response()
                 | set_timer().
 
--type clear_trans() :: {clear_trans, ersip_trans_id:transaction_id() | unknown}.
--type tu_result()   :: {tu_result,   ersip_sipmsg:sipmsg()}.
--type send()        :: {send,        ersip_sipmsg:sipmsg()}.
--type set_timer()   :: {set_timer,   {timeout(), TimerEv :: timer_event()}}.
--type timer_event() :: term().
+-type clear_trans()   :: {clear_trans,   ersip_trans_id:transaction_id() | unknown}.
+-type tu_result()     :: {tu_result,     ersip_sipmsg:sipmsg()}.
+-type send_request()  :: {send_request,  ersip_request:request()}.
+-type send_response() :: {send_response, ersip_sipmsg:sipmsg()}.
+-type set_timer()     :: {set_timer,     {timeout(), TimerEv :: timer_event()}}.
+-type timer_event()   :: term().
 
 %%%===================================================================
 %%% API
@@ -51,12 +54,16 @@ clear_trans(TransId) ->
 tu_result(SipMsg) ->
     {tu_result, SipMsg}.
 
-%% @doc Send message.
--spec send(RequestOrResp) -> send() when
-      RequestOrResp :: ersip_sipmsg:sipmsg()
-                     | ersip_request:request().
-send(SipMsg) ->
-    {send, SipMsg}.
+%% @doc Send request message.
+-spec send_request(Request) -> send_request() when
+      Request :: ersip_request:request().
+send_request(OutReq) ->
+    {send_request, OutReq}.
+
+-spec send_response(Resp) -> send_response() when
+      Resp :: ersip_sipmsg:sipmsg().
+send_response(SipMsg) ->
+    {send_response, SipMsg}.
 
 %% @doc Set timer for specified time interval. After timeout is
 %% expired TimerFun must be called to process timer event.

@@ -11,23 +11,39 @@
 -module(ersip_sipmsg).
 
 %% API exports
--export([raw_message/1,
+-export([%% First line manipulation:
          type/1,
          method/1,
          ruri/1,
          set_ruri/2,
          status/1,
          reason/1,
-         has_body/1,
+
+         %% Headers manipulation:
+         find/2,
          get/2,
          set/3,
-         source/1,
+
+         %% Body manipulation:
+         has_body/1,
+
+         %% Underlying message manipulation:
+         raw_message/1,
          raw_header/2,
+
+         %% Parse and build message
          parse/2,
          serialize/1,
          serialize_bin/1,
-         find/2,
-         reply/2
+
+         %% SIP-specific
+         reply/2,
+
+         %% Metadata manipulation:
+         source/1,
+         user_data/1,
+         set_user_data/2,
+         clear_user_data/1
         ]).
 
 %% Non-API exports.
@@ -45,7 +61,8 @@
 -record(sipmsg, {raw = undefined :: ersip_msg:message(),
                  method          :: ersip_method:method(),
                  ruri            :: ersip_uri:uri() | undefined,
-                 headers = #{}   :: headers()
+                 headers = #{}   :: headers(),
+                 user            :: term() %% User data carried with message
                 }).
 
 -type sipmsg()       :: #sipmsg{}.
@@ -61,10 +78,6 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
-
--spec raw_message(sipmsg()) -> ersip_msg:message().
-raw_message(#sipmsg{raw = R}) ->
-    R.
 
 -spec type(ersip_sipmsg:sipmsg()) -> ersip_msg:type().
 type(#sipmsg{} = Msg) ->
@@ -102,9 +115,24 @@ reason(#sipmsg{} = SipMsg) ->
             ersip_msg:get(reason, raw_message(SipMsg))
     end.
 
--spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
-has_body(#sipmsg{} = Msg) ->
-    not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
+-spec find(known_header(), sipmsg()) -> Result when
+      Result :: {ok, term()}
+              | not_found
+              | {error, term()}.
+find(HdrAtom, #sipmsg{headers = H} = Msg) ->
+    case maps:find(HdrAtom, H) of
+        {ok, Value} ->
+            {ok, Value};
+        error ->
+            case ersip_siphdr:parse_header(HdrAtom, Msg) of
+                {ok, no_header} ->
+                    not_found;
+                {ok, Value} ->
+                    {ok, Value};
+                {error, _ } = Error ->
+                    Error
+            end
+    end.
 
 -spec get(known_header(), sipmsg()) -> Value when
       Value :: term().
@@ -118,18 +146,22 @@ get(HdrAtom, #sipmsg{} = Msg) ->
             error(Error)
     end.
 
--spec raw_header(HdrName :: binary(), sipmsg()) -> ersip_hdr:header().
-raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
-    ersip_msg:get(HdrName, raw_message(Msg)).
-
 -spec set(known_header(), Value :: term(), sipmsg()) -> Value when
       Value :: term().
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
     ersip_siphdr:set_header(HdrAtom, Value, Msg).
 
--spec source(sipmsg()) -> undefined | ersip_source:source().
-source(#sipmsg{} = SipMsg) ->
-    ersip_msg:source(raw_message(SipMsg)).
+-spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
+has_body(#sipmsg{} = Msg) ->
+    not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
+
+-spec raw_message(sipmsg()) -> ersip_msg:message().
+raw_message(#sipmsg{raw = R}) ->
+    R.
+
+-spec raw_header(HdrName :: binary(), sipmsg()) -> ersip_hdr:header().
+raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
+    ersip_msg:get(HdrName, raw_message(Msg)).
 
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.
@@ -161,31 +193,29 @@ serialize(#sipmsg{} = SipMsg) ->
 serialize_bin(#sipmsg{} = SipMsg) ->
     iolist_to_binary(serialize(SipMsg)).
 
--spec find(known_header(), sipmsg()) -> Result when
-      Result :: {ok, term()}
-              | not_found
-              | {error, term()}.
-find(HdrAtom, #sipmsg{headers = H} = Msg) ->
-    case maps:find(HdrAtom, H) of
-        {ok, Value} ->
-            {ok, Value};
-        error ->
-            case ersip_siphdr:parse_header(HdrAtom, Msg) of
-                {ok, no_header} ->
-                    not_found;
-                {ok, Value} ->
-                    {ok, Value};
-                {error, _ } = Error ->
-                    Error
-            end
-    end.
-
 -spec reply(ersip_reply:options() | ersip_status:code(), sipmsg()) -> sipmsg().
-reply(Code, SipMsg) when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
+reply(Code, #sipmsg{} = SipMsg) when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
     reply_impl(ersip_reply:new(Code), SipMsg);
-reply(Reply, SipMsg) ->
+reply(Reply, #sipmsg{} = SipMsg) ->
     reply_impl(Reply, SipMsg).
 
+-spec source(sipmsg()) -> undefined | ersip_source:source().
+source(#sipmsg{} = SipMsg) ->
+    ersip_msg:source(raw_message(SipMsg)).
+
+-spec user_data(sipmsg()) -> term().
+user_data(#sipmsg{user = undefined}) ->
+    error({error, no_user_data});
+user_data(#sipmsg{user = {set, User}}) ->
+    User.
+
+-spec set_user_data(term(), sipmsg()) -> sipmsg().
+set_user_data(Data, #sipmsg{} = SipMsg) ->
+    SipMsg#sipmsg{user = {set, Data}}.
+
+-spec clear_user_data(sipmsg()) -> sipmsg().
+clear_user_data(#sipmsg{} = SipMsg) ->
+    SipMsg#sipmsg{user = undefined}.
 
 %%%===================================================================
 %%% Internal implementation

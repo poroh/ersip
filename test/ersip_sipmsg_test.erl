@@ -414,26 +414,24 @@ get_parts_test() ->
 
 
 set_ruri_test() ->
-    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
-    SipMsg0 = create_sipmsg(Msg),
+    SipMsg0 = default_sipmsg(),
     RURIBin = <<"sip:alice@atlanta.com">>,
     RURI = ersip_uri:make(RURIBin),
     SipMsg1 = ersip_sipmsg:set_ruri(RURI, SipMsg0),
     ?assertEqual(RURI, ersip_sipmsg:ruri(SipMsg1)),
     SipMsg2 = rebuild_sipmsg(SipMsg1),
     ?assertEqual(RURI, ersip_sipmsg:ruri(SipMsg2)),
+    ok.
+
+userdata_test() ->
+    SipMsg = default_sipmsg(),
+    ?assertError({error, no_user_data}, ersip_sipmsg:user_data(SipMsg)),
+    SipMsg1 = ersip_sipmsg:set_user_data(my_data, SipMsg),
+    ?assertEqual(my_data, ersip_sipmsg:user_data(SipMsg1)),
+    SipMsg2 = ersip_sipmsg:set_user_data(my_data_2, SipMsg1),
+    ?assertEqual(my_data_2, ersip_sipmsg:user_data(SipMsg2)),
+    SipMsg3 = ersip_sipmsg:clear_user_data(SipMsg2),
+    ?assertError({error, no_user_data}, ersip_sipmsg:user_data(SipMsg3)),
     ok.
 
 
@@ -452,3 +450,21 @@ rebuild_sipmsg(SipMsg) ->
     {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     {ok, SipMsg1} = ersip_sipmsg:parse(PMsg, all),
     SipMsg1.
+
+default_sipmsg() ->
+    Msg =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+          ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test"
+        >>,
+    create_sipmsg(Msg).
+

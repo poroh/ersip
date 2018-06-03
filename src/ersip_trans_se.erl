@@ -36,7 +36,8 @@
 -type set_timer()     :: {set_timer,     {timeout(), TimerEv :: timer_event()}}.
 -type timer_event()   :: term().
 -type clear_reason()  :: normal
-                       | timeout.
+                       | timeout
+                       | no_ack.
 
 %%%===================================================================
 %%% API

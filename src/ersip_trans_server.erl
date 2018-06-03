@@ -23,7 +23,7 @@
 -type event()   :: enter
                  | retransmit
                  | {send_resp, ersip_status:response_type(), Response :: term()}
-                 | {timer, TimerFun :: fun((trans_server()) -> result())}.
+                 | {timer, timer_j}.
 -type request()  :: term().
 -type response() :: term().
 
@@ -41,8 +41,6 @@
 
 %% @doc Create new ServerTrans transaction. Result of creation is ServerTrans state
 %% and set of side effects that produced because of creation.
-%%
-%% Request is not interpretted in any way.
 -spec new(Reliable, Request, Options) -> result() when
       Reliable :: reliable | unreliable,
       Request  :: request(),
@@ -50,18 +48,6 @@
 new(ReliableTranport, Request, Options) ->
     new_impl(ReliableTranport, Request, Options).
 
-%% @doc Process event by ServerTrans.
-%%
-%% Function retuns new ServerTrans state and side effects that must be done by
-%% caller.
-%%
-%% Defined events:
-%% {timer, timer_j}               - timer alarm that was requested by previous side effect
-%% {send_resp, RespType, message} - send response with defined type.
-%% retransmit                     - message retransmit received by UAC
-%%
-%% Side effects are defined in module ersip_trans_se
-%%
 -spec event(Event, trans_server()) -> result() when
       Event :: {timer, timer_j}
              | {send, ersip_sipmsg:sipmsg()}

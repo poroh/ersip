@@ -54,9 +54,16 @@
 -spec new_server(ersip_sipmsg:sipmsg(), ersip:sip_options()) -> result().
 new_server(SipMsg, Options) ->
     Id = server_id(SipMsg),
-    {Instance, SE} = ersip_trans_server:new(transport_type_by_source(SipMsg), SipMsg, Options),
+    Module =
+        case ersip_sipmsg:method(SipMsg) of
+            {method, <<"INVITE">>} ->
+                ersip_trans_inv_server;
+            _ ->
+                ersip_trans_server
+        end,
+    {Instance, SE} = Module:new(transport_type_by_source(SipMsg), SipMsg, Options),
     Trans = #trans{id       = Id,
-                   module   = ersip_trans_server,
+                   module   = Module,
                    instance = Instance
                   },
     {Trans, SE}.

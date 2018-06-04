@@ -225,16 +225,10 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% will be absorbed by the machine without changing its
     %% state. These retransmissions are not passed onto the TU.
     {Trans, []};
-'Accepted'({send, SipMsg}, #trans_inv_server{} = Trans) ->
+'Accepted'({send_resp, final, SipMsg}, #trans_inv_server{} = Trans) ->
     %% Any retransmission of the 2xx response passed from the TU to
     %% the transaction while in the "Accepted" state MUST be passed to
     %% the transport layer for transmission.
-    case ersip_sipmsg:type(SipMsg) of
-        response ->
-            ok;
-        request ->
-            error({error, {invalid_message_type, request}})
-    end,
     case ersip_sipmsg:status(SipMsg) of
         Code when Code >= 200 andalso Code =< 299 ->
             {Trans, [ersip_trans_se:send_response(SipMsg)]};

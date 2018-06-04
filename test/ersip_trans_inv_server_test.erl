@@ -36,14 +36,24 @@ reliable_canonnical_flow_test() ->
     {InvTrans2, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans1),
     {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE2),
 
-    %% Req #5: Timer L is set after passing 200 OK message (Accepted state):
+    %% Req #5: Timer L is set after passing 200 OK message (RFC6026 Accepted state):
     {set_timer, {Timeout, {timer, Timer} = TimerLEv}} = lists:keyfind(set_timer, 1, SE2),
     ?assertEqual(32000, Timeout),
     ?assertEqual(timer_l, Timer),
 
-    %% Req #6: INVITE server tranasaction is stopped after timer L is fired
-    {_InvTrans3, SE3} = ersip_trans_inv_server:event(TimerLEv, InvTrans2),
-    ?assertEqual([{clear_trans, normal}], SE3),
+    %% Req #6: Retransmission of 2xx are passed to transport layer (RFC6026):
+    {InvTrans3, SE3} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans2),
+    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE3),
+
+    %% Req #7: ACKs matching transaction are passed to TU (RFC6026):
+    ACKSipMsg = ack(),
+    {InvTrans4, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
+    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE4)),
+
+
+    %% Req #8: INVITE server tranasaction is stopped after timer L is fired
+    {_InvTrans3, SE5} = ersip_trans_inv_server:event(TimerLEv, InvTrans4),
+    ?assertEqual([{clear_trans, normal}], SE5),
     ok.
 
 
@@ -78,6 +88,9 @@ ringing() ->
 
 ok200() ->
     parse_message(ok200_bin()).
+
+ack() ->
+    parse_message(ack_bin()).
 
 -define(crlf, "\r\n").
 

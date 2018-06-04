@@ -104,15 +104,9 @@ new_impl(Reliable, ReqSipMsg, Options) ->
                       ersip_trans_se:tu_result(ReqSipMsg)]}.
 
 -spec 'Proceeding'(event(), trans_inv_server()) -> result().
-'Proceeding'({send, SipMsg}, #trans_inv_server{} = Trans) ->
-    case ersip_sipmsg:type(SipMsg) of
-        response ->
-            ok;
-        request ->
-            error({error, {invalid_message_type, request}})
-    end,
+'Proceeding'({send_resp, RespType, SipMsg}, #trans_inv_server{} = Trans) ->
     Status = ersip_sipmsg:status(SipMsg),
-    case ersip_status:response_type(Status) of
+    case RespType of
         provisional ->
             %% The TU passes any number of provisional responses to
             %% the server transaction.  So long as the server
@@ -134,7 +128,8 @@ new_impl(Reliable, ReqSipMsg, Options) ->
                     %% state, the state machine MUST transition to the
                     %% "Accepted" state and set Timer L to 64*T1
                     Trans1 = set_state(fun 'Accepted'/2, Trans),
-                    set_timer_l(64 * ?T1(Trans1), {Trans1, []});
+                    Result = {Trans1, [ersip_trans_se:send_response(SipMsg)]},
+                    set_timer_l(64 * ?T1(Trans1), Result);
                 S when S >= 300 andalso S =< 699 ->
                     %% While in the "Proceeding" state, if the TU
                     %% passes a response with status code from 300 to
@@ -150,11 +145,12 @@ new_impl(Reliable, ReqSipMsg, Options) ->
                     Result =
                         case Trans2#trans_inv_server.transport of
                             reliable ->
-                                {Trans2, []};
+                                {Trans2, [ersip_trans_se:send_response(SipMsg)]};
                             unreliable ->
                                 Timeout = ?T1(Trans2),
                                 Trans3 = Trans2#trans_inv_server{timer_g_timeout = Timeout},
-                                set_timer_g(Timeout, {Trans3, []})
+                                Result0 = {Trans3, [ersip_trans_se:send_response(SipMsg)]},
+                                set_timer_g(Timeout, Result0)
                         end,
                     process_event(enter, Result)
             end
@@ -257,8 +253,8 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     {Trans, []}.
 
 -spec 'Terminated'(event(), trans_inv_server()) -> result().
-'Terminated'(_Event, #trans_inv_server{} = Trans) ->
-    {Trans, []}.
+'Terminated'(_Event, #trans_inv_server{clear_reason = R} = Trans) ->
+    {Trans, [ersip_trans_se:clear_trans(R)]}.
 
 -spec process_event(Event :: term(), result()) -> result().
 process_event(Event, {#trans_inv_server{state = StateF} = Trans, SE}) ->
@@ -296,7 +292,7 @@ set_timer_l(Timeout, Result) ->
                  | timer_i
                  | timer_l.
 set_timer(Timeout, TimerType, {#trans_inv_server{} = Trans, SE}) ->
-    {Trans, [SE ++ [ersip_trans_se:set_timer(Timeout, {timer, TimerType})]]}.
+    {Trans, SE ++ [ersip_trans_se:set_timer(Timeout, {timer, TimerType})]}.
 
 -spec terminate(Reason,  trans_inv_server()) -> result() when
       Reason :: ersip_trans_se:clear_reason().

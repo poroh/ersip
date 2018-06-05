@@ -84,8 +84,7 @@ reliable_canonnical_4xx_flow_test() ->
     ?assertEqual({clear_trans, no_ack}, lists:keyfind(clear_trans, 1, SE3)),
     ok.
 
-
-unreliable_with_retransmits_test() ->
+unreliable_with_retransmits_2xx_test() ->
     InviteSipMsg = invite(),
     {InvTrans0, SE} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{}),
 
@@ -101,6 +100,76 @@ unreliable_with_retransmits_test() ->
     {InvTrans1, SE1} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans0),
     {send_response, Resp100} = lists:keyfind(send_response, 1, SE1),
 
+    %% Req #4: INVITE server tranasaction passes final 200 OK message
+    OKSipMsg = ok200(),
+    {InvTrans2, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans1),
+    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE2),
+
+    %% Req #5: Timer L is set to absort INVITE retransmits (RFC6026)
+    {set_timer, {Timeout, {timer, Timer} = TimerLEv}} = lists:keyfind(set_timer, 1, SE2),
+    ?assertEqual(32000, Timeout),
+    ?assertEqual(timer_l, Timer),
+
+    %% Req #6: INVITE retransmits are ignored in Accepted state.
+    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans2),
+    ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
+
+    %% Req #7: INVITE server tranasaction passes retransmissions of
+    %% final 200 OK message to Transport layer
+    {InvTrans4, SE4} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans3),
+    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE4),
+
+    {InvTrans5, SE5} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans4),
+    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE5),
+
+    %% Req #8: ACKs are passed to TU in Accepted state
+    ACKSipMsg = ack(),
+    {InvTrans6, SE6} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans5),
+    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE6)),
+
+    {InvTrans7, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans6),
+    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE7)),
+
+    %% Req #9: Transaction is cleared if timer L is fired in Accepted state.
+    %% We check it for InvTrans1..6
+    lists:foreach(fun(InvTrans) ->
+                          {_, LSE} = ersip_trans_inv_server:event(TimerLEv, InvTrans),
+                          ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, LSE))
+                  end,
+                  [InvTrans2, InvTrans3, InvTrans4, InvTrans5, InvTrans6, InvTrans7]),
+    ok.
+
+unreliable_with_retransmits_4xx_test() ->
+    InviteSipMsg = invite(),
+    {InvTrans0, _} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{}),
+
+    %% Req #1: INVITE server tranasaction passes final 4xx message
+    NotFoundSipMsg = notfound404(),
+    {InvTrans1, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, InvTrans0),
+    {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE1),
+
+    %% Req #2: Timer G is set for retransmission 4xx:
+    {set_timer, {TimeoutG1, {timer, TimerG1} = TimerGEv1}} = lists:keyfind(set_timer, 1, SE1),
+    ?assertEqual(timer_g, TimerG1),
+    ?assertEqual(500, TimeoutG1),
+
+    %% Req #3: Timer H is set when Completed state is entered:
+    %% {set_timer, {TimeoutH, {timer, TimerH} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1),
+    %% ?assertEqual(32000, TimeoutH),
+    %% ?assertEqual(timer_h, TimerH),
+
+    %% Req #5: Timer G timeout is doubled but limited with T4 each time:
+    {_, InvTrans2} =
+        lists:foldl(fun(Timeout, {TimerGEv, Trans}) ->
+                            {NewTrans, SE} = ersip_trans_inv_server:event(TimerGEv, Trans),
+                            {set_timer, {TimeoutG, {timer, TimerG} = TimerGEv}} = lists:keyfind(set_timer, 1, SE),
+                            {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE),
+                            ?assertEqual(timer_g, TimerG),
+                            ?assertEqual(Timeout, TimeoutG),
+                            {TimerGEv, NewTrans}
+                    end,
+                    {TimerGEv1, InvTrans1},
+                    [1000, 2000, 4000, 4000]),
     ok.
 
 

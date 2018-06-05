@@ -42,7 +42,12 @@
       Request  :: ersip_sipmsg:sipmsg(),
       Options  :: ersip:sip_options().
 new(ReliableTranport, Request, Options) ->
-    new_impl(ReliableTranport, Request, Options).
+    case ersip_sipmsg:type(Request) of
+        request ->
+            new_impl(ReliableTranport, Request, Options);
+        response ->
+            error({api_error, <<"server transaction must be initialyzed with INVITE request">>})
+    end.
 
 -spec event(Event, trans_inv_server()) -> result() when
       Event :: {timer, timer_j}
@@ -197,9 +202,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% Furthermore, while in the "Completed" state, if a request
     %% retransmission is received, the server SHOULD pass the response
     %% to the transport for retransmission
-    {Trans, [ersip_trans_se:send_response(LastResp)]};
-'Completed'(_Event, #trans_inv_server{} = Trans) ->
-    {Trans, []}.
+    {Trans, [ersip_trans_se:send_response(LastResp)]}.
 
 -spec 'Confirmed'(event(), trans_inv_server()) -> result().
 'Confirmed'(enter, #trans_inv_server{transport = unreliable} = Trans) ->
@@ -214,6 +217,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% "Terminated" state.
     terminate(normal, Trans);
 'Confirmed'(_Event, #trans_inv_server{} = Trans) ->
+    %% ignore acks/retransmits etc.
     {Trans, []}.
 
 %% @doc RFC6026 state:
@@ -233,7 +237,8 @@ new_impl(Reliable, ReqSipMsg, Options) ->
         Code when Code >= 200 andalso Code =< 299 ->
             {Trans, [ersip_trans_se:send_response(SipMsg)]};
         Code ->
-            error({error, {unexpected_response_code, Code}})
+            CodeBin = integer_to_binary(Code),
+            error({api_error, <<"unexpected response code ", CodeBin/binary>>})
     end;
 'Accepted'({ack, ACKSipMsg}, #trans_inv_server{} = Trans) ->
     %% Any ACKs received from the network while in the "Accepted"

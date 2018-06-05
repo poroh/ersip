@@ -191,6 +191,20 @@ unreliable_with_retransmits_4xx_test() ->
 
     ok.
 
+error_handling_test() ->
+    %% Invite transaction must be intialized with request.
+    ?assertError({api_error, _}, ersip_trans_inv_server:new(reliable, ok200(), #{})),
+    %% Invite transaction must be replied with reply
+    {InvTrans, _} = ersip_trans_inv_server:new(reliable, invite(), #{}),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, invite()}, InvTrans)),
+    %% Response cannot match server transaction so receive of response is error:
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({received, ok200()}, InvTrans)),
+
+    %% After transaction is replied we cannot reply with different status code:
+    {InvTrans2, _} = ersip_trans_inv_server:event({send, ok200()}, InvTrans),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTrans2)),
+
+    ok.
 
 %%%===================================================================
 %%% Helpers

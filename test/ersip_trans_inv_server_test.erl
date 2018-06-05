@@ -171,19 +171,23 @@ unreliable_with_retransmits_4xx_test() ->
                     {TimerGEv1, InvTrans1},
                     [1000, 2000, 4000, 4000]),
 
-    ACKSipMsg = ack(),
-    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans2),
-    %% Req #6: ACK is not passed to TU:
-    ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
+    %% Req #6: Response returned on request retransmission.
+    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans2),
+    ?assertEqual({send_response, NotFoundSipMsg}, lists:keyfind(send_response, 1, SE3)),
 
-    %% Req #7: Timer I is set after ACK (Confirmed state)
-    {set_timer, {TimeoutI, {timer, TimerI} = TimerIEv}} = lists:keyfind(set_timer, 1, SE3),
+    ACKSipMsg = ack(),
+    {InvTrans4, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
+    %% Req #7: ACK is not passed to TU:
+    ?assertEqual(false, lists:keyfind(tu_result, 1, SE4)),
+
+    %% Req #8: Timer I is set after ACK (Confirmed state)
+    {set_timer, {TimeoutI, {timer, TimerI} = TimerIEv}} = lists:keyfind(set_timer, 1, SE4),
     ?assertEqual(5000, TimeoutI),
     ?assertEqual(timer_i, TimerI),
 
     %% Req #8: Transaction is cleared after timer I is fired.
-    {_InvTrans4, SE4} = ersip_trans_inv_server:event(TimerIEv, InvTrans3),
-    ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE4)),
+    {_InvTrans5, SE5} = ersip_trans_inv_server:event(TimerIEv, InvTrans4),
+    ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE5)),
 
     ok.
 

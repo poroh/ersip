@@ -193,7 +193,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% transaction MUST transition to the "Terminated" state, and MUST
     %% indicate to the TU that a transaction failure has occurred.
     terminate(no_ack, Trans);
-'Completed'(retransmission, #trans_inv_server{last_resp = LastResp} = Trans) ->
+'Completed'(retransmit, #trans_inv_server{last_resp = LastResp} = Trans) ->
     %% Furthermore, while in the "Completed" state, if a request
     %% retransmission is received, the server SHOULD pass the response
     %% to the transport for retransmission

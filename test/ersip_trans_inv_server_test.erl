@@ -14,7 +14,7 @@
 %%% Cases
 %%%===================================================================
 
-reliable_canonnical_flow_test() ->
+reliable_canonnical_2xx_flow_test() ->
     InviteSipMsg = invite(),
     {InvTrans0, SE} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{}),
 
@@ -57,6 +57,34 @@ reliable_canonnical_flow_test() ->
     ok.
 
 
+reliable_canonnical_4xx_flow_test() ->
+    InviteSipMsg = invite(),
+    {InvTrans0, _} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{}),
+
+    %% Req #1: INVITE server tranasaction passes final 4xx message
+    NotFoundSipMsg = notfound404(),
+    {InvTrans1, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, InvTrans0),
+    {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE1),
+
+    %% Req #2: Timer H is set when Completed state is entered:
+    {set_timer, {Timeout, {timer, Timer} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1),
+    ?assertEqual(32000, Timeout),
+    ?assertEqual(timer_h, Timer),
+
+    %% Req #3: ACKs matching transaction are absorbed by transaction:
+    ACKSipMsg = ack(),
+    {_, SE2} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans1),
+    ?assertEqual(false, lists:keyfind(tu_result, 1, SE2)),
+
+    %% Req #4: Transaction is cleared for reliable transport. (Timer I is set to 0).
+    ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE2)),
+
+    %% Req #5: Transaction is cleared with no_ack if TimerH is fired:
+    {_, SE3} = ersip_trans_inv_server:event(TimerHEv, InvTrans1),
+    ?assertEqual({clear_trans, no_ack}, lists:keyfind(clear_trans, 1, SE3)),
+    ok.
+
+
 unreliable_with_retransmits_test() ->
     InviteSipMsg = invite(),
     {InvTrans0, SE} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{}),
@@ -88,6 +116,9 @@ ringing() ->
 
 ok200() ->
     parse_message(ok200_bin()).
+
+notfound404() ->
+    parse_message(notfound404_bin()).
 
 ack() ->
     parse_message(ack_bin()).
@@ -121,6 +152,19 @@ ringing_bin() ->
 
 ok200_bin() ->
     <<"SIP/2.0 200 OK" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      " ;received=192.0.2.1" ?crlf
+      "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Contact: <sip:bob@192.0.2.4>" ?crlf
+      "Content-Type: application/sdp" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
+notfound404_bin() ->
+    <<"SIP/2.0 404 Not Found" ?crlf
       "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
       " ;received=192.0.2.1" ?crlf
       "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf" ?crlf

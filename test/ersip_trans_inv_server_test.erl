@@ -170,6 +170,21 @@ unreliable_with_retransmits_4xx_test() ->
                     end,
                     {TimerGEv1, InvTrans1},
                     [1000, 2000, 4000, 4000]),
+
+    ACKSipMsg = ack(),
+    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans2),
+    %% Req #6: ACK is not passed to TU:
+    ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
+
+    %% Req #7: Timer I is set after ACK (Confirmed state)
+    {set_timer, {TimeoutI, {timer, TimerI} = TimerIEv}} = lists:keyfind(set_timer, 1, SE3),
+    ?assertEqual(5000, TimeoutI),
+    ?assertEqual(timer_i, TimerI),
+
+    %% Req #8: Transaction is cleared after timer I is fired.
+    {_InvTrans4, SE4} = ersip_trans_inv_server:event(TimerIEv, InvTrans3),
+    ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE4)),
+
     ok.
 
 

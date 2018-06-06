@@ -202,7 +202,10 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% Furthermore, while in the "Completed" state, if a request
     %% retransmission is received, the server SHOULD pass the response
     %% to the transport for retransmission
-    {Trans, [ersip_trans_se:send_response(LastResp)]}.
+    {Trans, [ersip_trans_se:send_response(LastResp)]};
+'Completed'({send_resp, _, _}, #trans_inv_server{} = _Trans) ->
+    error({api_error, <<"Duplicate non 2xx response on INVITE transaction">>}).
+
 
 -spec 'Confirmed'(event(), trans_inv_server()) -> result().
 'Confirmed'(enter, #trans_inv_server{transport = unreliable} = Trans) ->
@@ -216,8 +219,12 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% Once timer I fires, the server MUST transition to the
     %% "Terminated" state.
     terminate(normal, Trans);
+'Confirmed'({send_resp, _, _}, #trans_inv_server{} = _Trans) ->
+    %% Cannot send response after switching to Confirmed state
+    %% (duplicate response)
+    error({api_error, <<"Duplicate non 2xx response on INVITE transaction">>});
 'Confirmed'(_Event, #trans_inv_server{} = Trans) ->
-    %% ignore acks/retransmits etc.
+    %% ignore acks/retransmits and timer_g
     {Trans, []}.
 
 %% @doc RFC6026 state:
@@ -240,6 +247,8 @@ new_impl(Reliable, ReqSipMsg, Options) ->
             CodeBin = integer_to_binary(Code),
             error({api_error, <<"unexpected response code ", CodeBin/binary>>})
     end;
+'Accepted'({send_resp, _, _}, #trans_inv_server{} = _Trans) ->
+    error({api_error, <<"unexpected response in Accepted state">>});
 'Accepted'({ack, ACKSipMsg}, #trans_inv_server{} = Trans) ->
     %% Any ACKs received from the network while in the "Accepted"
     %% state MUST be passed directly to the TU and not absorbed.
@@ -247,9 +256,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
 'Accepted'({timer, timer_l}, #trans_inv_server{} = Trans) ->
     %% When Timer L fires and the state machine is in the "Accepted"
     %% state, the machine MUST transition to the "Terminated" state.
-    terminate(normal, Trans);
-'Accepted'(_Event, #trans_inv_server{} = Trans) ->
-    {Trans, []}.
+    terminate(normal, Trans).
 
 -spec 'Terminated'(event(), trans_inv_server()) -> result().
 'Terminated'(_Event, #trans_inv_server{clear_reason = R} = Trans) ->

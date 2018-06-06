@@ -175,8 +175,9 @@ unreliable_with_retransmits_4xx_test() ->
     {InvTrans3, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans2),
     ?assertEqual({send_response, NotFoundSipMsg}, lists:keyfind(send_response, 1, SE3)),
 
+
     ACKSipMsg = ack(),
-    {InvTrans4, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
+    {InvTransConfirmed, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
     %% Req #7: ACK is not passed to TU:
     ?assertEqual(false, lists:keyfind(tu_result, 1, SE4)),
 
@@ -186,23 +187,56 @@ unreliable_with_retransmits_4xx_test() ->
     ?assertEqual(timer_i, TimerI),
 
     %% Req #8: Transaction is cleared after timer I is fired.
-    {_InvTrans5, SE5} = ersip_trans_inv_server:event(TimerIEv, InvTrans4),
+    {_InvTrans5, SE5} = ersip_trans_inv_server:event(TimerIEv, InvTransConfirmed),
     ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE5)),
 
+    %% Req #9: Retransmission & acks are ignored in Confirmed state:
+    {InvTrans6, SE6} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTransConfirmed),
+    ?assertEqual(InvTransConfirmed, InvTrans6),
+    ?assertEqual([], SE6),
+
+    {InvTrans7, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTransConfirmed),
+    ?assertEqual(InvTransConfirmed, InvTrans7),
+    ?assertEqual([], SE7),
+
+    %% Req #10: Timer G is ignored in Confirmed state:
+    {InvTrans8, SE8} = ersip_trans_inv_server:event(TimerGEv1, InvTransConfirmed),
+    ?assertEqual(InvTransConfirmed, InvTrans8),
+    ?assertEqual([], SE8),
+
+    ok.
+
+ignore_ack_in_proceeding_test() ->
+    {InvTransProceeding, _} = ersip_trans_inv_server:new(unreliable, invite(), #{}),
+    {InvTrans1, SE1} = ersip_trans_inv_server:event({received, ack()}, InvTransProceeding),
+    ?assertEqual(InvTransProceeding, InvTrans1),
+    ?assertEqual([], SE1),
     ok.
 
 error_handling_test() ->
     %% Invite transaction must be intialized with request.
     ?assertError({api_error, _}, ersip_trans_inv_server:new(reliable, ok200(), #{})),
     %% Invite transaction must be replied with reply
-    {InvTrans, _} = ersip_trans_inv_server:new(reliable, invite(), #{}),
+    {InvTrans, _} = ersip_trans_inv_server:new(unreliable, invite(), #{}),
     ?assertError({api_error, _}, ersip_trans_inv_server:event({send, invite()}, InvTrans)),
     %% Response cannot match server transaction so receive of response is error:
     ?assertError({api_error, _}, ersip_trans_inv_server:event({received, ok200()}, InvTrans)),
 
     %% After transaction is replied we cannot reply with different status code:
-    {InvTrans2, _} = ersip_trans_inv_server:event({send, ok200()}, InvTrans),
-    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTrans2)),
+    {InvTransAccepted, _} = ersip_trans_inv_server:event({send, ok200()}, InvTrans),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTransAccepted)),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, ringing()}, InvTransAccepted)),
+
+    %% After transaction is replied we cannot reply with different status code:
+    {InvTransCompleted, _} = ersip_trans_inv_server:event({send, notfound404()}, InvTrans),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, ringing()}, InvTransCompleted)),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, ok200()}, InvTransCompleted)),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTransCompleted)),
+
+    {InvTransConfirmed, _} = ersip_trans_inv_server:event({received, ack()}, InvTransCompleted),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, ringing()}, InvTransConfirmed)),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, ok200()}, InvTransConfirmed)),
+    ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTransConfirmed)),
 
     ok.
 

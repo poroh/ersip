@@ -149,14 +149,14 @@ unreliable_with_retransmits_4xx_test() ->
     {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE1),
 
     %% Req #2: Timer G is set for retransmission 4xx:
-    {set_timer, {TimeoutG1, {timer, TimerG1} = TimerGEv1}} = lists:keyfind(set_timer, 1, SE1),
+    {value, {set_timer, {TimeoutG1, {timer, TimerG1} = TimerGEv1}}, SE1_1} = lists:keytake(set_timer, 1, SE1),
     ?assertEqual(timer_g, TimerG1),
     ?assertEqual(500, TimeoutG1),
 
     %% Req #3: Timer H is set when Completed state is entered:
-    %% {set_timer, {TimeoutH, {timer, TimerH} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1),
-    %% ?assertEqual(32000, TimeoutH),
-    %% ?assertEqual(timer_h, TimerH),
+    {set_timer, {TimeoutH, {timer, TimerH} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1_1),
+    ?assertEqual(32000, TimeoutH),
+    ?assertEqual(timer_h, TimerH),
 
     %% Req #5: Timer G timeout is doubled but limited with T4 each time:
     {_, InvTrans2} =
@@ -204,6 +204,9 @@ unreliable_with_retransmits_4xx_test() ->
     ?assertEqual(InvTransConfirmed, InvTrans8),
     ?assertEqual([], SE8),
 
+    %% Req #11: Transaction is cleared with no_ack if TimerH is fired:
+    {_, SE9} = ersip_trans_inv_server:event(TimerHEv, InvTrans2),
+    ?assertEqual({clear_trans, no_ack}, lists:keyfind(clear_trans, 1, SE9)),
     ok.
 
 ignore_ack_in_proceeding_test() ->

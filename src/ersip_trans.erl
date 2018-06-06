@@ -71,12 +71,19 @@ new_server(SipMsg, Options) ->
 -spec new_client(ersip_request:request(), ersip:sip_options()) -> result().
 new_client(OutReq, Options) ->
     Id = client_id(OutReq),
+    Module =
+        case ersip_sipmsg:method(ersip_request:sipmsg(OutReq)) of
+            {method, <<"INVITE">>} ->
+                ersip_trans_inv_client;
+            _ ->
+                ersip_trans_client
+        end,
     NexthopURI = ersip_request:nexthop(OutReq),
     Transport = ersip_transport:make_by_uri(NexthopURI),
     TransportType = transport_type_by_transport(Transport),
     {Instance, SE} = ersip_trans_client:new(TransportType, OutReq, Options),
     Trans = #trans{id = Id,
-                   module = ersip_trans_client,
+                   module = Module,
                    instance = Instance
                   },
     {Trans, SE}.

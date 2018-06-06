@@ -27,10 +27,18 @@
                            clear_reason = normal      :: ersip_trans_se:clear_reason()
                           }).
 -type trans_inv_server() :: #trans_inv_server{}.
--type event()   :: term().
 -type result()  :: {trans_inv_server(), [ersip_trans_se:effect()]}.
 -type state()   :: fun((event(), trans_inv_server()) -> result()).
 -type transport_type() :: reliable | unreliable.
+%% decoded event:
+-type event()   :: {send_resp, ersip_status:response_type(), ersip_sipmsg:sipmsg()}
+                 | retransmit
+                 | {ack, ersip_sipmsg:sipmsg()}
+                 | {timer, timer_type()}.
+-type timer_type() :: timer_g
+                    | timer_h
+                    | timer_i
+                    | timer_l.
 
 %%%===================================================================
 %%% API
@@ -50,7 +58,7 @@ new(ReliableTranport, Request, Options) ->
     end.
 
 -spec event(Event, trans_inv_server()) -> result() when
-      Event :: {timer, timer_j}
+      Event :: {timer, timer_type()}
              | {send, ersip_sipmsg:sipmsg()}
              | retransmit.
 event({received, SipMsg}, ServerTrans) ->
@@ -293,10 +301,7 @@ set_timer_l(Timeout, Result) ->
 
 
 -spec set_timer(pos_integer(), TimerType, result()) -> result() when
-      TimerType :: timer_g
-                 | timer_h
-                 | timer_i
-                 | timer_l.
+      TimerType :: timer_type().
 set_timer(Timeout, TimerType, {#trans_inv_server{} = Trans, SE}) ->
     {Trans, SE ++ [ersip_trans_se:set_timer(Timeout, {timer, TimerType})]}.
 

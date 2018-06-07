@@ -13,6 +13,7 @@
          make_key/1,
          number/1,
          method/1,
+         set_method/2,
          parse/1,
          build/2,
          assemble/1
@@ -59,6 +60,10 @@ number(#cseq{number = N}) ->
 -spec method(cseq()) -> ersip_method:method().
 method(#cseq{method = M}) ->
     M.
+
+-spec set_method(ersip_method:method(), cseq()) -> cseq().
+set_method(Method, #cseq{} = CSeq) ->
+    CSeq#cseq{method = Method}.
 
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: {ok, cseq()}

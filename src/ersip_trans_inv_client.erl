@@ -122,8 +122,19 @@ new_impl(TransportType, Request, Options) ->
     %% provisional response MUST be passed to the TU.
     Trans1 = set_state(fun 'Proceeding'/2, Trans),
     {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
+'Calling'({resp, final, SipMsg}, #trans_inv_client{request = Req} = Trans) ->
+    %% When in either the "Calling" or "Proceeding" states, reception
+    %% of a response with status code from 300-699 MUST cause the
+    %% client transaction to transition to "Completed". The client
+    %% transaction MUST pass the received response up to the TU, and
+    %% the client transaction MUST generate an ACK request, even if
+    %% the transport is reliable
+    Trans1 = set_state(fun 'Completed'/2, Trans),
+    ACKReq = generate_ack_request(SipMsg, Req),
+    {Trans1, [ersip_trans_se:tu_result(SipMsg),
+              ersip_trans_se:send_request(ACKReq)
+             ]};
 'Calling'(_Event, #trans_inv_client{} = Trans) ->
-
     {Trans, []}.
 
 -spec 'Proceeding'(event(), trans_inv_client()) -> result().
@@ -171,3 +182,52 @@ terminate(Reason, Trans) ->
     Trans1 = set_state(fun 'Terminated'/2, Trans),
     Trans2 = Trans1#trans_inv_client{clear_reason = Reason},
     process_event('enter', {Trans2, []}).
+
+%% 17.1.1.3 Construction of the ACK Request
+%%
+%% Note that this generation is INVITE transaction specific and cannot
+%% be reused to generate ACK on 2xx.
+-spec generate_ack_request(Response , InitialReq) -> ersip_request:request() when
+      Response :: ersip:sipmsg(),
+      InitialReq :: ersip_request:request().
+generate_ack_request(Response, InitialRequest) ->
+    InitialSipMsg = ersip_request:sipmsg(InitialRequest),
+    %% The ACK request constructed by the client transaction MUST
+    %% contain values for the Call-ID, From, and Request-URI that are
+    %% equal to the values of those header fields in the request
+    %% passed to the transport by the client transaction (call this
+    %% the "original request").
+    RURI = ersip_sipmsg:ruri(InitialSipMsg),
+    ACK0 = ersip_sipmsg:new_request(ersip_method:ack(), RURI),
+    ACK1 = ersip_sipmsg:copy(from, InitialSipMsg, ACK0),
+    %% The To header field in the ACK MUST equal the To header field
+    %% in the response being acknowledged, and therefore will usually
+    %% differ from the To header field in the original request by the
+    %% addition of the tag parameter.
+    ACK2 = ersip_sipmsg:copy(to, Response, ACK1),
+
+    %% The CSeq header field in the ACK MUST contain the same
+    %% value for the sequence number as was present in the original request,
+    %% but the method parameter MUST be equal to "ACK".
+    InviteCSeq = ersip_sipmsg:get(cseq, InitialSipMsg),
+    ACKCSeq = ersip_hdr_cseq:set_method(ersip_method:ack(), InviteCSeq),
+    ACK3 = ersip_sipmsg:set(cseq, ACKCSeq, ACK2),
+
+    %% If the INVITE request whose response is being acknowledged had Route
+    %% header fields, those header fields MUST appear in the ACK.
+    ACK4 = ersip_sipmsg:copy(route, InitialSipMsg, ACK3),
+
+    %% RFC 3261 says nothing about max-forwards in ACK for this case
+    %% but following logic of route copy it should be the same as in
+    %% INVITE:
+    ACK5 = ersip_sipmsg:copy(maxforwards, InitialSipMsg, ACK4),
+
+    %% Normative:
+    %% The ACK MUST contain a single Via header field, and this MUST
+    %% be equal to the top Via header field of the original request.
+
+    %% Implementation: we really do not add Via here because it is
+    %% automatically added when message is passed via connection. So
+    %% what we really do here - we generate ersip_request with the
+    %% same paramters as InitialRequest
+    ersip_request:set_sipmsg(ACK5, InitialRequest).

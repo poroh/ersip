@@ -80,9 +80,10 @@ make_rfc3261_tid(TopmostVia, Message) ->
     Branch    = ersip_hdr_via:branch(TopmostVia),
     SentByKey = ersip_hdr_via:sent_by_key(TopmostVia),
     Method    = ersip_sipmsg:method(Message),
+    ACK       = ersip_method:ack(),
     EffMethod =
         case Method of
-            {method, <<"ACK">>} -> ersip_method:make(<<"INVITE">>);
+            ACK -> ersip_method:invite();
             M -> M
         end,
     #tid_rfc3261{method  = EffMethod,
@@ -97,8 +98,10 @@ make_rfc2543_tid(TopmostVia, Message) ->
     From   = ersip_sipmsg:get(from, Message),
     To     = ersip_sipmsg:get(to,   Message),
     CSeq   = ersip_sipmsg:get(cseq, Message),
+    INVITE = ersip_method:invite(),
+    ACK    = ersip_method:ack(),
     case Method of
-        {method, <<"INVITE">>} ->
+        INVITE ->
             %% The INVITE request matches a transaction if the
             %% Request-URI, To tag, From tag, Call-ID, CSeq, and top
             %% Via header field match those of the INVITE request
@@ -112,13 +115,13 @@ make_rfc2543_tid(TopmostVia, Message) ->
                          cseq        = ersip_hdr_cseq:make_key(CSeq),
                          topmost_via = ersip_hdr_via:make_key(TopmostVia)
                         };
-        {method,  <<"ACK">>} ->
+        ACK ->
             %% The ACK request matches a transaction if the Request-
             %% URI, From tag, Call-ID, CSeq number (not the method), and top Via
             %% header field match those of the INVITE request which created the
             %% transaction, and the To tag of the ACK matches the To tag of the
             %% response sent by the server transaction.
-            INVITE = ersip_method:make(<<"INVITE">>),
+            INVITE = ersip_method:invite(),
             ACKCSeq = ersip_hdr_cseq:make(INVITE, ersip_hdr_cseq:number(CSeq)),
             #tid_rfc2543{callid      = ersip_hdr_callid:make_key(CallId),
                          ruri        = ersip_uri:make_key(RURI),

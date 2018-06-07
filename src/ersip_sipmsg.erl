@@ -23,6 +23,7 @@
          find/2,
          get/2,
          set/3,
+         copy/3,
 
          %% Body manipulation:
          has_body/1,
@@ -37,6 +38,7 @@
          serialize_bin/1,
 
          %% SIP-specific
+         new_request/2,
          reply/2,
 
          %% Metadata manipulation:
@@ -151,6 +153,10 @@ get(HdrAtom, #sipmsg{} = Msg) ->
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
     ersip_siphdr:set_header(HdrAtom, Value, Msg).
 
+-spec copy(known_header(), Src :: sipmsg(), Dst :: sipmsg()) -> sipmsg().
+copy(HdrAtom, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
+    ersip_siphdr:copy_headers([HdrAtom], SrcMsg, DstMsg).
+
 -spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->
     not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
@@ -192,6 +198,20 @@ serialize(#sipmsg{} = SipMsg) ->
 -spec serialize_bin(sipmsg()) -> binary().
 serialize_bin(#sipmsg{} = SipMsg) ->
     iolist_to_binary(serialize(SipMsg)).
+
+%% Creating new request. To be more generic headers (even required)
+%% are not automatically generated.
+-spec new_request(ersip_method:method(), ersip_uri:uri()) -> sipmsg().
+new_request(Method, RURI) ->
+    RawMsg = ersip_msg:new(),
+    RawMsg1 = ersip_msg:set([{type,   request},
+                             {method, Method},
+                             {ruri,   RURI}],
+                            RawMsg),
+    #sipmsg{raw    = RawMsg1,
+            method = Method,
+            ruri   = RURI
+           }.
 
 -spec reply(ersip_reply:options() | ersip_status:code(), sipmsg()) -> sipmsg().
 reply(Code, #sipmsg{} = SipMsg) when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->

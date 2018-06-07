@@ -64,12 +64,14 @@ new(ReliableTranport, Request, Options) ->
 event({received, SipMsg}, ServerTrans) ->
     case ersip_sipmsg:type(SipMsg) of
         request ->
+            INVITE = ersip_method:invite(),
+            ACK    = ersip_method:ack(),
             %% Only can be ACK or retransmit otherwise it will not
             %% match transaction id.
             case ersip_sipmsg:method(SipMsg) of
-                {method, <<"ACK">>} ->
+                ACK ->
                     process_event({ack, SipMsg}, {ServerTrans, []});
-                {method, <<"INVITE">>} ->
+                INVITE ->
                     process_event(retransmit, {ServerTrans, []})
             end;
         response ->

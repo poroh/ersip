@@ -8,7 +8,10 @@
 
 -module(ersip_method).
 
--export([parse/1,
+-export([options/0,
+         invite/0,
+         ack/0,
+         parse/1,
          make/1,
          to_binary/1
         ]).
@@ -23,6 +26,18 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec options() -> method().
+options() ->
+    {method, <<"OPTIONS">>}.
+
+-spec invite() -> method().
+invite() ->
+    {method, <<"INVITE">>}.
+
+-spec ack() -> method().
+ack() ->
+    {method, <<"ACK">>}.
 
 -spec parse(binary()) ->  {ok, method()}
                               | {error, Error} when

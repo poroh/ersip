@@ -54,9 +54,10 @@
 -spec new_server(ersip_sipmsg:sipmsg(), ersip:sip_options()) -> result().
 new_server(SipMsg, Options) ->
     Id = server_id(SipMsg),
+    INVITE = ersip_method:invite(),
     Module =
         case ersip_sipmsg:method(SipMsg) of
-            {method, <<"INVITE">>} ->
+            INVITE ->
                 ersip_trans_inv_server;
             _ ->
                 ersip_trans_server
@@ -71,9 +72,10 @@ new_server(SipMsg, Options) ->
 -spec new_client(ersip_request:request(), ersip:sip_options()) -> result().
 new_client(OutReq, Options) ->
     Id = client_id(OutReq),
+    INVITE = ersip_method:invite(),
     Module =
         case ersip_sipmsg:method(ersip_request:sipmsg(OutReq)) of
-            {method, <<"INVITE">>} ->
+            INVITE ->
                 ersip_trans_inv_client;
             _ ->
                 ersip_trans_client

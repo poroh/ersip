@@ -35,7 +35,7 @@
                                        | undefined,
                   headers = #{}       :: #{binary() := ersip_hdr:header()},
                   body    = []        :: iolist(),
-                  source = undefined  :: undefined 
+                  source = undefined  :: undefined
                                        | ersip_source:source()
                  }).
 

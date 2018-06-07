@@ -110,7 +110,7 @@ copy_headers(HeaderList, SrcSipMsg, DstSipMsg) ->
                 DstSipMsg,
                 HeaderList).
 
--spec set_header(known_header() | binary(), Value :: term(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+-spec set_header(known_header(), Value :: term(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 set_header(Header, Value, SipMsg) when is_atom(Header) ->
     #descr{name = Name,
            assemble_fun = AssembleF

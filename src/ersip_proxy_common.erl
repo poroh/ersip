@@ -217,8 +217,9 @@ val_max_forwards(SipMessage, Options) ->
             %% the request was for OPTIONS, the element MAY act as the final
             %% recipient and respond per Section 11.  Otherwise, the element MUST
             %% return a 483 (Too many hops) response.
+            OPTIONS = ersip_method:options(),
             case ersip_sipmsg:method(SipMessage) of
-                {method, <<"OPTIONS">>} ->
+                OPTIONS ->
                     maybe_reply_options(SipMessage, Options);
                 _ ->
                     make_reply(SipMessage, Options, 483)

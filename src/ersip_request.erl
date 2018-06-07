@@ -12,6 +12,7 @@
          new/3,
          branch/1,
          sipmsg/1,
+         set_sipmsg/2,
          nexthop/1,
          set_nexthop/2,
          send_via_conn/2
@@ -55,6 +56,10 @@ branch(#request{branch = Branch}) ->
 -spec sipmsg(request()) -> ersip_sipmsg:sipmsg().
 sipmsg(#request{sipmsg = SipMsg}) ->
     SipMsg.
+
+-spec set_sipmsg(ersip_sipmsg:sipmsg(), request()) -> request().
+set_sipmsg(SipMsg, #request{} = Base) ->
+    Base#request{sipmsg = SipMsg}.
 
 -spec nexthop(request()) -> ersip_uri:uri().
 nexthop(#request{nexthop = NexthopURI}) ->

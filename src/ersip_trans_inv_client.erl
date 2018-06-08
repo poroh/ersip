@@ -25,7 +25,8 @@
                            options                    :: ersip:sip_options(),
                            request                    :: ersip_request:request(),
                            clear_reason = normal      :: ersip_trans_se:clear_reason(),
-                           timer_a_timeout = 500      :: pos_integer()
+                           timer_a_timeout = 500      :: pos_integer(),
+                           last_ack                   :: ersip_request:request()
                           }).
 -type trans_inv_client() :: #trans_inv_client{}.
 -type result() :: {trans_inv_client(), [ersip_trans_se:side_effect()]}.
@@ -122,31 +123,72 @@ new_impl(TransportType, Request, Options) ->
     %% provisional response MUST be passed to the TU.
     Trans1 = set_state(fun 'Proceeding'/2, Trans),
     {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
-'Calling'({resp, final, SipMsg}, #trans_inv_client{request = Req} = Trans) ->
-    %% When in either the "Calling" or "Proceeding" states, reception
-    %% of a response with status code from 300-699 MUST cause the
-    %% client transaction to transition to "Completed". The client
-    %% transaction MUST pass the received response up to the TU, and
-    %% the client transaction MUST generate an ACK request, even if
-    %% the transport is reliable
-    Trans1 = set_state(fun 'Completed'/2, Trans),
-    ACKReq = generate_ack_request(SipMsg, Req),
-    {Trans1, [ersip_trans_se:tu_result(SipMsg),
-              ersip_trans_se:send_request(ACKReq)
-             ]};
+'Calling'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
+    handle_final_resp(SipMsg, Trans);
 'Calling'(_Event, #trans_inv_client{} = Trans) ->
     {Trans, []}.
 
 -spec 'Proceeding'(event(), trans_inv_client()) -> result().
+'Proceeding'({resp, provisional, SipMsg}, #trans_inv_client{} = Trans) ->
+    %% If the client transaction receives a provisional response while
+    %% in the "Calling" state, it transitions to the "Proceeding"
+    %% state. In the "Proceeding" state, the client transaction SHOULD
+    %% NOT retransmit the request any longer. Furthermore, the
+    %% provisional response MUST be passed to the TU.
+    Trans1 = set_state(fun 'Proceeding'/2, Trans),
+    {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
+'Proceeding'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
+    handle_final_resp(SipMsg, Trans);
 'Proceeding'(_Event, #trans_inv_client{} = Trans) ->
     {Trans, []}.
 
 -spec 'Completed'(event(), trans_inv_client()) -> result().
+'Completed'(enter, #trans_inv_client{transport = Transport} = Trans) ->
+    %% The client transaction SHOULD start timer D when it enters the
+    %% "Completed" state, with a value of at least 32 seconds for
+    %% unreliable transports, and a value of zero seconds for reliable
+    %% transports.
+    case Transport of
+        reliable ->
+            process_event({timer, timer_d}, {Trans, []});
+        unreliable ->
+            %% TODO: Whether we need to configure this timer?
+            set_timer_d(32000, {Trans, []})
+    end;
+'Completed'({resp, final, _}, #trans_inv_client{last_ack = ACKReq} = Trans) ->
+    %% Any retransmissions of the final response that are received
+    %% while in the "Completed" state MUST cause the ACK to be
+    %% re-passed to the transport layer for retransmission, but the
+    %% newly received response MUST NOT be passed up to the TU.
+    {Trans, [ersip_trans_se:send_request(ACKReq)]};
+'Completed'({resp, _, _}, #trans_inv_client{} = Trans) ->
+    %% Ignore unexpected provisional response
+    {Trans, []};
+'Completed'({timer, timer_d}, #trans_inv_client{} = Trans) ->
+    %% If timer D fires while the client transaction is in the "Completed"
+    %% state, the client transaction MUST move to the terminated state.
+    terminate(normal, Trans);
 'Completed'(_Event, #trans_inv_client{} = Trans) ->
     {Trans, []}.
 
 %% RFC6026 state:
 -spec 'Accepted'(event(), trans_inv_client()) -> result().
+'Accepted'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
+    %% A 2xx response received while in the "Accepted" state MUST be
+    %% passed to the TU and the machine remains in the "Accepted"
+    %% state.  The client transaction MUST NOT generate an ACK to any
+    %% 2xx response on its own.  The TU responsible for the
+    %% transaction will generate the ACK.
+    {Trans, [ersip_trans_se:tu_result(SipMsg)]};
+'Accepted'({resp, _, _}, #trans_inv_client{} = Trans) ->
+    %% Ignore unexpected provisional response
+    {Trans, []};
+'Accepted'({timer, timer_m}, #trans_inv_client{} = Trans) ->
+    %% When Timer M fires and the state machine is in the "Accepted"
+    %% state, the machine MUST transition to the "Terminated" state.
+    %% Once the transaction is in the "Terminated" state, it MUST be
+    %% destroyed immediately.
+    terminate(normal, Trans);
 'Accepted'(_Event, #trans_inv_client{} = Trans) ->
     {Trans, []}.
 
@@ -171,6 +213,14 @@ set_timer_a(Timeout, Result) ->
 set_timer_b(Timeout, Result) ->
     set_timer(Timeout, timer_b, Result).
 
+-spec set_timer_d(pos_integer(), result()) -> result().
+set_timer_d(Timeout, Result) ->
+    set_timer(Timeout, timer_d, Result).
+
+-spec set_timer_m(pos_integer(), result()) -> result().
+set_timer_m(Timeout, Result) ->
+    set_timer(Timeout, timer_m, Result).
+
 -spec set_timer(pos_integer(), TimerType, result()) -> result() when
       TimerType :: timer_type().
 set_timer(Timeout, TimerType, {#trans_inv_client{} = Trans, SE}) ->
@@ -182,6 +232,36 @@ terminate(Reason, Trans) ->
     Trans1 = set_state(fun 'Terminated'/2, Trans),
     Trans2 = Trans1#trans_inv_client{clear_reason = Reason},
     process_event('enter', {Trans2, []}).
+
+-spec handle_final_resp(ersip_sipmsg:sipmsg(), trans_inv_client()) -> result().
+handle_final_resp(SipMsg, #trans_inv_client{request = Req} = Trans) ->
+    case ersip_sipmsg:status(SipMsg) of
+        Code when Code >= 300 andalso Code =< 699 ->
+            %% When in either the "Calling" or "Proceeding" states, reception
+            %% of a response with status code from 300-699 MUST cause the
+            %% client transaction to transition to "Completed". The client
+            %% transaction MUST pass the received response up to the TU, and
+            %% the client transaction MUST generate an ACK request, even if
+            %% the transport is reliable
+            Trans1 = set_state(fun 'Completed'/2, Trans),
+            ACKReq = generate_ack_request(SipMsg, Req),
+            Trans2 = Trans1#trans_inv_client{last_ack = ACKReq},
+            Result = {Trans2, [ersip_trans_se:tu_result(SipMsg),
+                               ersip_trans_se:send_request(ACKReq)
+                              ]},
+            process_event(enter, Result);
+
+        Code when Code >= 200 andalso Code =< 299 ->
+            %% RFC 6026:
+            %% If a 2xx response is received while the client INVITE
+            %% state machine is in the "Calling" or "Proceeding"
+            %% states, it MUST transition to the "Accepted" state,
+            %% pass the 2xx response to the TU, and set Timer M to
+            %% 64*T1.
+            Trans1 = set_state(fun 'Accepted'/2, Trans),
+            Result = {Trans1, [ersip_trans_se:tu_result(SipMsg)]},
+            set_timer_m(64*?T1(Trans1), Result)
+    end.
 
 %% 17.1.1.3 Construction of the ACK Request
 %%

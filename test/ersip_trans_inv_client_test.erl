@@ -15,7 +15,7 @@
 %%% Cases
 %%%===================================================================
 
-reliable_transport_2xx_flow_test() ->
+reliable_transport_flow_test() ->
     T1 = 250,
 
     InviteReq = invite_req(),
@@ -104,6 +104,64 @@ reliable_transport_2xx_flow_test() ->
     {_TerminatedTrans, SE7} = ersip_trans_inv_client:event(TimerMEv, AcceptedTrans),
     ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE7)),
     ok.
+
+unreliable_transport_flow_test() ->
+    T1 = 50,
+    InviteReq = invite_req(),
+    {CallingTrans0, SE} = ersip_trans_inv_client:new(unreliable, InviteReq, #{sip_t1 => T1}),
+
+    %% If an unreliable transport is being used, the client
+    %% transaction MUST start timer A with a value of T1.
+    TimerAEv = {timer, timer_a},
+    TimerA0  = ersip_trans_se:set_timer(T1, TimerAEv),
+    ?assertEqual(TimerA0, se_event(set_timer, SE)),
+
+    %% When timer A fires, the client transaction MUST retransmit the
+    %% request by passing it to the transport layer, and MUST reset the
+    %% timer with a value of 2*T1.
+    TimerA1 = ersip_trans_se:set_timer(2*T1, TimerAEv),
+    {CallingTrans1, SE1} = ersip_trans_inv_client:event(TimerAEv, CallingTrans0),
+    ?assertEqual(TimerA1, se_event(set_timer, SE1)),
+    ?assertEqual({send_request, InviteReq}, se_event(send_request, SE1)),
+
+    %% When timer A fires 2*T1 seconds later, the request MUST be
+    %% retransmitted again (assuming the client transaction is still
+    %% in this state).  This process MUST continue so that the request
+    %% is retransmitted with intervals that double after each
+    %% transmission.
+    lists:foldl(fun(ExpectedTimeout, Trans) ->
+                        TimerA = ersip_trans_se:set_timer(ExpectedTimeout, TimerAEv),
+                        {Trans1, FSE} = ersip_trans_inv_client:event(TimerAEv, Trans),
+                        ?assertEqual(TimerA, se_event(set_timer, FSE)),
+                        ?assertEqual({send_request, InviteReq}, se_event(send_request, FSE)),
+                        Trans1
+                end,
+                CallingTrans1,
+                [4*T1, 8*T1, 16*T1, 32*T1]),
+
+    {ProceedingTrans, _} = ersip_trans_inv_client:event({received, trying()}, CallingTrans0),
+
+    %% When in either the "Calling" or "Proceeding" states, reception
+    %% of a response with status code from 300-699 MUST cause the
+    %% client transaction to transition to "Completed".
+    NotFound = notfound404(),
+    {CompletedTrans, SE2} = ersip_trans_inv_client:event({received, NotFound}, CallingTrans0),
+    {CompletedTrans, SE2} = ersip_trans_inv_client:event({received, NotFound}, ProceedingTrans),
+
+    %% The client transaction SHOULD start timer D when it enters the
+    %% "Completed" state, with a value of at least 32 seconds for
+    %% unreliable transports
+    TimerDEv = {timer, timer_d},
+    TimerD   = ersip_trans_se:set_timer(32000, TimerDEv),
+    ?assertEqual(TimerD, se_event(set_timer, SE2)),
+
+    %% If Timer D fires while the client transaction is in the
+    %% "Completed" state, the client transaction MUST move to the
+    %% "Terminated" state.
+    {_TerminatedTrans, SE1} = ersip_trans_inv_client:event(TimerAEv, CallingTrans0),
+
+    ok.
+
 
 
 %%%===================================================================

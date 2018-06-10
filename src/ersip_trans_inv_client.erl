@@ -8,19 +8,24 @@
 %% Pure FSM implementation - transformation events to side effects.
 %%
 
-
 -module(ersip_trans_inv_client).
 
 -export([new/3,
          event/2
         ]).
 
+%% Internal export:
+-export(['Calling'/2,
+         'Proceeding'/2,
+         'Completed'/2,
+         'Accepted'/2,
+         'Terminated'/2]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--record(trans_inv_client, {state     = fun 'Calling'/2 :: state(),
+-record(trans_inv_client, {state     = 'Calling'      :: state(),
                            transport                  :: transport_type(),
                            options                    :: ersip:sip_options(),
                            request                    :: ersip_request:request(),
@@ -31,7 +36,11 @@
 -type trans_inv_client() :: #trans_inv_client{}.
 -type result() :: {trans_inv_client(), [ersip_trans_se:side_effect()]}.
 -type transport_type() :: reliable | unreliable.
--type state()   :: fun((event(), trans_inv_client()) -> result()).
+-type state()   :: 'Calling'
+                 | 'Proceeding'
+                 | 'Completed'
+                 | 'Accepted'
+                 | 'Terminated'.
 -type event()   :: term().
 -type timer_type() :: term().
 
@@ -55,18 +64,25 @@ new(ReliableTranport, Request, Options) ->
 -spec event(Event, trans_inv_client()) -> result() when
       Event :: {timer, timer_type()}
              | {send, ersip_sipmsg:sipmsg()}.
-event(_Event, #trans_inv_client{} = Trans) ->
-    {Trans, []}.
+event({received, SipMsg}, ServerTrans) ->
+    case ersip_sipmsg:type(SipMsg) of
+        request ->
+            error({api_error, <<"request cannot match client INVITE transaction">>});
+        response ->
+            RespType = ersip_status:response_type(ersip_sipmsg:status(SipMsg)),
+            process_event({resp, RespType, SipMsg}, {ServerTrans, []})
+    end;
+event({send, _}, _Trans) ->
+    error({api_error, <<"cannot send message within client transaction">>});
+event({timer, _} = TimerEv, #trans_inv_client{} = Trans) ->
+    process_event(TimerEv, {Trans, []}).
 
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 
 -define(default_options,
-        #{sip_t1 => 500,
-          sip_t2 => 4000,
-          sip_t4 => 5000
-         }).
+        #{sip_t1 => 500}).
 -define(T1(InvServerTrans), maps:get(sip_t1, InvServerTrans#trans_inv_client.options)).
 
 -spec new_impl(Reliable, Request, Options) -> result() when
@@ -121,7 +137,7 @@ new_impl(TransportType, Request, Options) ->
     %% state. In the "Proceeding" state, the client transaction SHOULD
     %% NOT retransmit the request any longer. Furthermore, the
     %% provisional response MUST be passed to the TU.
-    Trans1 = set_state(fun 'Proceeding'/2, Trans),
+    Trans1 = set_state('Proceeding', Trans),
     {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
 'Calling'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
     handle_final_resp(SipMsg, Trans);
@@ -135,8 +151,7 @@ new_impl(TransportType, Request, Options) ->
     %% state. In the "Proceeding" state, the client transaction SHOULD
     %% NOT retransmit the request any longer. Furthermore, the
     %% provisional response MUST be passed to the TU.
-    Trans1 = set_state(fun 'Proceeding'/2, Trans),
-    {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
+    {Trans, [ersip_trans_se:tu_result(SipMsg)]};
 'Proceeding'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
     handle_final_resp(SipMsg, Trans);
 'Proceeding'(_Event, #trans_inv_client{} = Trans) ->
@@ -198,7 +213,7 @@ new_impl(TransportType, Request, Options) ->
 
 -spec process_event(Event :: term(), result()) -> result().
 process_event(Event, {#trans_inv_client{state = StateF} = Trans, SE}) ->
-    {Trans1, EventSE} = StateF(Event, Trans),
+    {Trans1, EventSE} = ?MODULE:StateF(Event, Trans),
     {Trans1, SE ++ EventSE}.
 
 -spec set_state(state(), trans_inv_client()) -> trans_inv_client().
@@ -229,9 +244,9 @@ set_timer(Timeout, TimerType, {#trans_inv_client{} = Trans, SE}) ->
 -spec terminate(Reason,  trans_inv_client()) -> result() when
       Reason :: ersip_trans_se:clear_reason().
 terminate(Reason, Trans) ->
-    Trans1 = set_state(fun 'Terminated'/2, Trans),
+    Trans1 = set_state('Terminated', Trans),
     Trans2 = Trans1#trans_inv_client{clear_reason = Reason},
-    process_event('enter', {Trans2, []}).
+    process_event('enter', {Trans2, [ersip_trans_se:clear_trans(Reason)]}).
 
 -spec handle_final_resp(ersip_sipmsg:sipmsg(), trans_inv_client()) -> result().
 handle_final_resp(SipMsg, #trans_inv_client{request = Req} = Trans) ->
@@ -243,7 +258,7 @@ handle_final_resp(SipMsg, #trans_inv_client{request = Req} = Trans) ->
             %% transaction MUST pass the received response up to the TU, and
             %% the client transaction MUST generate an ACK request, even if
             %% the transport is reliable
-            Trans1 = set_state(fun 'Completed'/2, Trans),
+            Trans1 = set_state('Completed', Trans),
             ACKReq = generate_ack_request(SipMsg, Req),
             Trans2 = Trans1#trans_inv_client{last_ack = ACKReq},
             Result = {Trans2, [ersip_trans_se:tu_result(SipMsg),
@@ -258,7 +273,7 @@ handle_final_resp(SipMsg, #trans_inv_client{request = Req} = Trans) ->
             %% states, it MUST transition to the "Accepted" state,
             %% pass the 2xx response to the TU, and set Timer M to
             %% 64*T1.
-            Trans1 = set_state(fun 'Accepted'/2, Trans),
+            Trans1 = set_state('Accepted', Trans),
             Result = {Trans1, [ersip_trans_se:tu_result(SipMsg)]},
             set_timer_m(64*?T1(Trans1), Result)
     end.
@@ -279,28 +294,29 @@ generate_ack_request(Response, InitialRequest) ->
     %% the "original request").
     RURI = ersip_sipmsg:ruri(InitialSipMsg),
     ACK0 = ersip_sipmsg:new_request(ersip_method:ack(), RURI),
-    ACK1 = ersip_sipmsg:copy(from, InitialSipMsg, ACK0),
+    ACK1 = ersip_sipmsg:copy(callid, InitialSipMsg, ACK0),
+    ACK2 = ersip_sipmsg:copy(from,   InitialSipMsg, ACK1),
     %% The To header field in the ACK MUST equal the To header field
     %% in the response being acknowledged, and therefore will usually
     %% differ from the To header field in the original request by the
     %% addition of the tag parameter.
-    ACK2 = ersip_sipmsg:copy(to, Response, ACK1),
+    ACK3 = ersip_sipmsg:copy(to, Response, ACK2),
 
     %% The CSeq header field in the ACK MUST contain the same
     %% value for the sequence number as was present in the original request,
     %% but the method parameter MUST be equal to "ACK".
     InviteCSeq = ersip_sipmsg:get(cseq, InitialSipMsg),
     ACKCSeq = ersip_hdr_cseq:set_method(ersip_method:ack(), InviteCSeq),
-    ACK3 = ersip_sipmsg:set(cseq, ACKCSeq, ACK2),
+    ACK4 = ersip_sipmsg:set(cseq, ACKCSeq, ACK3),
 
     %% If the INVITE request whose response is being acknowledged had Route
     %% header fields, those header fields MUST appear in the ACK.
-    ACK4 = ersip_sipmsg:copy(route, InitialSipMsg, ACK3),
+    ACK5 = ersip_sipmsg:copy(route, InitialSipMsg, ACK4),
 
     %% RFC 3261 says nothing about max-forwards in ACK for this case
     %% but following logic of route copy it should be the same as in
     %% INVITE:
-    ACK5 = ersip_sipmsg:copy(maxforwards, InitialSipMsg, ACK4),
+    ACK6 = ersip_sipmsg:copy(maxforwards, InitialSipMsg, ACK5),
 
     %% Normative:
     %% The ACK MUST contain a single Via header field, and this MUST
@@ -310,4 +326,4 @@ generate_ack_request(Response, InitialRequest) ->
     %% automatically added when message is passed via connection. So
     %% what we really do here - we generate ersip_request with the
     %% same paramters as InitialRequest
-    ersip_request:set_sipmsg(ACK5, InitialRequest).
+    ersip_request:set_sipmsg(ACK6, InitialRequest).

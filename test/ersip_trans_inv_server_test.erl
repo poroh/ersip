@@ -15,81 +15,84 @@
 %%%===================================================================
 
 reliable_canonnical_2xx_flow_test() ->
+    T1 = 70,
     InviteSipMsg = invite(),
-    {InvTrans0, SE} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{}),
+    {ProceedingTrans0, SE} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{sip_t1 => T1}),
 
     %% Req #1: INVITE must be passed to TU when entering Proceeding state.
-    ?assertEqual({tu_result, InviteSipMsg}, lists:keyfind(tu_result, 1, SE)),
+    ?assertEqual({tu_result, InviteSipMsg}, se_event(tu_result, SE)),
 
     %% Req #2: INVITE server transaction must generate 100 Trying response
-    {send_response, Resp100} = lists:keyfind(send_response, 1, SE),
+    {send_response, Resp100} = se_event(send_response, SE),
     ?assertEqual(response, ersip_sipmsg:type(Resp100)),
     ?assertEqual(100, ersip_sipmsg:status(Resp100)),
 
     %% Req #3: INVITE server tranasaction passes provisional response
     RingingSipMsg = ringing(),
-    {InvTrans1, SE1} = ersip_trans_inv_server:event({send, RingingSipMsg}, InvTrans0),
-    {send_response, RingingSipMsg} = lists:keyfind(send_response, 1, SE1),
+    {ProceedingTrans1, SE1} = ersip_trans_inv_server:event({send, RingingSipMsg}, ProceedingTrans0),
+    {send_response, RingingSipMsg} = se_event(send_response, SE1),
 
     %% Req #4: INVITE server tranasaction passes final 200 OK message
     OKSipMsg = ok200(),
-    {InvTrans2, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans1),
-    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE2),
+    {AcceptedTrans, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, ProceedingTrans0), %% Without ringing
+    {AcceptedTrans, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, ProceedingTrans1), %% With ringing
+    {send_response, OKSipMsg} = se_event(send_response, SE2),
 
     %% Req #5: Timer L is set after passing 200 OK message (RFC6026 Accepted state):
-    {set_timer, {Timeout, {timer, Timer} = TimerLEv}} = lists:keyfind(set_timer, 1, SE2),
-    ?assertEqual(32000, Timeout),
-    ?assertEqual(timer_l, Timer),
+    TimerLEv = {timer, timer_l},
+    TimerL   = ersip_trans_se:set_timer(64*T1, TimerLEv),
+    ?assertEqual(TimerL, se_event(set_timer, SE2)),
 
     %% Req #6: Retransmission of 2xx are passed to transport layer (RFC6026):
-    {InvTrans3, SE3} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans2),
-    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE3),
+    {AcceptedTrans, SE3} = ersip_trans_inv_server:event({send, OKSipMsg}, AcceptedTrans),
+    {send_response, OKSipMsg} = se_event(send_response, SE3),
 
     %% Req #7: ACKs matching transaction are passed to TU (RFC6026):
     ACKSipMsg = ack(),
-    {InvTrans4, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
-    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE4)),
-
+    {AcceptedTrans, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, AcceptedTrans),
+    ?assertEqual({tu_result, ACKSipMsg}, se_event(tu_result, SE4)),
 
     %% Req #8: INVITE server tranasaction is stopped after timer L is fired
-    {_InvTrans3, SE5} = ersip_trans_inv_server:event(TimerLEv, InvTrans4),
+    {_TerminatedTrans, SE5} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
     ?assertEqual([{clear_trans, normal}], SE5),
     ok.
 
 
 reliable_canonnical_4xx_flow_test() ->
+    T1 = 70,
     InviteSipMsg = invite(),
-    {InvTrans0, _} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{}),
+    {ProceedingTrans, _} = ersip_trans_inv_server:new(reliable, InviteSipMsg, #{sip_t1 => T1}),
 
     %% Req #1: INVITE server tranasaction passes final 4xx message
     NotFoundSipMsg = notfound404(),
-    {InvTrans1, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, InvTrans0),
+    {CompletedTrans, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, ProceedingTrans),
     {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE1),
 
     %% Req #2: Timer H is set when Completed state is entered:
-    {set_timer, {Timeout, {timer, Timer} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1),
-    ?assertEqual(32000, Timeout),
-    ?assertEqual(timer_h, Timer),
+    TimerHEv = {timer, timer_h},
+    TimerH   = ersip_trans_se:set_timer(64*T1, TimerHEv),
+    ?assertEqual(TimerH, se_event(set_timer, SE1)),
 
     %% Req #3: ACKs matching transaction are absorbed by transaction:
     ACKSipMsg = ack(),
-    {_, SE2} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans1),
-    ?assertEqual(false, lists:keyfind(tu_result, 1, SE2)),
+    {_TerminatedTrans1, SE2} = ersip_trans_inv_server:event({received, ACKSipMsg}, CompletedTrans),
+    ?assertEqual(not_found, se_event(tu_result, SE2)),
 
     %% Req #4: Transaction is cleared for reliable transport. (Timer I is set to 0).
     ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE2)),
 
     %% Req #5: Transaction is cleared with no_ack if TimerH is fired:
-    {_, SE3} = ersip_trans_inv_server:event(TimerHEv, InvTrans1),
+    {_TerminatedTrans2, SE3} = ersip_trans_inv_server:event(TimerHEv, CompletedTrans),
     ?assertEqual({clear_trans, no_ack}, lists:keyfind(clear_trans, 1, SE3)),
     ok.
 
 unreliable_with_retransmits_2xx_test() ->
+    T1 = 70,
     InviteSipMsg = invite(),
-    {InvTrans0, SE} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{}),
+    {ProceedingTrans, SE} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{sip_t1 => T1}),
 
     %% Req #1: INVITE must be passed to TU when entering Proceeding state.
-    ?assertEqual({tu_result, InviteSipMsg}, lists:keyfind(tu_result, 1, SE)),
+    ?assertEqual({tu_result, InviteSipMsg}, se_event(tu_result, SE)),
 
     %% Req #2: INVITE server transaction must generate 100 Trying response
     {send_response, Resp100} = lists:keyfind(send_response, 1, SE),
@@ -97,116 +100,117 @@ unreliable_with_retransmits_2xx_test() ->
     ?assertEqual(100, ersip_sipmsg:status(Resp100)),
 
     %% Req #3: 100 Trying is resent on INVITE retransmit:
-    {InvTrans1, SE1} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans0),
-    {send_response, Resp100} = lists:keyfind(send_response, 1, SE1),
+    {ProceedingTrans, SE1} = ersip_trans_inv_server:event({received, InviteSipMsg}, ProceedingTrans),
+    {send_response, Resp100} = se_event(send_response, SE1),
 
     %% Req #4: INVITE server tranasaction passes final 200 OK message
     OKSipMsg = ok200(),
-    {InvTrans2, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans1),
-    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE2),
+    {AcceptedTrans, SE2} = ersip_trans_inv_server:event({send, OKSipMsg}, ProceedingTrans),
+    {send_response, OKSipMsg} = se_event(send_response, SE2),
 
     %% Req #5: Timer L is set to absort INVITE retransmits (RFC6026)
-    {set_timer, {Timeout, {timer, Timer} = TimerLEv}} = lists:keyfind(set_timer, 1, SE2),
-    ?assertEqual(32000, Timeout),
-    ?assertEqual(timer_l, Timer),
+    TimerLEv = {timer, timer_l},
+    TimerL   = ersip_trans_se:set_timer(64*T1, TimerLEv),
+    ?assertEqual(TimerL, se_event(set_timer, SE2)),
 
     %% Req #6: INVITE retransmits are ignored in Accepted state.
-    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans2),
-    ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
+    {AcceptedTrans, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, AcceptedTrans),
+    ?assertEqual(not_found, se_event(tu_result, SE3)),
 
     %% Req #7: INVITE server tranasaction passes retransmissions of
     %% final 200 OK message to Transport layer
-    {InvTrans4, SE4} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans3),
-    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE4),
+    {AcceptedTrans, SE4} = ersip_trans_inv_server:event({send, OKSipMsg}, AcceptedTrans),
+    {send_response, OKSipMsg} = se_event(send_response, SE4),
 
-    {InvTrans5, SE5} = ersip_trans_inv_server:event({send, OKSipMsg}, InvTrans4),
-    {send_response, OKSipMsg} = lists:keyfind(send_response, 1, SE5),
+    {AcceptedTrans, SE5} = ersip_trans_inv_server:event({send, OKSipMsg}, AcceptedTrans),
+    {send_response, OKSipMsg} = se_event(send_response, SE5),
 
     %% Req #8: ACKs are passed to TU in Accepted state
     ACKSipMsg = ack(),
-    {InvTrans6, SE6} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans5),
-    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE6)),
+    {AcceptedTrans, SE6} = ersip_trans_inv_server:event({received, ACKSipMsg}, AcceptedTrans),
+    ?assertEqual({tu_result, ACKSipMsg}, se_event(tu_result, SE6)),
 
-    {InvTrans7, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans6),
-    ?assertEqual({tu_result, ACKSipMsg}, lists:keyfind(tu_result, 1, SE7)),
+    {AcceptedTrans, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, AcceptedTrans),
+    ?assertEqual({tu_result, ACKSipMsg}, se_event(tu_result, SE7)),
 
     %% Req #9: Transaction is cleared if timer L is fired in Accepted state.
-    %% We check it for InvTrans1..6
-    lists:foreach(fun(InvTrans) ->
-                          {_, LSE} = ersip_trans_inv_server:event(TimerLEv, InvTrans),
-                          ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, LSE))
-                  end,
-                  [InvTrans2, InvTrans3, InvTrans4, InvTrans5, InvTrans6, InvTrans7]),
+    {_, SE8} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
+    ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE8)),
     ok.
 
 unreliable_with_retransmits_4xx_test() ->
+    T1 = 70,
+    T2 = 1000,
+    T4 = 4444,
     InviteSipMsg = invite(),
-    {InvTrans0, _} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{}),
+    {ProceedingTrans, _} = ersip_trans_inv_server:new(unreliable, InviteSipMsg, #{sip_t1 => T1,
+                                                                                  sip_t2 => T2,
+                                                                                  sip_t4 => T4}),
 
     %% Req #1: INVITE server tranasaction passes final 4xx message
     NotFoundSipMsg = notfound404(),
-    {InvTrans1, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, InvTrans0),
+    {CompletedTrans, SE1} = ersip_trans_inv_server:event({send, NotFoundSipMsg}, ProceedingTrans),
     {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE1),
 
     %% Req #2: Timer G is set for retransmission 4xx:
-    {value, {set_timer, {TimeoutG1, {timer, TimerG1} = TimerGEv1}}, SE1_1} = lists:keytake(set_timer, 1, SE1),
-    ?assertEqual(timer_g, TimerG1),
-    ?assertEqual(500, TimeoutG1),
+    TimerGEv  = {timer, timer_g},
+    TimerG1   = ersip_trans_se:set_timer(T1, TimerGEv),
+    {value, TimerG1, SE1_1} = lists:keytake(set_timer, 1, SE1),
 
     %% Req #3: Timer H is set when Completed state is entered:
-    {set_timer, {TimeoutH, {timer, TimerH} = TimerHEv}} = lists:keyfind(set_timer, 1, SE1_1),
-    ?assertEqual(32000, TimeoutH),
-    ?assertEqual(timer_h, TimerH),
+    TimerHEv  = {timer, timer_h},
+    TimerH    = ersip_trans_se:set_timer(64*T1, TimerHEv),
+    ?assertEqual(TimerH, se_event(set_timer, SE1_1)),
 
     %% Req #5: Timer G timeout is doubled but limited with T4 each time:
-    {_, InvTrans2} =
-        lists:foldl(fun(Timeout, {TimerGEv, Trans}) ->
+    CompletedTrans1 =
+        lists:foldl(fun(Timeout, Trans) ->
                             {NewTrans, SE} = ersip_trans_inv_server:event(TimerGEv, Trans),
-                            {set_timer, {TimeoutG, {timer, TimerG} = TimerGEv}} = lists:keyfind(set_timer, 1, SE),
-                            {send_response, NotFoundSipMsg} = lists:keyfind(send_response, 1, SE),
-                            ?assertEqual(timer_g, TimerG),
-                            ?assertEqual(Timeout, TimeoutG),
-                            {TimerGEv, NewTrans}
+                            TimerGx = ersip_trans_se:set_timer(Timeout, TimerGEv),
+                            ?assertEqual(TimerGx, se_event(set_timer, SE)),
+                            ?assertEqual({send_response, NotFoundSipMsg}, se_event(send_response, SE)),
+                            NewTrans
                     end,
-                    {TimerGEv1, InvTrans1},
-                    [1000, 2000, 4000, 4000]),
+                    CompletedTrans,
+                    [min(2*T1, T2),
+                     min(4*T1, T2),
+                     min(8*T1, T2),
+                     min(16*T1, T2),
+                     min(32*T1, T2)]),
 
     %% Req #6: Response returned on request retransmission.
-    {InvTrans3, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTrans2),
+    {CompletedTrans1, SE3} = ersip_trans_inv_server:event({received, InviteSipMsg}, CompletedTrans1),
     ?assertEqual({send_response, NotFoundSipMsg}, lists:keyfind(send_response, 1, SE3)),
 
 
     ACKSipMsg = ack(),
-    {InvTransConfirmed, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTrans3),
+    {ConfirmedTrans, SE4} = ersip_trans_inv_server:event({received, ACKSipMsg}, CompletedTrans1),
     %% Req #7: ACK is not passed to TU:
-    ?assertEqual(false, lists:keyfind(tu_result, 1, SE4)),
+    ?assertEqual(not_found, se_event(tu_result, SE4)),
 
     %% Req #8: Timer I is set after ACK (Confirmed state)
-    {set_timer, {TimeoutI, {timer, TimerI} = TimerIEv}} = lists:keyfind(set_timer, 1, SE4),
-    ?assertEqual(5000, TimeoutI),
-    ?assertEqual(timer_i, TimerI),
+    TimerIEv  = {timer, timer_i},
+    TimerI    = ersip_trans_se:set_timer(T4, TimerIEv),
+    ?assertEqual(TimerI, se_event(set_timer, SE4)),
 
     %% Req #8: Transaction is cleared after timer I is fired.
-    {_InvTrans5, SE5} = ersip_trans_inv_server:event(TimerIEv, InvTransConfirmed),
+    {_TerminatedTrans1, SE5} = ersip_trans_inv_server:event(TimerIEv, ConfirmedTrans),
     ?assertEqual({clear_trans, normal}, lists:keyfind(clear_trans, 1, SE5)),
 
     %% Req #9: Retransmission & acks are ignored in Confirmed state:
-    {InvTrans6, SE6} = ersip_trans_inv_server:event({received, InviteSipMsg}, InvTransConfirmed),
-    ?assertEqual(InvTransConfirmed, InvTrans6),
+    {ConfirmedTrans, SE6} = ersip_trans_inv_server:event({received, InviteSipMsg}, ConfirmedTrans),
     ?assertEqual([], SE6),
 
-    {InvTrans7, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, InvTransConfirmed),
-    ?assertEqual(InvTransConfirmed, InvTrans7),
+    {ConfirmedTrans, SE7} = ersip_trans_inv_server:event({received, ACKSipMsg}, ConfirmedTrans),
     ?assertEqual([], SE7),
 
     %% Req #10: Timer G is ignored in Confirmed state:
-    {InvTrans8, SE8} = ersip_trans_inv_server:event(TimerGEv1, InvTransConfirmed),
-    ?assertEqual(InvTransConfirmed, InvTrans8),
+    {ConfirmedTrans, SE8} = ersip_trans_inv_server:event(TimerGEv, ConfirmedTrans),
     ?assertEqual([], SE8),
 
     %% Req #11: Transaction is cleared with no_ack if TimerH is fired:
-    {_, SE9} = ersip_trans_inv_server:event(TimerHEv, InvTrans2),
-    ?assertEqual({clear_trans, no_ack}, lists:keyfind(clear_trans, 1, SE9)),
+    {_TerminatedTrans2, SE9} = ersip_trans_inv_server:event(TimerHEv, CompletedTrans1),
+    ?assertEqual({clear_trans, no_ack}, se_event(clear_trans, SE9)),
     ok.
 
 ignore_ack_in_proceeding_test() ->
@@ -242,6 +246,14 @@ error_handling_test() ->
     ?assertError({api_error, _}, ersip_trans_inv_server:event({send, notfound404()}, InvTransConfirmed)),
 
     ok.
+
+se_event(Type, SE) ->
+    case lists:keyfind(Type, 1, SE) of
+        false ->
+            not_found;
+        X ->
+            X
+    end.
 
 %%%===================================================================
 %%% Helpers

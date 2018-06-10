@@ -15,11 +15,18 @@
          event/2
         ]).
 
+%% internal exports:
+-export(['Proceeding'/2,
+         'Completed'/2,
+         'Confirmed'/2,
+         'Accepted'/2,
+         'Terminated'/2]).
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--record(trans_inv_server, {state     = fun 'Proceeding'/2 :: state(),
+-record(trans_inv_server, {state = 'Proceeding'        :: state(),
                            transport                  :: transport_type(),
                            options                    :: ersip:sip_options(),
                            last_resp                  :: ersip_sipmsg:sipmsg(),
@@ -28,7 +35,10 @@
                           }).
 -type trans_inv_server() :: #trans_inv_server{}.
 -type result()  :: {trans_inv_server(), [ersip_trans_se:effect()]}.
--type state()   :: fun((event(), trans_inv_server()) -> result()).
+-type state()   :: 'Proceeding'
+                 | 'Completed'
+                 | 'Accepted'
+                 | 'Terminated'.
 -type transport_type() :: reliable | unreliable.
 %% decoded event:
 -type event()   :: {send_resp, ersip_status:response_type(), ersip_sipmsg:sipmsg()}
@@ -142,8 +152,9 @@ new_impl(Reliable, ReqSipMsg, Options) ->
                     %% while the state machine is in the "Proceeding"
                     %% state, the state machine MUST transition to the
                     %% "Accepted" state and set Timer L to 64*T1
-                    Trans1 = set_state(fun 'Accepted'/2, Trans),
-                    Result = {Trans1, [ersip_trans_se:send_response(SipMsg)]},
+                    Trans1 = clear_last_resp(Trans),
+                    Trans2 = set_state('Accepted', Trans1),
+                    Result = {Trans2, [ersip_trans_se:send_response(SipMsg)]},
                     set_timer_l(64 * ?T1(Trans1), Result);
                 S when S >= 300 andalso S =< 699 ->
                     %% While in the "Proceeding" state, if the TU
@@ -156,7 +167,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
                     %% seconds, and is not set to fire for reliable
                     %% transports.
                     Trans1 = save_last_resp(SipMsg, Trans),
-                    Trans2 = set_state(fun 'Completed'/2, Trans1),
+                    Trans2 = set_state('Completed', Trans1),
                     Result =
                         case Trans2#trans_inv_server.transport of
                             reliable ->
@@ -200,7 +211,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
     %% If an ACK is received while the server transaction is in the
     %% "Completed" state, the server transaction MUST transition to
     %% the "Confirmed" state.
-    Trans1 = set_state(fun 'Confirmed'/2, Trans),
+    Trans1 = set_state('Confirmed', Trans),
     process_event(enter, {Trans1, []});
 'Completed'({timer, timer_h}, #trans_inv_server{} = Trans) ->
     %% If timer H fires while in the "Completed" state, it implies
@@ -274,7 +285,7 @@ new_impl(Reliable, ReqSipMsg, Options) ->
 
 -spec process_event(Event :: term(), result()) -> result().
 process_event(Event, {#trans_inv_server{state = StateF} = Trans, SE}) ->
-    {Trans1, EventSE} = StateF(Event, Trans),
+    {Trans1, EventSE} = ?MODULE:StateF(Event, Trans),
     {Trans1, SE ++ EventSE}.
 
 -spec set_state(state(), trans_inv_server()) -> trans_inv_server().
@@ -284,6 +295,10 @@ set_state(State, ServerTrans) ->
 -spec save_last_resp(ersip_sipmsg:sipmsg(), trans_inv_server()) -> trans_inv_server().
 save_last_resp(SipMsg, ServerTrans) ->
     ServerTrans#trans_inv_server{last_resp = SipMsg}.
+
+-spec clear_last_resp(trans_inv_server()) -> trans_inv_server().
+clear_last_resp(ServerTrans) ->
+    ServerTrans#trans_inv_server{last_resp = undefined}.
 
 -spec set_timer_g(pos_integer(), result()) -> result().
 set_timer_g(Timeout, Result) ->
@@ -310,6 +325,6 @@ set_timer(Timeout, TimerType, {#trans_inv_server{} = Trans, SE}) ->
 -spec terminate(Reason,  trans_inv_server()) -> result() when
       Reason :: ersip_trans_se:clear_reason().
 terminate(Reason, Trans) ->
-    Trans1 = set_state(fun 'Terminated'/2, Trans),
+    Trans1 = set_state('Terminated', Trans),
     Trans2 = Trans1#trans_inv_server{clear_reason = Reason},
     process_event('enter', {Trans2, []}).

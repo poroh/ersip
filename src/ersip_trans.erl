@@ -83,7 +83,7 @@ new_client(OutReq, Options) ->
     NexthopURI = ersip_request:nexthop(OutReq),
     Transport = ersip_transport:make_by_uri(NexthopURI),
     TransportType = transport_type_by_transport(Transport),
-    {Instance, SE} = ersip_trans_client:new(TransportType, OutReq, Options),
+    {Instance, SE} = Module:new(TransportType, OutReq, Options),
     Trans = #trans{id = Id,
                    module = Module,
                    instance = Instance

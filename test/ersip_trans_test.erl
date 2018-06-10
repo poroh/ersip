@@ -95,9 +95,59 @@ client_transaction_invalid_api_test() ->
     ?assertError({api_error, _}, ersip_trans:event({received, RemoteMsg}, ClientTrans)),
     ok.
 
+invite_transaction_test() ->
+    InviteReq = invite_req(),
+    {ClientCalling, SE1} = ersip_trans:new_client(InviteReq, default_sip_options()),
+    ?assertEqual({send_request, InviteReq}, se_event(send_request, SE1)),
+    InviteSipMsg = pass_request_to_server(InviteReq),
+
+    {ServerProceeding, SE2} = ersip_trans:new_server(InviteSipMsg, default_sip_options()),
+
+    %% Sending 100 Trying to caller
+    {send_response, SrvTryingSipMsg} = se_event(send_response, SE2),
+    TryingSipMsg = pass_response_to_client(SrvTryingSipMsg),
+    {ClientProceeding, SE3} = ersip_trans:event({received, TryingSipMsg}, ClientCalling),
+    ?assertEqual({tu_result, TryingSipMsg}, se_event(tu_result, SE3)),
+
+    %% Sending 180 Ringing to caller
+    {ServerProceeding1, SE4} = ersip_trans:event({send, ringing()}, ServerProceeding),
+    {send_response, SrvRingingSipMsg} = se_event(send_response, SE4),
+    RingingSipMsg = pass_response_to_client(SrvRingingSipMsg),
+
+    {ClientProceeding, SE5} = ersip_trans:event({received, RingingSipMsg}, ClientProceeding),
+    {tu_result, ClientRinging} = se_event(tu_result, SE5),
+    ?assertEqual(ersip_sipmsg:serialize_bin(SrvRingingSipMsg), ersip_sipmsg:serialize_bin(ClientRinging)),
+
+    %% Sending 200 Ringing to caller
+    {ServerAccepted, SE6} = ersip_trans:event({send, ok200()}, ServerProceeding1),
+    {send_response, SrvOKSipMsg} = se_event(send_response, SE6),
+    OKSipMsg = pass_response_to_client(SrvOKSipMsg),
+
+    {_ClientAccepted, SE7} = ersip_trans:event({received, OKSipMsg}, ClientProceeding),
+    {tu_result, ClientOK} = se_event(tu_result, SE7),
+    ?assertEqual(ersip_sipmsg:serialize_bin(SrvOKSipMsg), ersip_sipmsg:serialize_bin(ClientOK)),
+
+    %% Send ACK from client side:
+    ACKReq = ack_req(),
+    ACKSipMsg = pass_request_to_server(ACKReq),
+
+    {ServerAccepted, SE9} = ersip_trans:event({received, ACKSipMsg}, ServerAccepted),
+    {tu_result, SrvACKSipMsg} = se_event(tu_result, SE9),
+    ?assertEqual(ersip_sipmsg:serialize_bin(SrvACKSipMsg), ersip_sipmsg:serialize_bin(ACKSipMsg)),
+
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
+
+se_event(Type, SE) ->
+    case lists:keyfind(Type, 1, SE) of
+        false ->
+            not_found;
+        X ->
+            X
+    end.
 
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     P  = ersip_parser:new_dgram(Msg),
@@ -105,6 +155,15 @@ create_sipmsg(Msg, Source) when is_binary(Msg) ->
     PMsg1 = ersip_msg:set_source(Source, PMsg),
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg1, all),
     SipMsg.
+
+pass_request_to_server(Request) ->
+    ReqSipMsg = ersip_request:sipmsg(Request),
+    Bin = ersip_sipmsg:serialize_bin(ReqSipMsg),
+    create_sipmsg(Bin, make_default_source()).
+
+pass_response_to_client(RespSipMsg) ->
+    Bin = ersip_sipmsg:serialize_bin(RespSipMsg),
+    create_sipmsg(Bin, make_default_source()).
 
 make_default_source() ->
     udp_source(default_peer()).
@@ -150,3 +209,85 @@ send_req_via_default_conn(OutReq) ->
 
 default_udp_conn() ->
     ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, udp_transport(), #{}).
+
+invite_req() ->
+    SipMsg = invite(),
+    Branch = ersip_branch:make(<<"inviteTrans">>),
+    Nexthop = ersip_uri:make(<<"sip:biloxi.com">>),
+    ersip_request:new(SipMsg, Branch, Nexthop).
+
+ack_req() ->
+    SipMsg = ack(),
+    Branch = ersip_branch:make(<<"inviteTrans1">>),
+    Nexthop = ersip_uri:make(<<"sip:biloxi.com">>),
+    ersip_request:new(SipMsg, Branch, Nexthop).
+
+invite() ->
+    parse_message(invite_bin()).
+
+ringing() ->
+    parse_message(ringing_bin()).
+
+ok200() ->
+    parse_message(ok200_bin()).
+
+ack() ->
+    parse_message(ack_bin()).
+
+invite_bin() ->
+    <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:bob@biloxi.com>" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "Route: <sip:server10.biloxi.com;lr>," ?crlf %% Need route here to verify ACK generation
+      " <sip:bigbox3.site3.atlanta.com;lr>" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+      "Content-Type: application/sdp" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
+ringing_bin() ->
+    <<"SIP/2.0 180 Ringing" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      " ;received=192.0.2.1" ?crlf
+      "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "Contact: <sip:bob@192.0.2.4>" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
+ok200_bin() ->
+    <<"SIP/2.0 200 OK" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      " ;received=192.0.2.1" ?crlf
+      "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Contact: <sip:bob@192.0.2.4>" ?crlf
+      "Content-Type: application/sdp" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
+
+ack_bin() ->
+    <<"ACK sip:bob@192.0.2.4 SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds9" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 ACK" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
+parse_message(Bin) when is_binary(Bin) ->
+    P  = ersip_parser:new_dgram(Bin),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    SipMsg.

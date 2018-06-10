@@ -206,7 +206,7 @@ new_request(Method, RURI) ->
     RawMsg = ersip_msg:new(),
     RawMsg1 = ersip_msg:set([{type,   request},
                              {method, Method},
-                             {ruri,   RURI}],
+                             {ruri,   ersip_uri:assemble(RURI)}],
                             RawMsg),
     #sipmsg{raw    = RawMsg1,
             method = Method,

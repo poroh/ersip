@@ -140,9 +140,7 @@ new_impl(TransportType, Request, Options) ->
     Trans1 = set_state('Proceeding', Trans),
     {Trans1, [ersip_trans_se:tu_result(SipMsg)]};
 'Calling'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
-    handle_final_resp(SipMsg, Trans);
-'Calling'(_Event, #trans_inv_client{} = Trans) ->
-    {Trans, []}.
+    handle_final_resp(SipMsg, Trans).
 
 -spec 'Proceeding'(event(), trans_inv_client()) -> result().
 'Proceeding'({resp, provisional, SipMsg}, #trans_inv_client{} = Trans) ->
@@ -154,7 +152,11 @@ new_impl(TransportType, Request, Options) ->
     {Trans, [ersip_trans_se:tu_result(SipMsg)]};
 'Proceeding'({resp, final, SipMsg}, #trans_inv_client{} = Trans) ->
     handle_final_resp(SipMsg, Trans);
-'Proceeding'(_Event, #trans_inv_client{} = Trans) ->
+'Proceeding'({timer, timer_a}, #trans_inv_client{} = Trans) ->
+    %% Timer A is inherited from Calling state
+    {Trans, []};
+'Proceeding'({timer, timer_b}, #trans_inv_client{} = Trans) ->
+    %% Timer B is inherited from Calling state
     {Trans, []}.
 
 -spec 'Completed'(event(), trans_inv_client()) -> result().
@@ -183,7 +185,9 @@ new_impl(TransportType, Request, Options) ->
     %% If timer D fires while the client transaction is in the "Completed"
     %% state, the client transaction MUST move to the terminated state.
     terminate(normal, Trans);
-'Completed'(_Event, #trans_inv_client{} = Trans) ->
+'Completed'({timer, timer_a}, #trans_inv_client{} = Trans) ->
+    {Trans, []};
+'Completed'({timer, timer_b}, #trans_inv_client{} = Trans) ->
     {Trans, []}.
 
 %% RFC6026 state:

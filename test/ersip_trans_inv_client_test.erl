@@ -103,6 +103,12 @@ reliable_transport_flow_test() ->
     %% state, the client transaction MUST move to the "Terminated" state.
     {_TerminatedTrans, SE7} = ersip_trans_inv_client:event(TimerMEv, AcceptedTrans),
     ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE7)),
+
+    %% Timer B is ignored in Proceeding/Completed/Accepted states:
+    ?assertEqual({ProceedingTrans, []}, ersip_trans_inv_client:event(TimerBEv, ProceedingTrans)),
+    ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event(TimerBEv, CompletedTrans)),
+    ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event(TimerBEv, AcceptedTrans)),
+
     ok.
 
 unreliable_transport_flow_test() ->
@@ -148,6 +154,19 @@ unreliable_transport_flow_test() ->
     {CompletedTrans, SE2} = ersip_trans_inv_client:event({received, NotFound}, CallingTrans0),
     {CompletedTrans, SE2} = ersip_trans_inv_client:event({received, NotFound}, ProceedingTrans),
 
+    %% and the client transaction MUST generate an ACK request, even
+    %% if the transport is reliable
+    {send_request, ACKMessage} = se_event(send_request, SE2),
+    check_ack_message(InviteReq, ACKMessage, NotFound),
+
+    %% Any retransmissions of the final response that are received while in
+    %% the "Completed" state MUST cause the ACK to be re-passed to the
+    %% transport layer for retransmission, but the newly received response
+    %% MUST NOT be passed up to the TU.
+    {CompletedTrans, SE3} = ersip_trans_inv_client:event({received, NotFound}, CompletedTrans),
+    ?assertEqual({send_request, ACKMessage}, se_event(send_request, SE3)),
+    ?assertEqual(not_found, se_event(tu_result, SE3)),
+
     %% The client transaction SHOULD start timer D when it enters the
     %% "Completed" state, with a value of at least 32 seconds for
     %% unreliable transports
@@ -158,10 +177,41 @@ unreliable_transport_flow_test() ->
     %% If Timer D fires while the client transaction is in the
     %% "Completed" state, the client transaction MUST move to the
     %% "Terminated" state.
-    {_TerminatedTrans, SE1} = ersip_trans_inv_client:event(TimerAEv, CallingTrans0),
+    {_TerminatedTrans, SE4} = ersip_trans_inv_client:event(TimerDEv, CompletedTrans),
+    ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE4)),
 
+    {AcceptedTrans, _} = ersip_trans_inv_client:event({received, ok200()}, CallingTrans1),
+
+    %% Timer A is ignored in Proceeding/Completed/Accepted states:
+    ?assertEqual({ProceedingTrans, []}, ersip_trans_inv_client:event(TimerAEv, ProceedingTrans)),
+    ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event(TimerAEv, CompletedTrans)),
+    ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event(TimerAEv, AcceptedTrans)),
+
+    %% Timer B is ignored in Proceeding/Completed/Accepted states:
+    TimerBEv = {timer, timer_b},
+    ?assertEqual({ProceedingTrans, []}, ersip_trans_inv_client:event(TimerBEv, ProceedingTrans)),
+    ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event(TimerBEv, CompletedTrans)),
+    ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event(TimerBEv, AcceptedTrans)),
+
+    %% Spurious provisional responses are ignored in Complted/Accepted states:
+    ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event({received, ringing()}, CompletedTrans)),
+    ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event({received, ringing()}, AcceptedTrans)),
     ok.
 
+
+error_handling_test() ->
+    %% Invite transaction must be intialized with request.
+    ?assertError({api_error, _}, ersip_trans_inv_client:new(reliable, ok200_req(), #{})),
+
+    InviteReq = invite_req(),
+    {CallingTrans, _} = ersip_trans_inv_client:new(unreliable, InviteReq, #{}),
+
+    %% Request cannot match client transaction:
+    ?assertError({api_error, _}, ersip_trans_inv_client:event({received, invite()}, CallingTrans)),
+
+    %% Cannot send second request via client transaction:
+    ?assertError({api_error, _}, ersip_trans_inv_client:event({send, invite()}, CallingTrans)),
+    ok.
 
 
 %%%===================================================================
@@ -170,6 +220,12 @@ unreliable_transport_flow_test() ->
 
 invite_req() ->
     SipMsg = invite(),
+    Branch = ersip_branch:make(<<"inviteTrans">>),
+    Nexthop = ersip_uri:make(<<"sip:biloxi.com">>),
+    ersip_request:new(SipMsg, Branch, Nexthop).
+
+ok200_req() ->
+    SipMsg = ok200(),
     Branch = ersip_branch:make(<<"inviteTrans">>),
     Nexthop = ersip_uri:make(<<"sip:biloxi.com">>),
     ersip_request:new(SipMsg, Branch, Nexthop).

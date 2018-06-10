@@ -31,7 +31,7 @@
 %%%===================================================================
 
 -spec make(binary()) -> branch().
-make(Bin) ->
+make(Bin) when is_binary(Bin) ->
     {branch, Bin}.
 
 -spec make_rfc3261(binary()) -> branch().

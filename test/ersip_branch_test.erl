@@ -37,6 +37,11 @@ branch_key_idempotent_test() ->
     Key = make_key(<<"z9hG4bK776asdhds">>),
     ?assertEqual(Key, ersip_branch:make_key(Key)).
 
+make_rfc3261_test() ->
+    ?assertEqual(true, ersip_branch:is_rfc3261(ersip_branch:make_rfc3261(<<"aaaa">>))),
+    ?assertEqual(true, ersip_branch:is_rfc3261(ersip_branch:make_rfc3261(<<"z9hG4bKaaaa">>))),
+    ok.
+
 assemle_test() ->
     check_reassemble(<<"z9hg4bk776asdhds">>),
     check_reassemble(<<"z9hg4bk">>),

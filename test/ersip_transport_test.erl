@@ -75,6 +75,15 @@ make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),
     ?assertError(badarg, ersip_transport:make(x)).
 
+make_by_uri_test() ->
+    ?assertEqual({transport, udp}, ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b">>))),
+    ?assertEqual({transport, ws},  ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b;transport=ws">>))),
+    ?assertEqual({transport, udp}, ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b;transport=udp">>))),
+    ?assertEqual({transport, tcp}, ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b;transport=tcp">>))),
+    ?assertEqual(make_transport(<<"some">>), ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b;transport=some">>))),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

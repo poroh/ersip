@@ -20,8 +20,8 @@ SIP. I beleive that this is wrong way.
      - Transaction idenification (completed)
      - Non-INVITE transaction (completed)
      - INVITE transaction (completed)
-  + Statefull proxy support (in-progress)
-  + Dialog support
+  + Dialog support (in-progress)
+  + Statefull proxy support
   + Authorization and proxy authorization
   + High-level UA support
   + Detailed documentation and tutorials

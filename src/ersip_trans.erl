@@ -55,10 +55,13 @@
 new_server(SipMsg, Options) ->
     Id = server_id(SipMsg),
     INVITE = ersip_method:invite(),
+    ACK    = ersip_method:ack(),
     Module =
         case ersip_sipmsg:method(SipMsg) of
             INVITE ->
                 ersip_trans_inv_server;
+            ACK ->
+                error({api_error, <<"Trying to create ACK server transaction">>});
             _ ->
                 ersip_trans_server
         end,
@@ -73,10 +76,13 @@ new_server(SipMsg, Options) ->
 new_client(OutReq, Options) ->
     Id = client_id(OutReq),
     INVITE = ersip_method:invite(),
+    ACK    = ersip_method:ack(),
     Module =
         case ersip_sipmsg:method(ersip_request:sipmsg(OutReq)) of
             INVITE ->
                 ersip_trans_inv_client;
+            ACK ->
+                error({api_error, <<"Trying to create ACK client transaction">>});
             _ ->
                 ersip_trans_client
         end,

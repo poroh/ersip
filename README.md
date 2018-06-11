@@ -8,6 +8,51 @@ does not force you to some software design. All libraries provides
 some framework that is required in your project if you want to use
 SIP. I beleive that this is wrong way.
 
+## Roadmap
+
+  + Basic low-level parser (completed)
+  + Essential headers support (completed)
+  + High-level SIP message (completed)
+  + Stateless proxy support (completed)
+     - Request passing (completed)
+     - Response passing (completed)
+  + Transaction support (completed)
+     - Transaction idenification (completed)
+     - Non-INVITE transaction (completed)
+     - INVITE transaction (completed)
+  + Statefull proxy support (in-progress)
+  + Dialog support
+  + Authorization and proxy authorization
+  + High-level UA support
+  + Detailed documentation and tutorials
+
+## Realworld examples
+
+Working examples:
+
+  + Sateful SIP proxy: https://github.com/poroh/ersip_proxy
+
+## Basics
+
+Idea of this project to provide SIP stack that:
+
+  + can be integrated anywhere in any other infrastructure
+  + has 100% test coverage
+  + fully conformant with IETF standards and BCPs
+
+To do this this library provides high-level building blocks:
+
+  + SIP parser
+  + SIP message
+  + Proxy functions
+  + Stateless proxy functions
+  + Statefull proxy object description
+  + Transactions
+  + UAs
+
+All layers and objects has well-defined interface and well-defined
+side effects/callbacks that need to be implemented.
+
 ## About Author
 
 Dmitry Poroh:
@@ -34,76 +79,3 @@ Also I have experience in VOIP area:
 I try to contribute all my experience to this project because I
 beleive that SIP protocol is instrument the must be free and
 available.
-
-## Roadmap
-
-  + Basic low-level parser (completed)
-  + Essential headers support (completed)
-  + High-level SIP message (completed)
-  + Stateless proxy support (completed)
-     - Request passing (completed)
-     - Response passing (completed)
-  + Transaction support
-     - Transaction table
-     - Non-INVITE transaction
-     - INVITE transaction
-  + Statefull proxy support
-  + Dialog support
-  + Authorization and proxy authorization
-  + High-level UA support
-  + SIP proxy support
-  + Detailed documentation and tutorials
-
-## Basics
-
-Idea of this project to provide SIP stack that:
-
-  + can be integrated anywhere in any other infrastructure
-  + has 100% test coverage
-  + fully conformant with IETF standards and BCPs
-
-To do this this library provides high-level building blocks:
-
-  + SIP parser
-  + SIP message
-  + Proxy functions
-  + Stateless proxy functions
-  + Statefull proxy object description
-  + Transactions
-  + UAs
-
-All layers and objects has well-defined interface and well-defined
-side effects/callbacks that need to be implemented.
-
-## SIP message representation
-
-There is two levels of messages available:
-
-  + Low level message (ersip_msg:message())
-  + SIP message (ersip_sipmsg:sip_msg()
-
-### Low level message
-
-Provides simplies level of parsing and lowlevel header manipulation.
-It consist of 
-
-  + First line parsed data
-  + Set of low-level headers
-  + Not parsed body
-
-## SIP message
-
-SIP message has low level message under the hood but also has some set
-of parsed headers. It provides interface for higher level manipulation
-of SIP messages. For example you can easy change some headers with
-your values. Code example:
-
-
-```
-NewRURI = ersip_uri:make(<<"sip:alice@atlanta.com">>),
-NewSipMsg = ersip_sipmsg:set_ruri(NewRURI, SipMsg)
-```
-
-After serialization message will contain this RURI instead previous
-one.
-

@@ -16,7 +16,8 @@
          assemble/1,
          params/1,
          set_param/3,
-         clear_not_allowed_parts/2
+         clear_not_allowed_parts/2,
+         assemble_scheme/1
         ]).
 -export_type([uri/0, scheme/0]).
 

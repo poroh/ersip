@@ -10,7 +10,8 @@
 
 -export([response_type/1,
          reason_phrase/1,
-         bad_request_reason/1
+         bad_request_reason/1,
+         unsupported_uri_scheme_reason/1
         ]).
 -export_type([response_type/0,
               code/0,
@@ -47,6 +48,11 @@ bad_request_reason({error, {header_error, {HeaderName, _}}}) when is_atom(Header
     <<"Invalid ", HeaderNameBin/binary," value">>;
 bad_request_reason({error, _}) ->
     <<"Bad Request">>.
+
+-spec unsupported_uri_scheme_reason(ersip_uri:scheme()) -> reason().
+unsupported_uri_scheme_reason(URIScheme) ->
+    SchemeBin = ersip_uri:assemble_scheme(URIScheme),
+    <<"URI Scheme ", SchemeBin/binary, " not supported">>.
 
 %%%===================================================================
 %%% Internal Implementation

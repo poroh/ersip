@@ -14,7 +14,9 @@
          reason/1,
          to_tag/1
         ]).
--export_type([options/0]).
+-export_type([options/0,
+              params_list/0
+             ]).
 
 %%%===================================================================
 %%% Types
@@ -24,10 +26,11 @@
                   reason = undefined :: undefined | ersip_status:reason(),
                   to_tag = undefined :: undefined | ersip_hdr_fromto:tag()
                  }).
--type options()    :: #options{}.
--type param_pair() :: {know_param(), term()}.
--type know_param() :: reason
-                    | to_tag.
+-type options()     :: #options{}.
+-type param_pair()  :: {know_param(), term()}.
+-type params_list() :: [param_pair()].
+-type know_param()  :: reason
+                     | to_tag.
 
 %%%===================================================================
 %%% API
@@ -39,8 +42,7 @@ new(Status) when is_integer(Status)
                  andalso Status =< 699 ->
     #options{status = Status}.
 
--spec new(ersip_status:code(), Params) -> options() when
-      Params :: [param_pair()].
+-spec new(ersip_status:code(), params_list()) -> options().
 new(Status, Params) when is_integer(Status)
                          andalso Status >= 100
                          andalso Status =< 699 ->

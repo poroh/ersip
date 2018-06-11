@@ -20,6 +20,7 @@ SIP. I beleive that this is wrong way.
      - Transaction idenification (completed)
      - Non-INVITE transaction (completed)
      - INVITE transaction (completed)
+  + Registrar support
   + Dialog support (in-progress)
   + Statefull proxy support
   + Authorization and proxy authorization

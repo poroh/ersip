@@ -241,6 +241,23 @@ val_loop_detect(SipMessage, Options) ->
 %% understand.
 -spec val_proxy_require(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
 val_proxy_require(SipMessage, Options) ->
+    %% Note that Require and Proxy-Require MUST NOT be used in a SIP
+    %% CANCEL request, or in an ACK request sent for a non-2xx
+    %% response.  These header fields MUST be ignored if they are
+    %% present in these requests.
+    ACK = ersip_method:ack(),
+    CANCEL = ersip_method:cancel(),
+    case ersip_sipmsg:method(SipMessage) of
+        ACK ->
+            {ok, SipMessage};
+        CANCEL ->
+            {ok, SipMessage};
+        _ ->
+            do_val_proxy_require(SipMessage, Options)
+    end.
+
+-spec do_val_proxy_require(ersip_sipmsg:sipmsg(), validate_options()) -> validate_result().
+do_val_proxy_require(SipMessage, Options) ->
     case ersip_sipmsg:find(proxy_require, SipMessage) of
         not_found ->
             {ok, SipMessage};

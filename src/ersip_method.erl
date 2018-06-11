@@ -11,6 +11,8 @@
 -export([options/0,
          invite/0,
          ack/0,
+         cancel/0,
+         register/0,
          parse/1,
          make/1,
          to_binary/1
@@ -39,6 +41,14 @@ invite() ->
 ack() ->
     {method, <<"ACK">>}.
 
+-spec cancel() -> method().
+cancel() ->
+    {method, <<"CANCEL">>}.
+
+-spec register() -> method().
+register() ->
+    {method, <<"REGISTER">>}.
+
 -spec parse(binary()) ->  {ok, method()}
                               | {error, Error} when
       Error :: {invalid_method, binary()}.
@@ -54,8 +64,8 @@ parse(Bin) ->
 to_binary({method, Bin}) ->
     Bin.
 
--spec make(binary()) -> method(). 
-make(Bin) ->
+-spec make(binary()) -> method().
+make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, M} ->
             M;

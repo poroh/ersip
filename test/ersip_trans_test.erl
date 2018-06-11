@@ -137,6 +137,13 @@ invite_transaction_test() ->
 
     ok.
 
+error_on_ack_test() ->
+    %% Check that API forbids creating client/server transaction for
+    %% ACK requests.
+    ?assertError({api_error, _}, ersip_trans:new_client(ack_req(), default_sip_options())),
+    ?assertError({api_error, _}, ersip_trans:new_server(ack(), default_sip_options())),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

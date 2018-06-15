@@ -9,6 +9,7 @@
 -module(ersip_uas).
 
 -export([new/3,
+         request/2,
          reply/2
         ]).
 
@@ -39,6 +40,15 @@
 new(SipMsg, AllowedMethods, UASOptions) ->
     new_impl(SipMsg, AllowedMethods, UASOptions).
 
+
+-spec request(ersip_sipmsg:sipmsg(), uas()) -> result().
+request(_RequestSipMsg, #uas{trans = stateless}) ->
+    error({api_error, <<"Request cannot match stateless UAS">>});
+request(RequestSipMsg, #uas{trans = Trans0} = UAS0) ->
+    {Trans1, T1SE} = ersip_trans:event({received, RequestSipMsg}, Trans0),
+    UAS1 = UAS0#uas{trans = Trans1},
+    process_trans_se(T1SE, {UAS1, []}).
+
 -spec reply(ersip_sipmsg:sipmsg(), uas()) -> result().
 reply(RespMsg, #uas{trans = stateless} = UAS) ->
     Code = ersip_sipmsg:status(RespMsg),
@@ -47,7 +57,12 @@ reply(RespMsg, #uas{trans = stateless} = UAS) ->
             {UAS, [ersip_ua_se:send_response(RespMsg)]};
         final ->
             {UAS, [ersip_ua_se:send_response(RespMsg), ersip_ua_se:completed(normal)]}
-    end.
+    end;
+reply(RespSipMsg, #uas{trans = Trans0} = UAS0) ->
+    {Trans1, T1SE} = ersip_trans:event({send, RespSipMsg}, Trans0),
+    UAS1 = UAS0#uas{trans = Trans1},
+    process_trans_se(T1SE, {UAS1, []}).
+
 
 %%%===================================================================
 %%% Internal implementation
@@ -113,7 +128,7 @@ process_trans_se([{send_response, SipMsg}|Rest], Result0) ->
     Result1 = add_se(ersip_ua_se:send_response(SipMsg), Result0),
     process_trans_se(Rest, Result1);
 process_trans_se([{send_request, OutReq}|Rest], Result0) ->
-    Result1 = add_se(ersip_ua_se:send_response(OutReq), Result0),
+    Result1 = add_se(ersip_ua_se:send_request(OutReq), Result0),
     process_trans_se(Rest, Result1);
 process_trans_se([{set_timer, {Timeout, TimerEv}}|Rest], Result0) ->
     Result1 = add_se(ersip_ua_se:set_timer(Timeout, TimerEv), Result0),

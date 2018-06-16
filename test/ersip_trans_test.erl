@@ -84,7 +84,6 @@ client_transaction_complete_test() ->
     ?assertEqual(false, lists:keyfind(tu_result, 1, SE3)),
     ok.
 
-
 client_transaction_invalid_api_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
@@ -134,7 +133,6 @@ invite_transaction_test() ->
     {ServerAccepted, SE9} = ersip_trans:event({received, ACKSipMsg}, ServerAccepted),
     {tu_result, SrvACKSipMsg} = se_event(tu_result, SE9),
     ?assertEqual(ersip_sipmsg:serialize_bin(SrvACKSipMsg), ersip_sipmsg:serialize_bin(ACKSipMsg)),
-
     ok.
 
 error_on_ack_test() ->
@@ -143,6 +141,19 @@ error_on_ack_test() ->
     ?assertError({api_error, _}, ersip_trans:new_client(ack_req(), default_sip_options())),
     ?assertError({api_error, _}, ersip_trans:new_server(ack(), default_sip_options())),
     ok.
+
+client_transaction_match_test() ->
+    SipMsg = default_register_request(),
+    Branch = ersip_branch:make_random(7),
+    OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
+    {ClientTrans, SE} = ersip_trans:new_client(OutReq, default_sip_options()),
+    {send_request, SendReq} = se_event(send_request, SE),
+    RemoteSipMsg = send_req_via_default_conn(SendReq),
+    Remote200OK = ersip_sipmsg:reply(200, RemoteSipMsg),
+    {Via, Local200OK} = recv_response_via_default_conn(Remote200OK),
+    ?assertEqual(ersip_trans:client_id(OutReq), ersip_trans:client_id(Via, Local200OK)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -213,6 +224,13 @@ register_request() ->
 send_req_via_default_conn(OutReq) ->
     RemoteMsg = iolist_to_binary(ersip_request:send_via_conn(OutReq, default_udp_conn())),
     create_sipmsg(RemoteMsg, make_default_source()).
+
+recv_response_via_default_conn(RemoteSipMsg) ->
+    RemoteBin = ersip_sipmsg:serialize_bin(RemoteSipMsg),
+    Conn = default_udp_conn(),
+    {_Conn, [{new_response, Via, Msg}]} = ersip_conn:conn_data(RemoteBin, Conn),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    {Via, SipMsg}.
 
 default_udp_conn() ->
     ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, udp_transport(), #{}).

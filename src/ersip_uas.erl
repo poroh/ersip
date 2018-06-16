@@ -191,13 +191,14 @@ steps([StepF|Rest], SipMsg, UAS) ->
 
 %% 8.2.1 Method Inspection
 -spec method_inspection(ersip_sipmsg:sipmsg(), uas()) -> step_result().
-method_inspection(SipMsg, #uas{allowed_methods = SupportedMethodSet}) ->
+method_inspection(SipMsg, #uas{allowed_methods = SupportedMethodSet, options = Options}) ->
     case ersip_method_set:has(ersip_sipmsg:method(SipMsg), SupportedMethodSet) of
         false ->
             %% If the UAS recognizes but does not support the method
             %% of a request, it MUST generate a 405 (Method Not
             %% Allowed) response.
-            ReplySipMsg0 = ersip_sipmsg:reply(ersip_reply:new(405), SipMsg),
+            Reply0 = create_reply_params(405, auto, Options),
+            ReplySipMsg0 = ersip_sipmsg:reply(Reply0, SipMsg),
             %% The UAS MUST also add an Allow header field to the 405
             %% (Method Not Allowed) response.  The Allow header field
             %% MUST list the set of methods supported by the UAS
@@ -266,27 +267,34 @@ check_require(SipMsg, #uas{options = Options}) ->
             continue
     end.
 
+-spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_sipmsg:sipmsg().
+create_reply_params(Code, Reason, Options) ->
+    ReplyParams0 =
+        case Reason of
+            auto ->
+                [];
+            Reason ->
+                [{reason, Reason}]
+        end,
+    ReplyParams1 = maybe_add_to_tag(Options, ReplyParams0),
+    ersip_reply:new(Code, ReplyParams1).
+
 -spec make_bad_request(ersip_sipmsg:sipmsg(), {error, term()}, options()) -> ersip_sipmsg:sipmsg().
 make_bad_request(SipMsg, ParseError, Options) ->
-    ReplyParams0 = [{reason, ersip_status:bad_request_reason(ParseError)}],
-    ReplyParams1 = maybe_add_to_tag(Options, ReplyParams0),
-    Reply = ersip_reply:new(400, ReplyParams1),
+    Reply = create_reply_params(400, ersip_status:bad_request_reason(ParseError), Options),
     ersip_sipmsg:reply(Reply, SipMsg).
 
 
 -spec make_bad_extension(ersip_sipmsg:sipmsg(), options(), Unsupported) -> ersip_sipmsg:sipmsg() when
       Unsupported :: ersip_hdr_opttag_list:option_tag_list().
 make_bad_extension(SipMsg, Options, Unsupported) ->
-    ReplyParams = maybe_add_to_tag(Options, []),
-    Reply = ersip_reply:new(420, ReplyParams),
+    Reply = create_reply_params(420, auto, Options),
     Resp0 = ersip_sipmsg:reply(Reply, SipMsg),
     ersip_sipmsg:set(unsupported, Unsupported, Resp0).
 
 -spec make_unsupported_scheme(ersip_sipmsg:sipmsg(), options(), ersip_uri:scheme()) -> ersip_sipmsg:sipmsg().
 make_unsupported_scheme(SipMsg, Options, Scheme) ->
-    ReplyParams0 = [{reason, ersip_status:unsupported_uri_scheme_reason(Scheme)}],
-    ReplyParams1 = maybe_add_to_tag(Options, ReplyParams0),
-    Reply = ersip_reply:new(416, ReplyParams1),
+    Reply = create_reply_params(416, ersip_status:unsupported_uri_scheme_reason(Scheme), Options),
     ersip_sipmsg:reply(Reply, SipMsg).
 
 -spec maybe_add_to_tag(options(), ersip_reply:params_list()) -> ersip_reply:params_list().

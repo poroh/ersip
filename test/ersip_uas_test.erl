@@ -100,6 +100,22 @@ stateful_uas_not_allowed_method_for_unreliable_transport_test() ->
     ?assertEqual({completed, normal}, se_find(completed, SE1)),
     ok.
 
+stateless_uas_not_allowed_method_for_unreliable_transport_test() ->
+    Options = #{stateless => true},
+    REGISTERSipMsg = register_request(make_udp_source()),
+    AllowedMethods = ersip_method_set:invite_set(),
+    {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, AllowedMethods, Options),
+    {send_response, Resp405} = se_find(send_response, SE0),
+    ?assertEqual(405, ersip_sipmsg:status(Resp405)),
+    %% The UAS MUST also add an Allow header field to the 405 (Method
+    %% Not Allowed) response.  The Allow header field MUST list the
+    %% set of methods supported by the UAS generating the message.
+    AllowHdr = ersip_sipmsg:get(allow, Resp405),
+    ?assertEqual({allow, AllowedMethods}, AllowHdr),
+    %% Completed immediately for reliable transport.
+    ?assertEqual({completed, normal}, se_find(completed, SE0)),
+    ok.
+
 cannot_parse_require_field_test() ->
     Options = #{statless => true},
     REGISTERSipMsg = register_request_bad_require(make_default_source()),
@@ -107,7 +123,6 @@ cannot_parse_require_field_test() ->
     {send_response, Resp400} = se_find(send_response, SE0),
     ?assertEqual(400, ersip_sipmsg:status(Resp400)),
     ok.
-
 
 %%%===================================================================
 %%% Helpers

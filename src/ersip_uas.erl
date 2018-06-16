@@ -118,7 +118,9 @@ process_trans_se([{tu_result, Request}|Rest], {UAS, _} = Result0) ->
             case UAS#uas.trans of
                 stateless ->
                     %% Respond immediately in case of stateless UAS
-                    add_se(ersip_ua_se:send_response(SipMsg), Result0);
+                    Result1 = add_se(ersip_ua_se:send_response(SipMsg), Result0),
+                    %% Finish UAS immediately
+                    add_se(ersip_ua_se:completed(normal), Result1);
                 Trans0 ->
                     %% Pass response through transaction for stateful
                     %% UAS

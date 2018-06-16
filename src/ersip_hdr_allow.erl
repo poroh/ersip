@@ -10,6 +10,7 @@
 
 -export([from_list/1,
          to_list/1,
+         from_method_set/1,
          parse/1,
          build/2,
          assemble/1
@@ -20,7 +21,7 @@
 %%% Types
 %%%===================================================================
 
--type allow() :: {allow, gb_sets:set(ersip_method:method())}.
+-type allow() :: {allow, ersip_method_set:set()}.
 
 %%%===================================================================
 %%% API
@@ -28,11 +29,15 @@
 
 -spec from_list([ersip_method:method()]) -> allow().
 from_list(MethodList) ->
-    {allow, gb_sets:from_list(MethodList)}.
+    {allow, ersip_method_set:new(MethodList)}.
 
 -spec to_list(allow()) -> [ersip_method:method()].
 to_list({allow, MethodSet}) ->
-    gb_sets:to_list(MethodSet).
+    ersip_method_set:to_list(MethodSet).
+
+-spec from_method_set(ersip_method_set:set()) -> allow().
+from_method_set({method_set, _} = MethodSet) ->
+    {allow, MethodSet}.
 
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: {ok, allow()}

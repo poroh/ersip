@@ -10,7 +10,8 @@
 
 -export([new/3,
          request/2,
-         reply/2
+         reply/2,
+         timer/2
         ]).
 
 -export_type([uas/0]).
@@ -31,6 +32,7 @@
                      check_scheme => fun((ersip_uri:scheme()) -> boolean())
                     }.
 -type result() :: {uas(), [ersip_ua_se:effect()]}.
+-type timer_event() :: {timer, term()}.
 
 %%%===================================================================
 %%% API
@@ -63,6 +65,13 @@ reply(RespSipMsg, #uas{trans = Trans0} = UAS0) ->
     UAS1 = UAS0#uas{trans = Trans1},
     process_trans_se(T1SE, {UAS1, []}).
 
+-spec timer(timer_event(), uas()) -> result().
+timer(_TimerEv, #uas{trans = stateless} ) ->
+    error({api_error, <<"Unexpected timer event for stateless UAS">>});
+timer(TimerEv, #uas{trans = Trans0} = UAS0) ->
+    {Trans1, T1SE} = ersip_trans:event(TimerEv, Trans0),
+    UAS1 = UAS0#uas{trans = Trans1},
+    process_trans_se(T1SE, {UAS1, []}).
 
 %%%===================================================================
 %%% Internal implementation
@@ -191,8 +200,8 @@ method_inspection(SipMsg, #uas{allowed_methods = SupportedMethodSet}) ->
             %% (Method Not Allowed) response.  The Allow header field
             %% MUST list the set of methods supported by the UAS
             %% generating the message.
-            SupportedMethodsList = ersip_method_set:to_list(SupportedMethodSet),
-            ReplySipMsg1 = ersip_sipmsg:set(allowed, SupportedMethodsList, ReplySipMsg0),
+            AllowHdr = ersip_hdr_allow:from_method_set(SupportedMethodSet),
+            ReplySipMsg1 = ersip_sipmsg:set(allow, AllowHdr, ReplySipMsg0),
             {reply, ReplySipMsg1};
         true ->
             %% If the method is one supported by the server,
@@ -279,11 +288,10 @@ make_unsupported_scheme(SipMsg, Options, Scheme) ->
     ersip_sipmsg:reply(Reply, SipMsg).
 
 -spec maybe_add_to_tag(options(), ersip_reply:params_list()) -> ersip_reply:params_list().
+maybe_add_to_tag(#{to_tag := auto}, ReplyOpts) ->
+    ReplyOpts;
 maybe_add_to_tag(#{to_tag := ToTag}, ReplyOpts) ->
-    [{to_tag, ToTag}|ReplyOpts];
-maybe_add_to_tag(_, ReplyOpts) ->
-    ReplyOpts.
-
+    [{to_tag, ToTag}|ReplyOpts].
 
 -spec check_supported(Required, Supported) -> all_supported | Unsupported when
       Required    :: ersip_hdr_opttag_list:option_tag_list(),

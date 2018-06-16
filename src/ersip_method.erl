@@ -11,6 +11,7 @@
 -export([options/0,
          invite/0,
          ack/0,
+         bye/0,
          cancel/0,
          register/0,
          parse/1,
@@ -40,6 +41,10 @@ invite() ->
 -spec ack() -> method().
 ack() ->
     {method, <<"ACK">>}.
+
+-spec bye() -> method().
+bye() ->
+    {method, <<"BYE">>}.
 
 -spec cancel() -> method().
 cancel() ->

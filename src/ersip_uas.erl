@@ -286,7 +286,7 @@ make_bad_extension(SipMsg, Options, Unsupported) ->
 make_unsupported_scheme(SipMsg, Options, Scheme) ->
     ReplyParams0 = [{reason, ersip_status:unsupported_uri_scheme_reason(Scheme)}],
     ReplyParams1 = maybe_add_to_tag(Options, ReplyParams0),
-    Reply = ersip_reply:new(420, ReplyParams1),
+    Reply = ersip_reply:new(416, ReplyParams1),
     ersip_sipmsg:reply(Reply, SipMsg).
 
 -spec maybe_add_to_tag(options(), ersip_reply:params_list()) -> ersip_reply:params_list().

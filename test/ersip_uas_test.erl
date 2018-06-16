@@ -130,16 +130,56 @@ scheme_validation_fail_test() ->
                },
     REGISTERSipMsg = register_request(),
     {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    {send_response, Resp420} = se_find(send_response, SE0),
-    ?assertEqual(420, ersip_sipmsg:status(Resp420)),
+    {send_response, Resp416} = se_find(send_response, SE0),
+    ?assertEqual(416, ersip_sipmsg:status(Resp416)),
     ok.
 
 scheme_validation_success_test() ->
     Options = #{stateless => false,
                 check_scheme => fun(S) -> S == {scheme, <<"tel">>} end
                },
-    REGISTERSipMsg = register_request_tel_uri(make_default_source()),
-    {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
+    REGISTERSipMsgTEL = register_request_tel_uri(make_default_source()),
+    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgTEL, allowed_methods(), Options),
+    ?assertEqual(not_found, se_find(send_response, SE0)),
+    REGISTERSipMsgSIP = register_request(make_default_source()),
+    {_UAS1, SE1} = ersip_uas:new(REGISTERSipMsgSIP, allowed_methods(), Options),
+    {send_response, Resp416} = se_find(send_response, SE1),
+    ?assertEqual(416, ersip_sipmsg:status(Resp416)),
+    ok.
+
+extension_is_not_supported_test() ->
+    Options = #{stateless => false},
+    REGISTERSipMsgGRUU = register_request_gruu(make_default_source()),
+    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
+    {send_response, Resp420} = se_find(send_response, SE0),
+    ?assertEqual(420, ersip_sipmsg:status(Resp420)),
+    Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gruu">>)]),
+    ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, Resp420)),
+    ok.
+
+extension_is_not_supported_not_intersection_test() ->
+    Supported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>)
+                                                ]),
+    Options = #{stateless => false,
+                supported => Supported
+               },
+    REGISTERSipMsgGRUU = register_request_gin_gruu(make_default_source()),
+    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
+    {send_response, Resp420} = se_find(send_response, SE0),
+    ?assertEqual(420, ersip_sipmsg:status(Resp420)),
+    Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gruu">>)]),
+    ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, Resp420)),
+    ok.
+
+extension_is_supported_test() ->
+    Supported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>),
+                                                 ersip_option_tag:make(<<"gruu">>)
+                                                ]),
+    Options = #{stateless => false,
+                supported => Supported
+               },
+    REGISTERSipMsgGRUU = register_request_gruu(make_default_source()),
+    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
     ?assertEqual(not_found, se_find(send_response, SE0)),
     ok.
 
@@ -169,6 +209,14 @@ register_request_bad_require(Source) ->
 register_request_tel_uri(Source) ->
     Msg = register_request_tel_uri_bin(),
     create_sipmsg(Msg, Source, []).
+
+register_request_gruu(Source) ->
+    Msg = register_request_gruu_bin(),
+    create_sipmsg(Msg, Source, all).
+
+register_request_gin_gruu(Source) ->
+    Msg = register_request_gin_gruu_bin(),
+    create_sipmsg(Msg, Source, all).
 
 trying_response() ->
     SipMsg = register_request(),
@@ -207,6 +255,40 @@ register_request_bad_require_bin() ->
       "Max-Forwards: 69" ?crlf
       "Expires: 3600" ?crlf
       "Require: ?" ?crlf
+      "Content-Length: 0" ?crlf
+      "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
+      "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
+      "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
+      ?crlf>>.
+
+register_request_gruu_bin() ->
+    <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
+      "To: <sip:1000@192.168.100.11:5060>" ?crlf
+      "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
+      "Call-ID: 1197534344" ?crlf
+      "CSeq: 4 REGISTER" ?crlf
+      "Max-Forwards: 69" ?crlf
+      "Expires: 3600" ?crlf
+      "Require: gruu" ?crlf
+      "Content-Length: 0" ?crlf
+      "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
+      "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
+      "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
+      ?crlf>>.
+
+register_request_gin_gruu_bin() ->
+    <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
+      "To: <sip:1000@192.168.100.11:5060>" ?crlf
+      "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
+      "Call-ID: 1197534344" ?crlf
+      "CSeq: 4 REGISTER" ?crlf
+      "Max-Forwards: 69" ?crlf
+      "Expires: 3600" ?crlf
+      "Require: gin,gruu" ?crlf
       "Content-Length: 0" ?crlf
       "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
       "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf

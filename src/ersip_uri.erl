@@ -15,6 +15,7 @@
          parse/1,
          assemble/1,
          params/1,
+         clear_params/1,
          set_param/3,
          clear_not_allowed_parts/2,
          assemble_scheme/1
@@ -115,6 +116,12 @@ assemble(#uri{scheme = Scheme, data = Data}) ->
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
     Params.
+
+-spec clear_params(uri()) -> uri().
+clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->
+    URI#uri{data = SIPData#sip_uri_data{params = #{}}};
+clear_params(#uri{} = URI) ->
+    URI.
 
 %% @doc set paramter of the URI
 -spec set_param(uri_param_name(), term(), uri()) -> uri().

@@ -94,9 +94,10 @@ join(Sep, [ X | Rest ]) ->
 -ifdef(OTP_RELEASE).
 
 string_trim_lws(Str) ->
-    string_trim(?OTP_RELEASE, Str).
+    string_trim_lws(?OTP_RELEASE, Str).
+
 string_trim_lws(Release, Str) when Release >= 20 ->
-    string:trim(L, leading, [ $ , $\t ]);
+    string:trim(Str, leading, [ $ , $\t ]);
 string_trim_lws(_, Str) ->
     string_trim_lws_impl(Str).
 

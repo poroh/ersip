@@ -10,7 +10,8 @@
 
 -export([new_config/2,
          new_request/2,
-         authenticate_result/2
+         authenticate_result/2,
+         authorize_result/2
         ]).
 
 %%%===================================================================
@@ -56,6 +57,9 @@
 -type authenticate_result() :: {ok, authenticate_info()}
                              | {error, term()}.
 -type authenticate_info() :: term().
+
+-type authorize_result() :: authorized | unauthorized.
+
 -type check_aor_fun() :: fun((AOR :: ersip_uri:uri(), RURI :: ersip_uri:uri()) -> boolean()).
 
 %%%===================================================================
@@ -75,10 +79,21 @@ new_request(SipMsg, #config{} = Config) ->
                  config = Config},
     continue(entry, Request).
 
-%% Called when request is authentincated
+%% Called when authentication result has got.
 -spec authenticate_result(authenticate_result(), request()) -> request_result().
-authenticate_result({ok, AuthInfo}, #request{} = Request) ->
-    continue({auth_info, AuthInfo}, Request).
+authenticate_result({authorized, _AuthInfo} = Event, #request{} = Request) ->
+    continue(Event, Request);
+authenticate_result({unauthorized, _ReplySipMsg} = Event, #request{} = Request) ->
+    continue(Event, Request);
+authenticate_result({error, _Reason} = Event, #request{} = Request) ->
+    continue(Event, Request).
+
+%% Called when authorization result has got.
+-spec authorize_result(authorize_result(), request()) -> request_result().
+authorize_result(authorized = Event, #request{} = Request) ->
+    continue(Event, Request);
+authorize_result(unauthorized = Event, #request{} = Request) ->
+    continue(Event, Request).
 
 %%%===================================================================
 %%% Internal Implementation

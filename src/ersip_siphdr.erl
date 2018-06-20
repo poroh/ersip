@@ -33,7 +33,8 @@
                       | supported
                       | unsupported
                       | require
-                      | proxy_require.
+                      | proxy_require
+                      | contact.
 
 -record(descr, {name         :: binary(),
                 required     :: header_required(),
@@ -65,7 +66,8 @@ all_known_headers() ->
      require,
      proxy_require,
      route,
-     record_route
+     record_route,
+     contact
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -293,5 +295,11 @@ header_descr(proxy_require) ->
            required     = optional,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
+          };
+header_descr(contact) ->
+    #descr{name         = <<"contact">>,
+           required     = optional,
+           parse_fun    = fun ersip_hdr_contact_list:parse/1,
+           assemble_fun = fun ersip_hdr_contact_list:build/2
           }.
 

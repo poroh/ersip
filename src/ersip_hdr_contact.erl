@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_contact).
 
--export([parse/1,
+-export([make/1,
+         parse/1,
          assemble/1
         ]).
 -export_type([contact/0]).
@@ -35,6 +36,15 @@
 %%% API
 %%%===================================================================
 
+-spec make(binary()) -> contact().
+make(Bin) ->
+    case ersip_hdr_contact:parse(Bin) of
+        {ok, Contact} ->
+            Contact;
+        {error, Reason} ->
+            error(Reason)
+    end.
+
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
@@ -49,8 +59,8 @@ parse(Bin) ->
                       params       = ParamsList
                      }
             };
-        {error, _} = Error ->
-            Error
+        {error, Reason} ->
+            {error, {invalid_contact, Reason}}
     end.
 
 -spec assemble(contact()) -> iolist().

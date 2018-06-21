@@ -9,7 +9,8 @@
 
 -module(ersip_qvalue).
 
--export([parse/1,
+-export([make/1,
+         parse/1,
          assemble/1
         ]).
 
@@ -24,6 +25,15 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec make(binary()) -> qvalue().
+make(Bin) ->
+    case parse(Bin) of
+        {ok, QValue} ->
+            QValue;
+        {error, Reason} ->
+            error(Reason)
+    end.
 
 %% qvalue         =  ( "0" [ "." 0*3DIGIT ] )
 %%                  / ( "1" [ "." 0*3("0") ] )
@@ -63,7 +73,7 @@ parse_impl(<<"1.", AllZeroes/binary>> = QVal) ->
 parse_impl(<<"0.", Rest/binary>> = QVal) when byte_size(Rest) =< 3 ->
     ValueBin = add_zeroes(Rest),
     try
-        {ok, {qvalue, integer_to_binary(ValueBin)}}
+        {ok, {qvalue, binary_to_integer(ValueBin)}}
     catch
         error:badarg ->
             {error, {invalid_qvalue, QVal}}

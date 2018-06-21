@@ -263,8 +263,7 @@ process_contacts(entry, #request{sipmsg = SipMsg} = Request) ->
         {ok, ContactHdrs} ->
             ok
     end.
-    
-            
+
 -spec terminate_request(registrar_se(), request()) -> request_result().
 terminate_request(Action, #request{} = Request) ->
     {set_phase(terminated, Request), [Action, clear_request]}.

@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_contact_list).
 
--export([build/2,
+-export([make/1,
+         build/2,
          parse/1
         ]).
 
@@ -30,6 +31,17 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec make(binary()) -> contact_list().
+make(Binary) ->
+    H0 = ersip_hdr:new(<<"Contact">>),
+    H1 = ersip_hdr:add_value(Binary, H0),
+    case parse(H1) of
+        {ok, ContactList} ->
+            ContactList;
+        {error, Reason} ->
+            error(Reason)
+    end.
 
 -spec build(HeaderName :: binary(), contact_list()) -> ersip_hdr:header().
 build(HdrName, star) ->

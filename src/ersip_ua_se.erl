@@ -49,7 +49,7 @@ ua_result(SipMsg) ->
 send_response(SipMsg) ->
     {send_response, SipMsg}.
 
--spec send_request(ersip_sipmsg:sipmsg()) -> send_request().
+-spec send_request(ersip_request:request()) -> send_request().
 send_request(SipMsg) ->
     {send_request, SipMsg}.
 

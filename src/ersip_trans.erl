@@ -33,7 +33,7 @@
 -type trans_instance()  :: ersip_trans_client:trans_client()
                          | ersip_trans_server:trans_server().
 -type tid() :: ersip_trans_id:transaction_id().
--type result() :: {trans(), ersip_trans_se:effect()}.
+-type result() :: {trans(), [ersip_trans_se:effect()]}.
 -type trans_event() :: event_timer()
                      | event_received()
                      | event_send().

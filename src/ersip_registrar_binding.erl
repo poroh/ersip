@@ -11,6 +11,7 @@
 -module(ersip_registrar_binding).
 
 -export([new/4,
+         contact/1,
          contact_key/1,
          callid_cseq/1,
          update_expiration/2
@@ -38,6 +39,10 @@ new(CallId, CSeqNum, Contact, Exp) ->
              callid  = CallId,
              cseq    = CSeqNum,
              expires = Exp}.
+
+-spec contact(binding()) -> ersip_hdr_contact:contact().
+contact(#binding{contact = Contact, expires = Exp}) ->
+    ersip_hdr_contact:set_expires(Exp, Contact).
 
 -spec contact_key(binding()) -> ersip_uri:uri().
 contact_key(#binding{contact = Contact}) ->

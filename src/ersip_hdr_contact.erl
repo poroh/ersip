@@ -10,6 +10,7 @@
 
 -export([uri/1,
          expires/2,
+         set_expires/2,
          make/1,
          parse/1,
          assemble/1
@@ -51,8 +52,13 @@ expires(#contact{params = Params}, Default) ->
             V
     end.
 
+-spec set_expires(non_neg_integer(), contact()) -> contact().
+set_expires(Expires, #contact{params = Params} = Contact) when is_integer(Expires) ->
+    NewParams = lists:keystore(expires, 1, Params, {expires, Expires}),
+    Contact#contact{params = NewParams}.
+
 -spec make(binary()) -> contact().
-make(Bin) ->
+make(Bin) when is_binary(Bin) ->
     case ersip_hdr_contact:parse(Bin) of
         {ok, Contact} ->
             Contact;

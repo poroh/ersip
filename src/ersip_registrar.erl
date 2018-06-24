@@ -46,8 +46,8 @@
                   sipmsg   :: ersip_sipmsg:sipmsg(),
                   authinfo :: undefined | authenticate_info(),
                   aoruri   :: undefined | ersip_uri:uri(),
-                  action   :: request_action(),
-                  result_bindings :: [ersip_hdr_contact:contact()]
+                  action   :: undefined | request_action(),
+                  result_bindings :: undefined | [ersip_registrar_binding:binding()]
                  }).
 -type request() :: #request{}.
 
@@ -76,17 +76,22 @@
                | authenticate_result_event()
                | authorize_result_event()
                | lookup_result_event()
-               | update_result_event().
+               | update_result_event()
+               | update_event().
 
 -type authenticate_result_event() :: {authenticate_result, authenticate_result()}.
 -type authorize_result_event()    :: {authorize_result, authorize_result()}.
 -type lookup_result_event()       :: {lookup_result, lookup_result()}.
 -type update_result_event()       :: {update_result, update_result()}.
-
+-type update_event()              :: {update, update_map()}.
+-type update_map()                :: #{added   := [ersip_registrar_binding:binding()],
+                                       removed := [ersip_registrar_binding:binding()],
+                                       updated := [ersip_registrar_binding:binding()]
+                                      }.
 %% --------------------
 %% Side effects results:
--type authenticate_result() :: {authorized, authenticate_info()}
-                             | {unauthorized, Reply :: ersip_sipmsg:sipmsg()}
+-type authenticate_result() :: {ok, {authorized, authenticate_info()}}
+                             | {ok, {unauthorized, Reply :: ersip_sipmsg:sipmsg()}}
                              | {error, term()}.
 -type authorize_result()    :: {ok, authorized}
                              | {ok, unauthorized}
@@ -184,7 +189,7 @@ continue(Event, #request{phase = update_bindings} = Request) ->
     update_bindings(Event, Request);
 continue(Event, #request{phase = prepare_answer} = Request) ->
     prepare_answer(Event, Request);
-continue(Event, #request{phase = terminate}) ->
+continue(Event, #request{phase = terminated}) ->
     error({unexpected_event, Event}).
 
 -spec set_phase(request_phase(), request()) -> request().
@@ -224,8 +229,8 @@ check_request(entry, #request{config = #config{domains = Domains}, sipmsg = SipM
             terminate_request({proxy, RURI}, Request)
     end.
 
--spec check_domain(ersip_host:host(), domain_set()) -> continue | proxy.
-check_domain(Host, Domains) ->
+-spec check_domain({host, ersip_host:host()}, domain_set()) -> continue | proxy.
+check_domain({host, Host}, Domains) ->
     case gb_sets:is_element(ersip_host:make_key(Host), Domains) of
         true ->
             continue;
@@ -270,7 +275,7 @@ authorize(entry, #request{authinfo = AuthInfo, sipmsg = SipMsg} = Request) ->
 authorize({authorize_result, {ok, unauthorized}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(403, SipMsg),
     terminate_request({reply, ReplySipMsg}, Request);
-authorize({authorize_result, {ok, authrorized}}, #request{} = Request) ->
+authorize({authorize_result, {ok, authorized}}, #request{} = Request) ->
     next_phase(check_aor, Request);
 authorize({authorize_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
@@ -365,10 +370,10 @@ process_contacts(entry, #request{sipmsg = SipMsg} = Request) ->
 -spec process_bindings(event(), request()) -> request_result().
 process_bindings(entry, #request{aoruri = AOR} = Request) ->
     {Request, [{find_bindings, AOR}]};
-process_bindings({lookup_result, {ok, Bindings}}, #request{action = request_all_bindings} = Request) ->
-    Request1 = Request#request{result_bindings = Bindings},
+process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = request_all_bindings} = Request) ->
+    Request1 = Request#request{result_bindings = SavedBindings},
     next_phase(prepare_answer, Request1);
-process_bindings({lookup_result, SavedBindings}, #request{action = remove_all_bindings, sipmsg = SipMsg} = Request) ->
+process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = remove_all_bindings, sipmsg = SipMsg} = Request) ->
     %% If not, the registrar checks whether the Call-ID agrees with
     %% the value stored for each binding.  If not, it MUST remove the
     %% binding.  If it does agree, it MUST remove the binding only if
@@ -430,7 +435,11 @@ process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = {update
                   updated => UpdatedBindings
                  },
             continue({update, Event}, set_phase(update_bindings, Request))
-    end.
+    end;
+process_bindings({lookup_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
+    ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
+    terminate_request({reply, ReplySipMsg}, Request).
+
 
 -spec update_bindings(event(), request()) -> request_result().
 update_bindings({update, Event}, #request{aoruri = AOR} = Request) ->
@@ -469,8 +478,7 @@ prepare_answer(entry, #request{sipmsg = SipMsg, result_bindings = Bindings} = Re
 %%
 %% -  If there is neither, a locally-configured default value MUST
 %%    be taken as the requested expiration.
--spec calculate_expires([ersip_hdr_contact:contact()], ersip_sipmsg:sipmsg(), non_neg_integer()) -> ExpBindings when
-      ExpBindings :: {ersip_hdr_contact:contact(), non_neg_integer()}.
+-spec calculate_expires([ersip_hdr_contact:contact()], ersip_sipmsg:sipmsg(), non_neg_integer()) -> [exp_binding()].
 calculate_expires(NewBindings, SipMsg, CfgExpires) ->
     DefExpires =
         case ersip_sipmsg:find(expires, SipMsg) of
@@ -480,7 +488,7 @@ calculate_expires(NewBindings, SipMsg, CfgExpires) ->
                 V
         end,
     lists:map(fun(Contact) ->
-                      {Contact, ersip_hdr_contact:expires(Contact, DefExpires)}
+                      {ersip_hdr_contact:expires(Contact, DefExpires), Contact}
               end,
               NewBindings).
 
@@ -508,10 +516,10 @@ reply_interval_too_brief(MinExpires, #request{config = #config{options = #{to_ta
     ReplySipMsg1 = ersip_sipmsg:set(minexpires, {expires, MinExpires}, ReplySipMsg0),
     terminate_request({reply, ReplySipMsg1}, Request).
 
--spec has_higher_cseq([ersip_registrar_binding:binding()], non_neg_integer(), ersip_hdr_callid:callid()) -> boolean().
+-spec has_higher_cseq(non_neg_integer(), ersip_hdr_callid:callid(), [ersip_registrar_binding:binding()]) -> boolean().
 has_higher_cseq(CSeqVal, CallId, SavedBindings) ->
     lists:any(fun(SavedBinding) ->
-                      {SavedCallId, SavedCSeqNum} = ersip_registrar_binding:call_id_seq(SavedBinding),
+                      {SavedCallId, SavedCSeqNum} = ersip_registrar_binding:callid_cseq(SavedBinding),
                       SavedCallId == CallId andalso SavedCSeqNum >= CSeqVal
               end,
               SavedBindings).

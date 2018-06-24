@@ -20,7 +20,7 @@
 %%%===================================================================
 
 -record(uas, {allowed_methods   :: ersip_method_set:set(),
-              request           :: ersip_sipmsg:sipmsg(),
+              request           :: undefined | ersip_sipmsg:sipmsg(),
               trans             :: stateless | ersip_trans:trans(),
               options           :: options()
              }).
@@ -163,20 +163,19 @@ process_request(SipMsg, UAS) ->
                SipMsg,
               UAS),
     case R of
-        continue ->
-            {pass, SipMsg};
         {continue, SipMsg1} ->
             {pass, SipMsg1};
         {reply, _} = Reply ->
             Reply
     end.
 
--type step_result() :: {reply, ersip_sipmsg:sipmsg()}
-                     | continue
-                     | {continue, ersip_sipmsg:sipmsg()}.
+-type step_result() :: steps_result()
+                     | continue.
+-type steps_result() :: {reply, ersip_sipmsg:sipmsg()}
+                      | {continue, ersip_sipmsg:sipmsg()}.
 
--spec steps(StepFun, ersip_sipmsg:sipmsg(), uas()) -> step_result() when
-      StepFun       :: fun((ersip_sipmsg:sipmsg(), uas()) -> step_result()).
+-spec steps([StepFun], ersip_sipmsg:sipmsg(), uas()) -> steps_result() when
+      StepFun :: fun((ersip_sipmsg:sipmsg(), uas()) -> step_result()).
 steps([], SipMsg, _UAS) ->
     {continue, SipMsg};
 steps([StepF|Rest], SipMsg, UAS) ->
@@ -212,7 +211,7 @@ method_inspection(SipMsg, #uas{allowed_methods = SupportedMethodSet, options = O
             continue
     end.
 
--spec header_inspection(ersip_sipmsg:sipmsg(), uas()) -> step_result().
+-spec header_inspection(ersip_sipmsg:sipmsg(), uas()) -> steps_result().
 header_inspection(SipMsg, #uas{options = Options} = UAS) ->
     case ersip_sipmsg:parse(SipMsg, [to, callid, cseq, require]) of
         {error, _} = ParseError ->
@@ -267,7 +266,7 @@ check_require(SipMsg, #uas{options = Options}) ->
             continue
     end.
 
--spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_sipmsg:sipmsg().
+-spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_reply:reply().
 create_reply_params(Code, Reason, #{to_tag := ToTag}) ->
     ReplyParams0 =
         case Reason of

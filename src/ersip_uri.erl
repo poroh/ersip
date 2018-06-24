@@ -124,7 +124,7 @@ clear_params(#uri{} = URI) ->
     URI.
 
 %% @doc set paramter of the URI
--spec set_param(uri_param_name(), term(), uri()) -> uri().
+-spec set_param(uri_param_name(), term(), uri() | sip_uri_data()) -> uri() | sip_uri_data().
 set_param(ParamName, Value, #uri{data = SIPData} = URI) ->
     URI#uri{data = set_param(ParamName, Value, SIPData)};
 set_param(ParamName, Value, #sip_uri_data{params = P} = SIPData) ->
@@ -431,7 +431,7 @@ check_token(Bin) ->
     ersip_parser_aux:check_token(Bin).
 
 
--spec make_data_key(scheme(), uri_data()) -> uri_data().
+-spec make_data_key(scheme(), uri_data()) -> sip_uri_data().
 make_data_key({scheme, sip}, #sip_uri_data{} = SIPURIData) ->
     make_sip_data_key(SIPURIData);
 make_data_key({scheme, sips}, #sip_uri_data{} = SIPURIData) ->

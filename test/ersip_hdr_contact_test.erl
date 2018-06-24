@@ -48,7 +48,22 @@ make_error_test() ->
     ?assertError({invalid_contact, _}, ersip_hdr_contact:make(<<"<a@b>;expires=a">>)),
     ok.
 
+expires_test() ->
+    Alice20 = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20">>),
+    ?assertEqual(20, ersip_hdr_contact:expires(Alice20, any)),
+    Alice30 = ersip_hdr_contact:set_expires(30, Alice20),
+    ?assertEqual(30, ersip_hdr_contact:expires(Alice30, any)),
+    ?assertEqual(<<"Alice <sip:alice@atlanta.com>;expires=30">>, iolist_to_binary(ersip_hdr_contact:assemble(Alice30))),
 
+    AliceNoExpires = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
+    ?assertEqual(21, ersip_hdr_contact:expires(AliceNoExpires, 21)),
+    ok.
+
+uri_test() ->
+    Alice = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
+    AliceURI = ersip_uri:make(<<"sip:alice@atlanta.com">>),
+    ?assertEqual(AliceURI, ersip_hdr_contact:uri(Alice)),
+    ok.
 
 %%%===================================================================
 %%% Helpers

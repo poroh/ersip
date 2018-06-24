@@ -21,6 +21,8 @@
 %%%===================================================================
 
 -type qvalue() :: {qvalue, 0..1000}.
+-type parse_result() :: {ok, qvalue()}
+                      | {error, {invalid_qvalue, binary()}}.
 
 %%%===================================================================
 %%% API
@@ -37,7 +39,7 @@ make(Bin) ->
 
 %% qvalue         =  ( "0" [ "." 0*3DIGIT ] )
 %%                  / ( "1" [ "." 0*3("0") ] )
--spec parse(binary()) -> {ok, qvalue()} | {error, term()}.
+-spec parse(binary()) -> parse_result().
 parse(Bin) ->
     parse_impl(Bin).
 
@@ -58,7 +60,7 @@ assemble({qvalue, Value}) ->
 
 %% qvalue         =  ( "0" [ "." 0*3DIGIT ] )
 %%                  / ( "1" [ "." 0*3("0") ] )
--spec parse_impl(binary()) -> {ok, qvalue()} | {error, term()}.
+-spec parse_impl(binary()) -> parse_result().
 parse_impl(<<"0">>) ->
     {ok, {qvalue, 0}};
 parse_impl(<<"1">>) ->

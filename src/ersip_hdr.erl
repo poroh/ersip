@@ -28,8 +28,9 @@
 
 -record(header, {name        :: binary(),
                  key         :: header_key(),
-                 values = [] :: [iolist() | binary()]
+                 values = [] :: [value()]
                 }).
+-type value() :: iolist() | binary().
 
 -type header() :: #header{}.
 -type header_key() :: {hdr_key, binary()}.
@@ -60,36 +61,34 @@ is_empty(#header{}) ->
     false.
 
 %% @doc Append value to list of values.
--spec add_value(Value :: iolist(), header()) -> header().
+-spec add_value(value(), header()) -> header().
 add_value(Value, #header{values = V, key = Key} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = V ++ Values}.
 
 %% @doc Append list of values to headr's list of values.
--spec add_values(Value :: [iolist()], header()) -> header().
+-spec add_values(Value :: value(), header()) -> header().
 add_values(Values, #header{} = Hdr) ->
     lists:foldl(fun add_value/2,
                 Hdr,
                 Values).
 
 %% @doc Return raw values of the header.
--spec raw_values(header()) -> [iolist()].
+-spec raw_values(header()) -> [value()].
 raw_values(#header{values = Vs}) ->
     Vs.
 
--spec add_topmost(Value, header()) -> header() when
-      Value :: iolist().
+-spec add_topmost(value(), header()) -> header().
 add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = Values ++ V}.
 
--spec replace_topmost(Value, header()) -> header() when
-      Value :: iolist().
+-spec replace_topmost(value(), header()) -> header().
 replace_topmost(Value, #header{values = [_|Rest]} = H) ->
     H#header{values = [Value | Rest]}.
 
 -spec take_topmost(header()) -> Result when
-      Result :: {ok, Value :: iolist(), header()}
+      Result :: {ok, value(), header()}
               | {error, no_header}.
 take_topmost(#header{values = []}) ->
     {error, no_header};
@@ -158,7 +157,7 @@ serialize_rev_iolist_comma_impl(#header{name = Name, values = Vs}, []) ->
 serialize_rev_iolist_comma_impl(#header{name = Name, values = Vs}, Acc) ->
     rev_comma_sep_values(Vs, [<<": ">> , Name, <<"\r\n">> | Acc]).
 
--spec rev_comma_sep_values([iolist()], iolist()) -> iolist().
+-spec rev_comma_sep_values([value()], value()) -> iolist().
 rev_comma_sep_values([LastVal], Acc) ->
     [LastVal | Acc];
 rev_comma_sep_values([Val | Rest], Acc) ->
@@ -173,7 +172,7 @@ rev_comma_sep_values([Val | Rest], Acc) ->
 %% field-value to the first, each separated by a comma.  The exceptions
 %% to this rule are the WWW-Authenticate, Authorization, Proxy-
 %% Authenticate, and Proxy-Authorization header fields.
--spec comma_split(header_key(), iolist()) -> [iolist()].
+-spec comma_split(header_key(), value()) -> [value()].
 comma_split({hdr_key, <<"www-authenticate">>}, V) ->
     [ersip_iolist:trim_lws(V)];
 comma_split({hdr_key, <<"authorization">>}, V) ->

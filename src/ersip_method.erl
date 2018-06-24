@@ -30,27 +30,21 @@
 %%% API
 %%%===================================================================
 
--spec options() -> method().
 options() ->
     {method, <<"OPTIONS">>}.
 
--spec invite() -> method().
 invite() ->
     {method, <<"INVITE">>}.
 
--spec ack() -> method().
 ack() ->
     {method, <<"ACK">>}.
 
--spec bye() -> method().
 bye() ->
     {method, <<"BYE">>}.
 
--spec cancel() -> method().
 cancel() ->
     {method, <<"CANCEL">>}.
 
--spec register() -> method().
 register() ->
     {method, <<"REGISTER">>}.
 

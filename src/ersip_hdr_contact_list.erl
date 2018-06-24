@@ -32,7 +32,7 @@
 %%% API
 %%%===================================================================
 
--spec make(binary()) -> contact_list().
+-spec make(iolist() | binary()) -> contact_list().
 make(Binary) ->
     H0 = ersip_hdr:new(<<"Contact">>),
     H1 = ersip_hdr:add_value(Binary, H0),

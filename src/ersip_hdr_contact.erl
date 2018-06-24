@@ -31,8 +31,8 @@
                        | {binary(), binary()}.
 -type expires() :: non_neg_integer().
 
--type parse_result() :: {ok, contact}
-                      | {error, term()}.
+-type parse_result() :: {ok, contact()}
+                      | {error, {invalid_contact, term()}}.
 
 %%%===================================================================
 %%% API
@@ -113,9 +113,11 @@ parse_contact_params(Bin) ->
                                 Bin).
 
 -spec contact_params_validator(binary(), binary() | novalue) -> Result when
-      Result :: {ok, {binary(), novalue}}
+      Result :: {ok, {q, ersip_qvalue:qvalue()}}
+              | {ok, {expires, non_neg_integer()}}
+              | {ok, {binary(), novalue}}
               | {ok, {binary(), binary()}}
-              | {error, {invalid_rr_param, binary()}}.
+              | {error, {invalid_contact, term()}}.
 contact_params_validator(<<"q">>, Value) ->
     case ersip_qvalue:parse(Value) of
         {ok, QValue} ->

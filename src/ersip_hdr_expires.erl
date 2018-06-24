@@ -20,8 +20,11 @@
 %%%===================================================================
 
 -type expires() :: {expires, non_neg_integer()}.
--type parse_result() :: {ok, expires()}
-                      | {error, term()}.
+-type parse_result(ErrorType) :: {ok, expires()}
+                               | {error, {invalid_expires, ErrorType}}.
+-type parse_errors() :: multiple_fields
+                      | empty_field
+                      | binary().
 
 %%%===================================================================
 %%% API
@@ -36,7 +39,7 @@ make(Bin) when is_binary(Bin) ->
             error(Reason)
     end.
 
--spec parse(ersip_hdr:header()) -> parse_result().
+-spec parse(ersip_hdr:header()) -> parse_result(parse_errors()).
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
@@ -61,7 +64,7 @@ build(HdrName, {expires, V}) ->
 %% The value of this field is an integral number of seconds (in
 %% decimal) between 0 and (2**32)-1, measured from the receipt of the
 %% request.
--spec parse_expires(binary()) -> parse_result().
+-spec parse_expires(binary()) -> parse_result(binary()).
 parse_expires(Binary) ->
     case ersip_parser_aux:parse_non_neg_int(Binary) of
         {ok, Int, <<>>} when Int =< 16#FFFFFFFF ->

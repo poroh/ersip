@@ -266,7 +266,7 @@ check_require(SipMsg, #uas{options = Options}) ->
             continue
     end.
 
--spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_reply:reply().
+-spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_reply:options().
 create_reply_params(Code, Reason, #{to_tag := ToTag}) ->
     ReplyParams0 =
         case Reason of

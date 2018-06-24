@@ -29,7 +29,7 @@
 -record(trans_inv_server, {state = 'Proceeding'        :: state(),
                            transport                  :: transport_type(),
                            options                    :: ersip:sip_options(),
-                           last_resp                  :: ersip_sipmsg:sipmsg(),
+                           last_resp                  :: undefined | ersip_sipmsg:sipmsg(),
                            timer_g_timeout = 500      :: pos_integer(),
                            clear_reason = normal      :: ersip_trans_se:clear_reason()
                           }).
@@ -37,6 +37,7 @@
 -type result()  :: {trans_inv_server(), [ersip_trans_se:effect()]}.
 -type state()   :: 'Proceeding'
                  | 'Completed'
+                 | 'Confirmed'
                  | 'Accepted'
                  | 'Terminated'.
 -type transport_type() :: reliable | unreliable.
@@ -112,7 +113,7 @@ event({timer, _} = TimerEv, ServerTrans) ->
 -define(T2(InvServerTrans), maps:get(sip_t2, InvServerTrans#trans_inv_server.options)).
 -define(T4(InvServerTrans), maps:get(sip_t4, InvServerTrans#trans_inv_server.options)).
 
--spec new_impl(transport_type(), ersip_sipmsg:sipmsg(), ersip_sip:options()) -> result().
+-spec new_impl(transport_type(), ersip_sipmsg:sipmsg(), ersip:sip_options()) -> result().
 new_impl(Reliable, ReqSipMsg, Options) ->
     %% When a server transaction is constructed for a request, it
     %% enters the "Proceeding" state.  The server transaction MUST
@@ -304,11 +305,11 @@ clear_last_resp(ServerTrans) ->
 set_timer_g(Timeout, Result) ->
     set_timer(Timeout, timer_g, Result).
 
--spec set_timer_h(pos_integer(), trans_inv_server()) -> result().
+-spec set_timer_h(pos_integer(), result()) -> result().
 set_timer_h(Timeout, Result) ->
     set_timer(Timeout, timer_h, Result).
 
--spec set_timer_i(pos_integer(), trans_inv_server()) -> result().
+-spec set_timer_i(pos_integer(), result()) -> result().
 set_timer_i(Timeout, Result) ->
     set_timer(Timeout, timer_i, Result).
 

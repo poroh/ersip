@@ -30,7 +30,7 @@
                 }).
 -type config() :: #config{}.
 
--type domain_set()    :: any | gb_set:set(ersip_host:host()).
+-type domain_set()    :: any | gb_sets:set(ersip_host:host()).
 -type options()       :: #{check_aor_fun   => check_aor_fun(),
                            authenticate    => boolean(),
                            to_tag          => auto | ersip_hdr_fromto:tag(),

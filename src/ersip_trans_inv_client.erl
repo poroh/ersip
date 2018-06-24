@@ -31,10 +31,10 @@
                            request                    :: ersip_request:request(),
                            clear_reason = normal      :: ersip_trans_se:clear_reason(),
                            timer_a_timeout = 500      :: pos_integer(),
-                           last_ack                   :: ersip_request:request()
+                           last_ack                   :: undefined | ersip_request:request()
                           }).
 -type trans_inv_client() :: #trans_inv_client{}.
--type result() :: {trans_inv_client(), [ersip_trans_se:side_effect()]}.
+-type result() :: {trans_inv_client(), [ersip_trans_se:effect()]}.
 -type transport_type() :: reliable | unreliable.
 -type state()   :: 'Calling'
                  | 'Proceeding'
@@ -287,7 +287,7 @@ handle_final_resp(SipMsg, #trans_inv_client{request = Req} = Trans) ->
 %% Note that this generation is INVITE transaction specific and cannot
 %% be reused to generate ACK on 2xx.
 -spec generate_ack_request(Response , InitialReq) -> ersip_request:request() when
-      Response :: ersip:sipmsg(),
+      Response :: ersip_sipmsg:sipmsg(),
       InitialReq :: ersip_request:request().
 generate_ack_request(Response, InitialRequest) ->
     InitialSipMsg = ersip_request:sipmsg(InitialRequest),

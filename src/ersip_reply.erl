@@ -24,7 +24,7 @@
 
 -record(options, {status             :: ersip_status:code(),
                   reason = undefined :: undefined | ersip_status:reason(),
-                  to_tag = undefined :: undefined | ersip_hdr_fromto:tag()
+                  to_tag = auto      :: auto | ersip_hdr_fromto:tag()
                  }).
 -type options()     :: #options{}.
 -type param_pair()  :: {know_param(), term()}.
@@ -61,7 +61,7 @@ reason(#options{reason = undefined, status = Status}) ->
 reason(#options{reason = Reason}) ->
     Reason.
 
--spec to_tag(options()) -> undefined | ersip_hdr_fromto:tag().
+-spec to_tag(options()) -> auto | ersip_hdr_fromto:tag().
 to_tag(#options{to_tag = Tag}) ->
     Tag.
 

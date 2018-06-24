@@ -18,7 +18,9 @@
          build/2,
          assemble/1
         ]).
--export_type([cseq/0]).
+-export_type([cseq/0,
+              cseq_num/0
+             ]).
 
 %%%===================================================================
 %%% Types

@@ -63,5 +63,6 @@ reason_impl(404) -> <<"Not Found">>;
 reason_impl(408) -> <<"Request Timeout">>;
 reason_impl(416) -> <<"Unsupported URI Scheme">>;
 reason_impl(420) -> <<"Bad Extension">>;
+reason_impl(423) -> <<"Interval Too Brief">>;
 reason_impl(483) -> <<"Too many hops">>;
 reason_impl(_)   -> <<"Unknown Status">>.

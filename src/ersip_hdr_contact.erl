@@ -8,7 +8,9 @@
 
 -module(ersip_hdr_contact).
 
--export([make/1,
+-export([uri/1,
+         expires/2,
+         make/1,
          parse/1,
          assemble/1
         ]).
@@ -35,6 +37,19 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec uri(contact()) -> ersip_uri:uri().
+uri(#contact{uri = URI}) ->
+    URI.
+
+-spec expires(contact(), Default :: non_neg_integer()) -> non_neg_integer().
+expires(#contact{params = Params}, Default) ->
+    case lists:keyfind(expires, 1, Params) of
+        false ->
+            Default;
+        {expires, V} ->
+            V
+    end.
 
 -spec make(binary()) -> contact().
 make(Bin) ->

@@ -268,7 +268,7 @@ check_require(SipMsg, #uas{options = Options}) ->
     end.
 
 -spec create_reply_params(ersip_status:code(), ersip_status:reason() | auto, options()) -> ersip_sipmsg:sipmsg().
-create_reply_params(Code, Reason, Options) ->
+create_reply_params(Code, Reason, #{to_tag := ToTag}) ->
     ReplyParams0 =
         case Reason of
             auto ->
@@ -276,7 +276,7 @@ create_reply_params(Code, Reason, Options) ->
             Reason ->
                 [{reason, Reason}]
         end,
-    ReplyParams1 = maybe_add_to_tag(Options, ReplyParams0),
+    ReplyParams1 = [{to_tag, ToTag}|ReplyParams0],
     ersip_reply:new(Code, ReplyParams1).
 
 -spec make_bad_request(ersip_sipmsg:sipmsg(), {error, term()}, options()) -> ersip_sipmsg:sipmsg().
@@ -296,12 +296,6 @@ make_bad_extension(SipMsg, Options, Unsupported) ->
 make_unsupported_scheme(SipMsg, Options, Scheme) ->
     Reply = create_reply_params(416, ersip_status:unsupported_uri_scheme_reason(Scheme), Options),
     ersip_sipmsg:reply(Reply, SipMsg).
-
--spec maybe_add_to_tag(options(), ersip_reply:params_list()) -> ersip_reply:params_list().
-maybe_add_to_tag(#{to_tag := auto}, ReplyOpts) ->
-    ReplyOpts;
-maybe_add_to_tag(#{to_tag := ToTag}, ReplyOpts) ->
-    [{to_tag, ToTag}|ReplyOpts].
 
 -spec check_supported(Required, Supported) -> all_supported | Unsupported when
       Required    :: ersip_hdr_opttag_list:option_tag_list(),

@@ -71,5 +71,8 @@ print_form_map(<<"supported">>)     -> <<"Supported">>;
 print_form_map(<<"unsupported">>)   -> <<"Unsupported">>;
 print_form_map(<<"require">>)       -> <<"Require">>;
 print_form_map(<<"proxy-require">>) -> <<"Proxy-Require">>;
+print_form_map(<<"contact">>)       -> <<"Contact">>;
+print_form_map(<<"expires">>)       -> <<"Expires">>;
+print_form_map(<<"min-expires">>)   -> <<"Min-Expires">>;
 print_form_map(Binary) ->
     Binary.

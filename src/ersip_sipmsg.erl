@@ -433,7 +433,7 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
         _ ->
             ToTag =
                 case ersip_reply:to_tag(Reply) of
-                    undefined ->
+                    auto ->
                         {tag, ersip_id:token(crypto:strong_rand_bytes(8))};
                     Tag ->
                         Tag

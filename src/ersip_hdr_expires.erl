@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% SIP Expires header
+%% SIP Expires and Min-Expires headers
 %%
 
 -module(ersip_hdr_expires).

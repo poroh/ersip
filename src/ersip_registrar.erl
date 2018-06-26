@@ -16,7 +16,8 @@
          authenticate_result/2,
          authorize_result/2,
          lookup_result/2,
-         update_result/2
+         update_result/2,
+         is_terminated/1
         ]).
 
 %%%===================================================================
@@ -147,6 +148,12 @@ update_result(ok, #request{} = Request) ->
     continue({update_result, ok}, Request);
 update_result({error, _Reason} = Error, #request{} = Request) ->
     continue({update_result, Error}, Request).
+
+-spec is_terminated(request()) -> boolean().
+is_terminated(#request{phase = terminated}) ->
+    true;
+is_terminated(#request{}) ->
+    false.
 
 %%%===================================================================
 %%% Internal Implementation
@@ -294,7 +301,7 @@ check_aor(entry, #request{} = Request0) ->
     #request{sipmsg = SipMsg,
              config = #config{options = #{check_aor_fun := CheckAORFun}}
             } = Request0,
-    RURI = ersip_sipmsg:get(ruri, SipMsg),
+    RURI = ersip_sipmsg:ruri(SipMsg),
     AOR = ersip_sipmsg:get(to, SipMsg),
     AORURI = ersip_hdr_fromto:uri(AOR),
     KeyAOR0 = ersip_uri:make_key(AORURI),
@@ -369,7 +376,7 @@ process_contacts(entry, #request{sipmsg = SipMsg} = Request) ->
 
 -spec process_bindings(event(), request()) -> request_result().
 process_bindings(entry, #request{aoruri = AOR} = Request) ->
-    {Request, [{find_bindings, AOR}]};
+    {Request, ersip_registrar_se:find_bindings(AOR)};
 process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = request_all_bindings} = Request) ->
     Request1 = Request#request{result_bindings = SavedBindings},
     next_phase(prepare_answer, Request1);

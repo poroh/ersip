@@ -52,9 +52,12 @@ expires(#contact{params = Params}, Default) ->
             V
     end.
 
--spec set_expires(non_neg_integer(), contact()) -> contact().
-set_expires(Expires, #contact{params = Params} = Contact) when is_integer(Expires) ->
-    NewParams = lists:keystore(expires, 1, Params, {expires, Expires}),
+-spec set_expires({expires, ExpiresVal} | ExpiresVal, contact()) -> contact() when
+      ExpiresVal :: non_neg_integer().
+set_expires({expires, ExpiresVal}, #contact{} = Contact) when is_integer(ExpiresVal) ->
+    set_expires(ExpiresVal, Contact);
+set_expires(ExpiresVal, #contact{params = Params} = Contact) when is_integer(ExpiresVal) ->
+    NewParams = lists:keystore(expires, 1, Params, {expires, ExpiresVal}),
     Contact#contact{params = NewParams}.
 
 -spec make(binary()) -> contact().

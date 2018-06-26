@@ -14,7 +14,7 @@
          contact/1,
          contact_key/1,
          callid_cseq/1,
-         update_expiration/2
+         update/4
         ]).
 -export_type([binding/0]).
 
@@ -53,7 +53,9 @@ contact_key(#binding{contact = Contact}) ->
 callid_cseq(#binding{callid = CallId, cseq = CSeq}) ->
     {CallId, CSeq}.
 
--spec update_expiration(NewExpiration :: pos_integer(), binding()) -> binding().
-update_expiration(NewExpiration, #binding{} = Binding) when is_integer(NewExpiration)
-                                                            andalso NewExpiration > 0 ->
-    Binding#binding{expires = NewExpiration}.
+-spec update(NewExpiration :: pos_integer(), NewCSeq :: pos_integer(), NewCallId :: ersip_hdr_callid:callid(), binding()) -> binding().
+update(NewExpiration, NewCallId, NewCSeq, #binding{} = Binding) when is_integer(NewExpiration),
+                                                                     is_integer(NewCSeq),
+                                                                     NewExpiration > 0 ->
+    Binding#binding{expires = NewExpiration, cseq = NewCSeq, callid = NewCallId}.
+

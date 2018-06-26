@@ -18,18 +18,19 @@ new_register_noath_basic_test() ->
     Config = ersip_registrar:new_config(any, #{authenticate => false}),
 
     RegisterSipMsg = register_request(),
-    CallId   = ersip_sipmsg:get(callid, RegisterSipMsg),
-    CSeq     = ersip_sipmsg:get(cseq, RegisterSipMsg),
-    CSeqVal  = ersip_hdr_cseq:number(CSeq),
+    CallId    = ersip_sipmsg:get(callid, RegisterSipMsg),
+    CSeq      = ersip_sipmsg:get(cseq, RegisterSipMsg),
+    CSeqVal   = ersip_hdr_cseq:number(CSeq),
     [Contact] = ersip_sipmsg:get(contact, RegisterSipMsg),
-    Expires  = ersip_sipmsg:get(expires, RegisterSipMsg),
+    Expires   = ersip_sipmsg:get(expires, RegisterSipMsg),
+    ReqAOR    = ersip_hdr_fromto:uri(ersip_sipmsg:get(to, RegisterSipMsg)),
 
     %% Creating new request:
-    {Request0, SE0} = ersip_registrar:new_request(register_request(), Config),
+    {Request0, SE0} = ersip_registrar:new_request(RegisterSipMsg, Config),
     ?assertEqual(false, ersip_registrar:is_terminated(Request0)),
     ?assertMatch({find_bindings, _}, SE0),
     {find_bindings, AOR} = SE0,
-    ?assertEqual(ersip_uri:make(<<"sip:1000@192.168.100.11:5060">>), AOR),
+    ?assertEqual(ReqAOR, AOR),
 
     %% Processing lookup result:
     {Request1, SE1} = ersip_registrar:lookup_result({ok, []}, Request0),
@@ -59,27 +60,74 @@ new_register_noath_basic_test() ->
 
     ok.
 
+update_registration_noauth_basic_test() ->
+    OldExpires = 3600,
+    NewExpires = 2400,
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SavedBindings = create_saved_bindings(#{expires => OldExpires, cseq => 4}),
+
+    UpdateRegisterSipMsg = register_request(#{expires => NewExpires, cseq => 5}),
+    CallId    = ersip_sipmsg:get(callid,  UpdateRegisterSipMsg),
+    CSeq      = ersip_sipmsg:get(cseq,    UpdateRegisterSipMsg),
+    [Contact] = ersip_sipmsg:get(contact, UpdateRegisterSipMsg),
+    Expires   = ersip_sipmsg:get(expires, UpdateRegisterSipMsg),
+    To        = ersip_sipmsg:get(to,      UpdateRegisterSipMsg),
+    CSeqVal   = ersip_hdr_cseq:number(CSeq),
+    AOR       = ersip_hdr_fromto:uri(To),
+
+    %% Creating update request:
+    {Request0, _} = ersip_registrar:new_request(UpdateRegisterSipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    {update_bindings, AOR, UpdateDescr} = SE1,
+    ?assertMatch({[], [_], []}, UpdateDescr),
+    {_, [UpdatedBinding], _} = UpdateDescr,
+
+    %% Check that CSeqVal and CallID are equal to new request.
+    ?assertEqual({CallId, CSeqVal}, ersip_registrar_binding:callid_cseq(UpdatedBinding)),
+    %% Check that registered contact is updated
+    UpdatedContact = ersip_registrar_binding:contact(UpdatedBinding),
+    ?assertEqual(ersip_hdr_contact:set_expires(Expires, Contact), UpdatedContact),
+
+    {_, SE2} = ersip_registrar:update_result(ok, Request1),
+    ?assertMatch({reply, _ReplySipMsg}, SE2),
+    {reply, ReplySipMsg} = SE2,
+    ?assertEqual(200, ersip_sipmsg:status(ReplySipMsg)),
+    %% Reply SIP message returns registered contacts:
+    ?assertMatch([_], ersip_sipmsg:get(contact, ReplySipMsg)),
+    [RegContact] = ersip_sipmsg:get(contact, ReplySipMsg),
+    ?assertEqual(UpdatedContact, RegContact),
+
+    ok.
 
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 
 -define(crlf, "\r\n").
+-define(REG_DEFAULT, #{expires => 3600, cseq => 4}).
 
 register_request() ->
-    Msg = register_request_bin(),
+    register_request(?REG_DEFAULT).
+
+register_request(Params) ->
+    Msg = register_request_bin(Params),
     create_sipmsg(Msg, make_default_source()).
 
-register_request_bin() ->
+register_request_bin(Params) ->
+    #{expires := Expires,
+      cseq    := CSeq
+     } = Params,
+    ExpiresBin = integer_to_binary(Expires),
+    CSeqBin    = integer_to_binary(CSeq),
     <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
       "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
       "To: <sip:1000@192.168.100.11:5060>" ?crlf
       "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
       "Call-ID: 1197534344" ?crlf
-      "CSeq: 4 REGISTER" ?crlf
+      "CSeq: ", CSeqBin/binary, " REGISTER" ?crlf
       "Max-Forwards: 69" ?crlf
-      "Expires: 3600" ?crlf
+      "Expires: ", ExpiresBin/binary, ?crlf
       "Content-Length: 0" ?crlf
       "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
       "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
@@ -116,3 +164,12 @@ create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
     PMsg1 = ersip_msg:set_source(Source, PMsg),
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg1, HeadersToParse),
     SipMsg.
+
+create_saved_bindings(Params) ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    %% Creating new request:
+    {Request0, _} = ersip_registrar:new_request(register_request(Params), Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, []}, Request0),
+    {update_bindings, _AOR, {Added, _ ,_}} = SE1,
+    {_, _} = ersip_registrar:update_result(ok, Request1),
+    Added.

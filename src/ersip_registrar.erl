@@ -431,7 +431,7 @@ process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = {update
                     binding_is_removed(Binding, ExpBindings)
                 ],
             UpdatedBindings =
-                [ersip_registrar_binding:update_expiration(Exp, Binding)
+                [ersip_registrar_binding:update(Exp, CallId, CSeqVal, Binding)
                  || {Exp, Contact} <- ExpBindings,
                     Exp /= 0,
                     Binding <- find_saved_bindings(Contact, SavedBindings)

@@ -48,7 +48,7 @@
                   authinfo :: undefined | authenticate_info(),
                   aoruri   :: undefined | ersip_uri:uri(),
                   action   :: undefined | request_action(),
-                  result_bindings :: undefined | [ersip_registrar_binding:binding()]
+                  result_bindings = [] :: [ersip_registrar_binding:binding()]
                  }).
 -type request() :: #request{}.
 
@@ -436,12 +436,14 @@ process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = {update
                     Exp /= 0,
                     Binding <- find_saved_bindings(Contact, SavedBindings)
                 ],
+            NotAffectedBindings = [Binding || Binding <- SavedBindings, not in_exp_bindings(Binding, ExpBindings)],
             Event =
                 #{added   => NewBindings,
                   removed => RemovedBindings,
                   updated => UpdatedBindings
                  },
-            continue({update, Event}, set_phase(update_bindings, Request))
+            Request1 = Request#request{result_bindings = NotAffectedBindings},
+            continue({update, Event}, set_phase(update_bindings, Request1))
     end;
 process_bindings({lookup_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
@@ -449,9 +451,9 @@ process_bindings({lookup_result, {error, _}}, #request{sipmsg = SipMsg} = Reques
 
 
 -spec update_bindings(event(), request()) -> request_result().
-update_bindings({update, Event}, #request{aoruri = AOR} = Request) ->
+update_bindings({update, Event}, #request{aoruri = AOR, result_bindings = NotAfffected} = Request) ->
     #{added := Added, updated := Updated, removed := Removed} = Event,
-    Request1 = Request#request{result_bindings = Updated ++ Added},
+    Request1 = Request#request{result_bindings = Updated ++ Added ++ NotAfffected},
     {Request1, ersip_registrar_se:update_bindings(AOR, {added, Added}, {updated, Updated}, {removed, Removed})};
 update_bindings({update_result, ok}, #request{} = Request) ->
     next_phase(prepare_answer, Request);
@@ -541,7 +543,7 @@ binding_does_not_exist(Contact, SavedBindings) ->
               end,
               SavedBindings).
 
--spec binding_is_removed(ersip_registrar_binding:binding(), [{Exp :: non_neg_integer(), ersip_hdr_contact:contact()}]) -> boolean().
+-spec binding_is_removed(ersip_registrar_binding:binding(), [exp_binding()]) -> boolean().
 binding_is_removed(Binding, ExpBindings) ->
     RegisteredContactURIKey = ersip_registrar_binding:contact_key(Binding),
     lists:any(fun({0, ReqContact}) ->
@@ -553,8 +555,19 @@ binding_is_removed(Binding, ExpBindings) ->
               end,
               ExpBindings).
 
+-spec in_exp_bindings(ersip_registrar_binding:binding(), [exp_binding()]) -> boolean().
+in_exp_bindings(Binding, ExpBindings) ->
+    RegisteredContactURIKey = ersip_registrar_binding:contact_key(Binding),
+    lists:any(fun({_, ReqContact}) ->
+                      ReqContactURI = ersip_hdr_contact:uri(ReqContact),
+                      ReqContactKey = ersip_uri:make_key(ReqContactURI),
+                      ReqContactKey == RegisteredContactURIKey
+              end,
+              ExpBindings).
+
 -spec find_saved_bindings(ersip_hdr_contact:contact(), [ersip_registrar_binding:binding()]) -> [ersip_registrar_binding:binding()].
 find_saved_bindings(Contact, SavedBindings) ->
     ContactKey = ersip_uri:make_key(ersip_hdr_contact:uri(Contact)),
     [Binding || Binding <- SavedBindings,
                 ersip_registrar_binding:contact_key(Binding) == ContactKey].
+

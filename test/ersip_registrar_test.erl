@@ -129,6 +129,41 @@ delete_all_contacts_test() ->
 
     ok.
 
+unregister_one_contact_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    FirstURI = <<"sip:contact1@example.com">>,
+    SecondURI = <<"sip:contact2@example.com">>,
+    SavedBindings = create_saved_bindings(#{cseq    => 4,
+                                            contact => <<"<", FirstURI/binary,">, <", SecondURI/binary ,">">>
+                                           }),
+    DelRegisterSipMsg = register_request(#{expires => 0,
+                                           cseq => 5,
+                                           contact => <<"sip:contact2@example.com">>
+                                          }),
+    To  = ersip_sipmsg:get(to, DelRegisterSipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
+
+    {Request0, _} = ersip_registrar:new_request(DelRegisterSipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    {update_bindings, AOR, UpdateDescr} = SE1,
+    ?assertMatch({[], [], [_]}, UpdateDescr),
+    {_, _, [DelBinding]} = UpdateDescr,
+    %% Check that second binding is removed
+    RemovedContact = ersip_registrar_binding:contact(DelBinding),
+    ?assertEqual(ersip_uri:make(SecondURI), ersip_hdr_contact:uri(RemovedContact)),
+
+    {_, SE2} = ersip_registrar:update_result(ok, Request1),
+    ?assertMatch({reply, _ReplySipMsg}, SE2),
+    {reply, ReplySipMsg} = SE2,
+
+    RespContacts = ersip_sipmsg:get(contact, ReplySipMsg),
+    ?assertMatch([_], RespContacts),
+    [RemainContact] = RespContacts,
+    ?assertEqual(ersip_uri:make(FirstURI), ersip_hdr_contact:uri(RemainContact)),
+    ok.
+
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

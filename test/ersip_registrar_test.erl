@@ -99,23 +99,57 @@ update_registration_noauth_basic_test() ->
 
     ok.
 
+delete_all_contacts_test() ->
+    %% Delete contacts using "*"
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SavedBindings = create_saved_bindings(#{cseq => 4}),
+    DelRegisterSipMsg = register_request(#{expires => 0,
+                                           cseq => 5,
+                                           contact => <<"*">>
+                                          }),
+    To  = ersip_sipmsg:get(to, DelRegisterSipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
+
+    {Request0, _} = ersip_registrar:new_request(DelRegisterSipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    {update_bindings, AOR, UpdateDescr} = SE1,
+    ?assertMatch({[], [], [_]}, UpdateDescr),
+    {_, _, DelBindings} = UpdateDescr,
+    %% Check that all bindings are removed
+    ?assertEqual(SavedBindings, DelBindings),
+
+    {_, SE2} = ersip_registrar:update_result(ok, Request1),
+    ?assertMatch({reply, _ReplySipMsg}, SE2),
+    {reply, ReplySipMsg} = SE2,
+
+    %% Reply SIP message returns empty contacts:
+    ?assertEqual([], ersip_sipmsg:get(contact, ReplySipMsg)),
+    ReplySipMsgRebuilt = rebuild_sipmsg(ReplySipMsg),
+    ?assertEqual(not_found, ersip_sipmsg:find(contact, ReplySipMsgRebuilt)),
+
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 
 -define(crlf, "\r\n").
--define(REG_DEFAULT, #{expires => 3600, cseq => 4}).
+-define(REG_DEFAULT, #{expires => 3600,
+                       cseq    => 4,
+                       contact => <<"<sip:1000@192.168.100.11:5070;line=69210a2e715cee1>">>
+                      }).
 
 register_request() ->
     register_request(?REG_DEFAULT).
 
 register_request(Params) ->
-    Msg = register_request_bin(Params),
+    Msg = register_request_bin(maps:merge(?REG_DEFAULT, Params)),
     create_sipmsg(Msg, make_default_source()).
 
 register_request_bin(Params) ->
     #{expires := Expires,
-      cseq    := CSeq
+      cseq    := CSeq,
+      contact := Contact
      } = Params,
     ExpiresBin = integer_to_binary(Expires),
     CSeqBin    = integer_to_binary(CSeq),
@@ -129,10 +163,17 @@ register_request_bin(Params) ->
       "Max-Forwards: 69" ?crlf
       "Expires: ", ExpiresBin/binary, ?crlf
       "Content-Length: 0" ?crlf
-      "Contact: <sip:1000@192.168.100.11:5070;line=69210a2e715cee1>" ?crlf
+      "Contact: ", Contact/binary, ?crlf
       "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
       "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
       ?crlf>>.
+
+rebuild_sipmsg(SipMsg) ->
+    SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
+    P  = ersip_parser:new_dgram(SipMsgBin),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    {ok, SipMsg1} = ersip_sipmsg:parse(PMsg, all),
+    SipMsg1.
 
 make_default_source() ->
     tcp_source(default_peer()).

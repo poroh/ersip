@@ -162,7 +162,45 @@ unregister_one_contact_test() ->
     ?assertEqual(ersip_uri:make(FirstURI), ersip_hdr_contact:uri(RemainContact)),
     ok.
 
+update_one_contact_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    FirstURI = <<"sip:contact1@example.com">>,
+    SecondURI = <<"sip:contact2@example.com">>,
+    OldExpires = 3601,
+    UpdatedExpires = 3602,
+    SavedBindings = create_saved_bindings(#{cseq    => 4,
+                                            expires => OldExpires,
+                                            contact => <<"<", FirstURI/binary,">, <", SecondURI/binary ,">">>
+                                           }),
+    UpdateRegisterSipMsg = register_request(#{cseq => 5,
+                                              expires => UpdatedExpires,
+                                              contact => <<"sip:contact2@example.com">>
+                                             }),
+    To  = ersip_sipmsg:get(to, UpdateRegisterSipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
 
+    {Request0, _} = ersip_registrar:new_request(UpdateRegisterSipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    {update_bindings, AOR, UpdateDescr} = SE1,
+    ?assertMatch({[], [_], []}, UpdateDescr),
+    {_, [UpdatedBinding], _} = UpdateDescr,
+    %% Check that second binding is removed
+    UpdatedContact = ersip_registrar_binding:contact(UpdatedBinding),
+    ?assertEqual(ersip_uri:make(SecondURI), ersip_hdr_contact:uri(UpdatedContact)),
+    ?assertEqual(UpdatedExpires, ersip_hdr_contact:expires(UpdatedContact, undefined)),
+
+    {_, SE2} = ersip_registrar:update_result(ok, Request1),
+    ?assertMatch({reply, _ReplySipMsg}, SE2),
+    {reply, ReplySipMsg} = SE2,
+
+    RespContacts = ersip_sipmsg:get(contact, ReplySipMsg),
+    ?assertMatch([_, _], RespContacts),
+    [Contact1, Contact2] = lists:sort(RespContacts),
+    ?assertEqual(OldExpires, ersip_hdr_contact:expires(Contact1, undefined)),
+    ?assertEqual(ersip_uri:make(FirstURI), ersip_hdr_contact:uri(Contact1)),
+    ?assertEqual(UpdatedExpires, ersip_hdr_contact:expires(Contact2, undefined)),
+    ?assertEqual(ersip_uri:make(SecondURI), ersip_hdr_contact:uri(Contact2)),
+    ok.
 
 %%%===================================================================
 %%% Helpers

@@ -235,6 +235,29 @@ add_one_more_contact_test() ->
 
     ok.
 
+
+request_binding_list_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    FirstURI = <<"sip:contact1@example.com">>,
+    SecondURI = <<"sip:contact2@example.com">>,
+    SavedBindings = create_saved_bindings(#{cseq    => 4,
+                                            contact => <<"<", FirstURI/binary,">, <", SecondURI/binary ,">">>
+                                           }),
+    {Request0, _} = ersip_registrar:new_request(register_request_all(), Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, _ReplySipMsg}, SE1),
+    {reply, ReplySipMsg} = SE1,
+
+    RespContacts = ersip_sipmsg:get(contact, ReplySipMsg),
+    ?assertMatch([_, _], RespContacts),
+    [Contact1, Contact2] = lists:sort(RespContacts),
+    ?assertEqual(ersip_uri:make(FirstURI), ersip_hdr_contact:uri(Contact1)),
+    ?assertEqual(ersip_uri:make(SecondURI), ersip_hdr_contact:uri(Contact2)),
+
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -250,6 +273,10 @@ register_request() ->
 
 register_request(Params) ->
     Msg = register_request_bin(maps:merge(?REG_DEFAULT, Params)),
+    create_sipmsg(Msg, make_default_source()).
+
+register_request_all() ->
+    Msg = register_request_all_bin(),
     create_sipmsg(Msg, make_default_source()).
 
 register_request_bin(Params) ->
@@ -272,6 +299,19 @@ register_request_bin(Params) ->
       "Contact: ", Contact/binary, ?crlf
       "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
       "User-Agent: Linphone/3.6.1 (eXosip2/4.1.0)" ?crlf
+      ?crlf>>.
+
+register_request_all_bin() ->
+    <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
+      "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
+      "To: <sip:1000@192.168.100.11:5060>" ?crlf
+      "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
+      "Call-ID: 1197534344" ?crlf
+      "CSeq: 1 REGISTER" ?crlf
+      "Max-Forwards: 69" ?crlf
+      "Content-Length: 0" ?crlf
+      "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf
       ?crlf>>.
 
 rebuild_sipmsg(SipMsg) ->

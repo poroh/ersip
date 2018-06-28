@@ -258,6 +258,29 @@ request_binding_list_test() ->
     ok.
 
 
+auth_request_binding_list_test() ->
+    %% Check basic successfull authorization flow.
+    Config = ersip_registrar:new_config(any, #{authenticate => true}),
+    RegisterAllSipMsg = register_request_all(),
+    To  = ersip_sipmsg:get(to, RegisterAllSipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
+
+    {Request0, SE0} = ersip_registrar:new_request(register_request_all(), Config),
+    ?assertMatch({authenticate, _SipMsg}, SE0),
+    {Request1, SE1} = ersip_registrar:authenticate_result({ok, {authorized, my_auth_info}}, Request0),
+    ?assertMatch({authorize, my_auth_info, AOR}, SE1),
+    {Request2, SE2} = ersip_registrar:authorize_result({ok, authorized}, Request1),
+    ?assertMatch({find_bindings, AOR}, SE2),
+
+    {Request3, SE3} = ersip_registrar:lookup_result({ok, []}, Request2),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request3)),
+    ?assertMatch({reply, _ReplySipMsg}, SE3),
+    {reply, ReplySipMsg} = SE3,
+    ?assertEqual(200, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

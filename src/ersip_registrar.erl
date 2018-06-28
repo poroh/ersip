@@ -121,18 +121,18 @@ new_request(SipMsg, #config{} = Config) ->
 
 %% Called when authentication result has got.
 -spec authenticate_result(authenticate_result(), request()) -> request_result().
-authenticate_result({ok, {authorized, _AuthInfo}} = Event, #request{} = Request) ->
+authenticate_result({ok, {authorized, _AuthInfo}} = Event, #request{phase = authenticate} = Request) ->
     continue({authenticate_result, Event}, Request);
-authenticate_result({ok, {unauthorized, _ReplySipMsg}} = Event, #request{} = Request) ->
+authenticate_result({ok, {unauthorized, _ReplySipMsg}} = Event, #request{phase = authenticate} = Request) ->
     continue({authenticate_result, Event}, Request);
-authenticate_result({error, _Reason} = Event, #request{} = Request) ->
+authenticate_result({error, _Reason} = Event, #request{phase = authenticate} = Request) ->
     continue({authenticate_result, Event}, Request).
 
 %% Called when authorization result has got.
 -spec authorize_result(authorize_result(), request()) -> request_result().
-authorize_result({ok, authorized} = Event, #request{} = Request) ->
+authorize_result({ok, authorized} = Event, #request{phase = authorize} = Request) ->
     continue({authorize_result, Event}, Request);
-authorize_result({ok, unauthorized} = Event, #request{} = Request) ->
+authorize_result({ok, unauthorized} = Event, #request{phase = authorize} = Request) ->
     continue({authorize_result, Event}, Request);
 authorize_result({error, _Reason} = Event, #request{} = Request) ->
     continue({authorize_result, Event}, Request).
@@ -144,9 +144,9 @@ lookup_result({error, _} = ErrResult, #request{} = Request) ->
     continue({lookup_result, ErrResult}, Request).
 
 -spec update_result(update_result(), request()) -> request_result().
-update_result(ok, #request{} = Request) ->
+update_result(ok, #request{phase = update_bindings} = Request) ->
     continue({update_result, ok}, Request);
-update_result({error, _Reason} = Error, #request{} = Request) ->
+update_result({error, _Reason} = Error, #request{phase = update_bindings} = Request) ->
     continue({update_result, Error}, Request).
 
 -spec is_terminated(request()) -> boolean().
@@ -278,7 +278,7 @@ authenticate({authenticate_result, {error, _Reason}}, #request{sipmsg = SipMsg} 
 authorize(entry, #request{authinfo = AuthInfo, sipmsg = SipMsg} = Request) ->
     AOR = ersip_sipmsg:get(to, SipMsg),
     AORURI = ersip_hdr_fromto:uri(AOR),
-    {Request, [{authorize, AuthInfo, AORURI}]};
+    {Request, {authorize, AuthInfo, AORURI}};
 authorize({authorize_result, {ok, unauthorized}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(403, SipMsg),
     terminate_request({reply, ReplySipMsg}, Request);

@@ -303,6 +303,45 @@ auth_authenticate_server_error_test() ->
     ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
+auth_authenticate_unauthorized_test() ->
+    %% Check that authenticated user is not authorized to change
+    %% bindings. In this case registrar returns 403.
+    Config = ersip_registrar:new_config(any, #{authenticate => true}),
+    SipMsg = register_request_all(),
+    To  = ersip_sipmsg:get(to, SipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
+
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({authenticate, SipMsg}, SE0),
+    {Request1, SE1} = ersip_registrar:authenticate_result({ok, {authorized, some_auth_info}}, Request0),
+    ?assertMatch({authorize, some_auth_info, AOR}, SE1),
+    {Request2, SE2} = ersip_registrar:authorize_result({ok, unauthorized}, Request1),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request2)),
+    ?assertMatch({reply, _}, SE2),
+    {reply, ReplySipMsg} = SE2,
+    ?assertEqual(403, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+auth_authorization_fail_test() ->
+    %% Check that registrar fail request with 500 status code if
+    %% authenticated user failed to authorize with {error, _}
+    Config = ersip_registrar:new_config(any, #{authenticate => true}),
+    SipMsg = register_request_all(),
+    To  = ersip_sipmsg:get(to, SipMsg),
+    AOR = ersip_hdr_fromto:uri(To),
+
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({authenticate, SipMsg}, SE0),
+    {Request1, SE1} = ersip_registrar:authenticate_result({ok, {authorized, some_auth_info}}, Request0),
+    ?assertMatch({authorize, some_auth_info, AOR}, SE1),
+    {Request2, SE2} = ersip_registrar:authorize_result({error, something_bad_happened}, Request1),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request2)),
+    ?assertMatch({reply, _}, SE2),
+    {reply, ReplySipMsg} = SE2,
+    ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

@@ -366,6 +366,34 @@ auth_authorization_fail_test() ->
     ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
+too_brief_interval_test() ->
+    %% Check that registrar fail request with 423 if requested
+    %% expiration is less than minimum configured
+    MinExpires = 700,
+    Config = ersip_registrar:new_config(any, #{authenticate => false,
+                                               min_expires  => MinExpires
+                                              }),
+    SipMsgBrief = register_request(#{expires => MinExpires-1}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsgBrief, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    ?assertMatch({reply, _}, SE0),
+    {reply, ReplySipMsg} = SE0,
+    ?assertEqual(423, ersip_sipmsg:status(ReplySipMsg)),
+    ?assertEqual({expires, MinExpires}, ersip_sipmsg:get(minexpires, ReplySipMsg)),
+
+    %% Check that exact match of MinExpires does not cause termination
+    %% of request
+    SipMsgOK = register_request(#{expires => MinExpires}),
+    {Request1, _} = ersip_registrar:new_request(SipMsgOK, Config),
+    ?assertEqual(false, ersip_registrar:is_terminated(Request1)),
+
+    %% Check that unregister does not cause 423:
+    SipMsgUnreg = register_request(#{expires => 0}),
+    {Request2, _} = ersip_registrar:new_request(SipMsgUnreg, Config),
+    ?assertEqual(false, ersip_registrar:is_terminated(Request2)),
+
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

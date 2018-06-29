@@ -361,7 +361,7 @@ process_contacts(entry, #request{sipmsg = SipMsg} = Request) ->
             %% response MUST contain a Min-Expires header field that states
             %% the minimum expiration interval the registrar is willing to
             %% honor.
-            HasShortBinding = lists:any(fun({_, Exp}) ->
+            HasShortBinding = lists:any(fun({Exp, _}) ->
                                                 Exp /= 0 andalso Exp < MinExpires
                                         end,
                                         ExpBindings),

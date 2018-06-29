@@ -257,15 +257,14 @@ request_binding_list_test() ->
 
     ok.
 
-
-auth_request_binding_list_test() ->
+auth_successful_test() ->
     %% Check basic successfull authorization flow.
     Config = ersip_registrar:new_config(any, #{authenticate => true}),
-    RegisterAllSipMsg = register_request_all(),
-    To  = ersip_sipmsg:get(to, RegisterAllSipMsg),
+    SipMsg = register_request_all(),
+    To  = ersip_sipmsg:get(to, SipMsg),
     AOR = ersip_hdr_fromto:uri(To),
 
-    {Request0, SE0} = ersip_registrar:new_request(register_request_all(), Config),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
     ?assertMatch({authenticate, _SipMsg}, SE0),
     {Request1, SE1} = ersip_registrar:authenticate_result({ok, {authorized, my_auth_info}}, Request0),
     ?assertMatch({authorize, my_auth_info, AOR}, SE1),
@@ -279,7 +278,30 @@ auth_request_binding_list_test() ->
     ?assertEqual(200, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
+auth_authenticate_unauth_test() ->
+    %% Check that authentication procedure is transparent for registrar.
+    Config = ersip_registrar:new_config(any, #{authenticate => true}),
+    SipMsg = register_request_all(),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({authenticate, SipMsg}, SE0),
+    AuthReply = ersip_sipmsg:reply(401, SipMsg),
+    {Request1, SE1} = ersip_registrar:authenticate_result({ok, {unauthorized, AuthReply}}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, AuthReply}, SE1),
+    ok.
 
+auth_authenticate_server_error_test() ->
+    %% Check that server error cause 500 reply on register request.
+    Config = ersip_registrar:new_config(any, #{authenticate => true}),
+    SipMsg = register_request_all(),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({authenticate, SipMsg}, SE0),
+    {Request1, SE1} = ersip_registrar:authenticate_result({error, something_bad_happened}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, _}, SE1),
+    {reply, ReplySipMsg} = SE1,
+    ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
 
 %%%===================================================================
 %%% Helpers

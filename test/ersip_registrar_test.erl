@@ -235,6 +235,20 @@ add_one_more_contact_test() ->
 
     ok.
 
+update_binding_failed_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SipMsg = register_request(#{cseq => 5}),
+
+    {Request0, _} = ersip_registrar:new_request(SipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, []}, Request0),
+    ?assertMatch({update_bindings, _, _}, SE1),
+    {Request2, SE2} = ersip_registrar:update_result({error, something_bad_happened}, Request1),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request2)),
+    ?assertMatch({reply, _}, SE2),
+    {reply, ReplySipMsg} = SE2,
+    ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
 
 request_binding_list_test() ->
     Config = ersip_registrar:new_config(any, #{authenticate => false}),
@@ -255,6 +269,17 @@ request_binding_list_test() ->
     ?assertEqual(ersip_uri:make(FirstURI), ersip_hdr_contact:uri(Contact1)),
     ?assertEqual(ersip_uri:make(SecondURI), ersip_hdr_contact:uri(Contact2)),
 
+    ok.
+
+request_binding_lookup_fail_test() ->
+    %% Check that lookup server error cause 500 reply on register request.
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    {Request0, _} = ersip_registrar:new_request(register_request_all(), Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({error, something_bad_happened}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, _ReplySipMsg}, SE1),
+    {reply, ReplySipMsg} = SE1,
+    ?assertEqual(500, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
 auth_successful_test() ->
@@ -408,23 +433,14 @@ rebuild_sipmsg(SipMsg) ->
 make_default_source() ->
     tcp_source(default_peer()).
 
-make_udp_source() ->
-    udp_source(default_peer()).
-
 default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
     ersip_source:new(Peer, tcp_transport(), undefined).
 
-udp_source(Peer) ->
-    ersip_source:new(Peer, udp_transport(), undefined).
-
 tcp_transport() ->
     ersip_transport:make(tcp).
-
-udp_transport() ->
-    ersip_transport:make(udp).
 
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     create_sipmsg(Msg, Source, all).

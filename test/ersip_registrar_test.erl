@@ -394,6 +394,29 @@ too_brief_interval_test() ->
 
     ok.
 
+star_contact_with_nonzero_expires_test() ->
+    Config = ersip_registrar:new_config(any, #{}),
+    SipMsg = register_request(#{expires => 10, contact => <<"*">>}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    ?assertMatch({reply, _}, SE0),
+    {reply, ReplySipMsg} = SE0,
+    ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+register_reordering_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SavedBindings = create_saved_bindings(#{cseq => 4}),
+    SipMsg = register_request(#{cseq => 3}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({find_bindings, _}, SE0),
+
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, _ReplySipMsg}, SE1),
+    {reply, ReplySipMsg} = SE1,
+    ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
 
 %%%===================================================================
 %%% Helpers

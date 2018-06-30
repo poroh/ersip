@@ -404,18 +404,26 @@ star_contact_with_nonzero_expires_test() ->
     ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
-register_reordering_test() ->
-    Config = ersip_registrar:new_config(any, #{authenticate => false}),
-    SavedBindings = create_saved_bindings(#{cseq => 4}),
-    SipMsg = register_request(#{cseq => 3}),
-    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
-    ?assertMatch({find_bindings, _}, SE0),
+register_reoredering_test() ->
+    %% Check that registrar decline register with new sequence number
+    %% within one call-id
+    CallId = <<"callid">>,
+    ContactURI = <<"<sip:alice@atlanta.com>">>,
+    ReqParams = #{cseq    => 4,
+                  contact => ContactURI,
+                  callid  => CallId
+                 },
+    SavedBindings = create_saved_bindings(ReqParams),
+    register_reordering_check_failed(ReqParams#{cseq => 3}, SavedBindings),
+    register_reordering_check_failed(ReqParams#{cseq => 4}, SavedBindings),
+    register_reordering_check_not_failed(ReqParams#{cseq => 3, callid => <<"callid-2">>}, SavedBindings),
 
-    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
-    ?assertMatch({reply, _ReplySipMsg}, SE1),
-    {reply, ReplySipMsg} = SE1,
-    ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
+    %% The same with star contact:
+    StarContact = ReqParams#{contact => <<"*">>, expires => 0},
+    register_reordering_check_failed(StarContact#{cseq => 3}, SavedBindings),
+    register_reordering_check_failed(StarContact#{cseq => 4}, SavedBindings),
+    register_reordering_check_not_failed(StarContact#{cseq => 3, callid => <<"callid-2">>}, SavedBindings),
+
     ok.
 
 %%%===================================================================
@@ -425,7 +433,8 @@ register_reordering_test() ->
 -define(crlf, "\r\n").
 -define(REG_DEFAULT, #{expires => 3600,
                        cseq    => 4,
-                       contact => <<"<sip:1000@192.168.100.11:5070;line=69210a2e715cee1>">>
+                       contact => <<"<sip:1000@192.168.100.11:5070;line=69210a2e715cee1>">>,
+                       callid => <<"123djkl23edjsajk">>
                       }).
 
 register_request() ->
@@ -442,7 +451,8 @@ register_request_all() ->
 register_request_bin(Params) ->
     #{expires := Expires,
       cseq    := CSeq,
-      contact := Contact
+      contact := Contact,
+      callid  := CallId
      } = Params,
     ExpiresBin = integer_to_binary(Expires),
     CSeqBin    = integer_to_binary(CSeq),
@@ -451,7 +461,7 @@ register_request_bin(Params) ->
       "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
       "To: <sip:1000@192.168.100.11:5060>" ?crlf
       "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
-      "Call-ID: 1197534344" ?crlf
+      "Call-ID: ", CallId/binary, ?crlf
       "CSeq: ", CSeqBin/binary, " REGISTER" ?crlf
       "Max-Forwards: 69" ?crlf
       "Expires: ", ExpiresBin/binary, ?crlf
@@ -511,3 +521,25 @@ create_saved_bindings(Params) ->
     {update_bindings, _AOR, {Added, _ ,_}} = SE1,
     {_, _} = ersip_registrar:update_result(ok, Request1),
     Added.
+
+register_reordering_check_failed(ReqParams, SavedBindings) ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SipMsg = register_request(ReqParams),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({find_bindings, _}, SE0),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({reply, _ReplySipMsg}, SE1),
+    {reply, ReplySipMsg} = SE1,
+    ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+register_reordering_check_not_failed(ReqParams, SavedBindings) ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SipMsg = register_request(ReqParams),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertMatch({find_bindings, _}, SE0),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
+    ?assertEqual(false, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({update_bindings, _, _}, SE1),
+    ok.

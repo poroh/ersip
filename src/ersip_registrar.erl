@@ -210,8 +210,6 @@ set_phase(Phase, #request{} = Request) ->
 %%    domain, following the general behavior for proxying messages
 %%    described in Section 16.
 -spec check_request(event(), request()) -> request_result().
-check_request(entry, #request{config = #config{domains = any}} = Request) ->
-    continue(entry, set_phase(authenticate, Request));
 check_request(entry, #request{config = #config{domains = Domains}, sipmsg = SipMsg} = Request) ->
     %% The registrar inspects the Request-URI to determine whether it
     %% has access to bindings for the domain identified in the
@@ -220,18 +218,30 @@ check_request(entry, #request{config = #config{domains = Domains}, sipmsg = SipM
     %% domain, following the general behavior for proxying messages
     %% described in Section 16.
     RURI = ersip_sipmsg:ruri(SipMsg),
-    CheckResult =
+    CheckRURIResult =
         case ersip_uri:scheme(RURI) of
             {scheme, sip} ->
-                check_domain(ersip_uri:get(host, RURI), Domains);
+                supported;
             {scheme, sips} ->
-                check_domain(ersip_uri:get(host, RURI), Domains);
+                supported;
             {scheme, _} ->
-                proxy
+                unsupported
         end,
-    case CheckResult of
+    CheckDomainResult =
+        case {CheckRURIResult, Domains} of
+            {supported, any} ->
+                continue;
+            {supported, Domains} ->
+                check_domain(ersip_uri:get(host, RURI), Domains);
+            {unsupported, _} ->
+                unknown_scheme
+        end,
+
+    case CheckDomainResult of
         continue ->
             next_phase(authenticate, Request);
+        unknown_scheme ->
+            reply_unsupported_uri_scheme(Request);
         proxy ->
             terminate_request({proxy, RURI}, Request)
     end.
@@ -509,6 +519,12 @@ terminate_request(Action, #request{} = Request) ->
 -spec next_phase(request_phase(), request()) -> request_result().
 next_phase(Phase, Request) ->
     continue(entry, set_phase(Phase, Request)).
+
+-spec reply_unsupported_uri_scheme(request()) -> request_result().
+reply_unsupported_uri_scheme(#request{config = #config{options = #{to_tag := ToTag}}, sipmsg = SipMsg} = Request) ->
+    Reply = ersip_reply:new(416, [{to_tag, ToTag}]),
+    ReplySipMsg = ersip_sipmsg:reply(Reply, SipMsg),
+    terminate_request({reply, ReplySipMsg}, Request).
 
 -spec reply_bad_message(Reason :: binary(), request()) -> request_result().
 reply_bad_message(Reason, #request{config = #config{options = #{to_tag := ToTag}}, sipmsg = SipMsg} = Request) ->

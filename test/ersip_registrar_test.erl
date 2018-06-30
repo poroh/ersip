@@ -404,6 +404,16 @@ star_contact_with_nonzero_expires_test() ->
     ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
     ok.
 
+star_contact_without_expires_test() ->
+    Config = ersip_registrar:new_config(any, #{}),
+    SipMsg = register_request(#{expires => none, contact => <<"*">>}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    ?assertMatch({reply, _}, SE0),
+    {reply, ReplySipMsg} = SE0,
+    ?assertEqual(400, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
 register_reoredering_test() ->
     %% Check that registrar decline register with new sequence number
     %% within one call-id
@@ -426,6 +436,63 @@ register_reoredering_test() ->
 
     ok.
 
+aor_checking_test() ->
+    %% Check that registrar replies with 404 if AOR does not match RURI
+    CheckAORFun = fun(AOR, RURI) ->
+                          ersip_uri:get(host, AOR) == ersip_uri:get(host, RURI)
+                  end,
+    Config = ersip_registrar:new_config(any, #{authenticate => false,
+                                               check_aor_fun => CheckAORFun
+                                              }),
+    SipMsg = register_request(#{ruri => <<"sip:biloxy.com">>, aoruri => <<"sip:alice@atlanta.com">>}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    ?assertMatch({reply, _}, SE0),
+    {reply, ReplySipMsg} = SE0,
+    ?assertEqual(404, ersip_sipmsg:status(ReplySipMsg)),
+
+    %% Check that matching AOR does not fail:
+    SipMsg1 = register_request(#{ruri => <<"sip:atlanta.com">>, aoruri => <<"sip:alice@atlanta.com">>}),
+    {Request1, SE1} = ersip_registrar:new_request(SipMsg1, Config),
+    ?assertEqual(false, ersip_registrar:is_terminated(Request1)),
+    ?assertMatch({find_bindings, _}, SE1),
+    ok.
+
+ruri_domain_checking_test() ->
+    Config = ersip_registrar:new_config([ersip_host:make(<<"atlanta.com">>),
+                                         ersip_host:make(<<"biloxi.com">>)
+                                        ],
+                                        #{authenticate => false}),
+    CheckFun =
+        fun(Scheme) ->
+                SipMsg = register_request(#{ruri => <<Scheme/binary, ":chicago.com">>, aoruri => <<Scheme/binary, ":carol@chicago.com">>}),
+                {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+                ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+                ?assertMatch({proxy, _}, SE0),
+                {proxy, URI} = SE0,
+                ?assertEqual(ersip_uri:make(<<Scheme/binary, ":chicago.com">>), URI),
+
+                %% Check tha matchin RURI does not fail:
+                SipMsg1 = register_request(#{ruri => <<Scheme/binary, ":atlanta.com">>, aoruri => <<Scheme/binary, ":alice@atlanta.com">>}),
+                {Request1, SE1} = ersip_registrar:new_request(SipMsg1, Config),
+                ?assertEqual(false, ersip_registrar:is_terminated(Request1)),
+                ?assertMatch({find_bindings, _}, SE1)
+        end,
+    CheckFun(<<"sip">>),
+    CheckFun(<<"sips">>),
+    ok.
+
+unsupported_ruri_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SipMsg = register_request(#{ruri => <<"tel:+78122128506">>, aoruri => <<"tel:+78122128506">>}),
+    {Request0, SE0} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    {reply, ReplySipMsg} = SE0,
+    ?assertEqual(416, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -434,7 +501,9 @@ register_reoredering_test() ->
 -define(REG_DEFAULT, #{expires => 3600,
                        cseq    => 4,
                        contact => <<"<sip:1000@192.168.100.11:5070;line=69210a2e715cee1>">>,
-                       callid => <<"123djkl23edjsajk">>
+                       callid => <<"123djkl23edjsajk">>,
+                       aoruri => <<"sip:1000@192.168.100.11:5060">>,
+                       ruri   => <<"sip:192.168.100.11:5060">>
                       }).
 
 register_request() ->
@@ -452,19 +521,28 @@ register_request_bin(Params) ->
     #{expires := Expires,
       cseq    := CSeq,
       contact := Contact,
-      callid  := CallId
+      callid  := CallId,
+      aoruri  := AORURI,
+      ruri    := RURI
      } = Params,
-    ExpiresBin = integer_to_binary(Expires),
+    ExpiresField =
+        case Expires of
+            none ->
+                <<>>;
+            Expires when is_integer(Expires) ->
+                ExpiresBin = integer_to_binary(Expires),
+                <<"Expires: ", ExpiresBin/binary, ?crlf>>
+        end,
     CSeqBin    = integer_to_binary(CSeq),
-    <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
+    <<"REGISTER ", RURI/binary," SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP 192.168.100.11:5090;branch=z9hG4bK*77yCNomtXelRpoCGdCfE" ?crlf
       "Via: SIP/2.0/UDP 192.168.100.11:5070;rport;branch=z9hG4bK785703841" ?crlf
-      "To: <sip:1000@192.168.100.11:5060>" ?crlf
+      "To: <", AORURI/binary, ">" ?crlf
       "From: <sip:1000@192.168.100.11:5060>;tag=1452599670" ?crlf
       "Call-ID: ", CallId/binary, ?crlf
       "CSeq: ", CSeqBin/binary, " REGISTER" ?crlf
-      "Max-Forwards: 69" ?crlf
-      "Expires: ", ExpiresBin/binary, ?crlf
+      "Max-Forwards: 69" ?crlf,
+      ExpiresField/binary,
       "Content-Length: 0" ?crlf
       "Contact: ", Contact/binary, ?crlf
       "Record-Route: <sip:192.168.100.11:5090;lr>" ?crlf

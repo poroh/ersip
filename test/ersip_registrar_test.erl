@@ -235,6 +235,31 @@ add_one_more_contact_test() ->
 
     ok.
 
+register_contact_with_default_expires_test() ->
+    DefExpires = 777,
+    Config = ersip_registrar:new_config(any, #{authenticate => false, default_expires => DefExpires}),
+    RegisterSipMsg = register_request(#{contact => <<"sip:alice@atlanta.com">>, expires => none}),
+
+    {Request0, _SE0} = ersip_registrar:new_request(RegisterSipMsg, Config),
+    {Request1, SE1} = ersip_registrar:lookup_result({ok, []}, Request0),
+    {update_bindings, _, {[Binding], [], []}} = SE1,
+
+    %% Check that binding contains contact with expiration of DefExpires second
+    BindContact = ersip_registrar_binding:contact(Binding),
+    ?assertEqual(DefExpires, ersip_hdr_contact:expires(BindContact, undefined)),
+
+    %% Check that reply contains contact with expiration of DefExpires second
+    {Request2, SE2} = ersip_registrar:update_result(ok, Request1),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request2)),
+    ?assertMatch({reply, _ReplySipMsg}, SE2),
+    {reply, ReplySipMsg} = SE2,
+    ?assertEqual(200, ersip_sipmsg:status(ReplySipMsg)),
+    %% Reply SIP message returns registered contacts:
+    ?assertMatch([_], ersip_sipmsg:get(contact, ReplySipMsg)),
+    [RegContact] = ersip_sipmsg:get(contact, ReplySipMsg),
+    ?assertEqual(DefExpires, ersip_hdr_contact:expires(RegContact, undefined)),
+    ok.
+
 update_binding_failed_test() ->
     Config = ersip_registrar:new_config(any, #{authenticate => false}),
     SipMsg = register_request(#{cseq => 5}),
@@ -489,6 +514,14 @@ unsupported_ruri_test() ->
     ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
     {reply, ReplySipMsg} = SE0,
     ?assertEqual(416, ersip_sipmsg:status(ReplySipMsg)),
+    ok.
+
+any_call_in_terminated_state_error_test() ->
+    Config = ersip_registrar:new_config(any, #{authenticate => false}),
+    SipMsg = register_request(#{ruri => <<"tel:+78122128506">>, aoruri => <<"tel:+78122128506">>}),
+    {Request0, _} = ersip_registrar:new_request(SipMsg, Config),
+    ?assertEqual(true, ersip_registrar:is_terminated(Request0)),
+    ?assertError({unexpected_event, _}, ersip_registrar:lookup_result({ok, []}, Request0)),
     ok.
 
 

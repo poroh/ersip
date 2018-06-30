@@ -243,7 +243,7 @@ check_request(entry, #request{config = #config{domains = Domains}, sipmsg = SipM
         unknown_scheme ->
             reply_unsupported_uri_scheme(Request);
         proxy ->
-            terminate_request({proxy, RURI}, Request)
+            terminate_request(ersip_registrar_se:proxy(RURI), Request)
     end.
 
 -spec check_domain({host, ersip_host:host()}, domain_set()) -> continue | proxy.
@@ -288,15 +288,15 @@ authenticate({authenticate_result, {error, _Reason}}, #request{sipmsg = SipMsg} 
 authorize(entry, #request{authinfo = AuthInfo, sipmsg = SipMsg} = Request) ->
     AOR = ersip_sipmsg:get(to, SipMsg),
     AORURI = ersip_hdr_fromto:uri(AOR),
-    {Request, {authorize, AuthInfo, AORURI}};
+    {Request, ersip_registrar_se:authorize(AuthInfo, AORURI)};
 authorize({authorize_result, {ok, unauthorized}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(403, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request);
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request);
 authorize({authorize_result, {ok, authorized}}, #request{} = Request) ->
     next_phase(check_aor, Request);
 authorize({authorize_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request).
 
 %% 5. The registrar extracts the address-of-record from the To header
 %%    field of the request.  If the address-of-record is not valid
@@ -319,7 +319,7 @@ check_aor(entry, #request{} = Request0) ->
     case CheckAORFun(KeyAOR1, RURI) of
         false ->
             ReplySipMsg = ersip_sipmsg:reply(404, SipMsg),
-            terminate_request({reply, ReplySipMsg}, Request0);
+            terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request0);
         true ->
             Request1 = Request0#request{aoruri = KeyAOR1},
             next_phase(process_contacts, Request1)
@@ -457,7 +457,7 @@ process_bindings({lookup_result, {ok, SavedBindings}}, #request{action = {update
     end;
 process_bindings({lookup_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request).
 
 
 -spec update_bindings(event(), request()) -> request_result().
@@ -469,7 +469,7 @@ update_bindings({update_result, ok}, #request{} = Request) ->
     next_phase(prepare_answer, Request);
 update_bindings({update_result, {error, _}}, #request{sipmsg = SipMsg} = Request) ->
     ReplySipMsg = ersip_sipmsg:reply(500, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request).
 
 %% 8. The registrar returns a 200 (OK) response.  The response MUST
 %%    contain Contact header field values enumerating all current
@@ -482,7 +482,7 @@ prepare_answer(entry, #request{sipmsg = SipMsg, result_bindings = Bindings} = Re
     ContactList = [ersip_registrar_binding:contact(Binding) || Binding <- Bindings],
     ReplySipMsg1 = ersip_sipmsg:set(contact, ContactList, ReplySipMsg0),
     %% TODO: The response SHOULD include a Date header field.
-    terminate_request({reply, ReplySipMsg1}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg1), Request).
 
 %% The registrar now processes each contact address in the Contact
 %% header field in turn.  For each address, it determines the
@@ -524,7 +524,7 @@ next_phase(Phase, Request) ->
 reply_unsupported_uri_scheme(#request{config = #config{options = #{to_tag := ToTag}}, sipmsg = SipMsg} = Request) ->
     Reply = ersip_reply:new(416, [{to_tag, ToTag}]),
     ReplySipMsg = ersip_sipmsg:reply(Reply, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request).
 
 -spec reply_bad_message(Reason :: binary(), request()) -> request_result().
 reply_bad_message(Reason, #request{config = #config{options = #{to_tag := ToTag}}, sipmsg = SipMsg} = Request) ->
@@ -532,14 +532,14 @@ reply_bad_message(Reason, #request{config = #config{options = #{to_tag := ToTag}
                                   {to_tag, ToTag}
                                  ]),
     ReplySipMsg = ersip_sipmsg:reply(Reply, SipMsg),
-    terminate_request({reply, ReplySipMsg}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg), Request).
 
 -spec reply_interval_too_brief(MinExpires :: pos_integer(), request()) -> request_result().
 reply_interval_too_brief(MinExpires, #request{config = #config{options = #{to_tag := ToTag}}, sipmsg = SipMsg} = Request) ->
     Reply = ersip_reply:new(423, [{to_tag, ToTag}]),
     ReplySipMsg0 = ersip_sipmsg:reply(Reply, SipMsg),
     ReplySipMsg1 = ersip_sipmsg:set(minexpires, {expires, MinExpires}, ReplySipMsg0),
-    terminate_request({reply, ReplySipMsg1}, Request).
+    terminate_request(ersip_registrar_se:reply(ReplySipMsg1), Request).
 
 -spec has_higher_cseq(non_neg_integer(), ersip_hdr_callid:callid(), [ersip_registrar_binding:binding()]) -> boolean().
 has_higher_cseq(CSeqVal, CallId, SavedBindings) ->

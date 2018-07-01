@@ -14,156 +14,79 @@
 %%% Cases
 %%%===================================================================
 
-stateless_uas_basic_test() ->
-    Options = #{stateless => true},
+uas_basic_test() ->
     REGISTERSipMsg = register_request(),
-    {UAS0, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    ?assertEqual({ua_result, REGISTERSipMsg}, se_find(ua_result, SE0)),
-    ?assertEqual(not_found, se_find(set_timer, SE0)),
-
-    {UAS1, SE1} = ersip_uas:reply(trying_response(), UAS0),
-    ?assertEqual({send_response, trying_response()}, se_find(send_response, SE1)),
-    ?assertEqual(not_found, se_find(set_timer, SE0)),
-    ?assertEqual(not_found, se_find(completed, SE1)),
-
-    {_UAS2, SE2} = ersip_uas:reply(ok200_response(), UAS1),
-    ?assertEqual({send_response, ok200_response()}, se_find(send_response, SE2)),
-    ?assertEqual(not_found, se_find(set_timer, SE2)),
-    ?assertEqual({completed, normal}, se_find(completed, SE2)),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsg, allowed_methods(), #{}),
+    ?assertMatch({process, _}, ProcessResult),
+    {process, SipMsg} = ProcessResult,
+    ?assertEqual(ersip_method:register(), ersip_sipmsg:method(SipMsg)),
     ok.
 
-stateful_uas_basic_test() ->
-    Options = #{stateless => false},
-    REGISTERSipMsg = register_request(),
-    {UAS0, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    ?assertEqual({ua_result, REGISTERSipMsg}, se_find(ua_result, SE0)),
 
-    {UAS1, SE1} = ersip_uas:reply(trying_response(), UAS0),
-    ?assertEqual({send_response, trying_response()}, se_find(send_response, SE1)),
-    ?assertEqual(not_found, se_find(completed, SE1)),
-
-    %% Retransmission handling
-    {UAS2, SE2} = ersip_uas:request(REGISTERSipMsg, UAS1),
-    ?assertEqual({send_response, trying_response()}, se_find(send_response, SE2)),
-    ?assertEqual(not_found, se_find(ua_result, SE2)),
-
-    {_UAS3, SE3} = ersip_uas:reply(ok200_response(), UAS2),
-    ?assertEqual({send_response, ok200_response()}, se_find(send_response, SE3)),
-    ?assertEqual(not_found, se_find(set_timer, SE3)),
-    ?assertEqual({completed, normal}, se_find(completed, SE3)),
-    ok.
-
-stateful_uas_basic_unreliable_test() ->
-    T1 = 70,
-    SIPOptions = #{sip_t1 => T1},
-    Options = #{stateless => false, sip => SIPOptions},
-    REGISTERSipMsg = register_request(make_udp_source()),
-    {UAS0, _SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    {UAS1, SE1} = ersip_uas:reply(ok200_response(), UAS0),
-    ?assertEqual({send_response, ok200_response()}, se_find(send_response, SE1)),
-    {set_timer, {Timeout, TimerJEv}} = se_find(set_timer, SE1),
-    ?assertEqual(Timeout, 64*T1),
-    {_UAS2, SE2} = ersip_uas:timer(TimerJEv, UAS1),
-    ?assertEqual({completed, normal}, se_find(completed, SE2)),
-    ok.
-
-stateful_uas_not_allowed_method_test() ->
-    Options = #{stateless => false},
+uas_not_allowed_method_test() ->
     REGISTERSipMsg = register_request(),
     AllowedMethods = ersip_method_set:invite_set(),
-    {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, AllowedMethods, Options),
-    {send_response, Resp405} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsg, AllowedMethods, #{}),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp405} = ProcessResult,
     ?assertEqual(405, ersip_sipmsg:status(Resp405)),
     %% The UAS MUST also add an Allow header field to the 405 (Method
     %% Not Allowed) response.  The Allow header field MUST list the
     %% set of methods supported by the UAS generating the message.
     AllowHdr = ersip_sipmsg:get(allow, Resp405),
     ?assertEqual({allow, AllowedMethods}, AllowHdr),
-    %% Completed immediately for reliable transport.
-    ?assertEqual({completed, normal}, se_find(completed, SE0)),
-    ok.
-
-stateful_uas_not_allowed_method_for_unreliable_transport_test() ->
-    T1 = 71,
-    SIPOptions = #{sip_t1 => T1},
-    Options = #{stateless => false, sip => SIPOptions},
-    REGISTERSipMsg = register_request(make_udp_source()),
-    AllowedMethods = ersip_method_set:invite_set(),
-    {UAS0, SE0} = ersip_uas:new(REGISTERSipMsg, AllowedMethods, Options),
-    {send_response, Resp405} = se_find(send_response, SE0),
-    ?assertEqual(405, ersip_sipmsg:status(Resp405)),
-    ?assertEqual(not_found, se_find(completed, SE0)),
-
-    {set_timer, {Timeout, TimerJEv}} = se_find(set_timer, SE0),
-    ?assertEqual(Timeout, 64*T1),
-    {_UAS2, SE1} = ersip_uas:timer(TimerJEv, UAS0),
-    ?assertEqual({completed, normal}, se_find(completed, SE1)),
-    ok.
-
-stateless_uas_not_allowed_method_for_unreliable_transport_test() ->
-    Options = #{stateless => true},
-    REGISTERSipMsg = register_request(make_udp_source()),
-    AllowedMethods = ersip_method_set:invite_set(),
-    {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, AllowedMethods, Options),
-    {send_response, Resp405} = se_find(send_response, SE0),
-    ?assertEqual(405, ersip_sipmsg:status(Resp405)),
-    %% The UAS MUST also add an Allow header field to the 405 (Method
-    %% Not Allowed) response.  The Allow header field MUST list the
-    %% set of methods supported by the UAS generating the message.
-    AllowHdr = ersip_sipmsg:get(allow, Resp405),
-    ?assertEqual({allow, AllowedMethods}, AllowHdr),
-    %% Completed immediately for reliable transport.
-    ?assertEqual({completed, normal}, se_find(completed, SE0)),
     ok.
 
 cannot_parse_require_field_test() ->
-    Options = #{statless => true},
     REGISTERSipMsg = register_request_bad_require(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    {send_response, Resp400} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsg, allowed_methods(), #{}),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp400} = ProcessResult,
     ?assertEqual(400, ersip_sipmsg:status(Resp400)),
     ok.
 
 scheme_validation_fail_test() ->
-    Options = #{stateless => false,
-                check_scheme => fun(_) -> false end
+    Options = #{check_scheme => fun(_) -> false end
                },
     REGISTERSipMsg = register_request(),
-    {_UAS, SE0} = ersip_uas:new(REGISTERSipMsg, allowed_methods(), Options),
-    {send_response, Resp416} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsg, allowed_methods(), Options),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp416} = ProcessResult,
     ?assertEqual(416, ersip_sipmsg:status(Resp416)),
     ok.
 
 scheme_validation_success_test() ->
-    Options = #{stateless => false,
-                check_scheme => fun(S) -> S == {scheme, <<"tel">>} end
+    Options = #{check_scheme => fun(S) -> S == {scheme, <<"tel">>} end
                },
     REGISTERSipMsgTEL = register_request_tel_uri(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgTEL, allowed_methods(), Options),
-    ?assertEqual(not_found, se_find(send_response, SE0)),
+    ProcessResultTEL = ersip_uas:process_request(REGISTERSipMsgTEL, allowed_methods(), Options),
+    ?assertMatch({process, _}, ProcessResultTEL),
     REGISTERSipMsgSIP = register_request(make_default_source()),
-    {_UAS1, SE1} = ersip_uas:new(REGISTERSipMsgSIP, allowed_methods(), Options),
-    {send_response, Resp416} = se_find(send_response, SE1),
+    ProcessResultSIP = ersip_uas:process_request(REGISTERSipMsgSIP, allowed_methods(), Options),
+    ?assertMatch({reply, _}, ProcessResultSIP),
+    {reply, Resp416} = ProcessResultSIP,
     ?assertEqual(416, ersip_sipmsg:status(Resp416)),
     ok.
 
 scheme_validation_default_test() ->
     Options = #{},
     REGISTERSipMsgTEL = register_request_tel_uri(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgTEL, allowed_methods(), Options),
-    {send_response, Resp416} = se_find(send_response, SE0),
+    ProcessResultTEL = ersip_uas:process_request(REGISTERSipMsgTEL, allowed_methods(), Options),
+    ?assertMatch({reply, _}, ProcessResultTEL),
+    {reply, Resp416} = ProcessResultTEL,
     ?assertEqual(416, ersip_sipmsg:status(Resp416)),
 
     REGISTERSipMsgSIPS = register_request_sips_uri(make_default_source()),
-    {_UAS1, SE1} = ersip_uas:new(REGISTERSipMsgSIPS, allowed_methods(), Options),
-    ?assertEqual(not_found, se_find(send_response, SE1)),
+    ProcessResultSIPS = ersip_uas:process_request(REGISTERSipMsgSIPS, allowed_methods(), Options),
+    ?assertMatch({process, _}, ProcessResultSIPS),
     ok.
 
 extension_is_not_supported_test() ->
-    Options = #{stateless => false},
+    Options = #{},
     REGISTERSipMsgGRUU = register_request_gruu(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
-    {send_response, Resp420} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsgGRUU, allowed_methods(), Options),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp420} = ProcessResult,
     ?assertEqual(420, ersip_sipmsg:status(Resp420)),
     Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gruu">>)]),
     ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, Resp420)),
@@ -172,12 +95,12 @@ extension_is_not_supported_test() ->
 extension_is_not_supported_not_intersection_test() ->
     Supported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>)
                                                 ]),
-    Options = #{stateless => false,
-                supported => Supported
+    Options = #{supported => Supported
                },
     REGISTERSipMsgGRUU = register_request_gin_gruu(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
-    {send_response, Resp420} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsgGRUU, allowed_methods(), Options),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp420} = ProcessResult,
     ?assertEqual(420, ersip_sipmsg:status(Resp420)),
     Unsupported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gruu">>)]),
     ?assertEqual(Unsupported, ersip_sipmsg:get(unsupported, Resp420)),
@@ -185,12 +108,12 @@ extension_is_not_supported_not_intersection_test() ->
 
 to_tag_options_passing_test() ->
     ToTag = {tag, <<"asdjkwed">>},
-    Options = #{stateless => false,
-                to_tag => ToTag
+    Options = #{to_tag => ToTag
                },
     REGISTERSipMsg = register_request(),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsg, ersip_method_set:invite_set(), Options),
-    {send_response, Resp405} = se_find(send_response, SE0),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsg, ersip_method_set:invite_set(), Options),
+    ?assertMatch({reply, _}, ProcessResult),
+    {reply, Resp405} = ProcessResult,
     To = ersip_sipmsg:get(to, Resp405),
     ?assertEqual(ToTag, ersip_hdr_fromto:tag(To)),
     ok.
@@ -199,12 +122,11 @@ extension_is_supported_test() ->
     Supported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>),
                                                  ersip_option_tag:make(<<"gruu">>)
                                                 ]),
-    Options = #{stateless => false,
-                supported => Supported
+    Options = #{supported => Supported
                },
     REGISTERSipMsgGRUU = register_request_gruu(make_default_source()),
-    {_UAS0, SE0} = ersip_uas:new(REGISTERSipMsgGRUU, allowed_methods(), Options),
-    ?assertEqual(not_found, se_find(send_response, SE0)),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsgGRUU, allowed_methods(), Options),
+    ?assertMatch({process, _}, ProcessResult),
     ok.
 
 
@@ -220,7 +142,7 @@ allowed_methods() ->
 
 register_request() ->
     Msg = register_request_bin(),
-    create_sipmsg(Msg, make_default_source()).
+    create_msg(Msg, make_default_source()).
 
 register_request(Source) ->
     Msg = register_request_bin(),
@@ -245,16 +167,6 @@ register_request_gruu(Source) ->
 register_request_gin_gruu(Source) ->
     Msg = register_request_gin_gruu_bin(),
     create_sipmsg(Msg, Source, all).
-
-trying_response() ->
-    SipMsg = register_request(),
-    ersip_sipmsg:reply(100, SipMsg).
-
-ok200_response() ->
-    SipMsg = register_request(),
-    ToTag = {tag, <<"ok200tag">>},
-    Reply = ersip_reply:new(200, [{to_tag, ToTag}]),
-    ersip_sipmsg:reply(Reply, SipMsg).
 
 register_request_bin() ->
     <<"REGISTER sip:192.168.100.11:5060 SIP/2.0" ?crlf
@@ -358,23 +270,14 @@ register_request_sips_uri_bin() ->
 make_default_source() ->
     tcp_source(default_peer()).
 
-make_udp_source() ->
-    udp_source(default_peer()).
-
 default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
     ersip_source:new(Peer, tcp_transport(), undefined).
 
-udp_source(Peer) ->
-    ersip_source:new(Peer, udp_transport(), undefined).
-
 tcp_transport() ->
     ersip_transport:make(tcp).
-
-udp_transport() ->
-    ersip_transport:make(udp).
 
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     create_sipmsg(Msg, Source, all).
@@ -386,10 +289,7 @@ create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg1, HeadersToParse),
     SipMsg.
 
-se_find(Type, SE) ->
-    case lists:keyfind(Type, 1, SE) of
-        false ->
-            not_found;
-        X ->
-            X
-    end.
+create_msg(Msg, Source) when is_binary(Msg) ->
+    P  = ersip_parser:new_dgram(Msg),
+    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
+    ersip_msg:set_source(Source, PMsg).

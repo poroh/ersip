@@ -3,16 +3,12 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% UAS object
+%% UAS processing
 %%
 
 -module(ersip_uas).
 
--export([new/3,
-         request/2,
-         reply/2,
-         timer/2
-        ]).
+-export([process_request/3]).
 
 -export_type([uas/0]).
 %%%===================================================================
@@ -21,71 +17,45 @@
 
 -record(uas, {allowed_methods   :: ersip_method_set:set(),
               request           :: undefined | ersip_sipmsg:sipmsg(),
-              trans             :: stateless | ersip_trans:trans(),
               options           :: options()
              }).
 -type uas() :: #uas{}.
--type options() :: #{sip          => ersip:sip_options(),
-                     stateless    => boolean(),
-                     supported    => ersip_hdr_opttag_list:option_tag_list(),
+-type options() :: #{supported    => ersip_hdr_opttag_list:option_tag_list(),
                      to_tag       => auto | ersip_hdr_fromto:tag(),
                      check_scheme => fun((ersip_uri:scheme()) -> boolean())
                     }.
--type result() :: {uas(), [ersip_ua_se:effect()]}.
--type timer_event() :: {timer, term()}.
+
+-type process_result() :: {reply, ersip_sipmsg:sipmsg()}
+                        | {process, ersip_sipmsg:sipmsg()}.
+
+-type result() :: process_result()
+                | {error, {parse_error, term()}}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec new(ersip_sipmsg:sipmsg(), ersip_method_set:set(), options()) -> result().
-new(SipMsg, AllowedMethods, UASOptions) ->
-    new_impl(SipMsg, AllowedMethods, UASOptions).
-
-
--spec request(ersip_sipmsg:sipmsg(), uas()) -> result().
-request(_RequestSipMsg, #uas{trans = stateless}) ->
-    error({api_error, <<"Request cannot match stateless UAS">>});
-request(RequestSipMsg, #uas{trans = Trans0} = UAS0) ->
-    {Trans1, T1SE} = ersip_trans:event({received, RequestSipMsg}, Trans0),
-    UAS1 = UAS0#uas{trans = Trans1},
-    process_trans_se(T1SE, {UAS1, []}).
-
--spec reply(ersip_sipmsg:sipmsg(), uas()) -> result().
-reply(RespMsg, #uas{trans = stateless} = UAS) ->
-    Code = ersip_sipmsg:status(RespMsg),
-    case ersip_status:response_type(Code) of
-        provisional ->
-            {UAS, [ersip_ua_se:send_response(RespMsg)]};
-        final ->
-            {UAS, [ersip_ua_se:send_response(RespMsg), ersip_ua_se:completed(normal)]}
-    end;
-reply(RespSipMsg, #uas{trans = Trans0} = UAS0) ->
-    {Trans1, T1SE} = ersip_trans:event({send, RespSipMsg}, Trans0),
-    UAS1 = UAS0#uas{trans = Trans1},
-    process_trans_se(T1SE, {UAS1, []}).
-
--spec timer(timer_event(), uas()) -> result().
-timer(_TimerEv, #uas{trans = stateless} ) ->
-    error({api_error, <<"Unexpected timer event for stateless UAS">>});
-timer(TimerEv, #uas{trans = Trans0} = UAS0) ->
-    {Trans1, T1SE} = ersip_trans:event(TimerEv, Trans0),
-    UAS1 = UAS0#uas{trans = Trans1},
-    process_trans_se(T1SE, {UAS1, []}).
+-spec process_request(ersip_msg:message(), ersip_method_set:set(), options()) -> result().
+process_request(Message, AllowedMethods, Options) ->
+    case ersip_sipmsg:parse(Message, []) of
+        {ok, SipMsg} ->
+            UAS = new(SipMsg, AllowedMethods, Options),
+            do_process_request(SipMsg, UAS);
+        {error, Reason} ->
+            {error, {parse_error, Reason}}
+    end.
 
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 -define(default_options,
-        #{sip       => #{}, %% use trasnsactions defaults
-          stateless => false,
-          supported => ersip_hdr_opttag_list:from_list([]),
+        #{supported => ersip_hdr_opttag_list:from_list([]),
           to_tag    => auto,
           check_scheme => fun check_sip_scheme/1
          }).
 
--spec new_impl(ersip_sipmsg:sipmsg(), ersip_method_set:set(), options()) -> result().
-new_impl(SipMsg, AllowedMethods, InOptions) ->
+-spec new(ersip_sipmsg:sipmsg(), ersip_method_set:set(), options()) -> uas().
+new(SipMsg, AllowedMethods, InOptions) ->
     Options = maps:merge(?default_options, InOptions),
     ACK = ersip_method:ack(),
     case ersip_sipmsg:method(SipMsg) of
@@ -94,69 +64,14 @@ new_impl(SipMsg, AllowedMethods, InOptions) ->
         _ ->
             ok
     end,
-    {Trans, SEs} =
-        case maps:get(stateless, Options) of
-            true ->
-                {stateless, [{tu_result, SipMsg}]};
-            false ->
-                ersip_trans:new_server(SipMsg, maps:get(sip, Options))
-        end,
-    UAS = #uas{allowed_methods = AllowedMethods,
-               request         = undefined,
-               trans           = Trans,
-               options         = Options
-              },
-    process_trans_se(SEs, {UAS, []}).
-
-
--spec process_trans_se([ersip_trans_se:effect()], result()) -> result().
-process_trans_se([], Result) ->
-    Result;
-process_trans_se([{tu_result, Request}|Rest], {UAS, _} = Result0) ->
-    case process_request(Request, UAS) of
-        {reply, SipMsg} ->
-            case UAS#uas.trans of
-                stateless ->
-                    %% Respond immediately in case of stateless UAS
-                    Result1 = add_se(ersip_ua_se:send_response(SipMsg), Result0),
-                    %% Finish UAS immediately
-                    add_se(ersip_ua_se:completed(normal), Result1);
-                Trans0 ->
-                    %% Pass response through transaction for stateful
-                    %% UAS
-                    {UAS, UASSE} = Result0,
-                    {Trans1, T1SE} = ersip_trans:event({send, SipMsg}, Trans0),
-                    Result1 = {UAS#uas{trans = Trans1}, UASSE},
-                    process_trans_se(Rest ++ T1SE, Result1)
-            end;
-        {pass, R} ->
-            {UAS, UASSE} = Result0,
-            Result1 = {UAS#uas{request = R}, UASSE},
-            Result2 = add_se(ersip_ua_se:ua_result(R), Result1),
-            process_trans_se(Rest, Result2)
-    end;
-process_trans_se([{send_response, SipMsg}|Rest], Result0) ->
-    Result1 = add_se(ersip_ua_se:send_response(SipMsg), Result0),
-    process_trans_se(Rest, Result1);
-process_trans_se([{send_request, OutReq}|Rest], Result0) ->
-    Result1 = add_se(ersip_ua_se:send_request(OutReq), Result0),
-    process_trans_se(Rest, Result1);
-process_trans_se([{set_timer, {Timeout, TimerEv}}|Rest], Result0) ->
-    Result1 = add_se(ersip_ua_se:set_timer(Timeout, TimerEv), Result0),
-    process_trans_se(Rest, Result1);
-process_trans_se([{clear_trans, Reason}|Rest], Result0) ->
-    Result1 = add_se(ersip_ua_se:completed(Reason), Result0),
-    process_trans_se(Rest, Result1).
-
--spec add_se(ersip_ua_se:effect(), result()) -> result().
-add_se(Effect, {UAS, UASideEffects}) ->
-    {UAS, UASideEffects ++ [Effect]}.
+    #uas{allowed_methods = AllowedMethods,
+         request         = SipMsg,
+         options         = Options
+        }.
 
 %% 8.2 UAS Behavior
--type process_result() :: {reply, ersip_sipmsg:sipmsg()}
-                        | {pass, ersip_sipmsg:sipmsg()}.
--spec process_request(ersip_sipmsg:sipmsg(), uas()) -> process_result().
-process_request(SipMsg, UAS) ->
+-spec do_process_request(ersip_sipmsg:sipmsg(), uas()) -> process_result().
+do_process_request(SipMsg, UAS) ->
     R = steps([fun method_inspection/2,
                fun header_inspection/2
               ],
@@ -164,7 +79,7 @@ process_request(SipMsg, UAS) ->
               UAS),
     case R of
         {continue, SipMsg1} ->
-            {pass, SipMsg1};
+            {process, SipMsg1};
         {reply, _} = Reply ->
             Reply
     end.

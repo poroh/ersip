@@ -31,7 +31,12 @@
               }).
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
--type options() :: #{buffer => ersip_buf:options()}.
+-type options() :: #{buffer => ersip_buf:options(),
+                     max_first_line_len => unlimited | pos_integer(),
+                     max_header_num     => unlimited | pos_integer(),
+                     max_header_len     => unlimited | pos_integer(),
+                     max_body_len       => unlimited | pos_integer()
+                    }.
 -type result()  :: more_data
                  | {error, term()}
                  | {ok, ersip:message()}.

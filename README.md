@@ -21,6 +21,7 @@ SIP. I beleive that this is wrong way.
      - Non-INVITE transaction (completed)
      - INVITE transaction (completed)
   + Registrar support (completed)
+  + Parser limits enforcement (in-progress)
   + Dialog support
   + Statefull proxy support
   + Authorization and proxy authorization

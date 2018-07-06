@@ -26,17 +26,19 @@
 %%%===================================================================
 
 -type options() :: map().
--record(state,{options = #{}          :: options(),
-               acc     = <<>>         :: binary() | iolist(),
-               acclen  = 0            :: non_neg_integer(),
-               queue   = queue:new()  :: queue:queue(binary()),
-               eof     = false        :: boolean()
+-record(state,{options  = #{}          :: options(),
+               acc      = <<>>         :: binary() | iolist(),
+               acclen   = 0            :: non_neg_integer(),
+               queue    = queue:new()  :: queue:queue(binary()),
+               queuelen = 0           :: non_neg_integer(),
+               eof      = false        :: boolean()
               }).
 
 -type state() :: #state{}.
 
 -define(crlf, <<$\r,$\n>>).
 -define(queue(State), State#state.queue).
+-define(queuelen(State), State#state.queuelen).
 
 %%%===================================================================
 %%% API
@@ -57,8 +59,12 @@ new_dgram(Binary) ->
 
 %% @doc Put raw binary to the buffer.
 -spec add(binary(), state()) -> state().
-add(Binary, #state{eof = false} = State) when is_binary(Binary) ->
-    State#state{queue=queue:in(Binary, ?queue(State))}.
+add(Binary, #state{eof = false, queuelen = Len} = State) when is_binary(Binary) ->
+    Q =    queue:in(Binary, ?queue(State)),
+    QLen = Len + byte_size(Binary),
+    State#state{queue    = Q,
+                queuelen = QLen
+               }.
 
 %% @doc Add eof to the buffer
 -spec set_eof(state()) -> state().
@@ -71,8 +77,8 @@ has_eof(#state{eof=EOF}) ->
     EOF.
 
 -spec length(state()) -> non_neg_integer().
-length(#state{acclen = 0, acc = <<>>, eof = true} = State) -> 
-    calc_length(?queue(State), 0).
+length(#state{acclen = 0, acc = <<>>, eof = true} = State) ->
+    ?queuelen(State).
 
 %% @doc Reads buffer until CRLF is found.  CRLF is not included in
 %% output and skipped on next read.
@@ -107,6 +113,7 @@ read_till(Pattern, Pos, State) when Pos < 0 ->
     read_till(Pattern, 0, State);
 read_till(Pattern, Pos, #state{acc = A} = State) ->
     Queue = ?queue(State),
+    QueueLen = ?queuelen(State),
     case binary:match(A, Pattern, [{scope, {Pos, byte_size(A) - Pos}}]) of
         nomatch ->
             case queue:is_empty(Queue) of
@@ -114,9 +121,15 @@ read_till(Pattern, Pos, #state{acc = A} = State) ->
                     {more_data, State};
                 false ->
                     {{value, Item}, Q} = queue:out(Queue),
+                    QLen = QueueLen - byte_size(Item),
                     Acc_ = <<A/binary, Item/binary>>,
                     Pos_ = byte_size(A) - byte_size(Pattern) + 1,
-                    read_till(Pattern, Pos_, State#state{queue = Q, acc = Acc_, acclen = byte_size(Acc_)})
+                    State_ = State#state{queue    = Q,
+                                         queuelen = QLen,
+                                         acc      = Acc_,
+                                         acclen   = byte_size(Acc_)
+                                        },
+                    read_till(Pattern, Pos_, State_)
             end;
         {Start, Len} ->
             RestPos = Start + Len,
@@ -128,7 +141,12 @@ read_till(Pattern, Pos, #state{acc = A} = State) ->
                     _ ->
                         queue:in_r(binary:part(A, RestPos, RestLen), Queue)
                 end,
-            {ok, binary:part(A, 0, Start), State#state{queue = Q, acc = <<>>, acclen = 0}}
+            QLen = QueueLen + RestLen,
+            State_ = State#state{queue    = Q,
+                                 queuelen = QLen,
+                                 acc      = <<>>,
+                                 acclen   = 0},
+            {ok, binary:part(A, 0, Start), State_}
     end.
 
 -spec read_more_to_acc(Len :: non_neg_integer(), state()) -> Result when
@@ -140,32 +158,33 @@ read_more_to_acc(0, #state{acc = Acc} = State) ->
     {ok, lists:reverse(Acc), State#state{acc = <<>>, acclen = 0}};
 read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
     Queue = ?queue(State),
+    QueueLen = ?queuelen(State),
     case queue:out(Queue) of
         {empty, Queue} ->
             {more_data, State};
         {{value, V}, Q} ->
-            case byte_size(V) of
+            Size = byte_size(V),
+            QLen = QueueLen - Size,
+            case Size of
                 Sz when Sz =< Len ->
                     TotalAcc = AccLen + Sz,
                     State1 = State#state{acc = [V | Acc],
                                          acclen = TotalAcc,
-                                         queue = Q},
+                                         queue = Q,
+                                         queuelen = QLen
+                                        },
                     read_more_to_acc(Len-Sz, State1);
                 Sz when Sz > Len ->
                     HPart = binary:part(V, 0, Len),
                     RPart = binary:part(V, Len, Sz-Len),
                     Q1    = queue:in_r(RPart, Q),
+                    Q1Len = QLen + byte_size(RPart),
                     State1 = State#state{acc = lists:reverse([HPart | Acc]),
                                          acclen = AccLen + Sz,
-                                         queue = Q1},
+                                         queue = Q1,
+                                         queuelen = Q1Len
+                                        },
                     read_more_to_acc(0, State1)
             end
     end.
 
-calc_length(Q, Acc) ->
-    case queue:out(Q) of
-        {empty, Q} ->
-            Acc;
-        {{value, V}, Q1} ->
-            calc_length(Q1, Acc + byte_size(V))
-    end.

@@ -21,6 +21,7 @@ hostname_parse_test() ->
     ?assertEqual({ok, {hostname, <<"example.com.">>}},       ersip_host:parse(<<"example.com.">>)),
     ?assertEqual({ok, {hostname, <<"exa-mple.com.">>}},      ersip_host:parse(<<"exa-mple.com.">>)),
     ?assertEqual({ok, {hostname, <<"x.com">>}},              ersip_host:parse(<<"x.com">>)),
+    ?assertEqual({ok, {hostname, <<"10.com">>}},             ersip_host:parse(<<"10.com">>)),
     ?assertEqual({error, einval},  ersip_host:parse(<<"127..">>)),
     ?assertEqual({error, einval},  ersip_host:parse(<<"[]">>)),
     ?assertEqual({error, einval},  ersip_host:parse(<<"[:1:]">>)),

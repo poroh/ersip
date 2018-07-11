@@ -53,7 +53,7 @@ contact_key(#binding{contact = Contact}) ->
 callid_cseq(#binding{callid = CallId, cseq = CSeq}) ->
     {CallId, CSeq}.
 
--spec update(NewExpiration :: pos_integer(), NewCSeq :: pos_integer(), NewCallId :: ersip_hdr_callid:callid(), binding()) -> binding().
+-spec update(NewExpiration :: pos_integer(), NewCallId :: ersip_hdr_callid:callid(), NewCSeq :: pos_integer(), binding()) -> binding().
 update(NewExpiration, NewCallId, NewCSeq, #binding{} = Binding) when is_integer(NewExpiration),
                                                                      is_integer(NewCSeq),
                                                                      NewExpiration > 0 ->

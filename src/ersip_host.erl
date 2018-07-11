@@ -56,8 +56,15 @@ is_host(_) ->
 parse(<<$[, _/binary>> = R) ->
     parse_ipv6_reference(R);
 parse(<<Char/utf8, _/binary>> = R) when ?is_DIGIT(Char) ->
-    parse_ipv4_address(R);
+    case parse_ipv4_address(R) of
+        {ok, _} = Host   -> Host;
+        {error, einval}  -> %% second try
+            assume_its_hostname(R)
+    end;
 parse(Bin) when is_binary(Bin) ->
+    assume_its_hostname(Bin).
+
+assume_its_hostname(Bin) ->
     case hostname_valid(Bin) of
         true ->
             {ok, {hostname, Bin}};

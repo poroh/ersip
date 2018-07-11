@@ -25,6 +25,9 @@
                   | {ipv6, inet:ip6_address()}.
 -type hostname() :: {hostname, binary()}.
 
+-type parse_result() :: {ok, host()}
+                      | {error, {invalid_host, binary()}}
+                      | {error, {invalid_ipv6, binary()}}.
 
 %%%===================================================================
 %%% API
@@ -52,25 +55,17 @@ is_host(_) ->
     false.
 
 %% @doc Generate host specification from binary.
--spec parse(binary()) -> {ok, host()} | {error, einval}.
+-spec parse(binary()) -> parse_result().
 parse(<<$[, _/binary>> = R) ->
     parse_ipv6_reference(R);
 parse(<<Char/utf8, _/binary>> = R) when ?is_DIGIT(Char) ->
     case parse_ipv4_address(R) of
-        {ok, _} = Host   -> Host;
-        {error, einval}  -> %% second try
+        {ok, _} = Result -> Result;
+        {error, {invalid_ipv4, _}}  -> %% second try
             assume_its_hostname(R)
     end;
 parse(Bin) when is_binary(Bin) ->
     assume_its_hostname(Bin).
-
-assume_its_hostname(Bin) ->
-    case hostname_valid(Bin) of
-        true ->
-            {ok, {hostname, Bin}};
-        false ->
-            {error, einval}
-    end.
 
 %% @doc make comparable hostname (from rfc3261 comparision rules).
 -spec make_key(host()) -> host().
@@ -122,13 +117,13 @@ make(Addr) when is_binary(Addr)  ->
 %% IPv6reference  =  "[" IPv6address "]"
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
-              | {error, einval}.
-parse_ipv6_reference(<<$[, R/binary>>) when R =/= <<>> ->
+              | {error, {invalid_host, binary()}}.
+parse_ipv6_reference(<<$[, R/binary>> = Bin) when R =/= <<>> ->
     case binary:at(R, byte_size(R)-1) of
         $] ->
             parse_ipv6_address(binary:part(R, 0, byte_size(R)-1));
         _ ->
-            {error, einval}
+            {error, {invalid_host, Bin}}
     end.
 
 %% @private
@@ -139,28 +134,28 @@ parse_ipv6_reference(<<$[, R/binary>>) when R =/= <<>> ->
 %% hexpart        =  hexseq / hexseq "::" [hexseq] / "::" [hexseq]
 %% hexseq         =  hex4 *( ":" hex4)
 %% hex4           =  1*4HEXDIG
--spec parse_ipv6_address(binary()) -> {ok, {ipv6, inet:ip6_address()}} | {error, einval}.
+-spec parse_ipv6_address(binary()) -> {ok, {ipv6, inet:ip6_address()}} | {error, {invalid_ipv6, binary()}}.
 parse_ipv6_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
     case inet:parse_address(L) of
         {ok, {_, _, _, _,   _, _, _, _} = Addr} ->
             {ok, {ipv6, Addr}};
         _ ->
-            {error, einval}
+            {error, {invalid_ipv6, Bin}}
     end.
 
 %% @private
 %% @doc Parse IPv4 address
 %%
 %% IPv4address    =  1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT
--spec parse_ipv4_address(binary()) -> {ok, host()} | {error, einval}.
+-spec parse_ipv4_address(binary()) -> {ok, host()} | {error, {invalid_ipv4, binary()}}.
 parse_ipv4_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
     case inet:parse_address(L) of
         {ok, {_, _, _, _} = Addr} ->
             {ok, {ipv4, Addr}};
         _ ->
-            {error, einval}
+            {error, {invalid_ipv4, Bin}}
     end.
 
 %% @private
@@ -231,4 +226,13 @@ assure_host(Host) ->
             Host;
         false ->
             error({error, {not_valid_host, Host}})
+    end.
+
+-spec assume_its_hostname(binary()) -> {ok, host()} | {error, {invalid_host, binary()}}.
+assume_its_hostname(Bin) ->
+    case hostname_valid(Bin) of
+        true ->
+            {ok, {hostname, Bin}};
+        false ->
+            {error, {invalid_host, Bin}}
     end.

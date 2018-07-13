@@ -216,7 +216,7 @@ parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
 add_header([H|Rest], #data{} = Data) ->
     case binary:split(H, <<":">>) of
         [HName, V] ->
-            Message_ = ersip_msg:add(string:trim(HName, both), [V | Rest], ?message(Data)),
+            Message_ = ersip_msg:add(ersip_bin:trim_lws(HName), [V | Rest], ?message(Data)),
             {ok, update(message, Message_, Data)};
         _ ->
             {error, {bad_header,H}}

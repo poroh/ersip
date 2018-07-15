@@ -41,7 +41,8 @@ host_assemble_test() ->
     check_reassemble(<<"[::1]">>),
     check_reassemble(<<"example.com">>),
     check_reassemble(<<"example.com.">>),
-    check_reassemble(<<"x.com">>).
+    check_reassemble(<<"x.com">>),
+    ok.
 
 hostname_is_host_test() ->
     ?assertEqual(true, ersip_host:is_host({ipv4, {1, 2, 3, 4}})),
@@ -66,6 +67,10 @@ host_make_test() ->
     ?assertError({error, _}, ersip_host:make({hostname, <<".">>})),
     ?assertError({error, _}, ersip_host:make(<<".">>)).
 
+make_key_test() ->
+    ?assertEqual(make_key(<<"example.com.">>),  make_key(<<"example.com">>)),
+    ?assertEqual(make_key(<<"examplE.com">>),   make_key(<<"example.com">>)),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -74,3 +79,6 @@ host_make_test() ->
 check_reassemble(Binary) ->
     {ok, Host} = ersip_host:parse(Binary),
     ?assertEqual(Binary, iolist_to_binary(ersip_host:assemble(Host))).
+
+make_key(Bin) ->
+    ersip_host:make_key(ersip_host:make(Bin)).

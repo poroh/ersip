@@ -156,10 +156,8 @@ via_compare_test() ->
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;SOMe=1">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
-
-    %% TODO we need fix for this:
-    %% via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
-    %%           <<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
 
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
                   <<"SIP/2.0/TCP bigbox3.site3.atlanta.com">>),

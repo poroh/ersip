@@ -83,6 +83,13 @@ build_test() ->
     {ok, AliceF2} = ersip_hdr_fromto:parse(AliceFH),
     ?assertEqual(AliceF, AliceF2).
 
+rfc4475_crazy_example_test() ->
+    CrazyExampleBin = <<"\"BEL:\<hex>07</hex> NUL:\<hex>00</hex> DEL:\<hex>7F</hex>\" <sip:1_unusual.URI~(to-be!sure)&isn't+it$/crazy?,/;;*@example.com>">>,
+    To = success_parse_fromto(CrazyExampleBin),
+    ?assertEqual({display_name,  <<"\"BEL:\<hex>07</hex> NUL:\<hex>00</hex> DEL:\<hex>7F</hex>\"">>}, ersip_hdr_fromto:display_name(To)),
+    reassemble_check(CrazyExampleBin),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

@@ -118,6 +118,12 @@ no_split_exceptions_test() ->
                               " response=\"245f23415f11432b3434341c022\"">>,
     check_no_comma_split(<<"Proxy-Authorization">>, ProxyAuthorizationVal).
 
+add_topmost_to_singleton_test() ->
+    H0 = ersip_hdr:new(<<"To">>),
+    ?assertError({api_error, _}, ersip_hdr:add_topmost([],H0)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

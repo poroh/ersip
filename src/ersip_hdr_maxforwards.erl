@@ -65,9 +65,7 @@ parse(Header) ->
         [] ->
             {error, no_maxforwards};
         [MaxForwardsIOList]  ->
-            parse_maxforwards(iolist_to_binary(MaxForwardsIOList));
-        _ ->
-            {error, multiple_maxforwards}
+            parse_maxforwards(iolist_to_binary(MaxForwardsIOList))
     end.
 
 -spec build(HdrName, maxforwards()) -> ersip_hdr:header() when

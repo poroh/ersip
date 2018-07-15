@@ -63,7 +63,11 @@ reassemble_test() ->
 build_test() ->
     ContentTypeH = create(<<"application/sdp">>),
     {ok, ContentType} = ersip_hdr_content_type:parse(ContentTypeH),
-    ?assertEqual(ContentTypeH, ersip_hdr_content_type:build(<<"Content-Type">>, ContentType)).
+    ContentTypeHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(ContentTypeH)],
+    BuiltContentTypeH = ersip_hdr_content_type:build(<<"Content-Type">>, ContentType),
+    BuiltContentTypeHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(BuiltContentTypeH)],
+    ?assertEqual(ContentTypeHValues, BuiltContentTypeHValues),
+    ok.
 
 
 %%%===================================================================

@@ -16,7 +16,7 @@
          parse_token/1,
          parse_lws/1,
          trim_lws/1,
-         make_sep_parser/1,
+         parse_slash/1,
          parse_sep/2,
          parse_non_neg_int/1,
          parse_kvps/3,
@@ -117,24 +117,27 @@ parse_lws(Bin) ->
             {ok, {lws, N}, Trimmed}
     end.
 
+%% SLASH   =  SWS "/" SWS ; slash
+-spec parse_slash(binary()) -> ersip_parser_aux:parse_result().
+parse_slash(Binary) ->
+    SEPParser = make_sep_parser($/),
+    Parsers = [fun trim_lws/1,
+               SEPParser,
+               fun trim_lws/1
+              ],
+    case ersip_parser_aux:parse_all(Binary, Parsers) of
+        {ok, [_, _, _], Rest} ->
+            {ok, slash, Rest};
+        {error, _} = Error ->
+            Error
+    end.
+
+
 -spec trim_lws(binary()) ->  {ok, {lws, pos_integer()}, Rest :: binary()}.
 trim_lws(Bin) ->
     Trimmed = ersip_bin:trim_head_lws(Bin),
     N = byte_size(Bin) - byte_size(Trimmed),
     {ok, {lws, N}, Trimmed}.
-
--spec make_sep_parser(Sep) -> parser_fun() when
-      Sep :: char().
-make_sep_parser(Sep) ->
-    fun(Bin) ->
-            parse_sep(Sep, Bin)
-    end.
-
--spec parse_sep(char(), binary()) -> parse_result(char()).
-parse_sep(Sep, <<Sep/utf8, R/binary>>) ->
-    {ok, Sep, R};
-parse_sep(Sep, Bin) ->
-    {error, {no_separator, Sep, Bin}}.
 
 -spec parse_non_neg_int(binary()) -> parse_result(non_neg_integer(), {invalid_integer, binary()}).
 parse_non_neg_int(Bin) ->
@@ -350,3 +353,16 @@ parse_kvps_make_validator_func(Validator) ->
                     throw(Error)
             end
     end.
+
+-spec make_sep_parser(Sep) -> parser_fun() when
+      Sep :: char().
+make_sep_parser(Sep) ->
+    fun(Bin) ->
+            parse_sep(Sep, Bin)
+    end.
+
+-spec parse_sep(char(), binary()) -> parse_result(char()).
+parse_sep(Sep, <<Sep/utf8, R/binary>>) ->
+    {ok, Sep, R};
+parse_sep(Sep, Bin) ->
+    {error, {no_separator, Sep, Bin}}.

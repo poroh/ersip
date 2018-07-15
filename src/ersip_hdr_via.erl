@@ -176,11 +176,10 @@ parse_via(ViaBinary) ->
 %%                      / other-transport
 -spec parse_sent_protocol(binary()) -> ersip_parser_aux:parse_result().
 parse_sent_protocol(Binary) ->
-    SEPParser = ersip_parser_aux:make_sep_parser($/),
     Parsers = [fun ersip_parser_aux:parse_token/1,
-               SEPParser,
+               fun ersip_parser_aux:parse_slash/1,
                fun ersip_parser_aux:parse_token/1,
-               SEPParser,
+               fun ersip_parser_aux:parse_slash/1,
                fun parse_transport/1
               ],
     case ersip_parser_aux:parse_all(Binary, Parsers) of
@@ -231,7 +230,7 @@ parse_sent_by_host_port([], port, Acc) ->
 parse_sent_by_host_port(<<>>, port, Acc) ->
     parse_sent_by_host_port(<<>>, result, Acc);
 parse_sent_by_host_port([Bin], port, Acc) when is_binary(Bin) ->
-    case ersip_transport:parse_port_number(Bin) of
+    case ersip_transport:parse_port_number(ersip_bin:trim_lws(Bin)) of
         {ok, PortNumber, <<>>} ->
             parse_sent_by_host_port(<<>>, result, Acc#{port => PortNumber});
         _ ->

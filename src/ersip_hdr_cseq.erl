@@ -78,9 +78,7 @@ parse(Header) ->
         [] ->
             {error, no_cseq};
         [CSeqIOList]  ->
-            parse_cseq(iolist_to_binary(CSeqIOList));
-        _ ->
-            {error, multiple_cseqs}
+            parse_cseq(iolist_to_binary(CSeqIOList))
     end.
 
 -spec build(HeaderName :: binary(), cseq()) -> ersip_hdr:header().

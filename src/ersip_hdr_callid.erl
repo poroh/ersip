@@ -58,9 +58,7 @@ parse(Header) ->
         [] ->
             {error, no_callid};
         [CallIdIOList]  ->
-            parse_callid(iolist_to_binary(CallIdIOList));
-        _ ->
-            {error, multiple_callids}
+            parse_callid(iolist_to_binary(CallIdIOList))
     end.
 
 -spec build(HeaderName :: binary(), callid()) -> ersip_hdr:header().

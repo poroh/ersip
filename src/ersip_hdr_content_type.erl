@@ -95,16 +95,26 @@ assemble(#content_type{} = ContentType) ->
 %%% Internal implementation
 %%%===================================================================
 
-%% media-type     = type "/" subtype *( ";" parameter )
-%% type           = token
-%% subtype        = token
+%% media-type     =  m-type SLASH m-subtype *(SEMI m-parameter)
+%% m-type           =  discrete-type / composite-type
+%% discrete-type    =  "text" / "image" / "audio" / "video"
+%%                     / "application" / extension-token
+%% composite-type   =  "message" / "multipart" / extension-token
+%% extension-token  =  ietf-token / x-token
+%% ietf-token       =  token
+%% x-token          =  "x-" token
+%% m-subtype        =  extension-token / iana-token
+%% iana-token       =  token
+%% m-parameter      =  m-attribute EQUAL m-value
+%% m-attribute      =  token
+%% m-value          =  token / quoted-string
 -spec parse_content_type(binary()) -> Result when
       Result :: {ok, content_type()}
               | {error, Error},
       Error  :: {invalid_content_type, binary()}.
 parse_content_type(Binary) ->
     Parsers = [fun ersip_parser_aux:parse_token/1,
-               ersip_parser_aux:make_sep_parser($/),
+               fun ersip_parser_aux:parse_slash/1,
                fun ersip_parser_aux:parse_token/1,
                fun ersip_parser_aux:trim_lws/1,
                fun parse_params/1

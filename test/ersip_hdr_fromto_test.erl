@@ -35,7 +35,13 @@ parse_test() ->
     To3 = success_parse_fromto(<<URIBin/binary, ";tag=1928301774">>),
     ?assertEqual({display_name,  []}, ersip_hdr_fromto:display_name(To3)),
     ?assertEqual({tag, <<"1928301774">>}, ersip_hdr_fromto:tag(To3)),
-    ?assertEqual(URI, ersip_hdr_fromto:uri(To3)).
+    ?assertEqual(URI, ersip_hdr_fromto:uri(To3)),
+
+    To4 = success_parse_fromto(<<URIBin/binary, " ; tag=100">>),
+    ?assertEqual({display_name,  []}, ersip_hdr_fromto:display_name(To4)),
+    ?assertEqual({tag, <<"100">>}, ersip_hdr_fromto:tag(To4)),
+    ?assertEqual(URI, ersip_hdr_fromto:uri(To4)),
+    ok.
 
 parse_fail_test() ->
     ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"a@b">>))),
@@ -82,6 +88,13 @@ build_test() ->
     AliceFH = ersip_hdr_fromto:build(<<"From">>, AliceF),
     {ok, AliceF2} = ersip_hdr_fromto:parse(AliceFH),
     ?assertEqual(AliceF, AliceF2).
+
+rfc4475_crazy_example_test() ->
+    CrazyExampleBin = <<"\"BEL:\<hex>07</hex> NUL:\<hex>00</hex> DEL:\<hex>7F</hex>\" <sip:1_unusual.URI~(to-be!sure)&isn't+it$/crazy?,/;;*@example.com>">>,
+    To = success_parse_fromto(CrazyExampleBin),
+    ?assertEqual({display_name,  <<"\"BEL:\<hex>07</hex> NUL:\<hex>00</hex> DEL:\<hex>7F</hex>\"">>}, ersip_hdr_fromto:display_name(To)),
+    reassemble_check(CrazyExampleBin),
+    ok.
 
 %%%===================================================================
 %%% Helpers

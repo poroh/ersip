@@ -36,8 +36,12 @@ reassemble_test() ->
 
 build_test() ->
     CSeqH = create(<<"314159 INVITE">>),
+    CSeqHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(CSeqH)],
     {ok, CSeq} = ersip_hdr_cseq:parse(CSeqH),
-    ?assertEqual(CSeqH, ersip_hdr_cseq:build(<<"CSeq">>,  CSeq)).
+    BuiltCSeqH = ersip_hdr_cseq:build(<<"CSeq">>,  CSeq),
+    BuiltCSeqHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(BuiltCSeqH)],
+    ?assertEqual(CSeqHValues, BuiltCSeqHValues),
+    ok.
 
 %%%===================================================================
 %%% Helpers

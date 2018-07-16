@@ -73,6 +73,24 @@ set_hdr_test() ->
     MaxForwards = ersip_sipmsg:get(maxforwards, SipMsg2),
     ?assertEqual(20, ersip_hdr_maxforwards:value(MaxForwards)).
 
+spaces_before_colon_hdr_test() ->
+    MsgBin
+        = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via  : SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards  : 70"
+            ?crlf "From  : sip:bob@biloxi.com"
+            ?crlf "To  : sip:bob@biloxi.com"
+            ?crlf "Call-ID  : 1234",
+            ?crlf "CSeq  : 314159 INVITE"
+            ?crlf "Contact  : <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type  : application/sdp"
+            ?crlf "Content-Length  : 4"
+            ?crlf ?crlf "Test"
+          >>,
+    SipMsg = parse_sip_message(MsgBin),
+    ToHeader = ersip_sipmsg:get(to, SipMsg),
+    ?assertEqual(ersip_hdr_fromto:make(<<"sip:bob@biloxi.com">>), ToHeader).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

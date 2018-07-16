@@ -22,8 +22,7 @@
 -type expires() :: {expires, non_neg_integer()}.
 -type parse_result(ErrorType) :: {ok, expires()}
                                | {error, {invalid_expires, ErrorType}}.
--type parse_errors() :: multiple_fields
-                      | empty_field
+-type parse_errors() :: empty_field
                       | binary().
 
 %%%===================================================================
@@ -45,9 +44,7 @@ parse(Header) ->
         [] ->
             {error, {invalid_expires, empty_field}};
         [ExpiresIOList]  ->
-            parse_expires(iolist_to_binary(ExpiresIOList));
-        _ ->
-            {error, {invalid_expires, multiple_fields}}
+            parse_expires(iolist_to_binary(ExpiresIOList))
     end.
 
 -spec build(HdrName, expires()) -> ersip_hdr:header() when

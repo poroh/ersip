@@ -28,6 +28,7 @@
 
 -record(header, {name        :: binary(),
                  key         :: header_key(),
+                 multiple_values :: boolean(),
                  values = [] :: [value()]
                 }).
 -type value() :: iolist() | binary().
@@ -50,8 +51,10 @@ make_key(HeaderName) ->
 %% @doc Create new headers.
 -spec new(Name :: binary()) -> header().
 new(Name) when is_binary(Name) ->
+    Key = make_key(Name),
     #header{name = Name,
-            key  = make_key(Name)
+            key  = make_key(Name),
+            multiple_values = may_have_multiple_values(Key)
            }.
 
 -spec is_empty(header()) -> boolean().
@@ -62,7 +65,11 @@ is_empty(#header{}) ->
 
 %% @doc Append value to list of values.
 -spec add_value(value(), header()) -> header().
-add_value(Value, #header{values = V, key = Key} = Hdr) ->
+add_value([Value], #header{values = V, multiple_values = false} = Hdr) when is_binary(Value) ->
+    Hdr#header{values = V ++ [ersip_bin:trim_lws(Value)]};
+add_value(Value, #header{values = V, multiple_values = false} = Hdr) ->
+    Hdr#header{values = V ++ [ersip_iolist:trim_lws(Value)]};
+add_value(Value, #header{values = V, key = Key, multiple_values = true} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = V ++ Values}.
 
@@ -79,6 +86,8 @@ raw_values(#header{values = Vs}) ->
     Vs.
 
 -spec add_topmost(value(), header()) -> header().
+add_topmost(_Value, #header{multiple_values = false} = Hdr) ->
+    error({api_error, {<<"cannot use add_topmost for singleton value">>, Hdr}});
 add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = Values ++ V}.
@@ -193,3 +202,51 @@ use_comma({hdr_key, <<"m">>}) -> %% Contact
     false;
 use_comma(_) ->
     true.
+
+-spec may_have_multiple_values(header_key()) -> boolean().
+may_have_multiple_values({hdr_key, <<"f">>}) -> %% From
+    false;
+may_have_multiple_values({hdr_key, <<"t">>}) -> %% To
+    false;
+may_have_multiple_values({hdr_key, <<"i">>}) -> %% Call-Id
+    false;
+may_have_multiple_values({hdr_key, <<"max-forwards">>}) ->
+    false;
+may_have_multiple_values({hdr_key, <<"expires">>}) ->
+    false;
+may_have_multiple_values({hdr_key, <<"cseq">>}) ->
+    false;
+may_have_multiple_values({hdr_key, <<"v">>}) -> %% Via
+    true;
+may_have_multiple_values({hdr_key, <<"m">>}) -> %% Contact
+    true;
+may_have_multiple_values({hdr_key, <<"k">>}) -> %% Supported
+    true;
+may_have_multiple_values({hdr_key, <<"unsupported">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"allow">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"route">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"record-route">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"require">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"proxy-require">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"accept">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"accept-encoding">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"accept-language">>}) ->
+    true;
+may_have_multiple_values({hdr_key, <<"www-authenticate">>}) ->
+    true; %% WWW-Authenticate may have multiple values but they cannot be comma seprated.
+may_have_multiple_values({hdr_key, <<"authorization">>}) ->
+    true; %% Authorization may have multiple values but they cannot be comma seprated...
+may_have_multiple_values({hdr_key, <<"proxy-authenticate">>}) ->
+    true; %% Proxy-Authenticate may have multiple values but they cannot be comma seprated.
+may_have_multiple_values({hdr_key, <<"proxy-authorization">>}) ->
+    true; %% Proxy-Authorization may have multiple values but they cannot be comma seprated.
+may_have_multiple_values(_) ->
+    false.

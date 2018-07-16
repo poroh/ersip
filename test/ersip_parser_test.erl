@@ -83,6 +83,68 @@ truncated_message_test() ->
     P  = ersip_parser:new_dgram(Msg),
     {{error, {bad_message, _}}, _P2} = ersip_parser:parse(P).
 
+message_too_long_on_success_parse_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "test"
+          >>,
+    P  = ersip_parser:new(#{max_message_len => byte_size(Msg)-1}),
+    P1 = ersip_parser:add_binary(Msg, P),
+    ?assertMatch({{error, message_too_long}, _P2}, ersip_parser:parse(P1)),
+    ok.
+
+message_not_too_long_on_success_parse_test() ->
+    %% Same as message_too_long_on_success_parse_test but when
+    %% max_message_len is exactly match message length
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "test"
+          >>,
+    P  = ersip_parser:new(#{max_message_len => byte_size(Msg)}),
+    P1 = ersip_parser:add_binary(Msg, P),
+    ?assertMatch({{ok, _Message}, _P2}, ersip_parser:parse(P1)),
+    ok.
+
+message_too_long_on_header_parse_test() ->
+    Msg0 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+             ?crlf "Max-Forwards: 70"
+             ?crlf "To: Bob <sip:bob@biloxi.com>"
+             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+             ?crlf "CSeq: 314159 INVITE"
+             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+             ?crlf "Content-Type: application/sdp"
+             ?crlf "Content-Length: 4">>,
+    P  = ersip_parser:new(#{max_message_len => byte_size(Msg0)-1}),
+    P1 = ersip_parser:add_binary(Msg0, P),
+    ?assertMatch({{error, message_too_long}, _P2}, ersip_parser:parse(P1)),
+    ok.
+
+message_too_long_on_first_line_parse_test() ->
+    Msg0 = <<"INVITE sip:bob@biloxi.com SIP/2.0">>,
+    P  = ersip_parser:new(#{max_message_len => byte_size(Msg0)-1}),
+    P1 = ersip_parser:add_binary(Msg0, P),
+    ?assertMatch({{error, message_too_long}, _P2}, ersip_parser:parse(P1)),
+    ok.
+
+
 invalid_method_test() ->
     Msg = <<"INV@TE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -169,7 +231,7 @@ double_content_len_stream_test() ->
 
 
 incremental_data_test() ->
-    Msgs = [<<"INVITE sip:bob@biloxi.com">>, 
+    Msgs = [<<"INVITE sip:bob@biloxi.com">>,
             <<" SIP/2.0" ?crlf>>,
             <<"Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
               ?crlf "Max-Forwards: 70"
@@ -183,7 +245,7 @@ incremental_data_test() ->
               ?crlf "Content-Length: 1">>,
             <<"0" ?crlf ?crlf "01234">>],
     P0 = ersip_parser:new(),
-    P1 = 
+    P1 =
         lists:foldl(fun(Msg, P) ->
                             P1 = ersip_parser:add_binary(Msg, P),
                             {more_data, P2} = ersip_parser:parse(P1),
@@ -218,4 +280,3 @@ parse_fail_reason(Message) ->
     P1 = ersip_parser:add_binary(Message, P0),
     {Reason, _} = ersip_parser:parse(P1),
     Reason.
-

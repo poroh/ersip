@@ -31,6 +31,13 @@ parse_test() ->
     ?assertEqual([{<<"charset">>, <<"\"ISO-8859-4\"">>}],
                  ersip_hdr_content_type:params(ContentType3)),
 
+    %% with spaces near SLASH
+    ContentType3 = success_parse_content_type(<<"text / html; charset=\"ISO-8859-4\"">>),
+    ?assertEqual({mime, <<"text">>, <<"html">>},
+                 ersip_hdr_content_type:mime_type(ContentType3)),
+    ?assertEqual([{<<"charset">>, <<"\"ISO-8859-4\"">>}],
+                 ersip_hdr_content_type:params(ContentType3)),
+
     EmptyH = ersip_hdr:new(<<"Content-Type">>),
     ?assertMatch({error, _}, ersip_hdr_content_type:parse(EmptyH)),
 
@@ -56,7 +63,11 @@ reassemble_test() ->
 build_test() ->
     ContentTypeH = create(<<"application/sdp">>),
     {ok, ContentType} = ersip_hdr_content_type:parse(ContentTypeH),
-    ?assertEqual(ContentTypeH, ersip_hdr_content_type:build(<<"Content-Type">>, ContentType)).
+    ContentTypeHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(ContentTypeH)],
+    BuiltContentTypeH = ersip_hdr_content_type:build(<<"Content-Type">>, ContentType),
+    BuiltContentTypeHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(BuiltContentTypeH)],
+    ?assertEqual(ContentTypeHValues, BuiltContentTypeHValues),
+    ok.
 
 
 %%%===================================================================

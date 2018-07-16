@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -54,11 +54,33 @@ read_test() ->
     {ok, [<<"345">>], Buf9}  = ersip_buf:read(3, Buf8),
     {ok, [<<"6789">>], _}    = ersip_buf:read(4, Buf9).
 
+stream_postion_test() ->
+    Buf = ersip_buf:new(#{}),
+    ?assertEqual(0, ersip_buf:stream_postion(Buf)),
+    Buf1 = ersip_buf:add(<<"ab", $\r>>, Buf),
+    ?assertEqual(0, ersip_buf:stream_postion(Buf1)),
+    {ok, [<<"a">>], Buf2} = ersip_buf:read(1, Buf1),
+    ?assertEqual(1, ersip_buf:stream_postion(Buf2)),
+    Buf3 = ersip_buf:add(<<$\n, "ef", $\r, $\n>>, Buf2),
+    ?assertEqual(1, ersip_buf:stream_postion(Buf3)),
+    {ok, <<"b">>, Buf4} = ersip_buf:read_till_crlf(Buf3),
+    ?assertEqual(4, ersip_buf:stream_postion(Buf4)),
+    {ok, <<"ef">>, Buf5}  = ersip_buf:read_till_crlf(Buf4),
+    ?assertEqual(8, ersip_buf:stream_postion(Buf5)),
+    ok.
 
 
-
-
-
-
-
-
+length_test() ->
+    Buf = ersip_buf:new(#{}),
+    ?assertEqual(0, ersip_buf:length(Buf)),
+    Buf1 = ersip_buf:add(<<"ab", $\r>>, Buf),
+    ?assertEqual(3, ersip_buf:length(Buf1)),
+    {ok, [<<"a">>], Buf2} = ersip_buf:read(1, Buf1),
+    ?assertEqual(2, ersip_buf:length(Buf2)),
+    Buf3 = ersip_buf:add(<<$\n, "ef", $\r, $\n>>, Buf2),
+    ?assertEqual(7, ersip_buf:length(Buf3)),
+    {ok, <<"b">>, Buf4} = ersip_buf:read_till_crlf(Buf3),
+    ?assertEqual(4, ersip_buf:length(Buf4)),
+    {ok, <<"ef">>, Buf5}  = ersip_buf:read_till_crlf(Buf4),
+    ?assertEqual(0, ersip_buf:length(Buf5)),
+    ok.

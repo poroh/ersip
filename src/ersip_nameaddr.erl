@@ -55,7 +55,7 @@ parse(NameAddrBin) ->
             case binary:match(R, <<";">>) of
                 {Pos, 1} ->
                     Addr = binary:part(R, 0, Pos),
-                    case ersip_uri:parse(Addr) of
+                    case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of
                         {ok, URI} ->
                             RestLen = byte_size(R) - byte_size(Addr),
                             {ok, {DN, URI}, binary:part(R, Pos, RestLen)};

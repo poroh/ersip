@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -27,15 +27,15 @@
                state = first_line        :: state(),
                message = ersip_msg:new() :: ersip:message(),
                acc   = []                :: list(binary()),
-               content_len  = undefined  :: pos_integer() | undefined
+               content_len  = undefined  :: pos_integer() | undefined,
+               %% Stream postion (ersip_buf:stream_postion/1) of the
+               %% beginning of the message.
+               start_pos = 0             :: non_neg_integer()
               }).
 -type state()   :: first_line | headers | body.
 -type data()    :: #data{}.
 -type options() :: #{buffer => ersip_buf:options(),
-                     max_first_line_len => unlimited | pos_integer(),
-                     max_header_num     => unlimited | pos_integer(),
-                     max_header_len     => unlimited | pos_integer(),
-                     max_body_len       => unlimited | pos_integer()
+                     max_message_len => unlimited | pos_integer()
                     }.
 -type result()  :: more_data
                  | {error, term()}
@@ -51,13 +51,13 @@ new() ->
 
 -spec new(options()) -> data().
 new(Options) ->
-    #data{options = Options,
+    #data{options = maps:merge(default_options(), Options),
           buf     = ersip_buf:new(maps:get(buffer, Options, #{}))
          }.
 
 -spec new_dgram(binary()) -> data().
 new_dgram(DatagramBinary) when is_binary(DatagramBinary) ->
-    #data{buf = ersip_buf:new_dgram(DatagramBinary)}.
+    #data{buf = ersip_buf:new_dgram(DatagramBinary), options = #{max_message_len => unlimited}}.
 
 
 -spec add_binary(binary(), data()) -> data().
@@ -77,6 +77,11 @@ parse(#data{state = body} = Data) ->
 %%%===================================================================
 
 -define(message(Data), Data#data.message).
+
+default_options() ->
+    #{buffer => #{},
+      max_message_len => 8192
+     }.
 
 -spec update(list({Item, Value}), data()) -> data() when
       Item :: buf
@@ -101,7 +106,8 @@ update(buf,         Buffer,  #data{} = Data) -> Data#data{buf         = Buffer};
 update(acc,         Acc,     #data{} = Data) -> Data#data{acc         = Acc};
 update(state,       State,   #data{} = Data) -> Data#data{state       = State};
 update(content_len, Len,     #data{} = Data) -> Data#data{content_len = Len};
-update(message,     Message, #data{} = Data) -> Data#data{message     = Message}.
+update(message,     Message, #data{} = Data) -> Data#data{message     = Message};
+update(start_pos,   Pos,     #data{} = Data) -> Data#data{start_pos   = Pos}.
 
 -spec parse_first_line(data()) -> {result(), data()}.
 parse_first_line(#data{buf = Buf} = Data) ->
@@ -111,7 +117,7 @@ parse_first_line(#data{buf = Buf} = Data) ->
             parse_first_line(Line, Data_);
         {more_data, Buf_} ->
             Data_ = update(buf, Buf_, Data),
-            {more_data, Data_}
+            more_data_required(Data_)
     end.
 
 -spec parse_first_line(binary(), data()) -> {result(), data()}.
@@ -169,7 +175,8 @@ parse_request_line(ReqLine, Data) ->
 parse_headers(#data{acc = [], buf = Buf} = Data) ->
     case ersip_buf:read_till_crlf(Buf) of
         {more_data, Buf_} ->
-            {more_data, update(buf, Buf_, Data)};
+            Data_ = update(buf, Buf_, Data),
+            more_data_required(Data_);
         {ok, <<>>, Buf_} ->
             make_error({bad_message, no_headers}, update(buf, Buf_, Data));
         {ok, Line, Buf_} ->
@@ -181,9 +188,10 @@ parse_headers(#data{acc = [], buf = Buf} = Data) ->
 parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
     case ersip_buf:read_till_crlf(Buf) of
         {more_data, Buf_} ->
-            {more_data, update(buf, Buf_, Data)};
-        {ok, <<FirstChar, _/binary>> = Cont, Buf_} when FirstChar =:= $  % LWS
-                                                        orelse FirstChar =:= $\t ->
+            Data_ = update(buf, Buf_, Data),
+            more_data_required(Data_);
+        {ok, <<FirstChar, _/binary>> = Cont, Buf_} when FirstChar == $  % LWS
+                                                        orelse FirstChar == $\t ->
             Data_ = update([{buf, Buf_},
                             {acc, [Cont | Acc]}
                            ], Data),
@@ -216,7 +224,7 @@ parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
 add_header([H|Rest], #data{} = Data) ->
     case binary:split(H, <<":">>) of
         [HName, V] ->
-            Message_ = ersip_msg:add(HName, [V | Rest], ?message(Data)),
+            Message_ = ersip_msg:add(ersip_bin:trim_lws(HName), [V | Rest], ?message(Data)),
             {ok, update(message, Message_, Data)};
         _ ->
             {error, {bad_header,H}}
@@ -240,25 +248,53 @@ parse_body(#data{buf = Buf, message = Msg, content_len = undefined} = Data ) ->
                     make_error({bad_message, {invalid_content_length, ersip_hdr:raw_values(Hdr)}}, Data)
             end
     end;
-parse_body(#data{buf = Buf, content_len = Len} = Data) ->
+parse_body(#data{buf = Buf, content_len = Len, start_pos = StartPos} = Data) ->
     case ersip_buf:read(Len, Buf) of
         {more_data, Buf_} ->
             case ersip_buf:has_eof(Buf) of
                 true ->
                     make_error({bad_message, <<"Truncated message">>}, Data);
                 false ->
-                    {more_data, update(buf, Buf_, Data)}
+                    Data_ = update(buf, Buf_, Data),
+                    more_data_required(Data_)
             end;
         {ok, Body, Buf_} ->
+            StreamPos = ersip_buf:stream_postion(Buf_),
             Message = ersip_msg:set(body, Body, ?message(Data)),
+            MessageLen = StreamPos - StartPos,
             Data_ = update([{message, ersip_msg:new()},
                             {content_len, undefined  },
                             {state, first_line},
-                            {buf, Buf_}
+                            {buf, Buf_},
+                            {start_pos, StreamPos}
                            ], Data),
-            {{ok, Message}, Data_}
+            message_parsed(Message, MessageLen, Data_)
     end.
 
 -spec make_error(term(), data()) -> {{error, term()}, data()}.
 make_error(Error, #data{} = Data) ->
     {{error, Error}, Data}.
+
+
+-spec more_data_required(data()) ->  {more_data, data()} | {{error, message_too_long}, data()}.
+more_data_required(#data{options = #{max_message_len := unlimited}} = Data) ->
+    {more_data, Data};
+more_data_required(#data{options = #{max_message_len := MaxLen}, start_pos = Start, buf = Buf} = Data) ->
+    BufPos = ersip_buf:stream_postion(Buf),
+    AlreadyRead = BufPos - Start,
+    Accumulated = ersip_buf:length(Buf),
+    case AlreadyRead + Accumulated of
+        X when X > MaxLen ->
+            make_error(message_too_long, Data);
+        _ ->
+            {more_data, Data}
+    end.
+
+-spec message_parsed(ersip:message(), MsgLen :: non_neg_integer(), data()) -> {ok, ersip:message()} | {{error, message_too_long}, data()}.
+message_parsed(Message, _MessageLen, #data{options = #{max_message_len := unlimited}} = Data) ->
+    {{ok, Message}, Data};
+message_parsed(_Message, MessageLen, #data{options = #{max_message_len := MaxLen}} = Data) when MessageLen > MaxLen ->
+    make_error(message_too_long, Data);
+message_parsed(Message, _MessageLen, #data{} = Data) ->
+    {{ok, Message}, Data}.
+

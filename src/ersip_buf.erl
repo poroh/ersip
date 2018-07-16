@@ -12,6 +12,7 @@
          new_dgram/1,
          add/2,
          length/1,
+         stream_postion/1,
          set_eof/1,
          has_eof/1,
          read_till_crlf/1,
@@ -30,8 +31,10 @@
                acc      = <<>>         :: binary() | iolist(),
                acclen   = 0            :: non_neg_integer(),
                queue    = queue:new()  :: queue:queue(binary()),
-               queuelen = 0           :: non_neg_integer(),
-               eof      = false        :: boolean()
+               queuelen = 0            :: non_neg_integer(),
+               eof      = false        :: boolean(),
+               %% Current position in the buffer (beginning of acc).
+               pos      = 0            :: non_neg_integer()
               }).
 
 -type state() :: #state{}.
@@ -76,9 +79,16 @@ set_eof(State) ->
 has_eof(#state{eof=EOF}) ->
     EOF.
 
+%% @doc number of bytes accumulated inside the buffer.
 -spec length(state()) -> non_neg_integer().
-length(#state{acclen = 0, acc = <<>>, eof = true} = State) ->
-    ?queuelen(State).
+length(#state{acclen = AccLen, queuelen = QLen}) ->
+    QLen + AccLen.
+
+%% @doc Current position in the stream (number of stream bytes read
+%% out from this buffer).
+-spec stream_postion(state()) -> non_neg_integer().
+stream_postion(#state{pos = Pos}) ->
+    Pos.
 
 %% @doc Reads buffer until CRLF is found.  CRLF is not included in
 %% output and skipped on next read.
@@ -142,10 +152,13 @@ read_till(Pattern, Pos, #state{acc = A} = State) ->
                         queue:in_r(binary:part(A, RestPos, RestLen), Queue)
                 end,
             QLen = QueueLen + RestLen,
+            NewBufPos = State#state.pos + RestPos,
             State_ = State#state{queue    = Q,
                                  queuelen = QLen,
                                  acc      = <<>>,
-                                 acclen   = 0},
+                                 acclen   = 0,
+                                 pos      = NewBufPos
+                                },
             {ok, binary:part(A, 0, Start), State_}
     end.
 
@@ -154,8 +167,12 @@ read_till(Pattern, Pos, #state{acc = A} = State) ->
               | {more_data, state()}.
 read_more_to_acc(Len, #state{acc = <<>>} = State) ->
     read_more_to_acc(Len, State#state{acc = []});
-read_more_to_acc(0, #state{acc = Acc} = State) ->
-    {ok, lists:reverse(Acc), State#state{acc = <<>>, acclen = 0}};
+read_more_to_acc(0, #state{acc = Acc, acclen = AccLen, pos = Pos} = State) ->
+    State_ = State#state{acc = <<>>,
+                         acclen = 0,
+                         pos = Pos + AccLen
+                        },
+    {ok, lists:reverse(Acc), State_};
 read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
     Queue = ?queue(State),
     QueueLen = ?queuelen(State),
@@ -180,7 +197,7 @@ read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
                     Q1    = queue:in_r(RPart, Q),
                     Q1Len = QLen + byte_size(RPart),
                     State1 = State#state{acc = lists:reverse([HPart | Acc]),
-                                         acclen = AccLen + Sz,
+                                         acclen = AccLen + Len,
                                          queue = Q1,
                                          queuelen = Q1Len
                                         },

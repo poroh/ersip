@@ -14,6 +14,8 @@
 %%% Cases
 %%%===================================================================
 
+-define(crlf, "\r\n").
+
 topmost_via_test() ->
     HVia@0 = ersip_hdr:new(<<"Via">>),
     HVia@1 = ersip_hdr:add_values(
@@ -83,6 +85,30 @@ topmost_via_via_gen_params_test() ->
          <<"my_param">> := <<"abc">>},
        ersip_hdr_via:params(Via)).
 
+topmost_via_with_spaces_test()->
+    HVia@0 = ersip_hdr:new(<<"Via">>),
+    HVia@1 = ersip_hdr:add_values(
+               [<<"SIP / 2.0 / UDP first.example.com: 4000;ttl=16 ;maddr=224.2.0.1 ;branch=z9hG4bKa7c6a8dlze.1">>],
+               HVia@0),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+
+    {sent_protocol, Protocol, Version, Transport} = ersip_hdr_via:sent_protocol(Via),
+    ?assertEqual(<<"SIP">>, Protocol),
+    ?assertEqual(<<"2.0">>, Version),
+    ?assertEqual(ersip_transport:make(udp), Transport),
+
+    MaddrHost = ersip_host:make(<<"224.2.0.1">>),
+    ?assertMatch(
+       #{branch  := {branch, <<"z9hG4bKa7c6a8dlze.1">>},
+         ttl     := 16,
+         maddr   := MaddrHost},
+       ersip_hdr_via:params(Via)),
+    {sent_by, Host, Port} = ersip_hdr_via:sent_by(Via),
+    ?assertEqual({hostname, <<"first.example.com">>}, Host),
+    ?assertEqual(4000, Port),
+    ok.
+
+
 topmost_via_negative_test() ->
     HEmptyVia = ersip_hdr:new(<<"Via">>),
     ?assertMatch({error, _}, ersip_hdr_via:topmost_via(HEmptyVia)),
@@ -130,10 +156,8 @@ via_compare_test() ->
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;SOMe=1">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
-
-    %% TODO we need fix for this:
-    %% via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
-    %%           <<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
 
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
                   <<"SIP/2.0/TCP bigbox3.site3.atlanta.com">>),

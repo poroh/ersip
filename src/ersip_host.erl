@@ -70,7 +70,17 @@ parse(Bin) when is_binary(Bin) ->
 %% @doc make comparable hostname (from rfc3261 comparision rules).
 -spec make_key(host()) -> host().
 make_key({hostname, Bin}) ->
-    {hostname, ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Bin))};
+    UnquotedLowerHostName = ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Bin)),
+    Len = byte_size(UnquotedLowerHostName),
+    LastChar = binary:at(UnquotedLowerHostName, Len-1),
+    NoTopDomain =
+        case LastChar of
+            $. ->
+                binary:part(Bin, {0, Len-1});
+            _ ->
+                UnquotedLowerHostName
+        end,
+    {hostname, NoTopDomain};
 make_key({ipv4, _} = H) ->
     H;
 make_key({ipv6, _} = H) ->

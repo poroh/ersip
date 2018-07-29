@@ -53,7 +53,10 @@ parse_fail_test() ->
     NValues1 = ersip_hdr:add_values([<<"Alice <sip:a@b>">>,
                                      <<"Bob <sip:b@a>">>],
                                     NValues),
-    ?assertMatch({error, _}, ersip_hdr_fromto:parse(NValues1)).
+    ?assertMatch({error, _}, ersip_hdr_fromto:parse(NValues1)),
+    ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"Bond, James <sip:bond@mi6.uk>">>))),
+    ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"sip:example.net;?">>))),
+    ok.
 
 make_test() ->
     URIBin = <<"sip:alice@atlanta.com">>,
@@ -75,6 +78,11 @@ assemble_test() ->
     reassemble_check(<<"Alice <sip:alice@atlanta.com>;tag=88sja8x">>),
     reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s">>),
     reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s;myparam=Value">>),
+    ok.
+
+reassemble_without_quotes_test() ->
+    reassemble_check(<<"sip:example.net;a">>, <<"<sip:example.net>;a">>),
+    reassemble_check(<<"sip:example.net;tag=88sja8x">>, <<"<sip:example.net>;tag=88sja8x">>),
     ok.
 
 set_tag_test() ->
@@ -112,10 +120,13 @@ tag_key(Bin) ->
     ersip_hdr_fromto:tag_key(ersip_hdr_fromto:make(Bin)).
 
 reassemble_check(Bin) ->
+    reassemble_check(Bin, Bin).
+
+reassemble_check(Bin, ExpectedResultBin) ->
     {ok, FromTo} = ersip_hdr_fromto:parse(create(Bin)),
     BinAssembled = iolist_to_binary(ersip_hdr_fromto:assemble(FromTo)),
     {ok, _} = ersip_hdr_fromto:parse(create(BinAssembled)),
-    ?assertEqual(Bin, BinAssembled).
+    ?assertEqual(ExpectedResultBin, BinAssembled).
 
 assemble(FromTo) ->
     iolist_to_binary(ersip_hdr_fromto:assemble(FromTo)).

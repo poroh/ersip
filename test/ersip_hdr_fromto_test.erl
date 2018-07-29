@@ -53,7 +53,9 @@ parse_fail_test() ->
     NValues1 = ersip_hdr:add_values([<<"Alice <sip:a@b>">>,
                                      <<"Bob <sip:b@a>">>],
                                     NValues),
-    ?assertMatch({error, _}, ersip_hdr_fromto:parse(NValues1)).
+    ?assertMatch({error, _}, ersip_hdr_fromto:parse(NValues1)),
+    ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"Bond, James <sip:bond@mi6.uk>">>))),
+    ok.
 
 make_test() ->
     URIBin = <<"sip:alice@atlanta.com">>,

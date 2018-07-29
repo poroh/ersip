@@ -167,6 +167,13 @@ fromto_params_validator(<<"tag">>, Value) ->
         false ->
             {error, {invalid_tag, Value}}
     end;
+fromto_params_validator(Key, novalue) ->
+    case ersip_parser_aux:check_token(Key) of
+        true ->
+            {ok, {ersip_bin:to_lower(Key), novalue}};
+        false ->
+            {error, {invalid_gen_param, Key}}
+    end;
 fromto_params_validator(Key, Value) ->
     case ersip_parser_aux:parse_gen_param_value(Value) of
         {ok, ParsedValue, <<>>} ->
@@ -186,5 +193,7 @@ assemble_params(Params) ->
       Value :: term().
 assemble_param({tag, {tag, Value}}) ->
     [<<";tag=">>, Value];
+assemble_param({Name, novalue}) ->
+    <<";", Name/binary>>;
 assemble_param({Name, Value}) ->
     <<";", Name/binary, "=", Value/binary>>.

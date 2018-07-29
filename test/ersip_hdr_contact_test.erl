@@ -41,6 +41,7 @@ parse_error_test() ->
     parse_error(<<"C <sip:a@b>;?=$">>),
     parse_error(<<"C <sip:a@b>;?">>),
     parse_error(<<"<sip:a@b">>),
+    parse_error(<<"C <sip:a@b>;;;;;">>),
     ok.
 
 make_error_test() ->

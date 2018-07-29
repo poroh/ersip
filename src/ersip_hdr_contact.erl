@@ -113,10 +113,14 @@ assemble(#contact{} = Contact) ->
 
 -spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
 parse_contact_params(<<$;, Bin/binary>>) ->
-    parse_contact_params(Bin);
-parse_contact_params(<<>>) ->
-    {ok, [], <<>>};
+    do_parse_contact_params(Bin);
 parse_contact_params(Bin) ->
+    do_parse_contact_params(Bin).
+
+-spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
+do_parse_contact_params(<<>>) ->
+    {ok, [], <<>>};
+do_parse_contact_params(Bin) ->
     ersip_parser_aux:parse_kvps(fun contact_params_validator/2,
                                 <<";">>,
                                 Bin).

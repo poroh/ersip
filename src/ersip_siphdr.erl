@@ -126,8 +126,21 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
     RawHdr     = AssembleF(PrintName, Value),
-    NewHeaders = OldHeaders#{Header => Value},
-    NewRawMsg  = ersip_msg:set_header(RawHdr, OldRawMsg),
+    IsDeleted  = ersip_hdr:is_empty(RawHdr),
+    NewHeaders =
+        case IsDeleted of
+            true ->
+                maps:remove(Header, OldHeaders);
+            false ->
+                OldHeaders#{Header => Value}
+        end,
+    NewRawMsg  =
+        case IsDeleted of
+            true ->
+                ersip_msg:del_header(RawHdr, OldRawMsg);
+            false ->
+                ersip_msg:set_header(RawHdr, OldRawMsg)
+        end,
 
     SipMsg1    = ersip_sipmsg:set_headers(NewHeaders, SipMsg),
     SipMsg2    = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),

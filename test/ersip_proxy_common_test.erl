@@ -87,8 +87,8 @@ stateless_proxy_forward_to_ua_test() ->
     Target = ersip_uri:make(BobURI),
     {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOpts),
     ?assertEqual(Target, NexthopURI),
-    %% Check route has only one element NextProxyURI.
-    ?assertEqual(ersip_route_set:new(), ersip_sipmsg:get(route, SipMsg2)),
+    %% Check route does not have any elements
+    ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg2)),
     ok.
 
 

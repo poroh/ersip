@@ -36,7 +36,8 @@
                       | proxy_require
                       | contact
                       | expires
-                      | minexpires.
+                      | minexpires
+                      | date.
 
 -record(descr, {name         :: binary(),
                 required     :: header_required(),
@@ -71,7 +72,8 @@ all_known_headers() ->
      record_route,
      contact,
      expires,
-     minexpires
+     minexpires,
+     date
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -317,5 +319,11 @@ header_descr(minexpires) ->
            required     = optional,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
+          };
+header_descr(date) ->
+    #descr{name         = <<"date">>,
+           required     = optional,
+           parse_fun    = fun ersip_hdr_date:parse/1,
+           assemble_fun = fun ersip_hdr_date:build/2
           }.
 

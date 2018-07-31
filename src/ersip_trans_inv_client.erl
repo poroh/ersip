@@ -114,7 +114,7 @@ new_impl(TransportType, Request, Options) ->
         end,
     %% For any transport, the client transaction MUST start timer B with a value
     %% of 64*T1 seconds (Timer B controls transaction timeouts).
-    set_timer_b(64 * ?T1(Trans), Result1).
+    set_timer_b(Trans, Result1).
 
 -spec 'Calling'(event(), trans_inv_client()) -> result().
 'Calling'({timer, timer_a}, #trans_inv_client{request = Req, timer_a_timeout = TimerATimeout} = Trans) ->
@@ -228,9 +228,11 @@ set_state(State, Trans) ->
 set_timer_a(Timeout, Result) ->
     set_timer(Timeout, timer_a, Result).
 
--spec set_timer_b(pos_integer(), result()) -> result().
-set_timer_b(Timeout, Result) ->
-    set_timer(Timeout, timer_b, Result).
+-spec set_timer_b(trans_inv_client(), result()) -> result().
+set_timer_b(#trans_inv_client{options = #{trans_expire := TransExp}}, Result) ->
+    set_timer(TransExp, timer_b, Result);
+set_timer_b(Trans, Result) ->
+    set_timer(64 * ?T1(Trans), timer_b, Result).
 
 -spec set_timer_d(pos_integer(), result()) -> result().
 set_timer_d(Timeout, Result) ->

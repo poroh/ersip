@@ -186,3 +186,17 @@ uac_unreliable_test() ->
     SideEffectsMap_5_4 = maps:from_list(SideEffects_5_4),
     ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_5_4)),
     ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_4)).
+
+trans_expire_set_test() ->
+    TransExpire = 31713,
+    {_, SideEffects0} = ersip_trans_client:new(unreliable, message, #{trans_expire => TransExpire}),
+    %% Transaction timer is set:
+    [{500,   _RetransmitTimer},
+     {TransExpire, _TransactionTimer}
+    ] = lists:sort(proplists:get_all_values(set_timer, SideEffects0)),
+
+    {_, SideEffects1} = ersip_trans_client:new(reliable, message, #{trans_expire => TransExpire}),
+    %% Transaction timer is set:
+    [{TransExpire, _TransactionTimer1}] = lists:sort(proplists:get_all_values(set_timer, SideEffects1)),
+    ok.
+

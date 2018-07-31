@@ -214,6 +214,23 @@ error_handling_test() ->
     ok.
 
 
+trans_expire_set_test() ->
+    TransExpire = 31713,
+    InviteReq = invite_req(),
+    {ClientTrans0, SideEffects0} = ersip_trans_inv_client:new(unreliable, InviteReq, #{trans_expire => TransExpire}),
+    SideEffectsMap0 = maps:from_list(SideEffects0),
+    %% Transaction timer is set:
+    [{500,   RetransmitTimer},
+     {TransExpire, _TransactionTimer}
+    ] = lists:sort(proplists:get_all_values(set_timer, SideEffects0)),
+
+    {ClientTrans1, SideEffects1} = ersip_trans_client:new(reliable, InviteReq, #{trans_expire => TransExpire}),
+    SideEffectsMap1 = maps:from_list(SideEffects1),
+    %% Transaction timer is set:
+    [{TransExpire, _TransactionTimer1}] = lists:sort(proplists:get_all_values(set_timer, SideEffects1)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

@@ -36,7 +36,8 @@
                       | proxy_require
                       | contact
                       | expires
-                      | minexpires.
+                      | minexpires
+                      | date.
 
 -record(descr, {name         :: binary(),
                 required     :: header_required(),
@@ -71,7 +72,8 @@ all_known_headers() ->
      record_route,
      contact,
      expires,
-     minexpires
+     minexpires,
+     date
     ].
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
@@ -126,8 +128,21 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
     RawHdr     = AssembleF(PrintName, Value),
-    NewHeaders = OldHeaders#{Header => Value},
-    NewRawMsg  = ersip_msg:set_header(RawHdr, OldRawMsg),
+    IsDeleted  = ersip_hdr:is_empty(RawHdr),
+    NewHeaders =
+        case IsDeleted of
+            true ->
+                maps:remove(Header, OldHeaders);
+            false ->
+                OldHeaders#{Header => Value}
+        end,
+    NewRawMsg  =
+        case IsDeleted of
+            true ->
+                ersip_msg:del_header(RawHdr, OldRawMsg);
+            false ->
+                ersip_msg:set_header(RawHdr, OldRawMsg)
+        end,
 
     SipMsg1    = ersip_sipmsg:set_headers(NewHeaders, SipMsg),
     SipMsg2    = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),
@@ -317,5 +332,11 @@ header_descr(minexpires) ->
            required     = optional,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
+          };
+header_descr(date) ->
+    #descr{name         = <<"date">>,
+           required     = optional,
+           parse_fun    = fun ersip_hdr_date:parse/1,
+           assemble_fun = fun ersip_hdr_date:build/2
           }.
 

@@ -12,6 +12,7 @@
          set/2,
          set/3,
          set_header/2,
+         del_header/2,
          add/3,
          get/2,
          source/1,
@@ -123,6 +124,11 @@ set(HeaderName, Value,  #message{headers = H} = Message) ->
 set_header(Header, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(Header),
     Message#message{headers = H#{Key => Header}}.
+
+-spec del_header(ersip_hdr:header(), message()) -> message().
+del_header(Header, #message{headers = H} = Message) ->
+    Key = ersip_hdr:make_key(Header),
+    Message#message{headers = maps:remove(Key, H)}.
 
 -spec add(Name, Value, message()) -> message() when
       Name  :: binary(),

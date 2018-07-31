@@ -123,7 +123,7 @@ delete_all_contacts_test() ->
     {reply, ReplySipMsg} = SE2,
 
     %% Reply SIP message returns empty contacts:
-    ?assertEqual([], ersip_sipmsg:get(contact, ReplySipMsg)),
+    ?assertEqual(not_found, ersip_sipmsg:find(contact, ReplySipMsg)),
     ReplySipMsgRebuilt = rebuild_sipmsg(ReplySipMsg),
     ?assertEqual(not_found, ersip_sipmsg:find(contact, ReplySipMsgRebuilt)),
 

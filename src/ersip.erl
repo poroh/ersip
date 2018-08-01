@@ -25,6 +25,11 @@
 
 -type sip_options() :: #{sip_t1 => pos_integer(),
                          sip_t2 => pos_integer(),
-                         sip_t4 => pos_integer()
+                         sip_t4 => pos_integer(),
+                         %% This is custom extension of ersip that
+                         %% limits transaction time (Timer B/Timer F),
+                         %% if set then timeout is indicated after
+                         %% this time and not after 64*T1
+                         trans_expire => pos_integer()
                         }.
 -export_type([sip_options/0]).

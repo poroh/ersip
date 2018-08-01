@@ -300,6 +300,8 @@ maybe_set_timer_e(#trans_client{reliable_transport = unreliable} = ClientTrans )
     set_timer(timer_e, Timeout, ClientTrans).
 
 -spec set_timer_f(trans_client()) -> {ersip_trans_se:effect(), trans_client()}.
+set_timer_f(#trans_client{options = #{trans_expire := TransExp}} = ClientTrans) ->
+    set_timer(timer_f, TransExp, ClientTrans);
 set_timer_f(ClientTrans) ->
     set_timer(timer_f, 64*?T1(ClientTrans), ClientTrans).
 

@@ -37,7 +37,7 @@ parse_rfc4475_good_test_() ->
      ?GOOD(escnull),
      ?GOOD(intmeth),
      ?GOOD(longreq),
-%%     ?GOOD(lwsdisp),
+     ?GOOD(lwsdisp),
      ?GOOD(mpart01),
      ?GOOD(noreason),
      ?GOOD(semiuri),

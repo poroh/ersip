@@ -16,3 +16,4 @@ construction_test() ->
     ?assertNotEqual(BBBB, ersip_method:make(<<"AAAA">>)),
     ?assertError({error, {invalid_method, _}}, ersip_method:make(<<"  ">>)).
 
+

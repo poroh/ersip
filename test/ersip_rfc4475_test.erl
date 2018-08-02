@@ -28,6 +28,7 @@ fname(Name) ->
 
 -define(GOOD(Id),{title(Id), ?_assertMatch({ok, _}, haveto(Id))}).
 -define(BAD(Id),{title( Id), ?_assertMatch({error, _}, haveto(Id))}).
+-define(BAD_DGRAM(Id),{title( Id), ?_assertMatch({error, _}, dgram_haveto(Id))}).
 
 parse_rfc4475_good_test_() ->
     [
@@ -51,11 +52,11 @@ parse_rfc4475_bad_test_() ->
      ?BAD(badaspec),
      ?BAD(baddn),
 %%     ?BAD(bcast),
-     ?BAD(clerr),
+     ?BAD_DGRAM(clerr),
 %%     ?BAD(escruri),
 %%     ?BAD(invut),
      ?BAD(lwsstart),
-%%     ?BAD(mismatch02),
+     ?BAD(mismatch02),
 %%     ?BAD(novelsc),
 %%     ?BAD(regbadct),
      ?BAD(scalarlg),
@@ -78,8 +79,8 @@ parse_rfc4475_bad_test_() ->
 %%     ?BAD(cparam02),
 %%     ?BAD(inv2543),
      ?BAD(lwsruri),
-%%     ?BAD(mismatch01),
-%%     ?BAD(ncl),
+     ?BAD(mismatch01),
+     ?BAD(ncl),
 %%     ?BAD(regaut01),
      ?BAD(scalar02),
      %%     ?BAD(trws),  %% ignoring because it's acceptable to accept or reject.
@@ -89,11 +90,19 @@ parse_rfc4475_bad_test_() ->
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
+dgram_haveto(Name) ->
+    % ?debugVal(Name),
+    {ok, SipBin} = file:read_file(fname(Name)),
+    P0 = ersip_parser:new_dgram(SipBin),
+    haveto1(ersip_parser:parse(P0)).
+
 haveto(Name) ->
     % ?debugVal(Name),
     {ok, SipBin} = file:read_file(fname(Name)),
-    P = ersip_parser:new_dgram(SipBin),
-    haveto1(ersip_parser:parse(P)).
+    P0 = ersip_parser:new(),
+    P1 = ersip_parser:add_binary(SipBin, P0),
+    haveto1(ersip_parser:parse(P1)).
+
 
 haveto1({{ok, PMsg}, _P2}) ->
     validation(ersip_sipmsg:parse(PMsg, all));

@@ -30,23 +30,30 @@
 %%% API
 %%%===================================================================
 
+-define(OPTIONS,  {method, <<"OPTIONS">>}).
+-define(INVITE,   {method, <<"INVITE">>}).
+-define(ACK,      {method, <<"ACK">>}).
+-define(BYE,      {method, <<"BYE">>}).
+-define(CANCEL,   {method, <<"CANCEL">>}).
+-define(REGISTER, {method, <<"REGISTER">>}).
+
 options() ->
-    {method, <<"OPTIONS">>}.
+    ?OPTIONS.
 
 invite() ->
-    {method, <<"INVITE">>}.
+    ?INVITE.
 
 ack() ->
-    {method, <<"ACK">>}.
+    ?ACK.
 
 bye() ->
-    {method, <<"BYE">>}.
+    ?BYE.
 
 cancel() ->
-    {method, <<"CANCEL">>}.
+    ?CANCEL.
 
 register() ->
-    {method, <<"REGISTER">>}.
+    ?REGISTER.
 
 -spec parse(binary()) ->  {ok, method()}
                               | {error, Error} when

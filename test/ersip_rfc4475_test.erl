@@ -47,9 +47,12 @@ parse_rfc4475_good_test_() ->
      ?GOOD(unreason),
      ?GOOD(wsinv),
      ?GOOD_DGRAM(inv2543),
+     ?GOOD(cparam01),
      ?GOOD(cparam02),
      ?GOOD(regescrt),
-     ?GOOD(unksm2) %% Good for proxy, bad for registrar...
+     ?GOOD(unkscm), %% Well-formed message, but unknown scheme for UA
+     ?GOOD(unksm2), %% Good for proxy, bad for registrar...
+     ?GOOD(novelsc) %% Well-formed message, but unknown scheme for UA
     ].
 
 parse_rfc4475_bad_test_() ->
@@ -62,14 +65,11 @@ parse_rfc4475_bad_test_() ->
 %%     ?BAD(invut),
      ?BAD(lwsstart),
      ?BAD(mismatch02),
-%%     ?BAD(novelsc),
 %%     ?BAD(regbadct),
      ?BAD(scalarlg),
-%%     ?BAD(unkscm),
 %%     ?BAD(badbranch),
      ?BAD(badinv01),
      ?BAD(bext01),
-%%     ?BAD(cparam01),
      ?BAD(insuf),
      ?BAD(ltgtruri),
      ?BAD(mcl01),

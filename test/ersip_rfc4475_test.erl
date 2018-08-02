@@ -27,6 +27,7 @@ fname(Name) ->
     lists:concat(["test/rfc4475/", Name, ".dat"]).
 
 -define(GOOD(Id),{title(Id), ?_assertMatch({ok, _}, haveto(Id))}).
+-define(GOOD_DGRAM(Id),{title(Id), ?_assertMatch({ok, _}, dgram_haveto(Id))}).
 -define(BAD(Id),{title( Id), ?_assertMatch({error, _}, haveto(Id))}).
 -define(BAD_DGRAM(Id),{title( Id), ?_assertMatch({error, _}, dgram_haveto(Id))}).
 
@@ -44,7 +45,11 @@ parse_rfc4475_good_test_() ->
      ?GOOD(semiuri),
      ?GOOD(transports),
      ?GOOD(unreason),
-     ?GOOD(wsinv)
+     ?GOOD(wsinv),
+     ?GOOD_DGRAM(inv2543),
+     ?GOOD(cparam02),
+     ?GOOD(regescrt),
+     ?GOOD(unksm2) %% Good for proxy, bad for registrar...
     ].
 
 parse_rfc4475_bad_test_() ->
@@ -67,17 +72,13 @@ parse_rfc4475_bad_test_() ->
 %%     ?BAD(cparam01),
      ?BAD(insuf),
      ?BAD(ltgtruri),
-%%     ?BAD(mcl01),
+     ?BAD(mcl01),
      ?BAD(multi01),
      ?BAD(quotbal),
-%%     ?BAD(regescrt),
 %%     ?BAD(sdp01),
-%%     ?BAD(unksm2),
      ?BAD(baddate),
      ?BAD(badvers),
      ?BAD(bigcode),
-%%     ?BAD(cparam02),
-%%     ?BAD(inv2543),
      ?BAD(lwsruri),
      ?BAD(mismatch01),
      ?BAD(ncl),

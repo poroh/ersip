@@ -27,7 +27,9 @@ fname(Name) ->
     lists:concat(["test/rfc4475/", Name, ".dat"]).
 
 -define(GOOD(Id),{title(Id), ?_assertMatch({ok, _}, haveto(Id))}).
+-define(GOOD_DGRAM(Id),{title(Id), ?_assertMatch({ok, _}, dgram_haveto(Id))}).
 -define(BAD(Id),{title( Id), ?_assertMatch({error, _}, haveto(Id))}).
+-define(BAD_DGRAM(Id),{title( Id), ?_assertMatch({error, _}, dgram_haveto(Id))}).
 
 parse_rfc4475_good_test_() ->
     [
@@ -37,13 +39,20 @@ parse_rfc4475_good_test_() ->
      ?GOOD(escnull),
      ?GOOD(intmeth),
      ?GOOD(longreq),
-%%     ?GOOD(lwsdisp),
+     ?GOOD(lwsdisp),
      ?GOOD(mpart01),
      ?GOOD(noreason),
      ?GOOD(semiuri),
      ?GOOD(transports),
      ?GOOD(unreason),
-     ?GOOD(wsinv)
+     ?GOOD(wsinv),
+     ?GOOD_DGRAM(inv2543),
+     ?GOOD(cparam01),
+     ?GOOD(cparam02),
+     ?GOOD(regescrt),
+     ?GOOD(unkscm), %% Well-formed message, but unknown scheme for UA
+     ?GOOD(unksm2), %% Good for proxy, bad for registrar...
+     ?GOOD(novelsc) %% Well-formed message, but unknown scheme for UA
     ].
 
 parse_rfc4475_bad_test_() ->
@@ -51,35 +60,28 @@ parse_rfc4475_bad_test_() ->
      ?BAD(badaspec),
      ?BAD(baddn),
 %%     ?BAD(bcast),
-     ?BAD(clerr),
+     ?BAD_DGRAM(clerr),
 %%     ?BAD(escruri),
 %%     ?BAD(invut),
      ?BAD(lwsstart),
-%%     ?BAD(mismatch02),
-%%     ?BAD(novelsc),
+     ?BAD(mismatch02),
 %%     ?BAD(regbadct),
      ?BAD(scalarlg),
-%%     ?BAD(unkscm),
 %%     ?BAD(badbranch),
      ?BAD(badinv01),
      ?BAD(bext01),
-%%     ?BAD(cparam01),
      ?BAD(insuf),
      ?BAD(ltgtruri),
-%%     ?BAD(mcl01),
+     ?BAD(mcl01),
      ?BAD(multi01),
      ?BAD(quotbal),
-%%     ?BAD(regescrt),
 %%     ?BAD(sdp01),
-%%     ?BAD(unksm2),
      ?BAD(baddate),
      ?BAD(badvers),
      ?BAD(bigcode),
-%%     ?BAD(cparam02),
-%%     ?BAD(inv2543),
      ?BAD(lwsruri),
-%%     ?BAD(mismatch01),
-%%     ?BAD(ncl),
+     ?BAD(mismatch01),
+     ?BAD(ncl),
 %%     ?BAD(regaut01),
      ?BAD(scalar02),
      %%     ?BAD(trws),  %% ignoring because it's acceptable to accept or reject.
@@ -89,11 +91,19 @@ parse_rfc4475_bad_test_() ->
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
+dgram_haveto(Name) ->
+    % ?debugVal(Name),
+    {ok, SipBin} = file:read_file(fname(Name)),
+    P0 = ersip_parser:new_dgram(SipBin),
+    haveto1(ersip_parser:parse(P0)).
+
 haveto(Name) ->
     % ?debugVal(Name),
     {ok, SipBin} = file:read_file(fname(Name)),
-    P = ersip_parser:new_dgram(SipBin),
-    haveto1(ersip_parser:parse(P)).
+    P0 = ersip_parser:new(),
+    P1 = ersip_parser:add_binary(SipBin, P0),
+    haveto1(ersip_parser:parse(P1)).
+
 
 haveto1({{ok, PMsg}, _P2}) ->
     validation(ersip_sipmsg:parse(PMsg, all));

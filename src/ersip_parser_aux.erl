@@ -257,26 +257,38 @@ token_list_impl(Binary, Acc, CompPattern) ->
                 true ->
                     token_list_impl(Rest, [T | Acc], CompPattern);
                 false ->
-                    case Acc of
-                        [] ->
-                            error;
-                        _ ->
-                            {ok, lists:reverse(Acc), Binary}
-                    end
+                    token_list_impl_process_rest(Acc, Binary)
             end;
         [T] ->
             case check_token(T) of
                 true ->
                     {ok, lists:reverse([T | Acc]), <<>>};
                 false ->
-                    case Acc of
-                        [] ->
-                            error;
-                        _ ->
-                            {ok, lists:reverse(Acc), Binary}
-                    end
+                    token_list_impl_process_rest(Acc, Binary)
             end
     end.
+
+-spec token_list_impl_process_rest([Token], binary()) -> Result when
+      Result :: {ok, [Token, ...], Rest}
+              | error,
+      Token :: binary(),
+      Rest  :: binary().
+token_list_impl_process_rest(Acc, Binary) ->
+    {Acc1, Rest1} =
+        case find_token_end(Binary, 0) of
+            0 ->
+                {Acc, Binary};
+            N ->
+                <<LastToken:N/binary, Rest0/binary>> = Binary,
+                {[LastToken|Acc], Rest0}
+        end,
+    case Acc1 of
+        [] ->
+            error;
+        _ ->
+            {ok, lists:reverse(Acc1), Rest1}
+    end.
+
 
 %% @private
 -spec check_token(binary(), start | rest) -> boolean().

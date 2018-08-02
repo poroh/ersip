@@ -187,9 +187,20 @@ parse(#sipmsg{} = SipMsg, Headers) ->
 parse(RawMsg, all) ->
     parse(RawMsg, ersip_siphdr:all_known_headers());
 parse(RawMsg, Headers) ->
-    MaybeMsg = create_from_raw(RawMsg),
-    lists:foldl(fun maybe_parse_header/2, MaybeMsg, Headers).
-
+    MaybeMsg0 = create_from_raw(RawMsg),
+    MaybeMsg1 = lists:foldl(fun maybe_parse_header/2, MaybeMsg0, Headers),
+    lists:foldl(fun({ValFun, ErrorType}, {ok, SipMsg} = MaybeMsg) ->
+                        case ValFun(SipMsg) of
+                            true ->
+                                MaybeMsg;
+                            false ->
+                                {error, {ErrorType, SipMsg}}
+                        end;
+                   (_, {error, _} = Error) ->
+                        Error
+                end,
+                MaybeMsg1,
+                [{fun parse_validate_cseq/1, invalid_cseq}]).
 
 -spec serialize(sipmsg()) -> iolist().
 serialize(#sipmsg{} = SipMsg) ->
@@ -442,3 +453,14 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
             NewTo = ersip_hdr_fromto:set_tag(ToTag, To),
             set(to, NewTo, RSipMsg)
     end.
+
+-spec parse_validate_cseq(sipmsg()) -> boolean().
+parse_validate_cseq(#sipmsg{headers = #{cseq := CSeq}} = SipMsg) ->
+    ReqMethod  = ersip_sipmsg:method(SipMsg),
+    CSeqMethod = ersip_hdr_cseq:method(CSeq),
+    %% TODO maybe we may pass this check for unknown method:
+    %% ReqMethod == CSeqMethod orelse not ersip_method:is_known(ReqMethod);
+    ReqMethod == CSeqMethod;
+parse_validate_cseq(#sipmsg{}) ->
+    true.
+

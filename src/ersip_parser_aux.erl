@@ -120,7 +120,7 @@ parse_lws(Bin) ->
 %% SLASH   =  SWS "/" SWS ; slash
 -spec parse_slash(binary()) -> ersip_parser_aux:parse_result().
 parse_slash(Binary) ->
-    SEPParser = make_sep_parser($/),
+    SEPParser = fun(Bin) -> parse_sep($/, Bin) end,
     Parsers = [fun trim_lws/1,
                SEPParser,
                fun trim_lws/1
@@ -364,13 +364,6 @@ parse_kvps_make_validator_func(Validator) ->
                 {error, _} = Error ->
                     throw(Error)
             end
-    end.
-
--spec make_sep_parser(Sep) -> parser_fun() when
-      Sep :: char().
-make_sep_parser(Sep) ->
-    fun(Bin) ->
-            parse_sep(Sep, Bin)
     end.
 
 -spec parse_sep(char(), binary()) -> parse_result(char()).

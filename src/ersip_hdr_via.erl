@@ -229,6 +229,8 @@ parse_sent_by_host_port([], port, Acc) ->
     parse_sent_by_host_port(<<>>, result, Acc);
 parse_sent_by_host_port(<<>>, port, Acc) ->
     parse_sent_by_host_port(<<>>, result, Acc);
+parse_sent_by_host_port(<<":", Rest/binary>>, port, Acc) ->
+    parse_sent_by_host_port([Rest], port, Acc);
 parse_sent_by_host_port([Bin], port, Acc) when is_binary(Bin) ->
     case ersip_transport:parse_port_number(ersip_bin:trim_lws(Bin)) of
         {ok, PortNumber, <<>>} ->

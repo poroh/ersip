@@ -31,6 +31,10 @@
          }).
 -type sip_conn() :: #sip_conn{}.
 -type options()  :: map().
+-type maybe_message() :: {ok, ersip_msg:message()}
+                       | {error, term()}.
+-type maybe_via() :: {ok, ersip_hdr_via:via()}
+                   | {error, term()}.
 
 %%%===================================================================
 %%% API
@@ -122,6 +126,10 @@ source(#sip_conn{remote_addr = Peer, transport = T, options = Opts}) ->
 remote_ip(#sip_conn{remote_addr = {RemoteIP, _}}) ->
     RemoteIP.
 
+-spec remote_port(sip_conn()) -> inet:port_number().
+remote_port(#sip_conn{remote_addr = {_, RemotePort}}) ->
+    RemotePort.
+
 -spec save_parser(ersip_parser:data(), sip_conn()) -> sip_conn().
 save_parser(Parser, SipConn) ->
     SipConn#sip_conn{parser = Parser}.
@@ -137,7 +145,7 @@ receive_raw(Msg, #sip_conn{} = Conn) ->
 
 -spec receive_request(ersip_msg:message(), sip_conn()) -> result().
 receive_request(Msg, Conn) ->
-    case maybe_add_received(Msg, Conn) of
+    case receive_request_process_via(Msg, Conn) of
         {ok, NewMsg} ->
             NewMsgWithSrc = ersip_msg:set_source(source(Conn), NewMsg),
             {Conn, [ersip_conn_se:new_request(NewMsgWithSrc)]};
@@ -178,6 +186,37 @@ add_side_effects_to_head({Conn, SideEffect}, SE) ->
     {Conn, SE ++ SideEffect}.
 
 
+-spec receive_request_process_via(ersip_msg:message(), sip_conn()) -> maybe_message().
+receive_request_process_via(Msg, #sip_conn{} = Conn) ->
+    ViaH = ersip_msg:get(<<"via">>, Msg),
+    case ersip_hdr_via:topmost_via(ViaH) of
+        {error, _} = Error ->
+            Error;
+        {ok, Via} ->
+            Funs = [fun maybe_add_received/2,
+                    fun maybe_fill_rport/2
+                   ],
+            case do_receive_request_process_via(Funs, Via, Conn) of
+                {ok, Via1} ->
+                    ViaH1 = ersip_hdr:replace_topmost(ersip_hdr_via:assemble(Via1), ViaH),
+                    {ok, ersip_msg:set_header(ViaH1, Msg)};
+                {error, _} = Error ->
+                    Error
+            end
+    end.
+
+-spec do_receive_request_process_via(Funs, ersip_hdr_via:via(), sip_conn()) -> maybe_via() when
+      Funs :: [fun((ersip_hdr_via:via(), sip_conn()) -> maybe_via())].
+do_receive_request_process_via([], Via, #sip_conn{}) ->
+    {ok, Via};
+do_receive_request_process_via([F | Rest], Via, #sip_conn{} = Conn) ->
+    case F(Via, Conn) of
+        {ok, NewVia} ->
+            do_receive_request_process_via(Rest, NewVia, Conn);
+        {error, _} = Error ->
+            Error
+    end.
+
 %% @doc
 %% When the server transport receives a request over any transport, it
 %% MUST examine the value of the "sent-by" parameter in the top Via
@@ -187,31 +226,39 @@ add_side_effects_to_head({Conn, SideEffect}, SE) ->
 %% "received" parameter to that Via header field value.  This
 %% parameter MUST contain the source address from which the packet was
 %% received.
--spec maybe_add_received(ersip_msg:message(), sip_conn()) -> Result when
-      Result :: {ok, ersip_msg:message()}
-              | {error, term()}.
-maybe_add_received(Msg, #sip_conn{} = Conn) ->
-    ViaH = ersip_msg:get(<<"via">>, Msg),
+-spec maybe_add_received(ersip_msg:message(), sip_conn()) -> maybe_message().
+maybe_add_received(Via, #sip_conn{} = Conn) ->
     RemoteIP = remote_ip(Conn),
-    case ersip_hdr_via:topmost_via(ViaH) of
-        {error, _} = Error ->
-            Error;
-        {ok, Via} ->
-            case ersip_hdr_via:sent_by(Via) of
-                {sent_by, {hostname, _}, _} ->
-                    {ok, add_received(Via, ViaH, Conn, Msg)};
-                {sent_by, IP, _} when IP =/= RemoteIP ->
-                    {ok, add_received(Via, ViaH, Conn, Msg)};
-                _ ->
-                    {ok, Msg}
-            end
+    case ersip_hdr_via:sent_by(Via) of
+        {sent_by, {hostname, _}, _} ->
+            {ok, ersip_hdr_via:set_param(received, RemoteIP, Via)};
+        {sent_by, IP, _} when IP =/= RemoteIP ->
+            {ok, ersip_hdr_via:set_param(received, RemoteIP, Via)};
+        _ ->
+            {ok, Via}
     end.
 
--spec add_received(ersip_hdr_via:via(), ersip_hdr:header(), sip_conn(), ersip_msg:message()) -> ersip_msg:message().
-add_received(Via, ViaH, Conn, Msg) ->
-    Via1  = ersip_hdr_via:set_param(received, remote_ip(Conn), Via),
-    ViaH1 = ersip_hdr:replace_topmost(ersip_hdr_via:assemble(Via1), ViaH),
-    ersip_msg:set_header(ViaH1, Msg).
+-spec maybe_fill_rport(ersip_msg:message(), sip_conn()) -> maybe_message().
+maybe_fill_rport(Via, #sip_conn{} = Conn) ->
+    case ersip_hdr_via:params(Via) of
+        #{rport := true} ->
+            %% RFC 3581:
+            %% When a server compliant to this specification (which can be a proxy
+            %% or UAS) receives a request, it examines the topmost Via header field
+            %% value.  If this Via header field value contains an "rport" parameter
+            %% with no value, it MUST set the value of the parameter to the source
+            %% port of the request.  This is analogous to the way in which a server
+            %% will insert the "received" parameter into the topmost Via header
+            %% field value.  In fact, the server MUST insert a "received" parameter
+            %% containing the source IP address that the request came from, even if
+            %% it is identical to the value of the "sent-by" component.  Note that
+            %% this processing takes place independent of the transport protocol.
+            Via1 = ersip_hdr_via:set_param(rport, remote_port(Conn), Via),
+            Via2 = ersip_hdr_via:set_param(received, remote_ip(Conn), Via1),
+            {ok, Via2};
+        _ ->
+            {ok, Via}
+    end.
 
 -spec check_via_match(ersip_hdr_via:via(), sip_conn()) -> Result when
       Result :: match

@@ -42,7 +42,8 @@
 -type known_via_params() :: branch
                           | maddr
                           | received
-                          | ttl.
+                          | ttl
+                          | rport.
 
 %%%===================================================================
 %%% API
@@ -272,6 +273,8 @@ parse_via_params(Binary) ->
       ResultVal :: non_neg_integer()
                  | ersip_host:host()
                  | binary().
+via_params_val(<<"rport">>, novalue) ->
+    {ok, {rport, true}};
 via_params_val(Key, novalue) ->
     {ok, {Key, true}};
 via_params_val(Key, Value) ->
@@ -321,6 +324,14 @@ via_params_val_impl(<<"branch">>, Value) ->
             {ok, {branch, ersip_branch:make(Branch)}};
         _ ->
             {error, {invalid_branch, Value}}
+    end;
+via_params_val_impl(<<"rport">>, Value) ->
+    %% response-port = "rport" [EQUAL 1*DIGIT]
+    case ersip_transport:parse_port_number(Value) of
+        {ok, Port, <<>>} ->
+            {ok, {rport, Port}};
+        _ ->
+            {error, {invalid_rport, Value}}
     end;
 via_params_val_impl(Key, Value) ->
     case ersip_parser_aux:parse_gen_param_value(Value) of

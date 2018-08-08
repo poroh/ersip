@@ -153,6 +153,8 @@ parse_non_neg_int(Bin) ->
       Value :: binary(),
       Sep   :: binary(),
       Validator :: parse_kvps_validator().
+parse_kvps(_, _, <<>>) ->
+    {ok, [], <<>>};
 parse_kvps(Validator, Sep, Bin) ->
     KVPs = binary:split(Bin, Sep, [global]),
     SplittedPairs =

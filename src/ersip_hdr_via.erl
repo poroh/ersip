@@ -260,7 +260,14 @@ parse_transport(Binary) ->
             Error
     end.
 
+-spec parse_via_params(binary()) -> ersip_parser_aux:parse_result(via_params()).
+parse_via_params(<<$;, Rest/binary>>) ->
+    do_parse_via_params(Rest);
 parse_via_params(Binary) ->
+    do_parse_via_params(Binary).
+
+-spec do_parse_via_params(binary()) -> ersip_parser_aux:parse_result(via_params()).
+do_parse_via_params(Binary) ->
     case ersip_parser_aux:parse_kvps(fun via_params_val/2, <<";">>, Binary) of
         {ok, L, Rest} ->
             {ok, maps:from_list(L), Rest};

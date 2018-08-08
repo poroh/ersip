@@ -98,7 +98,14 @@ set_param(received, {Type, _} = Value , #via{via_params = VP} = Via)
   when Type =:= ipv4 orelse Type =:= ipv6 ->
     Via#via{via_params = VP#{received => Value}};
 set_param(received, Value, _) ->
-    error({error, {bad_received_via_param, Value}}).
+    error({error, {bad_received_via_param, Value}});
+set_param(rport, Value, #via{via_params = VP} = Via)
+  when is_integer(Value) andalso Value >= 1 andalso Value =< 65535 ->
+    Via#via{via_params = VP#{rport => Value}};
+set_param(rport, true, #via{via_params = VP} = Via) ->
+    Via#via{via_params = VP#{rport => true}};
+set_param(rport, Value, _) ->
+    error({error, {bad_rport_via_param, Value}}).
 
 -spec sent_by(via()) -> sent_by().
 sent_by(#via{sent_by = {sent_by,Host,default_port}} = Via) ->
@@ -351,7 +358,12 @@ sent_by_make_key({sent_by, Host, Port}) ->
 
 -spec via_params_make_key(via_params()) -> via_params().
 via_params_make_key(Params) ->
-    maps:map(fun via_param_make_key/2, Params).
+    L = maps:to_list(Params),
+    LKeys = lists:map(fun({Key, Value}) ->
+                              via_param_make_key(Key, Value)
+                      end,
+                      L),
+    maps:from_list(LKeys).
 
 -spec via_param_make_key(Key, Value) -> {NewKey, NewValue} when
       Key    :: known_via_params() | binary(),
@@ -366,6 +378,8 @@ via_param_make_key(maddr, Maddr) ->
     {maddr, ersip_host:make_key(Maddr)};
 via_param_make_key(received, R) ->
     {received, R};
+via_param_make_key(rport, R) ->
+    {rport, R};
 via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
     {ersip_bin:to_lower(OtherKey), OtherValue}.
 
@@ -380,6 +394,10 @@ assemble_params(Params) ->
       Value :: term().
 assemble_param({received, Value}) ->
     [<<";received=">>, ersip_host:assemble(Value)];
+assemble_param({rport, true}) ->
+    <<";rport">>;
+assemble_param({rport, Value}) ->
+    [<<";rport=">>, integer_to_binary(Value)];
 assemble_param({ttl, Value}) ->
     [<<";ttl=">>, integer_to_binary(Value)];
 assemble_param({maddr, Value}) ->

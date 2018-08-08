@@ -92,6 +92,27 @@ conn_do_not_add_received_test() ->
         >>,
     check_no_received(Msg, Conn).
 
+conn_rport_test() ->
+    RemoteIP = {127, 0, 0, 1},
+    RemotePort = 5091,
+    Conn = create_conn(RemoteIP, RemotePort),
+    Msg =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Via: SIP/2.0/UDP 127.0.0.1;rport;branch=z9hG4bK776asdhds"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: deadbeef",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test"
+        >>,
+    %% Adding received in any case if rport is specified
+    check_received(RemoteIP, Msg, Conn),
+    check_rport(RemotePort, Msg, Conn).
+
 conn_error_invalid_message_test() ->
     RemoteIP = {127, 0, 0, 1},
     Conn = create_conn(RemoteIP, 5090),
@@ -403,6 +424,12 @@ check_received(RemoteIp, Msg, Conn) ->
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
     RemoteHost = ersip_host:make(RemoteIp),
     ?assertMatch(#{received := RemoteHost}, ersip_hdr_via:params(Via)).
+
+check_rport(RemotePort, Msg, Conn) ->
+    {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    ViaH = ersip_msg:get(<<"via">>, NewMsg),
+    {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
+    ?assertMatch(#{rport := RemotePort}, ersip_hdr_via:params(Via)).
 
 check_no_received(Msg, Conn) ->
     {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),

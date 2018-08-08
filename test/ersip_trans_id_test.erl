@@ -107,6 +107,52 @@ server_transaction_id_rfc2543_equal_test() ->
     ?assertEqual(calc_server_trans_id(InviteMsg),
                  calc_server_trans_id(AckMsg)).
 
+server_transaction_id_rfc2543_equal_with_rport_test() ->
+    InviteMsg =
+        <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ;rport;branch=1" ?crlf
+          "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 INVITE" ?crlf
+          ?crlf
+        >>,
+    %% ACK After 404:
+    AckMsg =
+        <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ; rport; branch=1" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 ACK" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_server_trans_id(InviteMsg),
+                 calc_server_trans_id(AckMsg)).
+
+server_transaction_id_rfc2543_equal_with_set_rport_test() ->
+    InviteMsg =
+        <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ;rport=4231;branch=1" ?crlf
+          "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 INVITE" ?crlf
+          ?crlf
+        >>,
+    %% ACK After 404:
+    AckMsg =
+        <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org;rport=4231; branch=1" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 ACK" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_server_trans_id(InviteMsg),
+                 calc_server_trans_id(AckMsg)).
+
 server_transaction_id_rfc2543_equal_without_branch_test() ->
     InviteMsg =
         <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf

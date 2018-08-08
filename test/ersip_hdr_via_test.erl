@@ -152,8 +152,14 @@ via_compare_test() ->
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=X.COM">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>,
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=10">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=10">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some=1">>,
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;SOMe=1">>),
+    via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some">>,
+              <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;SOMe">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
               <<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
     via_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com.">>,
@@ -164,7 +170,16 @@ via_compare_test() ->
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
                   <<"SIP/3.0/UDP bigbox3.site3.atlanta.com">>),
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=2">>,
-                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=1">>).
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=1">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=2">>,
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=1">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport">>,
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=1">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport">>),
+    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
+                  <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=1">>),
+    ok.
 
 
 via_sent_by_key_test() ->

@@ -142,7 +142,12 @@ topmost_via_negative_test() ->
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=a.b.c.d">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=?">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=\"xyz\"">>),
-    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;my_param=\"x">>).
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;my_param=\"x">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=0">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=-0">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=65536">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
+    ok.
 
 via_branch_test() ->
     BranchValue = <<"z9hG4bK776asdhds">>,
@@ -209,9 +214,13 @@ assemle_test() ->
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;ttl=1">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=x.com">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=1.1.1.1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=1234">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some=1">>),
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
-    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>).
+    check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+    ok.
 
 set_param_received_ipv4_binary_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
@@ -263,6 +272,39 @@ set_param_received_error_test() ->
     ?assertError({error, _}, ersip_hdr_via:set_param(received, x, Via)),
     ?assertError({error, _}, ersip_hdr_via:set_param(received, <<".">>, Via)).
 
+set_param_rport_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=1234;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    Via1 = ersip_hdr_via:set_param(rport, 4321, Via),
+    ?assertMatch(
+       #{branch   := {branch, <<"branch_v">>},
+         ttl      := 200,
+         rport    := 4321,
+         maddr    := {hostname, <<"x.com">>}},
+       ersip_hdr_via:params(Via1)),
+    ok.
+
+set_param_rport_to_true_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=1234;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    Via1 = ersip_hdr_via:set_param(rport, true, Via),
+    ?assertMatch(
+       #{branch   := {branch, <<"branch_v">>},
+         ttl      := 200,
+         rport    := true,
+         maddr    := {hostname, <<"x.com">>}},
+       ersip_hdr_via:params(Via1)),
+    ok.
+
+set_param_rport_error_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    ?assertError({error, _}, ersip_hdr_via:set_param(rport, false, Via)),
+    ?assertError({error, _}, ersip_hdr_via:set_param(rport, <<"aaaa">>, Via)),
+    ?assertError({error, _}, ersip_hdr_via:set_param(rport, 65536, Via)),
+    ?assertError({error, _}, ersip_hdr_via:set_param(rport, -1, Via)),
+    ?assertError({error, _}, ersip_hdr_via:set_param(rport, 0, Via)),
+    ok.
 
 %%%===================================================================
 %%% Implementation

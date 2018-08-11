@@ -9,6 +9,8 @@
 -module(ersip_trans_id).
 
 -export([make_server/1,
+         make_server_cancel/1,
+         make_server_cancel/2,
          make_client/2
         ]).
 -export_type([transaction_id/0]).
@@ -54,6 +56,26 @@ make_server(SipMsg) ->
         false ->
             make_rfc2543_tid(TopmostVia, SipMsg)
     end.
+
+%% @doc Create transaction id of cancelled INVITE request by CANCEL SIP
+%% message.
+-spec make_server_cancel(ersip_sipmsg:sipmsg()) -> transaction_id().
+make_server_cancel(CancelSipMsg) ->
+    make_server_cancel(CancelSipMsg, ersip_method:invite()).
+
+%% @doc Create transaction id of cancelled request by CANCEL SIP
+%% message.  Method is method of request to be cancelled. Most common
+%% is ersip_method:invite() here.
+-spec make_server_cancel(ersip_sipmsg:sipmsg(), ersip_method:method()) -> transaction_id().
+make_server_cancel(CancelSipMsg, Method) ->
+    %% The CANCEL method requests that the TU at the server side
+    %% cancel a pending transaction.  The TU determines the
+    %% transaction to be cancelled by taking the CANCEL request, and
+    %% then assuming that the request method is anything but CANCEL or
+    %% ACK and applying the transaction matching procedures of Section
+    %% 17.2.3.  The matching transaction is the one to be cancelled.
+    TID = make_server(CancelSipMsg),
+    replace_method(Method, TID).
 
 -spec make_client(ersip_branch:branch(), ersip_method:method()) -> transaction_id().
 make_client(Branch, Method) ->
@@ -156,3 +178,21 @@ is_rfc3261(undefined) ->
     false;
 is_rfc3261(Branch) ->
     ersip_branch:is_rfc3261(Branch).
+
+-spec replace_method(ersip_method:method(), transaction_id()) -> transaction_id().
+replace_method(Method, #tid_rfc3261{} = TID) ->
+    TID#tid_rfc3261{method = Method};
+replace_method(Method, #tid_rfc2543{cseq = CSeq} = TID) ->
+    %% RFC 2543:
+    %% The Call-ID, To, the numeric part of CSeq and From headers in
+    %% the CANCEL request are identical to those in the original
+    %% request. This allows a CANCEL request to be matched with the
+    %% request it cancels.  However, to allow the client to
+    %% distinguish responses to the CANCEL from those to the original
+    %% request, the CSeq Method component is set to CANCEL. The Via
+    %% header field is initialized to the proxy issuing the CANCEL
+    %% request. (Thus, responses to this CANCEL request only reach the
+    %% issuing proxy.)
+    NewCSeq = ersip_hdr_cseq:make(Method, ersip_hdr_cseq:number(CSeq)),
+    TID#tid_rfc2543{cseq = NewCSeq}.
+

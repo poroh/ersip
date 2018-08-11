@@ -62,6 +62,7 @@ RFC supported in this SIP stack:
   + RFC 2543 SIP: Session Initiation Protocol (backward compatibility)
   + RFC 3261 SIP: Session Initiation Protocol (partially - in progress)
   + RFC 6026 Correct Transaction Handling for 2xx Responses to Session Initiation Protocol (SIP) INVITE Requests
+  + RFC 3581 An Extension to the Session Initiation Protocol (SIP) for Symmetric Response Routing (rport)
   + RFC 4475 Session Initiation Protocol (SIP) Torture Test Messages
   + RFC 5118 Session Initiation Protocol (SIP) Torture Test Messages for Internet Protocol Version 6 (IPv6)
 

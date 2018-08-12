@@ -38,7 +38,13 @@
 -type sent_protocol() :: {sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport()}.
 -type sent_by()       :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number()}.
 -type internal_sent_by() :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port}.
--type via_params()    :: map().
+-type via_params()    :: #{branch   => ersip_branch:branch(),
+                           maddr    => ersip_host:host(),
+                           received => ersip_host:host(),
+                           ttl      => non_neg_integer(),
+                           rport    => ersip_transport:port_number() | true,
+                           binary() => binary()
+                          }.
 -type known_via_params() :: branch
                           | maddr
                           | received
@@ -86,7 +92,8 @@ params(#via{via_params = VP}) ->
 -spec set_param(ParamName, Value, via()) -> via() when
       ParamName :: known_via_params() | binary(),
       Value     :: binary()
-                 | ersip_host:host().
+                 | ersip_host:host()
+                 | ersip_transport:port_number().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
         {ok, Host} ->

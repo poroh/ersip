@@ -60,6 +60,7 @@ unsupported_uri_scheme_reason(URIScheme) ->
 reason_impl(100) -> <<"Trying">>;
 reason_impl(200) -> <<"OK">>;
 reason_impl(404) -> <<"Not Found">>;
+reason_impl(405) -> <<"Method Not Allowed">>;
 reason_impl(408) -> <<"Request Timeout">>;
 reason_impl(416) -> <<"Unsupported URI Scheme">>;
 reason_impl(420) -> <<"Bad Extension">>;

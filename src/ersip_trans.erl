@@ -12,6 +12,7 @@
          event/2,
          id/1,
          server_id/1,
+         server_cancel_id/1,
          client_id/1,
          client_id/2
         ]).
@@ -110,6 +111,12 @@ id(#trans{id = Id}) ->
 -spec server_id(ersip_sipmsg:sipmsg()) -> tid().
 server_id(InSipMsg) ->
     ersip_trans_id:make_server(InSipMsg).
+
+%% @doc Create transaction id of cancelled INVITE request by CANCEL SIP
+%% message.
+-spec server_cancel_id(ersip_sipmsg:sipmsg()) -> tid().
+server_cancel_id(CancelSipMsg) ->
+    ersip_trans_id:make_server_cancel(CancelSipMsg).
 
 %% @doc Create client transaction identifier by filled outgoint
 %% request.

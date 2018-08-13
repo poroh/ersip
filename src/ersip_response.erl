@@ -73,17 +73,7 @@ target(Via) ->
                         end,
                     {direct, {Host, Port, Transport, Options}};
                  _ ->
-                    %% Otherwise (for unreliable unicast transports),
-                    %% if the top Via has a "received" parameter, the
-                    %% response MUST be sent to the address in the
-                    %% "received" parameter, using the port indicated
-                    %% in the "sent-by" value, or using port 5060 if
-                    %% none is specified explicitly.  If this fails,
-                    %% for example, elicits an ICMP "port unreachable"
-                    %% response, the procedures of Section 5 of [4]
-                    %% SHOULD be used to determine where to send the
-                    %% response.
-                    {direct, make_target_from_received(Via)}
+                    target_rfc3261_or_3581(ViaParams, Via)
             end
     end.
 
@@ -111,3 +101,32 @@ make_target_from_received(Via) ->
 select_port(Via) ->
     {sent_by, _, SentByPort} = ersip_hdr_via:sent_by(Via),
     SentByPort.
+
+target_rfc3261_or_3581(ViaParams, Via) ->
+    case ViaParams of
+        #{received := Host, rport := Port} when Port /= true ->
+            %% RFC 3581:
+            %% When a server attempts to send a response, it examines the topmost
+            %% Via header field value of that response.  If the "sent-protocol"
+            %% component indicates an unreliable unicast transport protocol, such as
+            %% UDP, and there is no "maddr" parameter, but there is both a
+            %% "received" parameter and an "rport" parameter, the response MUST be
+            %% sent to the IP address listed in the "received" parameter, and the
+            %% port in the "rport" parameter.  The response MUST be sent from the
+            %% same address and port that the corresponding request was received on.
+            %% This effectively adds a new processing step between bullets two and
+            %% three in Section 18.2.2 of SIP [1].
+            {sent_protocol, _, _, Transport} = ersip_hdr_via:sent_protocol(Via),
+            {direct, {Host, Port, Transport, #{}}};
+        _ ->
+            %% Otherwise (for unreliable unicast transports), if the
+            %% top Via has a "received" parameter, the response MUST
+            %% be sent to the address in the "received" parameter,
+            %% using the port indicated in the "sent-by" value, or
+            %% using port 5060 if none is specified explicitly.  If
+            %% this fails, for example, elicits an ICMP "port
+            %% unreachable" response, the procedures of Section 5 of
+            %% [4] SHOULD be used to determine where to send the
+            %% response.
+            {direct, make_target_from_received(Via)}
+    end.

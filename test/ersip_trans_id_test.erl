@@ -41,7 +41,7 @@ server_transaction_id_rfc3261_equal_test() ->
                    ?crlf "Content-Length: 0"
                    ?crlf ?crlf
                  >>,
-    InviteMsg3 = <<"ACK sip:bob@biloxi.com SIP/2.0"
+    AckMsg  =    <<"ACK sip:bob@biloxi.com SIP/2.0"
                    ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
                    ?crlf "Max-Forwards: 70"
                    ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
@@ -53,8 +53,23 @@ server_transaction_id_rfc3261_equal_test() ->
                    ?crlf "Content-Length: 0"
                    ?crlf ?crlf
                  >>,
+    CancelMsg  = <<"CANCEL sip:bob@biloxi.com SIP/2.0"
+                   ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+                   ?crlf "Max-Forwards: 70"
+                   ?crlf "To: Not a Bob <sip:bob@biloxi.com>"
+                   ?crlf "From: Alice Renamed <sip:alice@atlanta.com>;tag=1928301774"
+                   ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
+                   ?crlf "CSeq: 314160 CANCEL"
+                   ?crlf "Contact: Another <sip:alice@pc33.atlanta.com>"
+                   ?crlf "Content-Type: application/sdp"
+                   ?crlf "Content-Length: 0"
+                   ?crlf ?crlf
+                 >>,
     ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(InviteMsg2)),
-    ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(InviteMsg3)).
+    ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(AckMsg)),
+    ?assertNotEqual(calc_server_trans_id(InviteMsg1), calc_server_trans_id(CancelMsg)),
+    ?assertEqual(calc_server_trans_id(InviteMsg1), calc_server_cancel_trans_id(CancelMsg)),
+    ok.
 
 server_transaction_id_rfc3261_not_equal_test() ->
     InviteMsg1 = <<"INVITE sip:bob@biloxi.com SIP/2.0"
@@ -99,6 +114,62 @@ server_transaction_id_rfc2543_equal_test() ->
     AckMsg =
         <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
           "Via:     SIP/2.0/UDP sip.ieee.org ;branch=1" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 ACK" ?crlf
+          "" ?crlf>>,
+    CancelMsg =
+        <<"CANCEL sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ;branch=1" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 CANCEL" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_server_trans_id(InviteMsg), calc_server_trans_id(AckMsg)),
+    ?assertNotEqual(calc_server_trans_id(InviteMsg), calc_server_trans_id(CancelMsg)),
+    ?assertEqual(calc_server_trans_id(InviteMsg), calc_server_cancel_trans_id(CancelMsg)),
+    ok.
+
+server_transaction_id_rfc2543_equal_with_rport_test() ->
+    InviteMsg =
+        <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ;rport;branch=1" ?crlf
+          "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 INVITE" ?crlf
+          ?crlf
+        >>,
+    %% ACK After 404:
+    AckMsg =
+        <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ; rport; branch=1" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 ACK" ?crlf
+          "" ?crlf>>,
+    ?assertEqual(calc_server_trans_id(InviteMsg),
+                 calc_server_trans_id(AckMsg)).
+
+server_transaction_id_rfc2543_equal_with_set_rport_test() ->
+    InviteMsg =
+        <<"INVITE sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org ;rport=4231;branch=1" ?crlf
+          "Via:     SIP/2.0/UDP c.bell-tel.com" ?crlf
+          "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
+          "To:      T. Watson <sip:t.watson@ieee.org>" ?crlf
+          "Call-ID: 31415@c.bell-tel.com" ?crlf
+          "CSeq:    1 INVITE" ?crlf
+          ?crlf
+        >>,
+    %% ACK After 404:
+    AckMsg =
+        <<"ACK sip:watson@h.bell-tel.com SIP/2.0" ?crlf
+          "Via:     SIP/2.0/UDP sip.ieee.org;rport=4231; branch=1" ?crlf
           "From:    A. Bell <sip:a.g.bell@bell-tel.com>" ?crlf
           "To:      T. Watson <sip:t.watson@ieee.org>;tag=87454273" ?crlf
           "Call-ID: 31415@c.bell-tel.com" ?crlf
@@ -167,3 +238,8 @@ make_sipmsg(Binary) ->
 calc_server_trans_id(Binary) ->
     SipMsg = make_sipmsg(Binary),
     ersip_trans_id:make_server(SipMsg).
+
+calc_server_cancel_trans_id(Binary) ->
+    SipMsg = make_sipmsg(Binary),
+    ersip_trans_id:make_server_cancel(SipMsg).
+

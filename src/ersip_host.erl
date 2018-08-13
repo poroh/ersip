@@ -58,10 +58,10 @@ is_host(_) ->
 -spec parse(binary()) -> parse_result().
 parse(<<$[, _/binary>> = R) ->
     parse_ipv6_reference(R);
-parse(<<Char/utf8, _/binary>> = R) when ?is_DIGIT(Char) ->
-    case parse_ipv4_address(R) of
+parse(<<Char/utf8, _/binary>> = R) when ?is_HEXDIG(Char) ->
+    case parse_address(R) of
         {ok, _} = Result -> Result;
-        {error, {invalid_ipv4, _}}  -> %% second try
+        {error, {invalid_address, _}}  -> %% second try
             assume_its_hostname(R)
     end;
 parse(Bin) when is_binary(Bin) ->
@@ -147,8 +147,8 @@ parse_ipv6_reference(<<$[, R/binary>> = Bin) when R =/= <<>> ->
 -spec parse_ipv6_address(binary()) -> {ok, {ipv6, inet:ip6_address()}} | {error, {invalid_ipv6, binary()}}.
 parse_ipv6_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
-    case inet:parse_address(L) of
-        {ok, {_, _, _, _,   _, _, _, _} = Addr} ->
+    case inet:parse_ipv6strict_address(L) of
+        {ok, {_, _, _, _,  _, _, _, _} = Addr} ->
             {ok, {ipv6, Addr}};
         _ ->
             {error, {invalid_ipv6, Bin}}
@@ -158,14 +158,16 @@ parse_ipv6_address(Bin) when is_binary(Bin) ->
 %% @doc Parse IPv4 address
 %%
 %% IPv4address    =  1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT
--spec parse_ipv4_address(binary()) -> {ok, host()} | {error, {invalid_ipv4, binary()}}.
-parse_ipv4_address(Bin) when is_binary(Bin) ->
+-spec parse_address(binary()) -> {ok, host()} | {error, {invalid_address, binary()}}.
+parse_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
     case inet:parse_address(L) of
         {ok, {_, _, _, _} = Addr} ->
             {ok, {ipv4, Addr}};
+        {ok, {_, _, _, _,  _, _, _, _} = Addr} ->
+            {ok, {ipv6, Addr}};
         _ ->
-            {error, {invalid_ipv4, Bin}}
+            {error, {invalid_address, Bin}}
     end.
 
 %% @private

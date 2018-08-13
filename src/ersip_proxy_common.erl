@@ -35,56 +35,13 @@
                           | {error, term()}.
 
 -type scheme_val_fun()   :: fun((binary() | sip) -> boolean()).
--type check_rroute_fun() :: fun((ersip_hdr_route:route()) -> boolean()).
 -type reply()          :: {reply, ersip_sipmsg:sipmsg()}.
 -type reply_or_error() :: reply()
                         | {error, term()}.
--type proxy_params() ::
-        #{
-           %% Prevent options validation (may increase performance
-           %% after debug finish.
-           no_validate => boolean(),
-           %% If 'allow' option is set then proxy is restricted to pass
-           %% only methods that are included in this set. If proxy
-           %% replies on OPTIONS request it adds Allow header to
-           %% expose this restrictions.
-           %%
-           %% If 'allow' options is not set then proxy is
-           %% method-agnostic and passes all messages.
-           allow => ersip_hdr_allow:allow(),
-
-           %% 'supported' defines features that are supported by
-           %% proxy.  If request hase 'Proxy-Require' header than to
-           %% be passed through the proxy it need to be subset of this
-           %% 'supported' options.
-           %%
-           %% Also this set is reported in OPTIONS reply in supported
-           %% header field
-           supported => ersip_hdr_opttag_list:option_tag_list(),
-
-           %% Optional loop detection is performed by proxy.
-           %% loop_detect => boolean()
-
-           %% Todo: realm and proxy-authorization
-
-           %% Record-route functions that checks that this proxy is
-           %% generated this route/record-route header. Most obvious
-           %% way of checking is domain name/ip address checking.
-           check_rroute_fun => check_rroute_fun(),
-
-           %% Record-route header if proxy need to stay on dialog
-           %% messages. This URI need to be resolved to proxy's IP
-           %% address. Function check_rroute_fun(record_route_uri)
-           %% need to return true for next requests.
-           %%
-           %% Record-route is REQUIRED when proxy is on the border
-           %% between secure/not secure transport (see RFC 3261 16.6).
-           record_route_uri => ersip_uri:uri()
-         }.
-
--type forward_result()  :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
-                            ForwardOptions :: forward_options()
-                           }.
+-type proxy_params()   :: ersip_proxy:options().
+-type forward_result() :: {ForwardMessage :: ersip_sipmsg:sipmsg(),
+                           ForwardOptions :: forward_options()
+                          }.
 -type forward_options() :: #{nexthop => ersip_uri:uri(),
                              routing => strict | loose
                             }.

@@ -88,7 +88,8 @@ default_options() ->
             | acc
             | state
             | content_len
-            | message,
+            | message
+            | start_pos,
       Value :: term().
 update(List, Data) ->
     lists:foldl(fun({Item, Value}, Acc) ->
@@ -98,10 +99,11 @@ update(List, Data) ->
                 List).
 
 -spec update(buf,          ersip_buf:state(),     data()) -> data();
-            (acc,          [binary()],          data()) -> data();
+            (acc,          [binary()],            data()) -> data();
             (state,        state(),               data()) -> data();
             (content_len,  integer() | undefined, data()) -> data();
-            (message,      ersip_msg:message(),   data()) -> data().
+            (message,      ersip_msg:message(),   data()) -> data();
+            (start_pos,    non_neg_integer(),     data()) -> data().
 update(buf,         Buffer,  #data{} = Data) -> Data#data{buf         = Buffer};
 update(acc,         Acc,     #data{} = Data) -> Data#data{acc         = Acc};
 update(state,       State,   #data{} = Data) -> Data#data{state       = State};
@@ -290,7 +292,7 @@ more_data_required(#data{options = #{max_message_len := MaxLen}, start_pos = Sta
             {more_data, Data}
     end.
 
--spec message_parsed(ersip:message(), MsgLen :: non_neg_integer(), data()) -> {ok, ersip:message()} | {{error, message_too_long}, data()}.
+-spec message_parsed(ersip:message(), MsgLen :: non_neg_integer(), data()) -> {{ok, ersip:message()}, data()} | {{error, message_too_long}, data()}.
 message_parsed(Message, _MessageLen, #data{options = #{max_message_len := unlimited}} = Data) ->
     {{ok, Message}, Data};
 message_parsed(_Message, MessageLen, #data{options = #{max_message_len := MaxLen}} = Data) when MessageLen > MaxLen ->

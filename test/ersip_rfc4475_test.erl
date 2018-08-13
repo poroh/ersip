@@ -50,9 +50,11 @@ parse_rfc4475_good_test_() ->
      ?GOOD(cparam01),
      ?GOOD(cparam02),
      ?GOOD(regescrt),
-     ?GOOD(unkscm), %% Well-formed message, but unknown scheme for UA
-     ?GOOD(unksm2), %% Good for proxy, bad for registrar...
-     ?GOOD(novelsc) %% Well-formed message, but unknown scheme for UA
+     ?GOOD(unkscm),  %% Well-formed message, but unknown scheme for UA
+     ?GOOD(unksm2),  %% Good for proxy, bad for registrar...
+     ?GOOD(novelsc), %% Well-formed message, but unknown scheme for UA
+     ?GOOD(invut),   %% Well-formed message, but unknown content for endpoint
+     ?GOOD(sdp01)    %% Well-formed message, UA should reject it because unknown content type
     ].
 
 parse_rfc4475_bad_test_() ->
@@ -62,7 +64,6 @@ parse_rfc4475_bad_test_() ->
 %%     ?BAD(bcast),
      ?BAD_DGRAM(clerr),
 %%     ?BAD(escruri),
-%%     ?BAD(invut),
      ?BAD(lwsstart),
      ?BAD(mismatch02),
 %%     ?BAD(regbadct),
@@ -75,7 +76,6 @@ parse_rfc4475_bad_test_() ->
      ?BAD(mcl01),
      ?BAD(multi01),
      ?BAD(quotbal),
-%%     ?BAD(sdp01),
      ?BAD(baddate),
      ?BAD(badvers),
      ?BAD(bigcode),

@@ -23,6 +23,15 @@ server_transaction_new_test() ->
     ?assertEqual([ersip_trans_se:tu_result(SipMsg)], SE),
     ok.
 
+cancel_transaction_id_test() ->
+    InviteReq = invite_req(),
+    InviteMsg = pass_request_to_server(InviteReq),
+    CancelReq = ersip_request_cancel:generate(InviteReq),
+    CancelMsg = pass_request_to_server(CancelReq),
+    %% Check that message sent to server can be matched by CANCEL request
+    ?assertEqual(ersip_trans_id:make_server(InviteMsg), ersip_trans:server_cancel_id(CancelMsg)),
+    ok.
+
 server_transaction_retransmit_test() ->
     SipMsg = default_register_request(),
     {ServerTrans, SE} = ersip_trans:new_server(SipMsg, default_sip_options()),
@@ -146,7 +155,7 @@ client_transaction_match_test() ->
     SipMsg = default_register_request(),
     Branch = ersip_branch:make_random(7),
     OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
-    {ClientTrans, SE} = ersip_trans:new_client(OutReq, default_sip_options()),
+    {_ClientTrans, SE} = ersip_trans:new_client(OutReq, default_sip_options()),
     {send_request, SendReq} = se_event(send_request, SE),
     RemoteSipMsg = send_req_via_default_conn(SendReq),
     Remote200OK = ersip_sipmsg:reply(200, RemoteSipMsg),
@@ -175,7 +184,7 @@ create_sipmsg(Msg, Source) when is_binary(Msg) ->
     SipMsg.
 
 pass_request_to_server(Request) ->
-    ReqSipMsg = ersip_request:sipmsg(Request),
+    ReqSipMsg = send_req_via_default_conn(Request),
     Bin = ersip_sipmsg:serialize_bin(ReqSipMsg),
     create_sipmsg(Bin, make_default_source()).
 

@@ -205,7 +205,7 @@ toplabel_valid(<<Char/utf8, R/binary>>, start) when ?is_ALPHA(Char) ->
     toplabel_valid(R, rest);
 toplabel_valid(_, start) ->
     false;
-toplabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) ->
+toplabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) orelse Char == $- ->
     toplabel_valid(R, rest);
 toplabel_valid(_, rest) ->
     false.
@@ -225,7 +225,7 @@ domainlabel_valid(<<Char/utf8>>, rest) when ?is_alphanum(Char) ->
     true;
 domainlabel_valid(<<_/utf8>>, rest)  ->
     false;
-domainlabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) orelse Char =:= $- ->
+domainlabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) orelse Char == $- ->
     domainlabel_valid(R, rest);
 domainlabel_valid(_, _) ->
     false.

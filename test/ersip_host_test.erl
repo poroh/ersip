@@ -32,7 +32,7 @@ hostname_parse_test() ->
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<".com.">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.1.">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"-example.com">>)),
-    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.co-m">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.-com">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example-.com">>))
         .
 

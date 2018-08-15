@@ -353,6 +353,8 @@ pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{} = Stateful) ->
 -spec pr_choose_best_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{phase = {forward, _}}) ->
     continue;
+pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{phase = received_6xx}) ->
+    continue;
 pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
     %% A stateful proxy MUST send a final response to a response
     %% context's server transaction if no final responses have been
@@ -426,4 +428,3 @@ all_terminated(ReqCtxList) ->
 -spec choose_best_response([request_context()]) -> ersip_sipmsg:sipmsg().
 choose_best_response(ReqCtxList) ->
     ok.
-

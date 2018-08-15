@@ -78,7 +78,9 @@
                   }).
 -type stateful_phase() :: init
                         | select_target
-                        | send_requests.
+                        | collect
+                        | forward
+                        | received_6xx.
 -type stateful() :: #stateful{}.
 -type stateful_result() :: {stateful(), ersip_proxy_se:side_effect()}.
 -type internal_trans_id() :: any().
@@ -134,7 +136,15 @@ trans_result(init, SipMsg0, #stateful{phase = init, options = ProxyOptions} = St
             RURI = ersip_sipmsg:ruri(SipMsg1),
             {Stateful1, [ersip_proxy_se:select_target(RURI)]}
     end;
-trans_result(BranchKey, Resp, #stateful{phase = send_requests} = Stateful) ->
+trans_result(BranchKey, timeout, #stateful{phase = Phase, fwd_sipmsg = FwdSipMsg} = Stateful)
+  when Phase == collect orelse Phase == received_6xx ->
+    %% If there are no final responses in the context, the proxy MUST
+    %% send a 408 (Request Timeout) response to the server
+    %% transaction.
+    Resp = ersip_sipmsg:reply(408, FwdSipMsg),
+    process_response(BranchKey, Resp, Stateful);
+trans_result(BranchKey, Resp, #stateful{phase = Phase} = Stateful)
+  when Phase == collect orelse Phase == received_6xx ->
     process_response(BranchKey, Resp, Stateful).
 
 %% @doc Forward request to selected target. If list of URIs is
@@ -161,7 +171,7 @@ forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, 
          end
          || R <- Requests],
     SideEffects = create_client_trans(BranchReqCtxList, ProxyOptions, []),
-    Stateful1 = Stateful#stateful{phase = send_requests,
+    Stateful1 = Stateful#stateful{phase = collect,
                                   req_map = maps:from_list(BranchReqCtxList)
                                  },
     {Stateful1, SideEffects}.
@@ -209,7 +219,8 @@ process_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Statefu
                          fun pr_maybe_update_timer_c/3,
                          fun pr_process_via/3,
                          fun pr_add_response/3,
-                         fun pr_maybe_forward_response/3
+                         fun pr_maybe_forward_response/3,
+                         fun pr_choose_best_response/3
                         ],
                         BranchKey, RespSipMsg,
                         {[], Stateful}).
@@ -305,7 +316,7 @@ pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful
     end.
 
 -spec pr_maybe_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
+pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% Until a final response has been sent on the server transaction,
     %% the following responses MUST be forwarded immediately:
     %%
@@ -314,25 +325,48 @@ pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% -  Any 2xx response
     case ersip_sipmsg:status(RespSipMsg) of
         Code when Code >= 101 andalso Code =< 199  ->
-            pr_forward_response(RespSipMsg, Stateful);
+            {continue, Stateful#stateful{phase = {forward, RespSipMsg}}};
         Code when Code >= 200 andalso Code =< 299 ->
-            pr_forward_response(RespSipMsg, Stateful);
+            {continue, Stateful#stateful{phase = {forward, RespSipMsg}}};
         Code when Code >= 600 ->
-            pr_forward_response(RespSipMsg, Stateful);
+            %% If a 6xx response is received, it is not immediately forwarded,
+            %% but the stateful proxy SHOULD cancel all client pending
+            %% transactions as described in Section 10, and it MUST NOT create
+            %% any new branches in this context.
+            %%
+            %% This is a change from RFC 2543, which mandated that the proxy
+            %% was to forward the 6xx response immediately.  For an INVITE
+            %% transaction, this approach had the problem that a 2xx response
+            %% could arrive on another branch, in which case the proxy would
+            %% have to forward the 2xx.  The result was that the UAC could
+            %% receive a 6xx response followed by a 2xx response, which should
+            %% never be allowed to happen.  Under the new rules, upon
+            %% receiving a 6xx, a proxy will issue a CANCEL request, which
+            %% will generally result in 487 responses from all outstanding
+            %% client transactions, and then at that point the 6xx is
+            %% forwarded upstream.
+            {continue, Stateful#stateful{phase = received_6xx}};
         _ ->
-            case choose_best_response(Stateful) of
-                collect_more ->
-                    stop;
-                {ok, RespSipMsg} ->
-                    pr_forward_response(RespSipMsg, Stateful)
-            end
+            continue
     end.
 
-pr_forward_response(_, _) ->
-    stop.
+-spec pr_choose_best_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{phase = {forward, _}}) ->
+    continue;
+pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    %% A stateful proxy MUST send a final response to a response
+    %% context's server transaction if no final responses have been
+    %% immediately forwarded by the above rules and all client
+    %% transactions in this response context have been terminated.
+    ReqCtxList = maps:values(ReqCtxMap),
+    case all_terminated(ReqCtxList) of
+        false ->
+            stop;
+        true ->
+            Resp = choose_best_response(ReqCtxList),
+            {continue, Stateful#stateful{phase = {forward, Resp}}}
+    end.
 
-choose_best_response(_) ->
-    collect_more.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->
@@ -377,4 +411,19 @@ reset_timer_c(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
     ReqCtxMap1 = ReqCtxMap#{BranchKey := ReqCtx1},
     Stateful1 = Stateful#stateful{req_map = ReqCtxMap1},
     {Stateful1, [TimerC]}.
+
+%% @private
+%% @doc All transactions within request context is terminated.
+-spec all_terminated([request_context()]) -> boolean().
+all_terminated(ReqCtxList) ->
+    lists:all(fun(#request_context{resp = undefined}) ->
+                      false;
+                 (#request_context{resp = Resp}) ->
+                      ersip_sipmsg:status(Resp) >= 200
+              end,
+              ReqCtxList).
+
+-spec choose_best_response([request_context()]) -> ersip_sipmsg:sipmsg().
+choose_best_response(ReqCtxList) ->
+    ok.
 

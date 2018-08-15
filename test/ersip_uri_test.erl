@@ -209,7 +209,7 @@ uri_make_test() ->
                                  {user, <<"Alice">>},
                                  {host, {hostname, <<"atlanta.com">>}},
                                  {port, 5061}])),
-    ?assertError({invalid_host, _}, ersip_uri:make([{host, {hostname, <<"a-b">>}}])),
+    ?assertError({invalid_host, _}, ersip_uri:make([{host, {hostname, <<"-ab">>}}])),
     ?assertError({invalid_part, _}, ersip_uri:make([{x, {user, <<"a-b">>}}])),
     ?assertError({error, _}, ersip_uri:make(<<"x">>)).
 

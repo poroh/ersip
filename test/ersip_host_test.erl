@@ -22,7 +22,10 @@ hostname_parse_test() ->
     ?assertEqual({ok, {hostname, <<"exa-mple.com.">>}},      ersip_host:parse(<<"exa-mple.com.">>)),
     ?assertEqual({ok, {hostname, <<"x.com">>}},              ersip_host:parse(<<"x.com">>)),
     ?assertEqual({ok, {hostname, <<"10.com">>}},             ersip_host:parse(<<"10.com">>)),
+    ?assertEqual({ok, {hostname, <<"10.c-m">>}},             ersip_host:parse(<<"10.c-m">>)),
+    ?assertEqual({ok, {hostname, <<"10.c--m">>}},            ersip_host:parse(<<"10.c--m">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"127..">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"[">>)),
     ?assertMatch({error, {invalid_ipv6, _}},  ersip_host:parse(<<"[]">>)),
     ?assertMatch({error, {invalid_ipv6, _}},  ersip_host:parse(<<"[:1:]">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"[::1">>)),
@@ -31,9 +34,14 @@ hostname_parse_test() ->
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<".">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<".com.">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.1.">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.com-">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.-com">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.-com">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.com--">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"-example.com">>)),
-    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.co-m">>)),
-    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example-.com">>))
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example-.com">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"--example.com">>)),
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example--.com">>))
         .
 
 host_assemble_test() ->

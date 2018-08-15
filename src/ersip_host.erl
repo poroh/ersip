@@ -128,12 +128,13 @@ make(Addr) when is_binary(Addr)  ->
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
               | {error, {invalid_host, binary()}}.
-parse_ipv6_reference(<<$[, R/binary>> = Bin) when R =/= <<>> ->
-    case binary:at(R, byte_size(R)-1) of
-        $] ->
-            parse_ipv6_address(binary:part(R, 0, byte_size(R)-1));
-        _ ->
-            {error, {invalid_host, Bin}}
+parse_ipv6_reference(R) when byte_size(R) < 2 ->
+    {error, {invalid_host, R}};
+parse_ipv6_reference(R) ->
+    IP6size = byte_size(R) - 2,
+    case R of
+        <<"[", IP6:IP6size/binary, "]">> ->  parse_ipv6_address(IP6);
+        _ ->  {error, {invalid_host, R}}
     end.
 
 %% @private
@@ -173,62 +174,52 @@ parse_address(Bin) when is_binary(Bin) ->
 %% @private
 %% @doc Check that hostname agree specicification
 %%
-%% hostname         =  *( domainlabel "." ) toplabel ["."]
+-spec hostname_valid( binary() ) -> boolean().
+
+%% 'Jewish' trick. Some grammars much easier parse from right to left.
+%% For instance in case of hostname parsing from left to right, we dont know if we parse domainlabel or toplabel.
+%%  In case parsing right to left, toplabel will be parsed first, and domainlabels are all the rest.
 %%
--spec hostname_valid( binary() | [binary()] ) -> boolean().
-hostname_valid(Bin) when is_binary(Bin) ->
-    hostname_valid(binary:split(Bin, <<".">>, [global]));
-hostname_valid([<<>>]) ->
-    false;
-hostname_valid([TopLabel, <<>>]) ->
-    toplabel_valid(TopLabel, start);
-hostname_valid([TopLabel]) ->
-    toplabel_valid(TopLabel, start);
-hostname_valid([DomainLabel | Rest]) ->
-    case domainlabel_valid(DomainLabel, start) of
-        false ->
-            false;
-        true ->
-            hostname_valid(Rest)
+%%  So. Instead of
+%%
+%%  hostname         =  *( domainlabel "." ) toplabel ["."]
+%%  domainlabel      =  alphanum  / alphanum *( alphanum / "-" ) alphanum
+%%  toplabel         =  ALPHA / ALPHA *( alphanum / "-" )
+%%
+%%  I reverse chars in the string and parse
+%%  [.] alphanum *("-"/alphanum) alpha *("." domainlabel)
+
+-compile({inline, [toplabel_valid/1, domainlabel_valid/1]}).
+hostname_valid(B) ->
+    Reversed = lists:reverse(binary_to_list(B)),
+    case Reversed  of
+       [$., A | _ ] when ?is_alphanum(A) ->
+            toplabel_valid(tl(Reversed));
+       [A | _ ] when ?is_alphanum(A) ->
+            toplabel_valid(Reversed);
+        _ ->
+            false
     end.
 
-%% @doc Check that toplabel agree specicification
-%%
-%% toplabel         =  ALPHA / ALPHA *( alphanum / "-" )
-%% @private
--spec toplabel_valid( binary(), start | rest ) -> boolean().
-toplabel_valid(<<>>, start) ->
-    false;
-toplabel_valid(<<>>, rest) ->
-    true;
-toplabel_valid(<<Char/utf8, R/binary>>, start) when ?is_ALPHA(Char) ->
-    toplabel_valid(R, rest);
-toplabel_valid(_, start) ->
-    false;
-toplabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) ->
-    toplabel_valid(R, rest);
-toplabel_valid(_, rest) ->
-    false.
+%% border conditions for toplabel
+toplabel_valid([A]) when ?is_ALPHA(A)                -> true;
+toplabel_valid([A, $. | _] = L) when ?is_ALPHA(A)    -> domainlabel_valid(tl(L));
+%% toplabel body
+toplabel_valid([$- | Rest])                          -> toplabel_valid(Rest);
+toplabel_valid([A  | Rest])     when ?is_alphanum(A) -> toplabel_valid(Rest);
+%% something wrong
+toplabel_valid(_)                                    -> false.
 
-%% @private
-%% @doc Check that domainlabel agree specicification
-%% domainlabel      =  alphanum
-%%                     / alphanum *( alphanum / "-" ) alphanum
--spec domainlabel_valid( binary(), start | rest ) -> boolean().
-domainlabel_valid(<<>>, start) ->
-    false;
-domainlabel_valid(<<Char/utf8>>, start) when ?is_alphanum(Char) ->
-    true;
-domainlabel_valid(<<Char/utf8, R/binary>>, start) when ?is_alphanum(Char) ->
-    domainlabel_valid(R, rest);
-domainlabel_valid(<<Char/utf8>>, rest) when ?is_alphanum(Char) ->
-    true;
-domainlabel_valid(<<_/utf8>>, rest)  ->
-    false;
-domainlabel_valid(<<Char/utf8, R/binary>>, rest) when ?is_alphanum(Char) orelse Char =:= $- ->
-    domainlabel_valid(R, rest);
-domainlabel_valid(_, _) ->
-    false.
+%% border conditions for domainlabels
+domainlabel_valid([$., A])         when ?is_alphanum(A) -> true;
+domainlabel_valid([A])             when ?is_alphanum(A) -> true;
+domainlabel_valid([$., A | R])     when ?is_alphanum(A) -> domainlabel_valid(R);
+domainlabel_valid([A, $. | _] = R) when ?is_alphanum(A) -> domainlabel_valid(tl(R));
+%% domainlabel body
+domainlabel_valid([$- | R])                             -> domainlabel_valid(R);
+domainlabel_valid([A  | R]) when ?is_alphanum(A)        -> domainlabel_valid(R);
+%% something wrong
+domainlabel_valid(_)                                    -> false.
 
 -spec assure_host(MaybeHost) -> host() when
       MaybeHost :: term().

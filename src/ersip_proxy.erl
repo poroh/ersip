@@ -220,7 +220,9 @@ process_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Statefu
                          fun pr_process_via/3,
                          fun pr_add_response/3,
                          fun pr_maybe_forward_response/3,
-                         fun pr_choose_best_response/3
+                         fun pr_choose_best_response/1,
+                         fun pr_aggregate_auth_header/1,
+                         fun pr_forward_response/1
                         ],
                         BranchKey, RespSipMsg,
                         {[], Stateful}).
@@ -228,7 +230,14 @@ process_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Statefu
 do_process_response([], _, _, {RevSe, Stateful}) ->
     {lists:reverse(RevSe), Stateful};
 do_process_response([F | Rest], BranchKey, RespSipMsg, {RevSE, Stateful} = Acc) ->
-    case F(BranchKey, RespSipMsg, Stateful) of
+    FResult =
+        case erlang:fun_info(F, arity) of
+            {arity, 1} ->
+                F(Stateful);
+            {arity, 3} ->
+                F(BranchKey, RespSipMsg, Stateful)
+        end,
+    case FResult of
         continue ->
             do_process_response(Rest, BranchKey, RespSipMsg, Acc);
         {continue, #stateful{} = Stateful1} ->
@@ -316,7 +325,7 @@ pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful
     end.
 
 -spec pr_maybe_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{} = Stateful) ->
+pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% Until a final response has been sent on the server transaction,
     %% the following responses MUST be forwarded immediately:
     %%
@@ -325,9 +334,9 @@ pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% -  Any 2xx response
     case ersip_sipmsg:status(RespSipMsg) of
         Code when Code >= 101 andalso Code =< 199  ->
-            {continue, Stateful#stateful{phase = {forward, RespSipMsg}}};
+            {continue, Stateful#stateful{phase = {forward, BranchKey}}};
         Code when Code >= 200 andalso Code =< 299 ->
-            {continue, Stateful#stateful{phase = {forward, RespSipMsg}}};
+            {continue, Stateful#stateful{phase = {forward, BranchKey}}};
         Code when Code >= 600 ->
             %% If a 6xx response is received, it is not immediately forwarded,
             %% but the stateful proxy SHOULD cancel all client pending
@@ -345,17 +354,17 @@ pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{} = Stateful) ->
             %% will generally result in 487 responses from all outstanding
             %% client transactions, and then at that point the 6xx is
             %% forwarded upstream.
-            {continue, Stateful#stateful{phase = received_6xx}};
+            {continue, Stateful#stateful{phase = {received_6xx, BranchKey}}};
         _ ->
             continue
     end.
 
--spec pr_choose_best_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{phase = {forward, _}}) ->
+-spec pr_choose_best_response(stateful()) -> pr_result().
+pr_choose_best_response(#stateful{phase = {forward, _}}) ->
     continue;
-pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{phase = received_6xx}) ->
+pr_choose_best_response(#stateful{phase = {received_6xx, _}}) ->
     continue;
-pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+pr_choose_best_response(#stateful{req_map = ReqCtxMap} = Stateful) ->
     %% A stateful proxy MUST send a final response to a response
     %% context's server transaction if no final responses have been
     %% immediately forwarded by the above rules and all client
@@ -365,10 +374,27 @@ pr_choose_best_response(_BranchKey, _RespSipMsg, #stateful{req_map = ReqCtxMap} 
         false ->
             stop;
         true ->
-            Resp = choose_best_response(ReqCtxList),
-            {continue, Stateful#stateful{phase = {forward, Resp}}}
+            BranchKey = choose_best_response(ReqCtxList),
+            {continue, Stateful#stateful{phase = {forward, BranchKey}}}
     end.
 
+-spec pr_aggregate_auth_header(stateful()) -> pr_result().
+pr_aggregate_auth_header(#stateful{phase = {forward, _}, req_map = ReqCtxMap} = Stateful) ->
+    %% TODO:
+    continue;
+pr_aggregate_auth_header(#stateful{phase = {received_6xx, _}}) ->
+    continue.
+
+-spec pr_forward_response(stateful()) -> pr_result().
+pr_forward_response(#stateful{phase = {forward, Resp}}) ->
+    %% TODO:
+    continue;
+pr_forward_response(#stateful{phase = {received_6xx, Resp}}) ->
+    continue.
+
+-spec pr_cancel_requests(stateful()) -> pr_result().
+pr_cancel_requests(#stateful{phase = {forward, _}}) ->
+    continue.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->
@@ -425,6 +451,33 @@ all_terminated(ReqCtxList) ->
               end,
               ReqCtxList).
 
--spec choose_best_response([request_context()]) -> ersip_sipmsg:sipmsg().
+-spec choose_best_response([request_context()]) -> ersip_branch:branch_key().
 choose_best_response(ReqCtxList) ->
-    ok.
+    %% Sort all responses by comparision class and select minimal
+    %% (most preferred) response.
+    AllResps = [{code_comparision_class(ersip_sipmsg:status(Resp)), BranchKey}
+                || #request_context{key = BranchKey, resp = Resp} <- ReqCtxList],
+    [{_, Resp} | _] = lists:sort(AllResps),
+    Resp.
+
+%% @doc Select class of response that agree with status preference
+%% (lower value related to higher preference of the response).
+%% For 6xx it is always {1, 1}, For preferred 4xx it is {4, 1..3},
+%% for all other codes it is {StatusCode div 100, 5}.
+-spec code_comparision_class(ersip_status:code()) -> {pos_integer(), pos_integer()}.
+code_comparision_class(Code) when Code >= 600 ->
+    %% It MUST choose from the 6xx class responses if any exist in the
+    %% context.
+    {1, 1};
+    %% The proxy MAY select any response within that chosen class.
+    %% The proxy SHOULD give preference to responses that provide
+    %% information affecting resubmission of this request, such as
+    %% 401, 407, 415, 420, and 484 if the 4xx class is chosen.
+code_comparision_class(401) -> {4, 1};
+code_comparision_class(407) -> {4, 1};
+code_comparision_class(484) -> {4, 2};
+code_comparision_class(415) -> {4, 3};
+code_comparision_class(420) -> {4, 3};
+code_comparision_class(Code) ->
+    {Code div 100, 5}.
+

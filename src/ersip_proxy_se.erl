@@ -11,7 +11,8 @@
 -export([create_trans/3,
          response/2,
          select_target/1,
-         set_timer/2]).
+         set_timer/2,
+         stop/0]).
 
 -export_type([side_effect/0,
               timer_event/0]).
@@ -23,12 +24,14 @@
 -type side_effect() :: create_trans()
                      | response()
                      | select_target()
-                     | set_timer().
+                     | set_timer()
+                     | stop().
 
--type create_trans()  :: {create_trans, Type :: trans_type(),  Id :: term(), ersip_request:request() | ersip_sipmsg:sipmsg()}.
+-type create_trans()  :: {create_trans, {Type :: trans_type(),  Id :: term(), ersip_request:request() | ersip_sipmsg:sipmsg()}}.
 -type response()      :: {response, Id :: term(), ersip_sipmsg:sipmsg()}.
 -type select_target() :: {select_target, RURI :: ersip_uri:uri()}.
 -type set_timer()     :: {set_timer, {timeout(), timer_event()}}.
+-type stop()          :: {stop, {}}.
 
 -type trans_type()  :: client | server.
 -type timer_event() :: {timer, ersip_branch:branch_key(), reference()}.
@@ -48,12 +51,12 @@
 %% 2. For timeout: ersip_proxy:trans_result(Id, timeout, State)
 -spec create_trans(trans_type(), term(), ersip_request:request() | ersip_sipmsg:sipmsg()) -> create_trans().
 create_trans(TransType, Id, Req) ->
-    {create_trans, TransType, Id, Req}.
+    {create_trans, {TransType, Id, Req}}.
 
 %% @doc Send response within transaction with identifier Id.
 -spec response(Id :: term(), ersip_sipmsg:sipmsg()) -> response().
 response(Id, SipMsg) ->
-    {response, Id, SipMsg}.
+    {response, {Id, SipMsg}}.
 
 %% @doc Select target side effect.
 %%
@@ -71,3 +74,10 @@ select_target(RURI) ->
 -spec set_timer(timeout(), timer_event()) -> set_timer().
 set_timer(Timeout, TimerEv) ->
     {set_timer, {Timeout, TimerEv}}.
+
+%% @doc Stop side effect.
+%%
+%% State may be safely cleared after stop side effect has got.
+-spec stop() -> stop.
+stop() ->
+    {stop, {}}.

@@ -423,7 +423,8 @@ pr_forward_2xx_response(_BranchKey, _RespMsg, #stateful{}) ->
     {continue_with,
      [fun pr_update_record_route/3,
       fun pr_forward_response/3,
-      fun pr_cancel_other/3
+      fun pr_cancel_other/3,
+      fun pr_stop_proxy/3
      ]}.
 
 
@@ -458,7 +459,8 @@ pr_postprocess_6xx(_BranchKey, _Resp6xx, #stateful{req_map = ReqCtxMap}) ->
             %% response.
             {continue_with,
              [fun pr_update_record_route/3,
-              fun pr_forward_response/3
+              fun pr_forward_response/3,
+              fun pr_stop_proxy/3
              ]};
         false ->
             %% If some requests are pending then wait request
@@ -478,7 +480,8 @@ pr_choose_best_response(_BranchKey, _RespMsg, #stateful{req_map = ReqCtxMap, opt
             {continue_with,
              [fun pr_aggregate_auth_header/3,
               fun pr_update_record_route/3,
-              fun pr_forward_response/3
+              fun pr_forward_response/3,
+              fun pr_stop_proxy/3
               %% We do not need cancel requests here because all
               %% requests has been already terminated.
              ],
@@ -527,6 +530,10 @@ pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
     %% context we cannot try to cancel request that produced forwarded
     %% response.
     {continue, cancel_all_pending(Stateful)}.
+
+-spec pr_stop_proxy(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_stop_proxy(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
+    {continue, {Stateful, [ersip_proxy_se:stop()]}}.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->

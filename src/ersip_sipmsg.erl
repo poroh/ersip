@@ -17,6 +17,7 @@
          ruri/1,
          set_ruri/2,
          status/1,
+         set_status/2,
          reason/1,
 
          %% Headers manipulation:
@@ -106,6 +107,16 @@ status(#sipmsg{} = SipMsg) ->
             undefined;
         response ->
             ersip_msg:get(status, raw_message(SipMsg))
+    end.
+
+-spec set_status(ersip_status:code(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+set_status(Code, #sipmsg{} = SipMsg) ->
+    case type(SipMsg) of
+        request ->
+            error({api_error, {<<"cannot set status of request">>, SipMsg}});
+        response ->
+            RawMsg = ersip_msg:set(status, Code, raw_message(SipMsg)),
+            set_raw_message(RawMsg, SipMsg)
     end.
 
 -spec reason(ersip_sipmsg:sipmsg()) -> undefined | binary().

@@ -9,7 +9,10 @@
 -module(ersip_proxy).
 
 -export([new_stateful/2,
-         forward_to/2
+         trans_result/3,
+         forward_to/2,
+         timer_fired/2,
+         cancel/1
         ]).
 
 -export_type([params/0,
@@ -65,7 +68,15 @@
            record_route_uri => ersip_uri:uri(),
 
            %% Timer C timeout in milliseconds.
-           timer_c => non_neg_integer()
+           timer_c => non_neg_integer(),
+
+           %% Pass 503. RFC 3261 states:
+           %% If the only response that was received is a 503, the proxy
+           %% SHOULD generate a 500 response and forward that upstream.
+           %%
+           %% If this flag is set to true then proxy will not generate
+           %% 500 on 503.
+           pass_503 => boolean()
          }.
 
 
@@ -73,16 +84,13 @@
                    options     :: params(),                           %% Pass options
                    orig_sipmsg :: ersip_sipmsg:sipmsg(),              %% SIP message to be passed
                    fwd_sipmsg  :: ersip_sipmsg:sipmsg() | undefined,  %% SIP message to be forwarded
-                   use_trans   :: boolean(),                          %% Transactions is used for request
                    req_map   = #{} :: context_request_map()
                   }).
 -type stateful_phase() :: init
                         | select_target
-                        | collect
-                        | forward
-                        | received_6xx.
+                        | collect.
 -type stateful() :: #stateful{}.
--type stateful_result() :: {stateful(), ersip_proxy_se:side_effect()}.
+-type stateful_result() :: {stateful(), [ersip_proxy_se:side_effect()]}.
 -type internal_trans_id() :: any().
 -type check_rroute_fun() :: fun((ersip_hdr_route:route()) -> boolean()).
 
@@ -95,6 +103,8 @@
         }).
 -type request_context() :: #request_context{}.
 
+-define(SERVER_TRANS_ID, server_trans).
+-define(DEFAULT_BRANCH_ENTROPY, 7). %% Entropy (bytes) of the branch parameter
 
 %%%===================================================================
 %%% API
@@ -106,21 +116,21 @@ new_stateful(SipMsg, ProxyOptions) ->
     %% There is no client transaction for ACK.  If the TU
     %% wishes to send an ACK, it passes one directly to the
     %% transport layer for transmission.
-    UseTrans = ersip_sipmsg:method(SipMsg) /= ersip_method:ack(),
+    ACK = ersip_method:ack(),
+    case ersip_sipmsg:method(SipMsg) of
+        ACK ->
+            error({api_error, {<<"cannot create stateful proxy request for ACK request">>, SipMsg}});
+        _ ->
+            ok
+    end,
     Stateful = #stateful{phase       = init,
                          options     = ProxyOptions,
-                         orig_sipmsg = SipMsg,
-                         use_trans   = UseTrans
+                         orig_sipmsg = SipMsg
                         },
-    case UseTrans of
-        true ->
-            {Stateful, [ersip_proxy_se:create_trans(server, init, SipMsg)]};
-        false ->
-            trans_result(init, SipMsg, Stateful)
-    end.
+    {Stateful, [ersip_proxy_se:create_trans(server, ?SERVER_TRANS_ID, SipMsg)]}.
 
 -spec trans_result(internal_trans_id(), ersip_sipmsg:sipmsg(), stateful()) -> stateful_result().
-trans_result(init, SipMsg0, #stateful{phase = init, options = ProxyOptions} = Stateful) ->
+trans_result(?SERVER_TRANS_ID, SipMsg0, #stateful{phase = init, options = ProxyOptions} = Stateful) ->
     SipMsg1   = ersip_proxy_common:process_route_info(SipMsg0, ProxyOptions),
     Stateful1 = Stateful#stateful{phase = select_target,
                                   fwd_sipmsg = SipMsg1
@@ -131,26 +141,29 @@ trans_result(init, SipMsg0, #stateful{phase = init, options = ProxyOptions} = St
     RURI = ersip_sipmsg:ruri(SipMsg1),
     case ersip_uri:params(RURI) of
         #{maddr := Host} ->
-            forward_to(Host, Stateful1);
+            URI = ersip_uri:make([{scheme, sip}, {host, Host}]),
+            forward_to(URI, Stateful1);
         _ ->
             RURI = ersip_sipmsg:ruri(SipMsg1),
             {Stateful1, [ersip_proxy_se:select_target(RURI)]}
     end;
-trans_result(BranchKey, timeout, #stateful{phase = Phase, fwd_sipmsg = FwdSipMsg} = Stateful)
-  when Phase == collect orelse Phase == received_6xx ->
+trans_result(BranchKey, timeout, #stateful{phase = collect, fwd_sipmsg = FwdSipMsg} = Stateful) ->
     %% If there are no final responses in the context, the proxy MUST
     %% send a 408 (Request Timeout) response to the server
     %% transaction.
     Resp = ersip_sipmsg:reply(408, FwdSipMsg),
     process_response(BranchKey, Resp, Stateful);
-trans_result(BranchKey, Resp, #stateful{phase = Phase} = Stateful)
-  when Phase == collect orelse Phase == received_6xx ->
+trans_result(BranchKey, Resp, #stateful{phase = collect} = Stateful) ->
     process_response(BranchKey, Resp, Stateful).
 
 %% @doc Forward request to selected target. If list of URIs is
 %% specified then all requests are forwarded simultaneously (forked).
 %% Caller may specify branch for each target by using tuple {URI, Branch}.
--spec forward_to(Target :: ersip_uri:uri() | [ersip_uri:uri()], stateful()) -> stateful_result().
+%%
+%% If branch is not specified then it is selected randomly generated
+%% from ?DEFAULT_BRANCH_ENTROPY random bytes.
+-spec forward_to(Target | [Target], stateful()) -> stateful_result() when
+      Target :: ersip_uri:uri() | {ersip_uri:uri(), ersip_branch:branch()}.
 forward_to(Target, #stateful{} = Stateful) when not is_list(Target) ->
     forward_to([Target], Stateful);
 forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, fwd_sipmsg = FwdMsg} = Stateful) ->
@@ -160,7 +173,7 @@ forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, 
                           ersip_request:new(SipMsg, Branch, NexthopURI);
                      (Target) ->
                           {SipMsg, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, FwdMsg, ProxyOptions),
-                          ersip_request:new(SipMsg, erproxy_branch:generate(), NexthopURI)
+                          ersip_request:new(SipMsg, ersip_branch:make_random(?DEFAULT_BRANCH_ENTROPY), NexthopURI)
                   end,
                   TargetList),
     BranchReqCtxList =
@@ -176,16 +189,44 @@ forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, 
                                  },
     {Stateful1, SideEffects}.
 
+-spec timer_fired(ersip_proxy_se:timer_event(), stateful()) -> stateful_result().
+timer_fired({timer, BranchKey, TimerCRef}, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case ReqCtxMap of
+        #{BranchKey := #request_context{timer_c = TimerCRef, req = Req}} ->
+            %% If branch is found and timer_c reference matches timer
+            %% reference then consider response timeout on that
+            %% request.
+            Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
+            process_response(BranchKey, Resp, Stateful);
+        _ ->
+            %% Otherwise ignore event:
+            {Stateful, []}
+    end.
+
+
+-spec cancel(stateful()) -> stateful_result().
+cancel(#stateful{phase = collect} = Stateful) ->
+    cancel_all_pending(Stateful).
+
 %%%===================================================================
 %%% Internal Implementation
 %%%===================================================================
+-type pr_function() :: fun((ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result()).
 -type pr_result() :: stop
+                     %% Continue processing
                    | continue
+                     %% Continue processing with new state
                    | {continue, stateful()}
-                   | {continue, stateful_result()}.
+                     %% Continue processing with new state and produce
+                     %% side effect.
+                   | {continue, stateful_result()}
+                     %% Continue processing with new flow
+                   | {continue_with, [pr_function()]}
+                     %% Continue processing with new flow and new response
+                   | {continue_with, [pr_function()], ersip_branch:branch_key(), ersip_sipmsg:sipmsg()}.
 
 -spec process_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> stateful_result().
-process_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+process_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %%    1.  Find the appropriate response context
     %%
     %%    2.  Update timer C for provisional responses
@@ -219,31 +260,26 @@ process_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Statefu
                          fun pr_maybe_update_timer_c/3,
                          fun pr_process_via/3,
                          fun pr_add_response/3,
-                         fun pr_maybe_forward_response/3,
-                         fun pr_choose_best_response/1,
-                         fun pr_aggregate_auth_header/1,
-                         fun pr_forward_response/1
+                         fun pr_maybe_forward_response/3
                         ],
                         BranchKey, RespSipMsg,
-                        {[], Stateful}).
+                        {Stateful, []}).
 
-do_process_response([], _, _, {RevSe, Stateful}) ->
-    {lists:reverse(RevSe), Stateful};
-do_process_response([F | Rest], BranchKey, RespSipMsg, {RevSE, Stateful} = Acc) ->
-    FResult =
-        case erlang:fun_info(F, arity) of
-            {arity, 1} ->
-                F(Stateful);
-            {arity, 3} ->
-                F(BranchKey, RespSipMsg, Stateful)
-        end,
-    case FResult of
+-spec do_process_response([pr_function()], ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful_result()) -> stateful_result().
+do_process_response([], _, _, {Stateful, RevSe}) ->
+    {Stateful, lists:reverse(RevSe)};
+do_process_response([F | Rest], BranchKey, RespSipMsg, {Stateful, RevSE} = Acc) ->
+    case F(BranchKey, RespSipMsg, Stateful) of
         continue ->
             do_process_response(Rest, BranchKey, RespSipMsg, Acc);
         {continue, #stateful{} = Stateful1} ->
-            do_process_response(Rest, BranchKey, RespSipMsg, {RevSE, Stateful1});
+            do_process_response(Rest, BranchKey, RespSipMsg, {Stateful1, RevSE});
         {continue, {#stateful{} = Stateful1, SE1}} ->
-            do_process_response(Rest, BranchKey, RespSipMsg, {lists:reverse(SE1) ++ RevSE, Stateful1});
+            do_process_response(Rest, BranchKey, RespSipMsg, {Stateful1, lists:reverse(SE1) ++ RevSE});
+        {continue_with, FList} ->
+            do_process_response(FList, BranchKey, RespSipMsg, Acc);
+        {continue_with, FList, NewBranchKey, NewRespSipMsg} ->
+            do_process_response(FList, NewBranchKey, NewRespSipMsg, Acc);
         stop ->
             do_process_response([], BranchKey, RespSipMsg, Acc)
     end.
@@ -281,7 +317,7 @@ pr_maybe_update_timer_c(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = 
     end.
 
 -spec pr_process_via(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_process_via(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
+pr_process_via(_BranchKey, RespSipMsg, #stateful{}) ->
     %% Normative:
     %% If no Via header field values remain in the response, the
     %% response was meant for this element and MUST NOT be forwarded.
@@ -294,13 +330,13 @@ pr_process_via(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% We remove topmost via when receive message from connection. So no Via already here
     case ersip_sipmsg:find(topmost_via, RespSipMsg) of
         not_found ->
-            pr_process_selfgenerated(BranchKey, RespSipMsg, #stateful{} = Stateful);
+            {continue_with, [fun pr_process_selfgenerated/3]};
         _ ->
             continue
     end.
 
 -spec pr_process_selfgenerated(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_process_selfgenerated(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
+pr_process_selfgenerated(_BranchKey, _RespSipMsg, #stateful{}) ->
     %% TODO: 8.1.3
     stop.
 
@@ -325,7 +361,7 @@ pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful
     end.
 
 -spec pr_maybe_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
+pr_maybe_forward_response(_BranchKey, RespSipMsg, #stateful{}) ->
     %% Until a final response has been sent on the server transaction,
     %% the following responses MUST be forwarded immediately:
     %%
@@ -334,9 +370,9 @@ pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %% -  Any 2xx response
     case ersip_sipmsg:status(RespSipMsg) of
         Code when Code >= 101 andalso Code =< 199  ->
-            {continue, Stateful#stateful{phase = {forward, BranchKey}}};
+            {continue_with, [fun pr_forward_1xx_response/3]};
         Code when Code >= 200 andalso Code =< 299 ->
-            {continue, Stateful#stateful{phase = {forward, BranchKey}}};
+            {continue_with, [fun pr_forward_2xx_response/3]};
         Code when Code >= 600 ->
             %% If a 6xx response is received, it is not immediately forwarded,
             %% but the stateful proxy SHOULD cancel all client pending
@@ -354,47 +390,143 @@ pr_maybe_forward_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
             %% will generally result in 487 responses from all outstanding
             %% client transactions, and then at that point the 6xx is
             %% forwarded upstream.
-            {continue, Stateful#stateful{phase = {received_6xx, BranchKey}}};
+            {continue_with, [fun pr_process_6xx_response/3]};
         _ ->
+            {continue_with, [fun pr_choose_best_response/3]}
+    end.
+
+-spec pr_forward_1xx_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_forward_1xx_response(_BranchKey, _RespMsg, #stateful{}) ->
+    %% Normative:
+    %% Any response chosen for immediate forwarding MUST be processed
+    %% as described in steps "Aggregate Authorization Header Field
+    %% Values" through "Record-Route".
+    %%
+    %% Implementation: we do not pass provisional response through
+    %% "Aggregate Authorization Header Field" step because it
+    %% applicable only for 401 and 407 codes.
+    {continue_with,
+     [fun pr_update_record_route/3,
+      fun pr_forward_response/3
+     ]}.
+
+-spec pr_forward_2xx_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_forward_2xx_response(_BranchKey, _RespMsg, #stateful{}) ->
+    %% Normative:
+    %% Any response chosen for immediate forwarding MUST be processed
+    %% as described in steps "Aggregate Authorization Header Field
+    %% Values" through "Record-Route".
+    %%
+    %% Implementation: we do not pass provisional response through
+    %% "Aggregate Authorization Header Field" step because it
+    %% applicable only for 401 and 407 codes.
+    {continue_with,
+     [fun pr_update_record_route/3,
+      fun pr_forward_response/3,
+      fun pr_cancel_other/3
+     ]}.
+
+
+-spec pr_process_6xx_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_process_6xx_response(_BranchKey, _RespMsg, #stateful{}) ->
+    %% If a 6xx response is received, it is not immediately forwarded,
+    %% but the stateful proxy SHOULD cancel all client pending
+    %% transactions as described in Section 10, and it MUST NOT create
+    %% any new branches in this context.
+    %%
+    %% This is a change from RFC 2543, which mandated that the proxy
+    %% was to forward the 6xx response immediately.  For an INVITE
+    %% transaction, this approach had the problem that a 2xx response
+    %% could arrive on another branch, in which case the proxy would
+    %% have to forward the 2xx.  The result was that the UAC could
+    %% receive a 6xx response followed by a 2xx response, which should
+    %% never be allowed to happen.  Under the new rules, upon
+    %% receiving a 6xx, a proxy will issue a CANCEL request, which
+    %% will generally result in 487 responses from all outstanding
+    %% client transactions, and then at that point the 6xx is
+    %% forwarded upstream.
+    {continue_with,
+     [fun pr_cancel_other/3,
+      fun pr_postprocess_6xx/3]}.
+
+-spec pr_postprocess_6xx(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_postprocess_6xx(_BranchKey, _Resp6xx, #stateful{req_map = ReqCtxMap}) ->
+    ReqCtxList = maps:values(ReqCtxMap),
+    case all_terminated(ReqCtxList) of
+        true ->
+            %% If all requests are terminated then forwarward 6xx
+            %% response.
+            {continue_with,
+             [fun pr_update_record_route/3,
+              fun pr_forward_response/3
+             ]};
+        false ->
+            %% If some requests are pending then wait request
+            %% cancellation
             continue
     end.
 
--spec pr_choose_best_response(stateful()) -> pr_result().
-pr_choose_best_response(#stateful{phase = {forward, _}}) ->
-    continue;
-pr_choose_best_response(#stateful{phase = {received_6xx, _}}) ->
-    continue;
-pr_choose_best_response(#stateful{req_map = ReqCtxMap} = Stateful) ->
-    %% A stateful proxy MUST send a final response to a response
-    %% context's server transaction if no final responses have been
-    %% immediately forwarded by the above rules and all client
-    %% transactions in this response context have been terminated.
+-spec pr_choose_best_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_choose_best_response(_BranchKey, _RespMsg, #stateful{req_map = ReqCtxMap, options = ProxyOptions}) ->
     ReqCtxList = maps:values(ReqCtxMap),
     case all_terminated(ReqCtxList) of
         false ->
             stop;
         true ->
-            BranchKey = choose_best_response(ReqCtxList),
-            {continue, Stateful#stateful{phase = {forward, BranchKey}}}
+            {BestRespBranchKey, RespCandidate} = choose_best_response(ReqCtxList),
+            BestResp = pr_maybe_patch_503(RespCandidate, ProxyOptions),
+            {continue_with,
+             [fun pr_aggregate_auth_header/3,
+              fun pr_update_record_route/3,
+              fun pr_forward_response/3
+              %% We do not need cancel requests here because all
+              %% requests has been already terminated.
+             ],
+             BestRespBranchKey,
+             BestResp}
     end.
 
--spec pr_aggregate_auth_header(stateful()) -> pr_result().
-pr_aggregate_auth_header(#stateful{phase = {forward, _}, req_map = ReqCtxMap} = Stateful) ->
-    %% TODO:
-    continue;
-pr_aggregate_auth_header(#stateful{phase = {received_6xx, _}}) ->
+-spec pr_maybe_patch_503(ersip_sipmsg:sipmsg(), options()) -> ersip_sipmsg:sipmsg().
+pr_maybe_patch_503(RespCandidate, #{pass_503 := true} = _ProxyOptions) ->
+    RespCandidate;
+pr_maybe_patch_503(RespCandidate, #{} = _ProxyOptions) ->
+    case ersip_sipmsg:status(RespCandidate) of
+        503 ->
+            %% If the only response that was received is a 503, the proxy
+            %% SHOULD generate a 500 response and forward that upstream.
+            ersip_sipmsg:set_status(500, RespCandidate);
+        _ ->
+            RespCandidate
+    end.
+
+-spec pr_update_record_route(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_update_record_route(_BranchKey, _Resp, #stateful{}) ->
+    %% TODO: eventually implement this.
     continue.
 
--spec pr_forward_response(stateful()) -> pr_result().
-pr_forward_response(#stateful{phase = {forward, Resp}}) ->
-    %% TODO:
-    continue;
-pr_forward_response(#stateful{phase = {received_6xx, Resp}}) ->
+-spec pr_aggregate_auth_header(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_aggregate_auth_header(_BranchKey, _Resp, #stateful{}) ->
+    %% TODO: eventually implement this.
     continue.
 
--spec pr_cancel_requests(stateful()) -> pr_result().
-pr_cancel_requests(#stateful{phase = {forward, _}}) ->
-    continue.
+-spec pr_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_forward_response(_BranchKey, RespMsg, #stateful{} = Stateful) ->
+    {continue, {Stateful, [ersip_proxy_se:response(?SERVER_TRANS_ID, RespMsg)]}}.
+
+-spec pr_cancel_other(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
+    %% Normative:
+    %% If the forwarded response was a final response, the proxy MUST
+    %% generate a CANCEL request for all pending client transactions
+    %% associated with this response context.
+    %%
+    %% Implementation:
+    %% We do not call pr_cancel_other for non-final response. So we
+    %% always cancel all pending requests. Note that by definition of
+    %% is_request_pending and because we add all responses to response
+    %% context we cannot try to cancel request that produced forwarded
+    %% response.
+    {continue, cancel_all_pending(Stateful)}.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->
@@ -421,6 +553,14 @@ create_client_trans([{BranchKey, #request_context{timer_c = TimerCRef, req = Req
     ClientTrans = ersip_proxy_se:create_trans(client, BranchKey, Req),
     TimerC = ersip_proxy_se:set_timer(timer_c_timeout(ProxyOptions), {timer, BranchKey, TimerCRef}),
     create_client_trans(Rest, ProxyOptions, [ClientTrans, TimerC | Acc]).
+
+-spec create_cancel_client_trans([{ersip_branch:branch_key(), request_context()}], options(), [ersip_proxy_se:side_effect()]) -> [ersip_proxy_se:side_effect()].
+create_cancel_client_trans([], _ProxyOptions, Acc) ->
+    Acc;
+create_cancel_client_trans([{BranchKey, #request_context{req = InitialReq}} | Rest], ProxyOptions, Acc) ->
+    CancelReq = ersip_request_cancel:generate(InitialReq),
+    CancelClientTrans = ersip_proxy_se:create_trans(client, BranchKey, CancelReq),
+    create_client_trans(Rest, ProxyOptions, [CancelClientTrans | Acc]).
 
 -spec timer_c_timeout(stateful() | options()) -> pos_integer().
 timer_c_timeout(#stateful{options = ProxyOptions}) ->
@@ -451,14 +591,20 @@ all_terminated(ReqCtxList) ->
               end,
               ReqCtxList).
 
--spec choose_best_response([request_context()]) -> ersip_branch:branch_key().
+-spec is_request_pending(request_context()) -> boolean().
+is_request_pending(#request_context{resp = undefined}) ->
+    true;
+is_request_pending(#request_context{resp = Resp}) ->
+    ersip_sipmsg:status(Resp) < 200.
+
+-spec choose_best_response([request_context()]) -> {ersip_branch:branch_key(), ersip_sipmsg:sipmsg()}.
 choose_best_response(ReqCtxList) ->
     %% Sort all responses by comparision class and select minimal
     %% (most preferred) response.
-    AllResps = [{code_comparision_class(ersip_sipmsg:status(Resp)), BranchKey}
+    AllResps = [{code_comparision_class(ersip_sipmsg:status(Resp)), {BranchKey, Resp}}
                 || #request_context{key = BranchKey, resp = Resp} <- ReqCtxList],
-    [{_, Resp} | _] = lists:sort(AllResps),
-    Resp.
+    [{_ComparisionClass, {_, _} = Result} | _] = lists:sort(AllResps),
+    Result.
 
 %% @doc Select class of response that agree with status preference
 %% (lower value related to higher preference of the response).
@@ -478,6 +624,24 @@ code_comparision_class(407) -> {4, 1};
 code_comparision_class(484) -> {4, 2};
 code_comparision_class(415) -> {4, 3};
 code_comparision_class(420) -> {4, 3};
+code_comparision_class(503) ->
+    %% A proxy which receives a 503 (Service Unavailable) response
+    %% SHOULD NOT forward it upstream unless it can determine that any
+    %% subsequent requests it might proxy will also generate a 503.
+    %% In other words, forwarding a 503 means that the proxy knows it
+    %% cannot service any requests, not just the one for the Request-
+    %% URI in the request which generated the 503.  If the only
+    %% response that was received is a 503, the proxy SHOULD generate
+    %% a 500 response and forward that upstream.
+    {4, 6};
 code_comparision_class(Code) ->
     {Code div 100, 5}.
+
+-spec cancel_all_pending(stateful()) -> stateful_result().
+cancel_all_pending(#stateful{req_map = ReqCtxMap, options = Options} = Stateful) ->
+    ToBeCancelled = [{BranchKey, ReqCtx}
+                     || {BranchKey, ReqCtx} <- maps:to_list(ReqCtxMap),
+                        is_request_pending(ReqCtx)],
+    {Stateful, create_cancel_client_trans(ToBeCancelled, Options, [])}.
+
 

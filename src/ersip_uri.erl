@@ -69,7 +69,7 @@ get(Parts, URI) when is_list(Parts) ->
               end,
               Parts).
 
--spec make(Parts :: [list(uri_part())]) -> uri().
+-spec make(PartsOrBin :: [uri_part()] | binary()) -> uri().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, URI} ->

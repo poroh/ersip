@@ -645,10 +645,19 @@ code_comparision_class(Code) ->
     {Code div 100, 5}.
 
 -spec cancel_all_pending(stateful()) -> stateful_result().
-cancel_all_pending(#stateful{req_map = ReqCtxMap, options = Options} = Stateful) ->
-    ToBeCancelled = [{BranchKey, ReqCtx}
-                     || {BranchKey, ReqCtx} <- maps:to_list(ReqCtxMap),
-                        is_request_pending(ReqCtx)],
-    {Stateful, create_cancel_client_trans(ToBeCancelled, Options, [])}.
+cancel_all_pending(#stateful{orig_sipmsg = SipMsg, req_map = ReqCtxMap, options = Options} = Stateful) ->
+    INVITE = ersip_method:invite(),
+    case ersip_sipmsg:method(SipMsg) of
+        INVITE ->
+            ToBeCancelled = [{BranchKey, ReqCtx}
+                             || {BranchKey, ReqCtx} <- maps:to_list(ReqCtxMap),
+                                is_request_pending(ReqCtx)],
+            {Stateful, create_cancel_client_trans(ToBeCancelled, Options, [])};
+        _ ->
+            %% RFC 3261 9.1 Client Behavior:
+            %% A CANCEL request SHOULD NOT be sent to cancel a request
+            %% other than INVITE.
+            {Stateful, []}
+    end.
 
 

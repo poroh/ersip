@@ -44,12 +44,15 @@ basic_proxy_noninvite_test() ->
     {create_trans, {client, ClientTransId@1, SingleReq}} = se_event(create_trans, SE@1_Forward),
     %%    - Check that message is sent to target:
     ?assertEqual(Target@1, ersip_request:nexthop(SingleReq)),
+    %%    - Check that timer C is not set
+    ?assertEqual(not_found, se_event(set_timer, SE@1_Forward)),
 
     %% 4. (branch 1) Creating response and pass as client transaction result:
     {_, Resp@1} = create_client_trans_result(200, SingleReq),
     {_, SESingleResp} = ersip_proxy:trans_result(ClientTransId@1, Resp@1, State@1_Forward),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SESingleResp)),
+    %%    - Check that timer C is not set
     ?assertMatch({stop, _}, se_event(stop, SESingleResp)),
 
     %% ==================== Branch 2
@@ -62,6 +65,8 @@ basic_proxy_noninvite_test() ->
     ClientTrans@2 = se_all(create_trans, SE@2_Forward),
     [?assertMatch({create_trans, {client, _, _}}, X) || X <- ClientTrans@2],
     ?assertEqual(length(Target@2), length(ClientTrans@2)),
+    ?assertEqual(not_found, se_event(set_timer, SE@1_Forward)),
+
 
     [{create_trans, {client, ClientTransId1@2, Req1@2}},
      {create_trans, {client, ClientTransId2@2, Req2@2}}] = SE@2_Forward,
@@ -71,8 +76,10 @@ basic_proxy_noninvite_test() ->
     %% 200 then 401 (branch 2.2)
     %% 401 then 200 (branch 2.3)
     %% 401 then 401 (branch 2.4)
+    %% 600 then 200 (branch 2.5)
     {_, Resp1@2_200} = create_client_trans_result(200, Req1@2),
     {_, Resp1@2_401} = create_client_trans_result(401, Req1@2),
+    {_, Resp1@2_600} = create_client_trans_result(600, Req1@2),
     {_, Resp2@2_200} = create_client_trans_result(200, Req2@2),
     {_, Resp2@2_401} = create_client_trans_result(401, Req2@2),
 
@@ -130,6 +137,23 @@ basic_proxy_noninvite_test() ->
     ?assertMatch({stop, _}, se_event(stop, SE@2_4_Resp2)),
     {response, {ServerTransId, Resp401@2_4}} = se_event(response, SE@2_4_Resp2),
     ?assertEqual(401, ersip_sipmsg:status(Resp401@2_4)),
+
+    %% ==================== Branch 2.5 (600 then 200)
+    %% 4. (branch 2.5) Creating responses on first transaction and pass result
+    {State@2_5_Resp1, SE@2_5_Resp1} = ersip_proxy:trans_result(ClientTransId1@2, Resp1@2_600, State@2_Forward),
+    %%    - Response 600 is not passed (collected)
+    ?assertMatch(not_found, se_event(response, SE@2_5_Resp1)),
+    ?assertMatch(not_found, se_event(stop, SE@2_5_Resp1)),
+    %%    - Second 200 response is passed:
+    {_, SE@2_5_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_5_Resp1),
+    %%    - Response 200 is passed to server transaction and proxy is stopped
+    ?assertMatch({response, {ServerTransId, Resp2@2_200}}, se_event(response, SE@2_5_Resp2)),
+    ?assertMatch({stop, _}, se_event(stop, SE@2_5_Resp2)),
+
+    ok.
+
+basic_proxy_invite_test() ->
+
     ok.
 
 %%%===================================================================

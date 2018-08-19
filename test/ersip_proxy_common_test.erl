@@ -40,15 +40,15 @@ stateless_proxy_forward_to_proxy_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+    ProxyOptions =
         #{check_rroute_fun =>
               fun(URI) ->
                       ersip_uri:make(ThisProxyURI) == URI
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     Target = ersip_uri:make(NextProxyURI),
-    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOpts),
+    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOptions),
     ?assertEqual(Target, NexthopURI),
     %% Check route has only one element NextProxyURI.
     ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
@@ -77,15 +77,15 @@ stateless_proxy_forward_to_ua_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+    ProxyOptions =
         #{check_rroute_fun =>
               fun(URI) ->
                       ersip_uri:make(ThisProxyURI) == URI
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     Target = ersip_uri:make(BobURI),
-    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOpts),
+    {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOptions),
     ?assertEqual(Target, NexthopURI),
     %% Check route does not have any elements
     ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg2)),
@@ -160,9 +160,9 @@ request_validation_unsupported_scheme_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    {reply, BadMsg} = request_validation(raw_message(Msg),
-                                         #{scheme_val_fun => fun(_) -> false end
-                                          }),
+    {reply, BadMsg} = request_validation(
+                        raw_message(Msg),
+                        #{validate => #{scheme_val_fun => fun(_) -> false end}}),
     ?assertEqual(416, ersip_sipmsg:status(BadMsg)),
     Reason = ersip_sipmsg:reason(BadMsg),
     ?assertEqual(<<"Unsupported URI Scheme">>, Reason),
@@ -184,8 +184,7 @@ request_validation_unsupported_scheme_cannot_reply_test() ->
     ?assertMatch({error, _},
                  request_validation(
                    raw_message(Msg),
-                   #{scheme_val_fun => fun(_) -> false end
-                    })),
+                   #{validate => #{scheme_val_fun => fun(_) -> false end}})),
     ok.
 
 request_validation_no_resp_to_test() ->
@@ -281,8 +280,8 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
     Supported =
         ersip_hdr_opttag_list:from_list(
           [ersip_option_tag:make(S) || S <- SupportedList]),
-    Options = #{reply_on_options => true,
-                proxy_params => #{
+    Options = #{validate => #{reply_on_options => true},
+                proxy => #{
                   allow => AllowMethods,
                   supported => Supported
                  }
@@ -308,7 +307,7 @@ request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
             ?crlf "CSeq: 314159 INVITE"
             ?crlf ?crlf
           >>,
-    Options = #{reply_on_options => true, proxy_params => #{}},
+    Options = #{validate => #{reply_on_options => true}},
     {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(200, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
@@ -384,7 +383,7 @@ request_validation_proxy_require_all_supported_test() ->
     Supported =
         ersip_hdr_opttag_list:from_list(
           [ersip_option_tag:make(S) || S <- SupportedList]),
-    Options = #{proxy_params => #{supported => Supported}},
+    Options = #{proxy => #{supported => Supported}},
     {ok, _} = request_validation(raw_message(Msg), Options),
     ok.
 
@@ -420,8 +419,9 @@ proxy_params_check_no_check_fun_test() ->
     ?assertError({error, _},
                  process_route_info(
                    raw_message(Msg),
-                   #{record_route_uri => ThisProxyURI
-                    })),
+                   #{proxy =>
+                         #{record_route_uri => ThisProxyURI
+                          }})),
     ok.
 
 proxy_params_check_no_validate_test() ->
@@ -441,9 +441,10 @@ proxy_params_check_no_validate_test() ->
     %%% Check that invalid options are ignored if no_validate => true
     process_route_info(
       raw_message(Msg),
-      #{no_validate => true,
-        record_route_uri => ThisProxyURI
-       }),
+      #{proxy =>
+            #{no_validate => true,
+              record_route_uri => ThisProxyURI
+             }}),
     ok.
 
 process_route_info_strict_routing_test() ->
@@ -470,13 +471,13 @@ process_route_info_strict_routing_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+    ProxyOptions =
         #{check_rroute_fun =>
               fun(URI) ->
                       ersip_uri:make(ThisProxyURI) == URI
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
@@ -506,13 +507,13 @@ process_route_info_loose_routing_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+    ProxyOptions =
         #{check_rroute_fun =>
               fun(URI) ->
                       ersip_uri:make(ThisProxyURI) == URI
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
@@ -541,8 +542,7 @@ process_route_info_no_rr_checker_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts = #{},
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+    SipMsg0 = process_route_info(raw_message(Msg), #{}),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ExpectedRouteSet = ersip_hdr_route:make(<<"<", ThisProxyURI/binary, ">, <", NextProxyURI/binary, ">">>),
@@ -566,13 +566,13 @@ process_route_info_no_routes_loose_route_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+    ProxyOptions =
         #{check_rroute_fun =>
-              fun(_URI) ->
+              fun(_) ->
                       false
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg)),
@@ -595,13 +595,14 @@ process_route_info_no_routes_strict_route_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    ProxyOpts =
+
+    ProxyOptions =
         #{check_rroute_fun =>
-              fun(_URI) ->
+              fun(_) ->
                       true
-              end
-         },
-    SipMsg0 = process_route_info(raw_message(Msg), ProxyOpts),
+              end},
+    Options = #{proxy => ProxyOptions},
+    SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
     ?assertEqual(not_found, ersip_sipmsg:find(route, SipMsg)),
@@ -952,15 +953,15 @@ raw_message(Bin) ->
     {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     PMsg.
 
-request_validation(RawMsg, Opts) ->
-    ersip_proxy_common:request_validation(RawMsg, Opts#{to_tag => {tag, <<"12345">>}}).
+request_validation(RawMsg, Options) ->
+    ersip_proxy_common:request_validation(RawMsg, Options).
 
 request_validation(RawMsg) ->
     request_validation(RawMsg, #{}).
 
-process_route_info(RawMsg, Opts) ->
-    {ok, SipMsg} = request_validation(RawMsg, Opts),
-    ersip_proxy_common:process_route_info(SipMsg, Opts).
+process_route_info(RawMsg, Options) ->
+    {ok, SipMsg} = request_validation(RawMsg, Options),
+    ersip_proxy_common:process_route_info(SipMsg, maps:get(proxy, Options, #{})).
 
 forward_request(Target, RawMsg, Opts) when is_binary(Target) ->
     forward_request(ersip_uri:make(Target), RawMsg, Opts);

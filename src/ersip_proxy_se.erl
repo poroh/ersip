@@ -28,7 +28,7 @@
                      | stop().
 
 -type create_trans()  :: {create_trans, {Type :: trans_type(),  Id :: term(), ersip_request:request() | ersip_sipmsg:sipmsg()}}.
--type response()      :: {response, Id :: term(), ersip_sipmsg:sipmsg()}.
+-type response()      :: {response, {Id :: term(), ersip_sipmsg:sipmsg()}}.
 -type select_target() :: {select_target, RURI :: ersip_uri:uri()}.
 -type set_timer()     :: {set_timer, {timeout(), timer_event()}}.
 -type stop()          :: {stop, {}}.
@@ -78,6 +78,6 @@ set_timer(Timeout, TimerEv) ->
 %% @doc Stop side effect.
 %%
 %% State may be safely cleared after stop side effect has got.
--spec stop() -> stop.
+-spec stop() -> stop().
 stop() ->
     {stop, {}}.

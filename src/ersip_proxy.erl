@@ -17,7 +17,8 @@
 
 -export_type([params/0,
               options/0,
-              internal_trans_id/0
+              internal_trans_id/0,
+              stateful/0
              ]).
 
 %%%===================================================================
@@ -88,7 +89,8 @@
                   }).
 -type stateful_phase() :: init
                         | select_target
-                        | collect.
+                        | collect
+                        | cancelled.
 -type stateful() :: #stateful{}.
 -type stateful_result() :: {stateful(), [ersip_proxy_se:side_effect()]}.
 -type internal_trans_id() :: any().
@@ -147,6 +149,10 @@ trans_result(?SERVER_TRANS_ID, SipMsg0, #stateful{phase = init, options = ProxyO
             RURI = ersip_sipmsg:ruri(SipMsg1),
             {Stateful1, [ersip_proxy_se:select_target(RURI)]}
     end;
+trans_result(?SERVER_TRANS_ID, _SipMsg, #stateful{phase = cancelled} = Stateful) ->
+    %% Request was cancelled while server transaction has been beeing
+    %% created
+    early_cancel_request(Stateful);
 trans_result(BranchKey, timeout, #stateful{phase = collect, fwd_sipmsg = FwdSipMsg} = Stateful) ->
     %% If there are no final responses in the context, the proxy MUST
     %% send a 408 (Request Timeout) response to the server
@@ -166,6 +172,15 @@ trans_result(BranchKey, Resp, #stateful{phase = collect} = Stateful) ->
       Target :: ersip_uri:uri() | {ersip_uri:uri(), ersip_branch:branch()}.
 forward_to(Target, #stateful{} = Stateful) when not is_list(Target) ->
     forward_to([Target], Stateful);
+forward_to(_TargetList, #stateful{phase = cancelled} = Stateful) ->
+    early_cancel_request(Stateful);
+forward_to([], #stateful{phase = select_target, orig_sipmsg = SipMsg} = Stateful) ->
+    %% Target not found case:
+    RespMsg = ersip_sipmsg:reply(404, SipMsg),
+    SE = [ersip_proxy_se:response(?SERVER_TRANS_ID, RespMsg),
+          ersip_proxy_se:stop()
+         ],
+    {Stateful, SE};
 forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, fwd_sipmsg = FwdMsg} = Stateful) ->
     Requests =
         lists:map(fun({Target, Branch}) ->
@@ -203,10 +218,19 @@ timer_fired({timer, BranchKey, TimerCRef}, #stateful{req_map = ReqCtxMap} = Stat
             {Stateful, []}
     end.
 
-
 -spec cancel(stateful()) -> stateful_result().
+cancel(#stateful{phase = init} = Stateful) ->
+    %% Just wait when server transaction is created
+    Stateful1 = Stateful#stateful{phase = cancelled},
+    {Stateful1, []};
+cancel(#stateful{phase = select_target} = Stateful) ->
+    %% Canceling request before it passed through proxy
+    early_cancel_request(Stateful);
 cancel(#stateful{phase = collect} = Stateful) ->
-    cancel_all_pending(Stateful).
+    cancel_all_pending(Stateful);
+cancel(#stateful{phase = cancelled} = Stateful) ->
+    %% Ignore duplicated cancel
+    {Stateful, []}.
 
 %%%===================================================================
 %%% Internal Implementation
@@ -585,7 +609,7 @@ timer_c_timeout(#stateful{options = ProxyOptions}) ->
 timer_c_timeout(#{timer_c := TimerC}) ->
     TimerC;
 timer_c_timeout(_) ->
-    180.
+    timer:seconds(180).
 
 -spec reset_timer_c(ersip_branch:branch_key(), stateful()) -> stateful_result().
 reset_timer_c(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
@@ -670,4 +694,12 @@ cancel_all_pending(#stateful{orig_sipmsg = SipMsg, req_map = ReqCtxMap, options 
             {Stateful, []}
     end.
 
+-spec early_cancel_request(stateful()) -> stateful_result().
+early_cancel_request(#stateful{orig_sipmsg = ReqSipMsg} = Stateful) ->
+    RespMsg = ersip_sipmsg:reply(487, ReqSipMsg),
+    Stateful1 = Stateful#stateful{phase = cancelled},
+    SE = [ersip_proxy_se:response(?SERVER_TRANS_ID, RespMsg),
+          ersip_proxy_se:stop()
+         ],
+    {Stateful1, SE}.
 

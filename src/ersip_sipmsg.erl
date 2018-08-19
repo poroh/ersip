@@ -142,6 +142,8 @@ find(HdrAtom, #sipmsg{headers = H} = Msg) ->
                     not_found;
                 {ok, Value} ->
                     {ok, Value};
+                {error, {no_required_header, _}} ->
+                    not_found;
                 {error, _ } = Error ->
                     Error
             end

@@ -424,7 +424,7 @@ pr_forward_2xx_response(_BranchKey, _RespMsg, #stateful{}) ->
      [fun pr_update_record_route/3,
       fun pr_forward_response/3,
       fun pr_cancel_other/3,
-      fun pr_stop_proxy/3
+      fun pr_maybe_stop_proxy/3
      ]}.
 
 
@@ -534,6 +534,16 @@ pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
 -spec pr_stop_proxy(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_stop_proxy(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
     {continue, {Stateful, [ersip_proxy_se:stop()]}}.
+
+-spec pr_maybe_stop_proxy(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_maybe_stop_proxy(BranchKey, RespMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    ReqCtxList = maps:values(ReqCtxMap),
+    case all_terminated(ReqCtxList) of
+        true ->
+            pr_stop_proxy(BranchKey, RespMsg, Stateful);
+        false ->
+            continue
+    end.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->

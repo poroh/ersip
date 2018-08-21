@@ -16,20 +16,10 @@
 
 basic_proxy_noninvite_test() ->
     MessageSipMsg = message_request(),
-    RURI = ersip_sipmsg:ruri(MessageSipMsg),
 
     %% 1. Create new stateful proxy request state.
-    {StateCreateTrans, SECreateTrans} = ersip_proxy:new_stateful(MessageSipMsg, #{}),
-    %%    - Check that new server transaction is created.
-    ?assertMatch({create_trans, {server, _, MessageSipMsg}}, se_event(create_trans, SECreateTrans)),
-    {create_trans, {server, ServerTransId, MessageSipMsg}} = se_event(create_trans, SECreateTrans),
-    ?assertEqual(1, length(SECreateTrans)),
-
     %% 2. Process server transaction result.
-    {StateProcessReq, SEProcessReq} = ersip_proxy:trans_result(ServerTransId, MessageSipMsg, StateCreateTrans),
-    %%    - Check that RURI is used to for selecting target of the request.
-    RURI = ersip_sipmsg:ruri(MessageSipMsg),
-    ?assertMatch({select_target, RURI}, se_event(select_target, SEProcessReq)),
+    {StateProcessReq, ServerTransId} = create_stateful(MessageSipMsg, #{}),
 
     %% Next we have two branches:
     %% Forward to single target (branch 1)
@@ -52,7 +42,7 @@ basic_proxy_noninvite_test() ->
     {_, SESingleResp} = ersip_proxy:trans_result(ClientTransId@1, Resp@1, State@1_Forward),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SESingleResp)),
-    %%    - Check that timer C is not set
+    %%    - Check that proxy process is stopped
     ?assertMatch({stop, _}, se_event(stop, SESingleResp)),
 
     %% ==================== Branch 2
@@ -153,8 +143,49 @@ basic_proxy_noninvite_test() ->
     ok.
 
 basic_proxy_invite_test() ->
+    InviteSipMsg = invite_request(),
 
+    DefaultTimerCTimeout = timer:seconds(180),
+
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% ==================== Branch 1
+    %% 3. (branch 1) Choose one target to forward:
+    B1@Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {B1@Forward_State, B1@Forward_SE} = ersip_proxy:forward_to(B1@Target, SelectTargetState),
+    %%    - Check that client transaction is created:
+    ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, B1@Forward_SE)),
+    {create_trans, {client, B1@ClientTransId, B1@Req}} = se_event(create_trans, B1@Forward_SE),
+    %%    - Check that message is sent to target:
+    ?assertEqual(B1@Target, ersip_request:nexthop(B1@Req)),
+    %%    - Check that timer C is set to default timeout 180 seconds.
+    ?assertMatch({set_timer, {DefaultTimerCTimeout, _}}, se_event(set_timer, B1@Forward_SE)),
+
+    %% 4. (branch 1) Pass 180 provisional response:
+    {_, B1@Resp180} = create_client_trans_result(180, B1@Req),
+    {B1@Provisional_State, B1@Provisional_SE} = ersip_proxy:trans_result(B1@ClientTransId, B1@Resp180, B1@Forward_State),
+    %%    - Response is passed to request source and proxy is stopped
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, B1@Provisional_SE)),
+    %%    - Check that timer C is reset to default timeout 180 seconds.
+    ?assertMatch({set_timer, {DefaultTimerCTimeout, _}}, se_event(set_timer, B1@Provisional_SE)),
+    %%    - Check that process is not stopped
+    ?assertMatch(not_found, se_event(stop, B1@Provisional_SE)),
+    %%    - Check no new transaction is created:
+    ?assertMatch(not_found, se_event(create_trans, B1@Provisional_SE)),
+
+    %% 5. (branch 1) Creating 200 response and pass as client transaction result:
+    {_, B1@Resp200} = create_client_trans_result(200, B1@Req),
+    {_, B1@Final_SE} = ersip_proxy:trans_result(B1@ClientTransId, B1@Resp200, B1@Provisional_State),
+    %%    - Response is passed to request source and proxy is stopped
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, B1@Final_SE)),
+    %%    - Check no new transaction is created:
+    ?assertMatch(not_found, se_event(create_trans, B1@Provisional_SE)),
+    %%    - Check that process is stopped
+    ?assertMatch({stop, _}, se_event(stop, B1@Final_SE)),
     ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -191,6 +222,24 @@ message_request_bin() ->
       "" ?crlf
       "Watson, come here.">>.
 
+
+invite_request() ->
+    create_sipmsg(invite_request_bin(), make_default_source()).
+
+invite_request_bin() ->
+    <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:bob@biloxi.com>" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+      "Content-Type: application/sdp" ?crlf
+      "Content-Length: 4" ?crlf
+      ?crlf
+      "Test">>.
+
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     create_sipmsg(Msg, Source, all).
 
@@ -200,6 +249,24 @@ create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
     PMsg1 = ersip_msg:set_source(Source, PMsg),
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg1, HeadersToParse),
     SipMsg.
+
+create_stateful(SipMsg, Options) ->
+    RURI = ersip_sipmsg:ruri(SipMsg),
+
+    %% 1. Create new stateful proxy request state.
+    {StateCreateTrans, SECreateTrans} = ersip_proxy:new_stateful(SipMsg, Options),
+    %%    - Check that new server transaction is created.
+    ?assertMatch({create_trans, {server, _, SipMsg}}, se_event(create_trans, SECreateTrans)),
+    {create_trans, {server, ServerTransId, SipMsg}} = se_event(create_trans, SECreateTrans),
+    ?assertEqual(1, length(SECreateTrans)),
+
+    %% 2. Process server transaction result.
+    {StateProcessReq, SEProcessReq} = ersip_proxy:trans_result(ServerTransId, SipMsg, StateCreateTrans),
+    %%    - Check that RURI is used to for selecting target of the request.
+    RURI = ersip_sipmsg:ruri(SipMsg),
+    ?assertMatch({select_target, RURI}, se_event(select_target, SEProcessReq)),
+    ?assertMatch(1, length(SEProcessReq)),
+    {StateProcessReq, ServerTransId}.
 
 make_default_source() ->
     tcp_source(default_peer()).

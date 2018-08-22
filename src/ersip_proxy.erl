@@ -85,7 +85,8 @@
                    options     :: params(),                           %% Pass options
                    orig_sipmsg :: ersip_sipmsg:sipmsg(),              %% SIP message to be passed
                    fwd_sipmsg  :: ersip_sipmsg:sipmsg() | undefined,  %% SIP message to be forwarded
-                   req_map   = #{} :: context_request_map()
+                   req_map   = #{} :: context_request_map(),
+                   final_forwarded = false :: boolean()
                   }).
 -type stateful_phase() :: init
                         | select_target
@@ -493,12 +494,27 @@ pr_postprocess_6xx(_BranchKey, _Resp6xx, #stateful{req_map = ReqCtxMap}) ->
     end.
 
 -spec pr_choose_best_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_choose_best_response(_BranchKey, _RespMsg, #stateful{req_map = ReqCtxMap, options = ProxyOptions}) ->
+pr_choose_best_response(_BranchKey, _RespMsg, #stateful{final_forwarded = WasFinal, req_map = ReqCtxMap, options = ProxyOptions}) ->
     ReqCtxList = maps:values(ReqCtxMap),
-    case all_terminated(ReqCtxList) of
-        false ->
+    Action =
+        case {all_terminated(ReqCtxList), WasFinal} of
+            {false, _} ->
+                wait_more;     %% Wait more responses
+            {true, true} ->
+                stop_processg; %% Stop stateful proxy processing
+            {true, false} ->
+                select_best    %% Select best response among received responses
+        end,
+    case Action of
+        wait_more ->
             stop;
-        true ->
+        stop_processg ->
+            {continue_with, [fun pr_stop_proxy/3]};
+        select_best ->
+            %% A stateful proxy MUST send a final response to a response
+            %% context's server transaction if no final responses have been
+            %% immediately forwarded by the above rules and all client
+            %% transactions in this response context have been terminated.
             {BestRespBranchKey, RespCandidate} = choose_best_response(ReqCtxList),
             BestResp = pr_maybe_patch_503(RespCandidate, ProxyOptions),
             {continue_with,
@@ -538,7 +554,14 @@ pr_aggregate_auth_header(_BranchKey, _Resp, #stateful{}) ->
 
 -spec pr_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_forward_response(_BranchKey, RespMsg, #stateful{} = Stateful) ->
-    {continue, {Stateful, [ersip_proxy_se:response(?SERVER_TRANS_ID, RespMsg)]}}.
+    Stateful1 =
+        case ersip_status:response_type(ersip_sipmsg:status(RespMsg)) of
+            final ->
+                Stateful#stateful{final_forwarded = true};
+            provisional ->
+                Stateful
+        end,
+    {continue, {Stateful1, [ersip_proxy_se:response(?SERVER_TRANS_ID, RespMsg)]}}.
 
 -spec pr_cancel_other(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
@@ -586,7 +609,7 @@ create_request_context(BranchKey, Request) ->
 
 -spec create_client_trans([{ersip_branch:branch_key(), request_context()}], options(), [ersip_proxy_se:side_effect()]) -> [ersip_proxy_se:side_effect()].
 create_client_trans([], _ProxyOptions, Acc) ->
-    Acc;
+    lists:reverse(Acc);
 create_client_trans([{BranchKey, #request_context{timer_c = undefined, req = Req}} | Rest], ProxyOptions, Acc) ->
     ClientTrans = ersip_proxy_se:create_trans(client, BranchKey, Req),
     create_client_trans(Rest, ProxyOptions, [ClientTrans | Acc]);
@@ -702,4 +725,3 @@ early_cancel_request(#stateful{orig_sipmsg = ReqSipMsg} = Stateful) ->
           ersip_proxy_se:stop()
          ],
     {Stateful1, SE}.
-

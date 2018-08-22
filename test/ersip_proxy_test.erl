@@ -221,6 +221,65 @@ basic_proxy_invite_cancel_test() ->
     ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
     ok.
 
+basic_invite_fork_on_two_targets_test() ->
+    %% Check INVITE forked to two destinations,
+    %% One if one answers then another is cancelled.
+    %%
+    %% Intermediate checks:
+    %%   - Timer C is set on each forked target.
+    DefaultTimerCTimeout = timer:seconds(180),
+
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target = [Target_1, Target_2],
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [?assertMatch({create_trans, {client, _, _}}, X) || X <- ClientTrans],
+    ?assertEqual(length(Target), length(ClientTrans)),
+
+    [{ClientTransId1, Req1}, {ClientTransId2, Req2}] =
+        [{ClientTrans, Req}
+         || {create_trans, {client, ClientTrans, Req}} <- ClientTrans],
+
+    TimerCs = se_all(set_timer, Forward_SE),
+    %%    - Check timer C is set on each target.
+    [?assertMatch({set_timer, {DefaultTimerCTimeout, _}}, X) || X <- TimerCs],
+
+    %% 4. Response 200 OK in first target:
+    {_, Resp200} = create_client_trans_result(200, Req1),
+    {Resp200_State, Resp200_SE} = ersip_proxy:trans_result(ClientTransId1, Resp200, Forward_State),
+    %%   - Check that 200 is passed as server transaction result:
+    ?assertMatch({response, {ServerTransId, Resp200}}, se_event(response, Resp200_SE)),
+    %%   - Check that CANCEL of second target is requested:
+    ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, Resp200_SE)),
+    {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, Resp200_SE),
+    CancelSipMsg = ersip_request:sipmsg(CancelReq),
+    ?assertEqual(ersip_method:cancel(), ersip_sipmsg:method(CancelSipMsg)),
+    ?assertEqual(Target_2, ersip_sipmsg:ruri(CancelSipMsg)),
+    ?assertEqual(not_found, se_event(stop, Resp200_SE)),
+
+    %% 5. Response 200 on CANCEL request:
+    {_, CancelResp200} = create_client_trans_result(200, CancelReq),
+    {Cancel200_State, Cancel200_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp200, Resp200_State),
+    ?assertEqual(0, length(Cancel200_SE)),
+
+    %% 6. Response 487 on INVITE request:
+    {_, Resp487} = create_client_trans_result(487, Req2),
+    {Resp487_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
+    %%   - Check that no more responses are passed as server transaction result:
+    ?assertMatch(not_found, se_event(response, Resp487_SE)),
+    %%   - Check that request processing is stopped:
+    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+
+    ok.
+
 %% TODO:
 %% Testcases:
 %%   - 487 on INVITE then 200 OK on CANCEL

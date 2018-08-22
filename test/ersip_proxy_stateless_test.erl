@@ -238,7 +238,7 @@ process_response_via_not_match_test() ->
     ProcessResult = ersip_proxy_stateless:process_response(PrevVia, NoViaMsg),
 
     %% Action is drop because cannot forward message to without via
-    ?assertMatch({drop, {parse_error, _}}, ProcessResult),
+    ?assertMatch({drop, no_more_via}, ProcessResult),
     ok.
 
 

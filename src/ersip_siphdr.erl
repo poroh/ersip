@@ -156,7 +156,8 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
 
 -type header_required() :: all        %% Header required for all requests/responses
                          | optional   %% Header is optional for all requests/responses
-                         | with_body. %% Header required if body is not empty
+                         | with_body  %% Header required if body is not empty
+                         | requests.  %% Header is required in requests
 
 -record(required_essentials, {type     :: ersip_msg:type(),
                               method   :: ersip_method:method(),
@@ -195,6 +196,8 @@ is_required(_, all) ->
     true;
 is_required(_, optional) ->
     false;
+is_required(#required_essentials{type = request}, requests) ->
+    true;
 is_required(#required_essentials{has_body = true}, with_body) ->
     true;
 is_required(#required_essentials{}, _) ->
@@ -262,8 +265,10 @@ header_descr(maxforwards) ->
            assemble_fun = fun ersip_hdr_maxforwards:build/2
           };
 header_descr(topmost_via) ->
+    %% Note We trim Via header on connection receive so responses on
+    %% UA does not contain Via.
     #descr{name         = <<"via">>,
-           required     = all,
+           required     = requests,
            parse_fun    = fun ersip_hdr_via:topmost_via/1,
            assemble_fun = undefined
           };

@@ -68,11 +68,18 @@ branch(SipMsg) ->
       PrevVia :: ersip_hdr_via:via(),
       RawMsg  :: ersip_msg:message().
 process_response(PrevVia, RawMsg) ->
-    case ersip_sipmsg:parse(RawMsg, [topmost_via]) of
+    case ersip_sipmsg:parse(RawMsg, []) of
         {ok, SipMsg} ->
             case check_via_branch(ersip_hdr_via:branch(PrevVia)) of
                 match ->
-                    {forward, SipMsg};
+                    %% Check if next via is still exist and forward
+                    %% response there.
+                    case ersip_sipmsg:find(topmost_via, SipMsg) of
+                        not_found ->
+                            {drop, no_more_via};
+                        {ok, _} ->
+                            {forward, SipMsg}
+                    end;
                 mismatch ->
                     {drop, via_not_match}
             end;

@@ -624,7 +624,7 @@ create_cancel_client_trans([], _ProxyOptions, Acc) ->
 create_cancel_client_trans([{BranchKey, #request_context{req = InitialReq}} | Rest], ProxyOptions, Acc) ->
     CancelReq = ersip_request_cancel:generate(InitialReq),
     CancelClientTrans = ersip_proxy_se:create_trans(client, BranchKey, CancelReq),
-    create_client_trans(Rest, ProxyOptions, [CancelClientTrans | Acc]).
+    create_cancel_client_trans(Rest, ProxyOptions, [CancelClientTrans | Acc]).
 
 -spec timer_c_timeout(stateful() | options()) -> pos_integer().
 timer_c_timeout(#stateful{options = ProxyOptions}) ->

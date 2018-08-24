@@ -198,10 +198,10 @@ basic_proxy_invite_cancel_test() ->
 
     %% 4. Pass 180 provisional response:
     {_, Resp180} = create_client_trans_result(180, Req),
-    {Provisional_State, Provisional_SE} = ersip_proxy:trans_result(ClientTransId, Resp180, Forward_State),
+    {Provisional_State, _} = ersip_proxy:trans_result(ClientTransId, Resp180, Forward_State),
 
     %% 5. Cancel request:
-    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(Forward_State),
+    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(Provisional_State),
     %%    - CANCEL transaction is created:
     ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, Cancel_SE)),
     {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, Cancel_SE),
@@ -214,7 +214,7 @@ basic_proxy_invite_cancel_test() ->
 
     %% 7. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req),
-    {Resp487_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel200_State),
+    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel200_State),
     %%   - Check that 487 is passed as server transaction result:
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Resp487_SE)),
     %%   - Check that request processing is stopped:

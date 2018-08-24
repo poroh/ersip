@@ -9,6 +9,7 @@
 -module(ersip_proxy_se).
 
 -export([create_trans/3,
+         delete_trans/1,
          response/2,
          select_target/1,
          set_timer/2,
@@ -28,6 +29,7 @@
                      | stop().
 
 -type create_trans()  :: {create_trans, {Type :: trans_type(),  Id :: term(), ersip_request:request() | ersip_sipmsg:sipmsg()}}.
+-type delete_trans()  :: {delete_trans, Id :: term()}.
 -type response()      :: {response, {Id :: term(), ersip_sipmsg:sipmsg()}}.
 -type select_target() :: {select_target, RURI :: ersip_uri:uri()}.
 -type set_timer()     :: {set_timer, {timeout(), timer_event()}}.
@@ -52,6 +54,15 @@
 -spec create_trans(trans_type(), term(), ersip_request:request() | ersip_sipmsg:sipmsg()) -> create_trans().
 create_trans(TransType, Id, Req) ->
     {create_trans, {TransType, Id, Req}}.
+
+
+%% @doc Force delete transaction. This side effect is generated when
+%% INVITE transaction does not respond, so timer C is fired and we
+%% need to terminate previously created transaction to prevent
+%% resource leak.
+-spec delete_trans(term()) -> delete_trans().
+delete_trans(Id) ->
+    {delete_trans, Id}.
 
 %% @doc Send response within transaction with identifier Id.
 -spec response(Id :: term(), ersip_sipmsg:sipmsg()) -> response().

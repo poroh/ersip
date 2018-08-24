@@ -210,7 +210,8 @@ basic_proxy_invite_cancel_test() ->
     %% 6. Response 200 on CANCEL request:
     {_, CancelResp200} = create_client_trans_result(200, CancelReq),
     {Cancel200_State, Cancel200_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp200, Cancel_State),
-    ?assertEqual(0, length(Cancel200_SE)),
+    ?assertMatch({set_timer, _}, se_event(set_timer, Cancel200_SE)),
+    ?assertEqual(1, length(Cancel200_SE)),
 
     %% 7. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req),
@@ -219,6 +220,41 @@ basic_proxy_invite_cancel_test() ->
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Resp487_SE)),
     %%   - Check that request processing is stopped:
     ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+    ok.
+
+basic_proxy_invite_timer_c_fired_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Pass 180 provisional response:
+    {_, Resp180} = create_client_trans_result(180, Req),
+    {Provisional_State, Provisional_SE} = ersip_proxy:trans_result(ClientTransId, Resp180, Forward_State),
+    ?assertMatch({set_timer, _}, se_event(set_timer, Provisional_SE)),
+    {set_timer, {_Timeout, TimerCEvent}} = se_event(set_timer, Provisional_SE),
+
+    %% 5. TimerC fired:
+    {TimerC_State, TimerC_SE} = ersip_proxy:timer_fired(TimerCEvent, Provisional_State),
+    %%    - Because there was provisional response CANCEL must be generated:
+    {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, TimerC_SE),
+    CancelSipMsg = ersip_request:sipmsg(CancelReq),
+    ?assertEqual(ersip_method:cancel(), ersip_sipmsg:method(CancelSipMsg)),
+    ?assertEqual(Target, ersip_sipmsg:ruri(CancelSipMsg)),
+
+    %% 6. Timeout on CANCEL request:
+    {_, CancelTimeout_SE} = ersip_proxy:trans_result(CancelClientTransId, timeout, TimerC_State),
+    %%   - Check that 408 is passed as server transaction result:
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, CancelTimeout_SE)),
+    %%   - Check that client transaction is stopped:
+    ?assertMatch({delete_trans, ClientTransId}, se_event(delete_trans, CancelTimeout_SE)),
+    %%   - Check that request processing is stopped:
+    ?assertMatch({stop, _}, se_event(stop, CancelTimeout_SE)),
     ok.
 
 basic_invite_fork_on_two_targets_test() ->
@@ -268,7 +304,8 @@ basic_invite_fork_on_two_targets_test() ->
     %% 5. Response 200 on CANCEL request:
     {_, CancelResp200} = create_client_trans_result(200, CancelReq),
     {Cancel200_State, Cancel200_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp200, Resp200_State),
-    ?assertEqual(0, length(Cancel200_SE)),
+    ?assertMatch({set_timer, _}, se_event(set_timer, Cancel200_SE)),
+    ?assertEqual(1, length(Cancel200_SE)),
 
     %% 6. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req2),
@@ -327,7 +364,8 @@ basic_invite_cancel_fork_on_two_targets_test() ->
         lists:foldl(fun({create_trans, {client, TransId, CancelReq}}, State) ->
                             {_, CancelResp200} = create_client_trans_result(200, CancelReq),
                             {State1, Cancel200_SE} = ersip_proxy:trans_result(TransId, CancelResp200, State),
-                            ?assertEqual(0, length(Cancel200_SE)),
+                            ?assertMatch({set_timer, _}, se_event(set_timer, Cancel200_SE)),
+                            ?assertEqual(1, length(Cancel200_SE)),
                             State1
                     end,
                     Cancel_State,

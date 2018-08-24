@@ -77,7 +77,11 @@
            %%
            %% If this flag is set to true then proxy will not generate
            %% 500 on 503.
-           pass_503 => boolean()
+           pass_503 => boolean(),
+
+           %% How long we need wait after 200 OK response is received
+           %% on CANCEL until we consider request cancelled.
+           cancel_timeout => non_neg_integer()
          }.
 
 
@@ -102,7 +106,9 @@
         {key     :: ersip_branch:branch_key(),
          req     :: ersip_request:request(),
          timer_c :: reference() | undefined,
-         resp    :: ersip_sipmsg:sipmsg() | undefined
+         resp    :: ersip_sipmsg:sipmsg() | undefined,
+         provisional_received = false :: boolean(),
+         timer_c_fired   = false :: boolean()
         }).
 -type request_context() :: #request_context{}.
 
@@ -154,6 +160,20 @@ trans_result(?SERVER_TRANS_ID, _SipMsg, #stateful{phase = cancelled} = Stateful)
     %% Request was cancelled while server transaction has been beeing
     %% created
     early_cancel_request(Stateful);
+trans_result({cancel, BranchKey}, timeout, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case ReqCtxMap of
+        #{BranchKey := #request_context{req = Req}} ->
+            %% Behave as if we received 408 on CANCEL request, to do
+            %% this we just generate the same request as we has sent
+            %% before and then generate 408 reply on it.
+            CancelReq = ersip_request_cancel:generate(Req),
+            Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(CancelReq)),
+            process_response(BranchKey, Resp, Stateful);
+        _ ->
+            ok
+    end;
+trans_result({cancel, BranchKey}, Resp, #stateful{phase = collect} = Stateful) ->
+    process_response(BranchKey, Resp, Stateful);
 trans_result(BranchKey, timeout, #stateful{phase = collect, fwd_sipmsg = FwdSipMsg} = Stateful) ->
     %% If there are no final responses in the context, the proxy MUST
     %% send a 408 (Request Timeout) response to the server
@@ -208,12 +228,20 @@ forward_to(TargetList, #stateful{phase = select_target, options = ProxyOptions, 
 -spec timer_fired(ersip_proxy_se:timer_event(), stateful()) -> stateful_result().
 timer_fired({timer, BranchKey, TimerCRef}, #stateful{req_map = ReqCtxMap} = Stateful) ->
     case ReqCtxMap of
-        #{BranchKey := #request_context{timer_c = TimerCRef, req = Req}} ->
-            %% If branch is found and timer_c reference matches timer
-            %% reference then consider response timeout on that
-            %% request.
-            Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
-            process_response(BranchKey, Resp, Stateful);
+        #{BranchKey := #request_context{timer_c = TimerCRef} = ReqCtx} ->
+            process_timer_c_fired(BranchKey, ReqCtx, Stateful);
+        _ ->
+            %% Otherwise ignore event:
+            {Stateful, []}
+    end;
+timer_fired({cancel_timer, BranchKey}, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case ReqCtxMap of
+        #{BranchKey := #request_context{resp = undefined, req = Req}} ->
+            %% If we still does not have any final response from the
+            %% other side - generate 487 and delete transaction
+            Resp = ersip_sipmsg:reply(487, ersip_request:sipmsg(Req)),
+            {Stateful1, SE} = process_response(BranchKey, Resp, Stateful),
+            {Stateful1, [ersip_proxy_se:delete_trans(BranchKey) | SE]};
         _ ->
             %% Otherwise ignore event:
             {Stateful, []}
@@ -361,9 +389,29 @@ pr_process_via(_BranchKey, RespSipMsg, #stateful{}) ->
     end.
 
 -spec pr_process_selfgenerated(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_process_selfgenerated(_BranchKey, _RespSipMsg, #stateful{}) ->
-    %% TODO: 8.1.3
-    stop.
+pr_process_selfgenerated(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case ersip_sipmsg:status(RespSipMsg) of
+        Code when Code >= 200 andalso Code =< 299 ->
+            %% 200 OK final code on CANCEL - just restart timer_c,
+            %% wait for response from server.
+            {continue, set_cancel_timer(BranchKey, Stateful)};
+        _ ->
+            %% Consider request as cancelled:
+            #{BranchKey := ReqCtx} = ReqCtxMap,
+            case ReqCtx of
+                #request_context{timer_c_fired = true, req = Req} ->
+                    %% In case of Timer C is fired behave as 408 for
+                    %% this branch.
+                    Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
+                    {Stateful1, SE} = process_response(BranchKey, Resp, Stateful),
+                    {continue, {Stateful1, [ersip_proxy_se:delete_trans(BranchKey) | SE]}};
+                #request_context{timer_c_fired = false, req = Req} ->
+                    %% Consider request as cancelled
+                    Resp = ersip_sipmsg:reply(487, ersip_request:sipmsg(Req)),
+                    {Stateful1, SE} = process_response(BranchKey, Resp, Stateful),
+                    {continue, {Stateful1, [ersip_proxy_se:delete_trans(BranchKey) | SE]}}
+            end
+    end.
 
 -spec pr_add_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
@@ -375,14 +423,17 @@ pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful
     %% forming the best response, even if this response is not chosen.
     %%
     %% TODO: process 3xx
-    case ersip_sipmsg:status(RespSipMsg) of
-        Code when Code >= 200 ->
+    case ersip_status:response_type(ersip_sipmsg:status(RespSipMsg)) of
+        final ->
             #{BranchKey := ReqCtx} = ReqCtxMap,
             ReqCtx1 = ReqCtx#request_context{resp = RespSipMsg},
             ReqCtxMap1 = ReqCtxMap#{BranchKey := ReqCtx1},
             {continue, Stateful#stateful{req_map = ReqCtxMap1}};
-        _ ->
-            continue
+        provisional ->
+            #{BranchKey := ReqCtx} = ReqCtxMap,
+            ReqCtx1 = ReqCtx#request_context{provisional_received = true},
+            ReqCtxMap1 = ReqCtxMap#{BranchKey := ReqCtx1},
+            {continue, Stateful#stateful{req_map = ReqCtxMap1}}
     end.
 
 -spec pr_maybe_forward_response(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
@@ -623,7 +674,7 @@ create_cancel_client_trans([], _ProxyOptions, Acc) ->
     Acc;
 create_cancel_client_trans([{BranchKey, #request_context{req = InitialReq}} | Rest], ProxyOptions, Acc) ->
     CancelReq = ersip_request_cancel:generate(InitialReq),
-    CancelClientTrans = ersip_proxy_se:create_trans(client, BranchKey, CancelReq),
+    CancelClientTrans = ersip_proxy_se:create_trans(client, {cancel, BranchKey}, CancelReq),
     create_cancel_client_trans(Rest, ProxyOptions, [CancelClientTrans | Acc]).
 
 -spec timer_c_timeout(stateful() | options()) -> pos_integer().
@@ -643,6 +694,20 @@ reset_timer_c(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
     ReqCtxMap1 = ReqCtxMap#{BranchKey := ReqCtx1},
     Stateful1 = Stateful#stateful{req_map = ReqCtxMap1},
     {Stateful1, [TimerC]}.
+
+-spec cancel_timeout(stateful() | options()) -> pos_integer().
+cancel_timeout(#stateful{options = ProxyOptions}) ->
+    timer_c_timeout(ProxyOptions);
+cancel_timeout(#{cancel_timeout := CancelTimeout}) ->
+    CancelTimeout;
+cancel_timeout(_) ->
+    %% TODO: By RFC3261 it should be 64*T1
+    timer:seconds(32).
+
+-spec set_cancel_timer(ersip_branch:branch_key(), stateful()) -> stateful_result().
+set_cancel_timer(BranchKey, #stateful{} = Stateful) ->
+    CancelTimer = ersip_proxy_se:set_timer(cancel_timeout(Stateful), {cancel_timer, BranchKey}),
+    {Stateful, [CancelTimer]}.
 
 %% @private
 %% @doc All transactions within request context is terminated.
@@ -725,3 +790,39 @@ early_cancel_request(#stateful{orig_sipmsg = ReqSipMsg} = Stateful) ->
           ersip_proxy_se:stop()
          ],
     {Stateful1, SE}.
+
+%% 16.8 Processing Timer C
+%% If timer C should fire, the proxy MUST either reset the timer
+%% with any value it chooses, or terminate the client transaction.
+%% If the client transaction has received a provisional response,
+%% the proxy MUST generate a CANCEL request matching that
+%% transaction.  If the client transaction has not received a
+%% provisional response, the proxy MUST behave as if the
+%% transaction received a 408 (Request Timeout) response.
+-spec process_timer_c_fired(ersip_branch:branch_key(), request_context(), stateful()) -> stateful_result().
+process_timer_c_fired(BranchKey, #request_context{req = Req, provisional_received = false}, #stateful{} = Stateful) ->
+    %% No provisional response:
+    Stateful1 = set_timer_c_fired(BranchKey, Stateful),
+    Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
+    process_response(BranchKey, Resp, Stateful1);
+process_timer_c_fired(BranchKey, #request_context{req = InitialReq, resp = undefined, provisional_received = true}, #stateful{} = Stateful) ->
+    %% If the client transaction has received a provisional response,
+    %% the proxy MUST generate a CANCEL request matching that
+    %% transaction.
+    Stateful1 = set_timer_c_fired(BranchKey, Stateful),
+    CancelReq = ersip_request_cancel:generate(InitialReq),
+    CancelClientTrans = ersip_proxy_se:create_trans(client, {cancel, BranchKey}, CancelReq),
+    {Stateful1, [CancelClientTrans]};
+process_timer_c_fired(_BranchKey, #request_context{provisional_received = true}, #stateful{} = Stateful) ->
+    %% Just ignore this timer C because transaction result has been
+    %% already received
+    {Stateful, []}.
+
+
+-spec set_timer_c_fired(ersip_branch:branch_key(), stateful()) -> stateful().
+set_timer_c_fired(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    ReqCtxMap1 =
+        maps:update_with(BranchKey,
+                         fun(RCtx) -> RCtx#request_context{timer_c_fired = true} end,
+                         ReqCtxMap),
+    Stateful#stateful{req_map = ReqCtxMap1}.

@@ -108,7 +108,8 @@
          timer_c :: reference() | undefined,
          resp    :: ersip_sipmsg:sipmsg() | undefined,
          provisional_received = false :: boolean(),
-         timer_c_fired   = false :: boolean()
+         timer_c_fired = false :: boolean(),
+         cancel_sent   = false :: boolean()
         }).
 -type request_context() :: #request_context{}.
 
@@ -669,13 +670,12 @@ create_client_trans([{BranchKey, #request_context{timer_c = TimerCRef, req = Req
     TimerC = ersip_proxy_se:set_timer(timer_c_timeout(ProxyOptions), {timer, BranchKey, TimerCRef}),
     create_client_trans(Rest, ProxyOptions, [ClientTrans, TimerC | Acc]).
 
--spec create_cancel_client_trans([{ersip_branch:branch_key(), request_context()}], options(), [ersip_proxy_se:side_effect()]) -> [ersip_proxy_se:side_effect()].
+-spec create_cancel_client_trans([{ersip_branch:branch_key(), request_context()}], options(), stateful_result()) -> stateful_result().
 create_cancel_client_trans([], _ProxyOptions, Acc) ->
     Acc;
-create_cancel_client_trans([{BranchKey, #request_context{req = InitialReq}} | Rest], ProxyOptions, Acc) ->
-    CancelReq = ersip_request_cancel:generate(InitialReq),
-    CancelClientTrans = ersip_proxy_se:create_trans(client, {cancel, BranchKey}, CancelReq),
-    create_cancel_client_trans(Rest, ProxyOptions, [CancelClientTrans | Acc]).
+create_cancel_client_trans([{_, #request_context{} = ReqCtx} | Rest], ProxyOptions, {Stateful, Acc}) ->
+    {Stateful1, SE1} = maybe_send_cancel(ReqCtx, Stateful),
+    create_cancel_client_trans(Rest, ProxyOptions, {Stateful1, SE1 ++ Acc}).
 
 -spec timer_c_timeout(stateful() | options()) -> pos_integer().
 timer_c_timeout(#stateful{options = ProxyOptions}) ->
@@ -774,7 +774,7 @@ cancel_all_pending(#stateful{orig_sipmsg = SipMsg, req_map = ReqCtxMap, options 
             ToBeCancelled = [{BranchKey, ReqCtx}
                              || {BranchKey, ReqCtx} <- maps:to_list(ReqCtxMap),
                                 is_request_pending(ReqCtx)],
-            {Stateful, create_cancel_client_trans(ToBeCancelled, Options, [])};
+            create_cancel_client_trans(ToBeCancelled, Options, {Stateful, []});
         _ ->
             %% RFC 3261 9.1 Client Behavior:
             %% A CANCEL request SHOULD NOT be sent to cancel a request
@@ -806,14 +806,12 @@ process_timer_c_fired(BranchKey, #request_context{req = Req, provisional_receive
     Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
     {Stateful2, SE2} = process_response(BranchKey, Resp, Stateful1),
     {Stateful2, [ersip_proxy_se:delete_trans(BranchKey) | SE2]};
-process_timer_c_fired(BranchKey, #request_context{req = InitialReq, resp = undefined, provisional_received = true}, #stateful{} = Stateful) ->
+process_timer_c_fired(BranchKey, #request_context{resp = undefined, provisional_received = true} = ReqCtx, #stateful{} = Stateful) ->
     %% If the client transaction has received a provisional response,
     %% the proxy MUST generate a CANCEL request matching that
     %% transaction.
     Stateful1 = set_timer_c_fired(BranchKey, Stateful),
-    CancelReq = ersip_request_cancel:generate(InitialReq),
-    CancelClientTrans = ersip_proxy_se:create_trans(client, {cancel, BranchKey}, CancelReq),
-    {Stateful1, [CancelClientTrans]};
+    maybe_send_cancel(ReqCtx, Stateful1);
 process_timer_c_fired(_BranchKey, #request_context{provisional_received = true}, #stateful{} = Stateful) ->
     %% Just ignore this timer C because transaction result has been
     %% already received
@@ -825,5 +823,23 @@ set_timer_c_fired(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
     ReqCtxMap1 =
         maps:update_with(BranchKey,
                          fun(RCtx) -> RCtx#request_context{timer_c_fired = true} end,
+                         ReqCtxMap),
+    Stateful#stateful{req_map = ReqCtxMap1}.
+
+-spec maybe_send_cancel(request_context(), stateful()) -> stateful_result().
+maybe_send_cancel(#request_context{cancel_sent = true}, #stateful{} = Stateful) ->
+    %% Never send second CANCEL request.
+    {Stateful, []};
+maybe_send_cancel(#request_context{key = BranchKey, req = InitialReq}, Stateful) ->
+    CancelReq = ersip_request_cancel:generate(InitialReq),
+    CancelClientTrans = ersip_proxy_se:create_trans(client, {cancel, BranchKey}, CancelReq),
+    Stateful1 = set_cancel_sent(BranchKey, Stateful),
+    {Stateful1, [CancelClientTrans]}.
+
+-spec set_cancel_sent(ersip_branch:branch_key(), stateful()) -> stateful().
+set_cancel_sent(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    ReqCtxMap1 =
+        maps:update_with(BranchKey,
+                         fun(RCtx) -> RCtx#request_context{cancel_sent = true} end,
                          ReqCtxMap),
     Stateful#stateful{req_map = ReqCtxMap1}.

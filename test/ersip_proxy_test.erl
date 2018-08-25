@@ -5,6 +5,15 @@
 %%
 %% Common proxy routinges tests
 %%
+%% TODO:
+%% Testcases:
+%%   - Cancel request when some 4xx is collected
+%%   - Cancel request when 2xx is passed
+%%   - Cancel request when 6xx is collected
+%%   - 6xx received after CANCEL request
+%%   - 2xx received after CANCEL request
+%%   - Timer C fired when 4xx is collected
+%%
 
 -module(ersip_proxy_test).
 
@@ -920,15 +929,26 @@ invite_to_two_targets_first_timer_c_second_500_test() ->
     ?assertMatch({stop, _}, se_event(stop, Final_SE)),
     ok.
 
-%% TODO:
-%% Testcases:
-%%   - Cancel request when some 4xx is collected
-%%   - Cancel request when 2xx is passed
-%%   - Cancel request when 6xx is collected
-%%   - 6xx received after CANCEL request
-%%   - 2xx received after CANCEL request
-%%   - Timer C fired when 4xx is collected
-%%
+%% ================================================================================
+%% Status codes ordering
+%% ================================================================================
+
+status_codes_ordering_test() ->
+    %% It MUST choose from the 6xx class responses if any exist in the
+    %% context.  If no 6xx class responses are present, the proxy
+    %% SHOULD choose from the lowest response class stored in the
+    %% response context.
+    ?assertEqual([603, 301, 400, 501], order_statuses([400, 603, 301, 501])),
+    %% The proxy MAY select any response within that chosen class.
+    %% The proxy SHOULD give preference to responses that provide
+    %% information affecting resubmission of this request, such as
+    %% 401, 407, 415, 420, and 484 if the 4xx class is chosen.
+    ?assertEqual([401, 404], order_statuses([404, 401])),
+    ?assertEqual([407, 404], order_statuses([407, 404])),
+    ?assertEqual([401, 407, 484, 415, 420], order_statuses([415, 407, 484, 420, 401])),
+    ?assertEqual([415, 404, 486], order_statuses([486, 404, 415])),
+    ?assertEqual([420, 404, 486], order_statuses([486, 404, 420])),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -1047,3 +1067,6 @@ recv_response_via_default_conn(RemoteSipMsg) ->
     {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     {Via, SipMsg}.
 
+order_statuses(Statuses) ->
+    L = [{ersip_proxy:code_comparision_class(X), X} || X <- Statuses],
+    [C || {_, C} <- lists:sort(L)].

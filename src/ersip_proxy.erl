@@ -255,7 +255,8 @@ cancel(#stateful{phase = init} = Stateful) ->
     {Stateful1, []};
 cancel(#stateful{phase = select_target} = Stateful) ->
     %% Canceling request before it passed through proxy
-    early_cancel_request(Stateful);
+    Stateful1 = Stateful#stateful{phase = cancelled},
+    {Stateful1, []};
 cancel(#stateful{phase = collect} = Stateful) ->
     cancel_all_pending(Stateful);
 cancel(#stateful{phase = cancelled} = Stateful) ->

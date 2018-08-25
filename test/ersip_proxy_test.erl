@@ -142,6 +142,10 @@ basic_proxy_noninvite_test() ->
 
     ok.
 
+%% ================================================================================
+%% One-target INVITE caces
+%% ================================================================================
+
 basic_proxy_invite_test() ->
     InviteSipMsg = invite_request(),
 
@@ -296,7 +300,6 @@ proxy_invite_timer_c_fired_test() ->
     ?assertMatch({stop, _}, se_event(stop, CancelTimeout_SE)),
     ok.
 
-
 %% Case:
 %% 1. Proxy INVITE
 %% 2. Timer C fired
@@ -378,6 +381,60 @@ proxy_invite_timer_c_fired_after_cancel_test() ->
 
     ok.
 
+%% ================================================================================
+%% Early CANCEL cases
+%% ================================================================================
+
+early_invite_cancel_before_target_selected_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Cancel request:
+    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(SelectTargetState),
+    %%   - Check that cancel is postponed until transaction is created
+    ?assertEqual([], Cancel_SE),
+
+    %% 4. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {_, Forward_SE} = ersip_proxy:forward_to(Target, Cancel_State),
+    %%   - Check that client transaction is not created:
+    ?assertEqual(not_found, se_event(create_trans, Forward_SE)),
+    %%  - Check that transaction 487 reponse is immediatly returned:
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, Forward_SE)),
+    {response, {_, Resp487}} = se_event(response, Forward_SE),
+    ?assertEqual(487, ersip_sipmsg:status(Resp487)),
+    %%   - Check that request processing is not stopped:
+    ?assertMatch({stop, _}, se_event(stop, Forward_SE)),
+    ok.
+
+early_invite_cancel_before_trans_created_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    {CreateTrans_State, CreateTrans_SE} = ersip_proxy:new_stateful(InviteSipMsg, #{}),
+    {create_trans, {server, ServerTransId, Req}} = se_event(create_trans, CreateTrans_SE),
+
+    %% 2. Cancel request:
+    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(CreateTrans_State),
+    %% - Check that cancel is postponed until transaction is created
+    ?assertEqual([], Cancel_SE),
+
+    %% 3. Server transaction is created:
+    {_, SrvTransCreated_SE} = ersip_proxy:trans_result(ServerTransId, Req, Cancel_State),
+    %%  - Check that target is not selected in this case:
+    ?assertEqual(not_found, se_event(select_target, SrvTransCreated_SE)),
+    %%  - Check that transaction 487 reponse is immediatly returned:
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, SrvTransCreated_SE)),
+    {response, {_, Resp487}} = se_event(response, SrvTransCreated_SE),
+    ?assertEqual(487, ersip_sipmsg:status(Resp487)),
+    %%   - Check that request processing is not stopped:
+    ?assertMatch({stop, _}, se_event(stop, SrvTransCreated_SE)),
+    ok.
+
+%% ================================================================================
+%% Two targets cases
+%% ================================================================================
 
 basic_invite_fork_on_two_targets_test() ->
     %% Check INVITE forked to two destinations,
@@ -591,11 +648,8 @@ invite_to_two_targets_first_timer_c_second_500_test() ->
     ?assertMatch({stop, _}, se_event(stop, Final_SE)),
     ok.
 
-
 %% TODO:
 %% Testcases:
-%%   - Cancel request when Server transaction created
-%%   - Cancel request before target is created
 %%   - Cancel request when some 4xx is collected
 %%   - Cancel request when 2xx is passed
 %%   - Cancel request when 6xx is collected

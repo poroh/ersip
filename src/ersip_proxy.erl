@@ -801,7 +801,7 @@ early_cancel_request(#stateful{orig_sipmsg = ReqSipMsg} = Stateful) ->
 %% provisional response, the proxy MUST behave as if the
 %% transaction received a 408 (Request Timeout) response.
 -spec process_timer_c_fired(ersip_branch:branch_key(), request_context(), stateful()) -> stateful_result().
-process_timer_c_fired(BranchKey, #request_context{req = Req, provisional_received = false}, #stateful{} = Stateful) ->
+process_timer_c_fired(BranchKey, #request_context{resp = undefined, req = Req, provisional_received = false}, #stateful{} = Stateful) ->
     %% No provisional response:
     Stateful1 = set_timer_c_fired(BranchKey, Stateful),
     Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
@@ -813,7 +813,7 @@ process_timer_c_fired(BranchKey, #request_context{resp = undefined, provisional_
     %% transaction.
     Stateful1 = set_timer_c_fired(BranchKey, Stateful),
     maybe_send_cancel(ReqCtx, Stateful1);
-process_timer_c_fired(_BranchKey, #request_context{provisional_received = true}, #stateful{} = Stateful) ->
+process_timer_c_fired(_BranchKey, #request_context{}, #stateful{} = Stateful) ->
     %% Just ignore this timer C because transaction result has been
     %% already received
     {Stateful, []}.

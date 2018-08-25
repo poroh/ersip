@@ -151,9 +151,38 @@ basic_proxy_noninvite_test() ->
 
     ok.
 
-%% ================================================================================
+non_invite_with_provisional_test() ->
+    MessageSipMsg = message_request(),
+
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {ProcessReq_State, ServerTransId} = create_stateful(MessageSipMsg, #{}),
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, ProcessReq_State),
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Pass 101 provisional as response
+    {_, Resp101} = create_client_trans_result(101, Req),
+    {Resp101_State, Resp101_SE} = ersip_proxy:trans_result(ClientTransId, Resp101, Forward_State),
+    %%  - Check that no timers are set (no timer C for non-INVITE transactions:
+    ?assertEqual(not_found, se_event(set_timer, Resp101_SE)),
+    %%  - Check that provisional response are sent:
+    ?assertMatch({response, {ServerTransId, Resp101}}, se_event(response, Resp101_SE)),
+
+    %% 5. Pass 200 after provisional response
+    {_, Resp200} = create_client_trans_result(200, Req),
+    {_, Resp200_SE} = ersip_proxy:trans_result(ClientTransId, Resp200, Resp101_State),
+    %%  - Check that provisional response are sent:
+    ?assertMatch({response, {ServerTransId, Resp200}}, se_event(response, Resp200_SE)),
+    %%  - Check that process is stopped
+    ?assertMatch({stop, _}, se_event(stop, Resp200_SE)),
+
+    ok.
+
+%%================================================================================
 %% One-target INVITE caces
-%% ================================================================================
+%%================================================================================
 
 basic_proxy_invite_test() ->
     InviteSipMsg = invite_request(),
@@ -575,6 +604,48 @@ proxy_invite_cancel_481_timeout_test() ->
     ?assertMatch({stop, _}, se_event(stop, Cancel_SE)),
     ok.
 
+%% Case:
+%% 1. Proxy INVITE
+%% 2. Pass provisional response
+%% 3. Pass provisional response
+%% 4. Timer C of step 2 is fired and CANCEL is not generated
+%% 5. Timer C of step 3 is fired and CANCEL is generated
+proxy_invite_long_ringing_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Pass 180 provisional response:
+    {_, Resp180} = create_client_trans_result(180, Req),
+    {Provisional_State, Provisional_SE} = ersip_proxy:trans_result(ClientTransId, Resp180, Forward_State),
+    ?assertMatch({set_timer, _}, se_event(set_timer, Provisional_SE)),
+    {set_timer, {_Timeout, TimerCEvent}} = se_event(set_timer, Provisional_SE),
+
+    %% 5. Pass 180 provisional response:
+    {_, Resp180_2} = create_client_trans_result(180, Req),
+    {Provisional_2_State, Provisional_2_SE} = ersip_proxy:trans_result(ClientTransId, Resp180_2, Provisional_State),
+    ?assertMatch({set_timer, _}, se_event(set_timer, Provisional_2_SE)),
+    {set_timer, {_, TimerCEvent_2}} = se_event(set_timer, Provisional_2_SE),
+
+    %% 6. Old timer C is fired
+    {OldTimerC_State, OldTimerC_SE} = ersip_proxy:timer_fired(TimerCEvent, Provisional_2_State),
+    %% - Check that old timer does not cause any side effects:
+    ?assertEqual([], OldTimerC_SE),
+
+    %% 7. New timer C is fired:
+    {_, NewTimerC_SE} = ersip_proxy:timer_fired(TimerCEvent_2, OldTimerC_State),
+    %%    - Check that CANCEL request is generated after last timer fired.
+    ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, NewTimerC_SE)),
+    {create_trans, {client, _, CancelReq}} = se_event(create_trans, NewTimerC_SE),
+    ?assertEqual(ersip_method:cancel(), ersip_sipmsg:method(ersip_request:sipmsg(CancelReq))),
+    ok.
+
 %% ================================================================================
 %% Early CANCEL cases
 %% ================================================================================
@@ -626,9 +697,9 @@ early_invite_cancel_before_trans_created_test() ->
     ?assertMatch({stop, _}, se_event(stop, SrvTransCreated_SE)),
     ok.
 
-%% ================================================================================
+%%================================================================================
 %% Two targets cases
-%% ================================================================================
+%%================================================================================
 
 basic_invite_fork_on_two_targets_test() ->
     %% Check INVITE forked to two destinations,
@@ -929,9 +1000,37 @@ invite_to_two_targets_first_timer_c_second_500_test() ->
     ?assertMatch({stop, _}, se_event(stop, Final_SE)),
     ok.
 
-%% ================================================================================
+invite_to_two_targets_timer_c_ignored_after_final_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, _} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target = [Target_1, Target_2],
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [{ClientTransId1, Req1}, _] =
+        [{Trans, Req}
+         || {create_trans, {client, Trans, Req}} <- ClientTrans],
+    [{set_timer, {_, TimerCEv}}|_] = se_all(set_timer, Forward_SE),
+
+    %% 4. Final response is received by first target:
+    {_, Resp400} = create_client_trans_result(400, Req1),
+    {Final_State, _} = ersip_proxy:trans_result(ClientTransId1, Resp400, Forward_State),
+
+    %% 5. Timer C is fired for first target:
+    {_, TimerCFired_SE} = ersip_proxy:timer_fired(TimerCEv, Final_State),
+    %%    - Timer C is ignored here:
+    ?assertEqual([], TimerCFired_SE),
+    ok.
+
+%%================================================================================
 %% Status codes ordering
-%% ================================================================================
+%%================================================================================
 
 status_codes_ordering_test() ->
     %% It MUST choose from the 6xx class responses if any exist in the
@@ -948,6 +1047,65 @@ status_codes_ordering_test() ->
     ?assertEqual([401, 407, 484, 415, 420], order_statuses([415, 407, 484, 420, 401])),
     ?assertEqual([415, 404, 486], order_statuses([486, 404, 415])),
     ?assertEqual([420, 404, 486], order_statuses([486, 404, 420])),
+    ok.
+
+%%================================================================================
+%% Configuration
+%%================================================================================
+
+timer_c_setup_test() ->
+    InviteSipMsg = invite_request(),
+    TimerCTimeout = timer:seconds(71),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, __ServerTransId} = create_stateful(InviteSipMsg, #{timer_c => TimerCTimeout}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {_, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    %%    - Check that timer C is set to default timeout 180 seconds.
+    ?assertMatch({set_timer, {TimerCTimeout, _}}, se_event(set_timer, Forward_SE)),
+    ok.
+
+cancel_timeout_setup_test() ->
+    CancelTimeout = timer:seconds(53),
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _} = create_stateful(InviteSipMsg, #{cancel_timeout => CancelTimeout}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, _} = ersip_proxy:forward_to(Target, SelectTargetState),
+
+    %% 4. Cancel request:
+    {Cancel_State0, Cancel_SE0} = ersip_proxy:cancel(Forward_State),
+    {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, Cancel_SE0),
+    {_, CancelResp200} = create_client_trans_result(200, CancelReq),
+    {_, Cancel_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp200, Cancel_State0),
+    %%   - CANCEL timer is set
+    ?assertMatch({set_timer, {CancelTimeout, _}}, se_event(set_timer, Cancel_SE)),
+    ok.
+
+branch_customization_test() ->
+    %% Ersip provides possibility to define own branch identifiers.
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, _} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Branch_1 = ersip_branch:make_rfc3261(<<"branch1">>),
+    Branch_2 = ersip_branch:make_rfc3261(<<"branch2">>),
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target = [{Target_1, Branch_1}, {Target_2, Branch_2}],
+    {_, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [Req1, Req2] = [Req || {create_trans, {client, _, Req}} <- ClientTrans],
+    ?assertEqual(Branch_1, ersip_request:branch(Req1)),
+    ?assertEqual(Branch_2, ersip_request:branch(Req2)),
     ok.
 
 %%%===================================================================

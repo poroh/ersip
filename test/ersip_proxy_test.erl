@@ -567,6 +567,54 @@ basic_invite_cancel_fork_on_two_targets_test() ->
     ?assertMatch({stop, _}, se_event(stop, Resp2_487_SE)),
     ok.
 
+basic_invite_to_two_targets_600_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target = [Target_1, Target_2],
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [{ClientTransId1, Req1}, {ClientTransId2, Req2}] =
+        [{Trans, Req}
+         || {create_trans, {client, Trans, Req}} <- ClientTrans],
+
+    %% 4. Provisional response is received by both targets:
+    {_, Resp1_180} = create_client_trans_result(180, Req1),
+    {Provisional_State0, _} = ersip_proxy:trans_result(ClientTransId1, Resp1_180, Forward_State),
+    {_, Resp2_180} = create_client_trans_result(180, Req2),
+    {Provisional_State, _} = ersip_proxy:trans_result(ClientTransId2, Resp2_180, Provisional_State0),
+
+    %% 6. 600 response is received by first target:
+    {_, Resp600} = create_client_trans_result(600, Req1),
+    {Resp600_State, Resp600_SE} = ersip_proxy:trans_result(ClientTransId1, Resp600, Provisional_State),
+    %% By RFC3261 requirement:
+    %% If a 6xx response is received, it is not immediately forwarded,
+    %% but the stateful proxy SHOULD cancel all client pending
+    %% transactions as described in Section 10, and it MUST NOT create
+    %% any new branches in this context.
+    ?assertEqual(not_found, se_event(response, Resp600_SE)),
+    ?assertMatch([_], se_all(create_trans, Resp600_SE)),
+    {create_trans, {client, CancelTransId, CancelReq}} = se_event(create_trans, Resp600_SE),
+
+    %% 7. 200 OK On CANCEL to second target:
+    {_, CancelResp200} = create_client_trans_result(200, CancelReq),
+    {Cancel200_State, _} = ersip_proxy:trans_result(CancelTransId, CancelResp200, Resp600_State),
+
+    %% 8. Response 487 from second target:
+    {_, Resp487} = create_client_trans_result(487, Req2),
+    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
+    %%   - Check that 600 is passed as result
+    ?assertMatch({response, {ServerTransId, Resp600}}, se_event(response, Resp487_SE)),
+    %%   - Check that request processing is not stopped:
+    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+    ok.
+
 invite_to_two_targets_first_timer_c_second_200_test() ->
     InviteSipMsg = invite_request(),
     %% 1. Create new stateful proxy request state.

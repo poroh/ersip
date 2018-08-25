@@ -698,7 +698,7 @@ reset_timer_c(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
 
 -spec cancel_timeout(stateful() | options()) -> pos_integer().
 cancel_timeout(#stateful{options = ProxyOptions}) ->
-    timer_c_timeout(ProxyOptions);
+    cancel_timeout(ProxyOptions);
 cancel_timeout(#{cancel_timeout := CancelTimeout}) ->
     CancelTimeout;
 cancel_timeout(_) ->

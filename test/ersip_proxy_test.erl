@@ -615,6 +615,45 @@ basic_invite_to_two_targets_600_test() ->
     ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
     ok.
 
+invite_to_two_targets_1st_200_2nd_600_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target = [Target_1, Target_2],
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [{ClientTransId1, Req1}, {ClientTransId2, Req2}] =
+        [{Trans, Req}
+         || {create_trans, {client, Trans, Req}} <- ClientTrans],
+
+    %% 4. Provisional response is received by both targets:
+    {_, Resp1_180} = create_client_trans_result(180, Req1),
+    {Provisional_State0, _} = ersip_proxy:trans_result(ClientTransId1, Resp1_180, Forward_State),
+    {_, Resp2_180} = create_client_trans_result(180, Req2),
+    {Provisional_State, _} = ersip_proxy:trans_result(ClientTransId2, Resp2_180, Provisional_State0),
+
+    %% 6. 200 response is received by first target:
+    {_, Resp200} = create_client_trans_result(200, Req1),
+    {Resp200_State, Resp200_SE} = ersip_proxy:trans_result(ClientTransId1, Resp200, Provisional_State),
+    ?assertEqual({response, {ServerTransId, Resp200}}, se_event(response, Resp200_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp200_SE)),
+
+    %% 7. 600 response is received by first target:
+    {_, Resp600} = create_client_trans_result(600, Req2),
+    {_, Resp600_SE} = ersip_proxy:trans_result(ClientTransId2, Resp600, Resp200_State),
+    %%   - Check that 600 is passed as result
+    ?assertMatch({response, {ServerTransId, Resp600}}, se_event(response, Resp600_SE)),
+    %%   - Check that request processing is not stopped:
+    ?assertMatch({stop, _}, se_event(stop, Resp600_SE)),
+    ok.
+
+
 invite_to_two_targets_first_timer_c_second_200_test() ->
     InviteSipMsg = invite_request(),
     %% 1. Create new stateful proxy request state.

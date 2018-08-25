@@ -222,7 +222,11 @@ basic_proxy_invite_cancel_test() ->
     ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
     ok.
 
-basic_proxy_invite_timer_c_fired_test() ->
+%% Case:
+%% 1. Proxy INVITE
+%% 2. Pass provisional response
+%% 3. Timer C fired
+proxy_invite_timer_c_fired_test() ->
     InviteSipMsg = invite_request(),
     %% 1. Create new stateful proxy request state.
     %% 2. Process server transaction result.
@@ -256,6 +260,36 @@ basic_proxy_invite_timer_c_fired_test() ->
     %%   - Check that request processing is stopped:
     ?assertMatch({stop, _}, se_event(stop, CancelTimeout_SE)),
     ok.
+
+%% Case:
+%% 1. Proxy INVITE
+%% 2. Timer C fired
+proxy_invite_timer_c_fired_without_provisional_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, ClientTransId, _Req}} = se_event(create_trans, Forward_SE),
+    {set_timer, {_Timeout, TimerCEvent}} = se_event(set_timer, Forward_SE),
+
+    %% 4. TimerC fired:
+    {_, TimerC_SE} = ersip_proxy:timer_fired(TimerCEvent, Forward_State),
+    %%    - Because there was no provisional response CANCEL must not be generated:
+    ?assertEqual(not_found, se_event(create_trans, TimerC_SE)),
+    %%   - Check that 408 is passed as server transaction result:
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, TimerC_SE)),
+    {response, {ServerTransId, Resp408}} = se_event(response, TimerC_SE),
+    ?assertEqual(408, ersip_sipmsg:status(Resp408)),
+    %%   - Check that client transaction is stopped:
+    ?assertMatch({delete_trans, ClientTransId}, se_event(delete_trans, TimerC_SE)),
+    %%   - Check that request processing is stopped:
+    ?assertMatch({stop, _}, se_event(stop, TimerC_SE)),
+    ok.
+
 
 basic_invite_fork_on_two_targets_test() ->
     %% Check INVITE forked to two destinations,
@@ -388,8 +422,10 @@ basic_invite_cancel_fork_on_two_targets_test() ->
     ?assertMatch({stop, _}, se_event(stop, Resp2_487_SE)),
     ok.
 
+
 %% TODO:
 %% Testcases:
+%%   - One branch timer C fired - another success
 %%   - 487 on INVITE then 200 OK on CANCEL
 %%   - Cancel request and Timer C fires after CANCEL sent
 %%   - Cancel request when Server transaction created
@@ -438,12 +474,8 @@ message_request_bin() ->
       "" ?crlf
       "Watson, come here.">>.
 
-
 invite_request() ->
     create_sipmsg(invite_request_bin(), make_default_source()).
-
-cancel_request() ->
-    ersip_request:cancel(invite_request()).
 
 invite_request_bin() ->
     <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf

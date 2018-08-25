@@ -804,7 +804,8 @@ process_timer_c_fired(BranchKey, #request_context{req = Req, provisional_receive
     %% No provisional response:
     Stateful1 = set_timer_c_fired(BranchKey, Stateful),
     Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
-    process_response(BranchKey, Resp, Stateful1);
+    {Stateful2, SE2} = process_response(BranchKey, Resp, Stateful1),
+    {Stateful2, [ersip_proxy_se:delete_trans(BranchKey) | SE2]};
 process_timer_c_fired(BranchKey, #request_context{req = InitialReq, resp = undefined, provisional_received = true}, #stateful{} = Stateful) ->
     %% If the client transaction has received a provisional response,
     %% the proxy MUST generate a CANCEL request matching that

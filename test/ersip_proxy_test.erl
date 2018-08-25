@@ -381,6 +381,65 @@ proxy_invite_timer_c_fired_after_cancel_test() ->
 
     ok.
 
+%% Idea of the test is to check that proxy does not pass 503 final
+%% response and transform it to 500
+%%
+%% Normative:
+%% A proxy which receives a 503 (Service Unavailable) response SHOULD
+%% NOT forward it upstream unless it can determine that any subsequent
+%% requests it might proxy will also generate a 503.  In other words,
+%% forwarding a 503 means that the proxy knows it cannot service any
+%% requests, not just the one for the Request- URI in the request
+%% which generated the 503.  If the only response that was received is
+%% a 503, the proxy SHOULD generate a 500 response and forward that
+%% upstream.
+proxy_invite_503_to_500_test() ->
+    InviteSipMsg = invite_request(),
+
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    %%    - Check that client transaction is created:
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Creating 503 response and pass as client transaction result:
+    {_, Resp503} = create_client_trans_result(503, Req),
+    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
+    %%    - Response is passed to request source and proxy is stopped
+    ?assertMatch({response, {ServerTransId, _}}, se_event(response, Final_SE)),
+    {response, {ServerTransId, Resp500}} = se_event(response, Final_SE),
+    ?assertEqual(500, ersip_sipmsg:status(Resp500)),
+    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ok.
+
+%% Idea of the test is to check that proxy pass 503 final if pass_503
+%% options is set to true
+proxy_invite_503_to_503_test() ->
+    InviteSipMsg = invite_request(),
+
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, ServerTransId} = create_stateful(InviteSipMsg, #{pass_503 => true}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    %%    - Check that client transaction is created:
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Creating 503 response and pass as client transaction result:
+    {_, Resp503} = create_client_trans_result(503, Req),
+    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
+    %%    - Response is passed to request source and proxy is stopped
+    ?assertMatch({response, {ServerTransId, Resp503}}, se_event(response, Final_SE)),
+    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ok.
+
+
 %% ================================================================================
 %% Early CANCEL cases
 %% ================================================================================

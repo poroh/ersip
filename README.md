@@ -22,8 +22,8 @@ SIP. I beleive that this is wrong way.
      - INVITE transaction (completed)
   + Registrar support (completed)
   + Parser limits enforcement (completed)
-  + Statefull proxy support (in-progress)
-  + Dialog support
+  + Statefull proxy support (completed)
+  + Dialog support (in-progress)
   + Authorization and proxy authorization
   + High-level UA support
   + Detailed documentation and tutorials

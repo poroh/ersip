@@ -171,7 +171,7 @@ trans_result({cancel, BranchKey}, timeout, #stateful{req_map = ReqCtxMap} = Stat
             Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(CancelReq)),
             process_response(BranchKey, Resp, Stateful);
         _ ->
-            ok
+            error({api_error, {<<"Unexpected cancel transaction result">>, BranchKey}})
     end;
 trans_result({cancel, BranchKey}, Resp, #stateful{phase = collect} = Stateful) ->
     process_response(BranchKey, Resp, Stateful);
@@ -349,7 +349,7 @@ pr_find_context(BranchKey, _RespSipMsg, #stateful{req_map = ReqCtxMap}) ->
         #{BranchKey := _} ->
             continue;
         _ ->
-            stop
+            error({api_error, {<<"Unexpected transaction result">>, BranchKey}})
     end.
 
 -spec pr_maybe_update_timer_c(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().

@@ -180,6 +180,23 @@ non_invite_with_provisional_test() ->
 
     ok.
 
+forward_to_maddr_test() ->
+    HostBin = <<"239.255.255.1">>,
+    Host = ersip_host:make(HostBin),
+    MessageSipMsg = message_with_maddr_request(HostBin),
+
+    %% 1. Create new stateful proxy request state.
+    {CreateTrans_State, CreateTrans_SE} = ersip_proxy:new_stateful(MessageSipMsg, #{}),
+    {create_trans, {server, ServerTransId, MessageSipMsg}} = se_event(create_trans, CreateTrans_SE),
+
+    %% 2. Process server transaction result.
+    {_, ProcessReq_SE} = ersip_proxy:trans_result(ServerTransId, MessageSipMsg, CreateTrans_State),
+    ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, ProcessReq_SE)),
+    {create_trans, {client, _, Req}} = se_event(create_trans, ProcessReq_SE),
+    RURI = ersip_sipmsg:ruri(ersip_request:sipmsg(Req)),
+    ?assertEqual({host, Host}, ersip_uri:get(host, RURI)),
+    ok.
+
 %%================================================================================
 %% One-target INVITE caces
 %%================================================================================
@@ -248,6 +265,8 @@ basic_proxy_invite_cancel_test() ->
     ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, Cancel_SE)),
     {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, Cancel_SE),
     ?assertEqual(ersip_method:cancel(), ersip_sipmsg:method(ersip_request:sipmsg(CancelReq))),
+    %%    - Second cancel is ignored:
+    {Cancel_State, []} = ersip_proxy:cancel(Cancel_State),
 
     %% 6. Response 200 on CANCEL request:
     {_, CancelResp200} = create_client_trans_result(200, CancelReq),
@@ -660,6 +679,8 @@ early_invite_cancel_before_target_selected_test() ->
     {Cancel_State, Cancel_SE} = ersip_proxy:cancel(SelectTargetState),
     %%   - Check that cancel is postponed until transaction is created
     ?assertEqual([], Cancel_SE),
+    %%    - Second cancel is ignored:
+    {Cancel_State, []} = ersip_proxy:cancel(Cancel_State),
 
     %% 4. Choose one target to forward:
     Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
@@ -1028,6 +1049,52 @@ invite_to_two_targets_timer_c_ignored_after_final_test() ->
     ?assertEqual([], TimerCFired_SE),
     ok.
 
+invite_to_three_targets_cancel_timer_ignored_after_final_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTarget_State, _} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose two targets to forward:
+    Target_1 = ersip_uri:make(<<"sip:contact1@192.168.1.1">>),
+    Target_2 = ersip_uri:make(<<"sip:contact2@192.168.1.2">>),
+    Target_3 = ersip_uri:make(<<"sip:contact3@192.168.1.3">>),
+    Target = [Target_1, Target_2, Target_3],
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTarget_State),
+    %%    - Check that client transaction is created:
+    ClientTrans = se_all(create_trans, Forward_SE),
+    [{ClientTransId1, Req1}, {ClientTransId2, Req2} | _] =
+        [{Trans, Req}
+         || {create_trans, {client, Trans, Req}} <- ClientTrans],
+
+    %% 4. 600 response is received by first target:
+    {_, Resp600} = create_client_trans_result(600, Req1),
+    {Resp600_State, Resp600_SE} = ersip_proxy:trans_result(ClientTransId1, Resp600, Forward_State),
+    CancelTrans = [C || {create_trans, C} <- se_all(create_trans, Resp600_SE)],
+    %%    - Check that exactly two CANCEL requested
+    ?assertEqual(2, length(CancelTrans)),
+
+    %% 5. Response 200 OK on both CANCEL:
+    {Cancel200_State, TimerEvs} =
+        lists:foldr(fun({client, CancelId, CancelReq}, {State, TimerEv}) ->
+                            {_, Resp200} = create_client_trans_result(200, CancelReq),
+                            {State, SE} = ersip_proxy:trans_result(CancelId, Resp200, State),
+                            {set_timer, {_, CancelTimerEv}} = se_event(set_timer, SE),
+                            {State, [CancelTimerEv | TimerEv]}
+                    end,
+                    {Resp600_State, []},
+                    CancelTrans),
+    %% 6. Respond on 2nd request with 487:
+    {_, Resp487} = create_client_trans_result(487, Req2),
+    {Resp487_State, _} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
+
+    [SecondReqCancelTimerEv] = [Ev || {cancel_timer, BranchKey} = Ev <- TimerEvs,
+                                      BranchKey == ClientTransId2],
+    {_, LateCancelSE} = ersip_proxy:timer_fired(SecondReqCancelTimerEv, Resp487_State),
+    ?assertEqual([], LateCancelSE),
+
+    ok.
+
 %%================================================================================
 %% Status codes ordering
 %%================================================================================
@@ -1108,6 +1175,53 @@ branch_customization_test() ->
     ?assertEqual(Branch_2, ersip_request:branch(Req2)),
     ok.
 
+%%================================================================================
+%% Error conditoins
+%%================================================================================
+
+error_ack_test() ->
+    ?assertError({api_error, _}, ersip_proxy:new_stateful(ack_request(), #{})),
+    ok.
+
+error_on_unexpected_trans_result_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _} = create_stateful(InviteSipMsg, #{}),
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, _ClientId, Req}} = se_event(create_trans, Forward_SE),
+    BranchKey = ersip_branch:make_key(ersip_branch:make_random(7)),
+
+    {_, Resp200} = create_client_trans_result(200, Req),
+    ?assertError({api_error, _}, ersip_proxy:trans_result(BranchKey, Resp200, Forward_State)),
+    ok.
+
+error_on_unexpected_trans_cancel_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _} = create_stateful(InviteSipMsg, #{}),
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, ClientId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Pass 180 provisional response:
+    {_, Resp180} = create_client_trans_result(180, Req),
+    {Provisional_State, _} = ersip_proxy:trans_result(ClientId, Resp180, Forward_State),
+
+    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(Provisional_State),
+    {create_trans, {client, CancelId, _}} = se_event(create_trans, Cancel_SE),
+    %%  - Check format of Cancel ID matches expected by this test:
+    ?assertMatch({cancel, {branch_key, _}}, CancelId),
+    %% Generate random branch with the same format:
+    BranchKey = ersip_branch:make_key(ersip_branch:make_random(7)),
+    ?assertError({api_error, _}, ersip_proxy:trans_result({cancel, BranchKey}, timeout, Cancel_State)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -1144,6 +1258,24 @@ message_request_bin() ->
       "" ?crlf
       "Watson, come here.">>.
 
+message_with_maddr_request(Maddr) ->
+    create_sipmsg(message_with_maddr_request_bin(Maddr), make_default_source()).
+
+message_with_maddr_request_bin(Maddr) ->
+    <<"MESSAGE sip:user2@domain.com;maddr=", Maddr/binary, " SIP/2.0" ?crlf
+      "Via: SIP/2.0/TCP proxy.domain.com;branch=z9hG4bK123dsghds" ?crlf
+      "Via: SIP/2.0/TCP user1pc.domain.com;branch=z9hG4bK776sgdkse;" ?crlf
+      "    received=1.2.3.4" ?crlf
+      "Max-Forwards: 69" ?crlf
+      "From: sip:user1@domain.com;tag=49394" ?crlf
+      "To: sip:user2@domain.com" ?crlf
+      "Call-ID: asd88asd77a@1.2.3.4" ?crlf
+      "CSeq: 1 MESSAGE" ?crlf
+      "Content-Type: text/plain" ?crlf
+      "Content-Length: 18" ?crlf
+      "" ?crlf
+      "Watson, come here.">>.
+
 invite_request() ->
     create_sipmsg(invite_request_bin(), make_default_source()).
 
@@ -1160,6 +1292,20 @@ invite_request_bin() ->
       "Content-Length: 4" ?crlf
       ?crlf
       "Test">>.
+
+ack_request() ->
+    create_sipmsg(ack_request_bin(), make_default_source()).
+
+ack_request_bin() ->
+    <<"ACK sip:bob@biloxi.com SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:bob@biloxi.com>" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 ACK" ?crlf
+      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+      ?crlf>>.
 
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     create_sipmsg(Msg, Source, all).

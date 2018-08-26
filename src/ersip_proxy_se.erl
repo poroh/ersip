@@ -36,7 +36,8 @@
 -type stop()          :: {stop, {}}.
 
 -type trans_type()  :: client | server.
--type timer_event() :: {timer, ersip_branch:branch_key(), reference()}.
+-type timer_event() :: {timer, ersip_branch:branch_key(), reference()}
+                     | {cancel_timer, ersip_branch:branch_key()}.
 
 %%%===================================================================
 %%% API

@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_fromto).
 
--export([make/1,
+-export([new/0,
+         make/1,
          display_name/1,
          uri/1,
          tag/1,
@@ -46,6 +47,11 @@
 %%% API
 %%%===================================================================
 
+-spec new() -> fromto().
+new() ->
+    DefaultHost = ersip_host:make({127, 0, 0, 1}),
+    #fromto{uri = ersip_uri:make([{host, DefaultHost}])}.
+
 -spec make(binary()) -> fromto().
 make(Bin) ->
     case parse_fromto(Bin) of
@@ -77,19 +83,25 @@ tag(#fromto{} = FT) ->
             undefined
     end.
 
--spec set_tag(tag(), fromto()) -> fromto().
+-spec set_tag(tag() | undefined, fromto()) -> fromto().
 set_tag({tag, _} = Tag, #fromto{} = FT) ->
     OldParams = params(FT),
     NewParams = OldParams#{tag => Tag},
+    set_params(NewParams, FT);
+set_tag(undefined, #fromto{} = FT) ->
+    OldParams = params(FT),
+    NewParams = maps:remove(tag, OldParams),
     set_params(NewParams, FT).
 
--spec tag_key(fromto()) -> undefined | tag_key().
-tag_key(FT) ->
+-spec tag_key(tag() | fromto()) -> undefined | tag_key().
+tag_key({tag, T}) ->
+    {tag_key, ersip_bin:to_lower(T)};
+tag_key(#fromto{} = FT) ->
     case tag(FT) of
         undefined ->
             undefined;
-        {tag, T} ->
-            {tag_key, ersip_bin:to_lower(T)}
+        {tag, _} = Tag ->
+            tag_key(Tag)
     end.
 
 -spec parse(ersip_hdr:header()) -> {ok, fromto()}

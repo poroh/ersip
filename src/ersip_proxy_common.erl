@@ -604,8 +604,7 @@ maybe_strict_router_workaround({SipMsg, _} = FwdResult) ->
         not_found ->
             FwdResult;
         {ok, FirstRoute} ->
-            URIParams  = ersip_uri:params(ersip_hdr_route:uri(FirstRoute)),
-            case maps:is_key(lr, URIParams) of
+            case ersip_hdr_route:is_loose_route(FirstRoute) of
                 false ->
                     %% If this is route to strict router then it is
                     %% required to made some transformation to match

@@ -9,6 +9,7 @@
 -module(ersip_hdr_route).
 
 -export([uri/1,
+         is_loose_route/1,
          params/1,
          make/1,
          parse/1,
@@ -43,6 +44,11 @@
 -spec uri(route()) -> ersip_uri:uri().
 uri(#route{uri = URI}) ->
     URI.
+
+-spec is_loose_route(route()) -> boolean().
+is_loose_route(#route{uri = URI}) ->
+    URIParams  = ersip_uri:params(URI),
+    maps:is_key(lr, URIParams).
 
 -spec params(route()) -> [route_param()].
 params(#route{params = P}) ->

@@ -615,7 +615,7 @@ uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
         not_found ->
             {ok, Dialog};
         {ok, [Contact]} ->
-            ContactURI = ersip_sipmsg:uri(Contact),
+            ContactURI = ersip_hdr_contact:uri(Contact),
             case ersip_uri:scheme(ContactURI) of
                 {scheme, S} when S == sip orelse S == sips ->
                     {ok, Dialog#dialog{remote_target = ContactURI}};

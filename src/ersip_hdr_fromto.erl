@@ -12,6 +12,7 @@
          make/1,
          display_name/1,
          uri/1,
+         set_uri/2,
          tag/1,
          set_tag/2,
          tag_key/1,
@@ -69,6 +70,10 @@ display_name(#fromto{display_name = DN}) ->
 -spec uri(fromto()) -> ersip_uri:uri().
 uri(#fromto{uri = URI}) ->
     URI.
+
+-spec set_uri(ersip_uri:uri(), fromto()) -> fromto().
+set_uri(URI, #fromto{} = FromTo) ->
+    FromTo#fromto{uri = URI}.
 
 -spec params(fromto()) -> fromto_params().
 params(#fromto{params = P}) ->

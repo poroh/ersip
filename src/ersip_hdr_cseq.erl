@@ -8,10 +8,12 @@
 
 -module(ersip_hdr_cseq).
 
--export([make/1,
+-export([new/1,
+         make/1,
          make/2,
          make_key/1,
          number/1,
+         set_number/2,
          method/1,
          set_method/2,
          parse/1,
@@ -37,6 +39,14 @@
 %%% API
 %%%===================================================================
 
+-spec new(ersip_method:method()) -> cseq().
+new(Method) ->
+    %% The sequence number value MUST be expressible as a 32-bit
+    %% unsigned integer and MUST be less than 2**31.  As long as it
+    %% follows the above guidelines, a client may use any mechanism it
+    %% would like to select CSeq header field values.
+    #cseq{method = Method, number = 1}.
+
 -spec make(ersip_hdr:header()) -> cseq().
 make(Header) ->
     case parse(Header) of
@@ -58,6 +68,10 @@ make_key(CSeq) ->
 -spec number(cseq()) -> cseq_num().
 number(#cseq{number = N}) ->
     N.
+
+-spec set_number(cseq_num(), cseq()) -> cseq().
+set_number(N, #cseq{} = CSeq) ->
+    CSeq#cseq{number = N}.
 
 -spec method(cseq()) -> ersip_method:method().
 method(#cseq{method = M}) ->

@@ -252,7 +252,7 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
     %% sequence number, the request is in order
     RemoteCSeq = ersip_sipmsg:get(cseq, RequestSipMsg),
     RemoteCSeqNum = ersip_hdr_cseq:number(RemoteCSeq),
-    case RemoteCSeq < StoredRCSeq of
+    case RemoteCSeqNum =< StoredRCSeq of
         true ->
             {reply, ersip_sipmsg:reply(500, RequestSipMsg)};
         false ->
@@ -567,7 +567,7 @@ fill_request_route(RemoteTarget, RouteSet, ReqSipMsg) ->
             ersip_sipmsg:set_ruri(RemoteTarget, ReqSipMsg);
         false ->
             FirstRoute = ersip_route_set:first(RouteSet),
-            case ersip_route:is_loose_route(FirstRoute) of
+            case ersip_hdr_route:is_loose_route(FirstRoute) of
                 true ->
                     fill_request_loose_route(RemoteTarget, RouteSet, ReqSipMsg);
                 false ->
@@ -593,7 +593,7 @@ fill_request_strict_route(RemoteTarget, RouteSet0, Req0) ->
     %% the UAC MUST place the first URI from the route set into the
     %% Request-URI, stripping any parameters that are not allowed in a
     %% Request-URI.
-    CleanURI = ersip_uri:clear_not_allowed_parts(ruri, ersip_route:uri(FirstRoute)),
+    CleanURI = ersip_uri:clear_not_allowed_parts(ruri, ersip_hdr_route:uri(FirstRoute)),
     Req1 = ersip_sipmsg:set_ruri(CleanURI, Req0),
     %% The UAC MUST add a Route header field containing the remainder
     %% of the route set values in order, including all parameters.  The
@@ -620,11 +620,11 @@ uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
                 {scheme, S} when S == sip orelse S == sips ->
                     {ok, Dialog#dialog{remote_target = ContactURI}};
                 _ ->
-                    Reply = ersip_reply:new(400, [{reason_phrase, <<"Invalid Contact URI scheme">>}]),
+                    Reply = ersip_reply:new(400, [{reason, <<"Invalid Contact URI scheme">>}]),
                     {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
             end;
         _ ->
             %% star case and many contacs/
-            Reply = ersip_reply:new(400, [{reason_phrase, <<"Invalid Contact">>}]),
+            Reply = ersip_reply:new(400, [{reason, <<"Invalid Contact">>}]),
             {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
     end.

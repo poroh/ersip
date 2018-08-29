@@ -50,7 +50,8 @@
 -spec new() -> fromto().
 new() ->
     DefaultHost = ersip_host:make({127, 0, 0, 1}),
-    #fromto{uri = ersip_uri:make([{host, DefaultHost}])}.
+    #fromto{display_name = {display_name, []},
+            uri = ersip_uri:make([{host, DefaultHost}])}.
 
 -spec make(binary()) -> fromto().
 make(Bin) ->

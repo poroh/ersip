@@ -5,14 +5,33 @@
 %%
 %% SIP dialog support
 %%
+%% UAC:
+%%   1. Call uac_new when response with code 101..299 is received on request
+%%   2. Call uac_update when another response is received on initial request
+%%   3. Call uac_request to make request matching dialog to send
+%%   4. Call uac_trans_result when response on dialog request is received
+%%
+%% UAS:
+%%   1. Call uas_dialog_id to get dialog identifier and find dialog state
+%%   2. Call uas_process to update dialog state related to received request.
+%%
+%% Request types:
+%%   1. Regular
+%%   2. Target refresher - request that can change remote target of the dialog
+%%      for INVITE method it is only INVITE itself.
+%%      for subscriptions it is SUBSCRIBE and NOTIFY methods
+%%
 
 -module(ersip_dialog).
 
 -export([id/1,
          uas_new/2,
          uac_new/2,
+         uac_update/2,
          uac_request/2,
-         uac_trans_result/3
+         uac_trans_result/3,
+         uas_dialog_id/1,
+         uas_process/3
         ]).
 
 -export_type([dialog/0,
@@ -47,6 +66,8 @@
 
 -type cc_check_fun() :: fun((ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result()).
 -type cc_check_result() :: ok | {error, term()}.
+-type uas_process_result() :: {ok, dialog()}
+                            | {replay, ersip_sipmsg:sipmsg()}.
 
 %%%===================================================================
 %%% API
@@ -103,6 +124,10 @@ uac_new(Req, Response) ->
             Dialog = uac_create(Req, Response),
             {ok, Dialog}
     end.
+
+-spec uac_update(ersip_sipmsg:sipmsg(), dialog()) -> {ok, dialog()} | terminate_dialog.
+uac_update(Response, #dialog{} = Dialog) ->
+    uac_trans_result(Response, target_referesh, Dialog).
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.1 Generating the Request
@@ -168,14 +193,15 @@ uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
             %% request, it MUST replace the dialog's remote target URI
             %% with the URI from the Contact header field in that
             %% response, if present.
+            Dialog1 = Dialog#dialog{state = confirmed},
             case ersip_sipmsg:get(contact, Resp) of
                 not_found ->
-                    {ok, Dialog};
+                    {ok, Dialog1};
                 {ok, [Contact]} ->
-                    {ok, Dialog#dialog{remote_target = ersip_hdr_contact:uri(Contact)}};
+                    {ok, Dialog1#dialog{remote_target = ersip_hdr_contact:uri(Contact)}};
                 _ ->
                     %% In all other cases contact is invalid and we ignore it
-                    {ok, Dialog}
+                    {ok, Dialog1}
             end;
         481 ->
             %% If the response for a request within a dialog is a 481
@@ -190,8 +216,49 @@ uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
 
 
 %% 12.2.2 UAS Behavior
+-spec uas_dialog_id(ersip_sipmsg:sipmsg()) -> {ok, id()} | no_dialog.
+uas_dialog_id(RequestSipMsg) ->
+    %% If the request has a tag in the To header field, the UAS core
+    %% computes the dialog identifier corresponding to the request and
+    %% compares it with existing dialogs.  If there is a match, this
+    %% is a mid-dialog request.
+    To     = ersip_sipmsg:get(to, RequestSipMsg),
+    From   = ersip_sipmsg:get(from, RequestSipMsg),
+    CallID = ersip_sipmsg:get(callid, RequestSipMsg),
+    case ersip_hdr_fromto:tag_key(To) of
+        undefined ->
+            no_dialog;
+        LocalTag ->
+            RemoteTag = ersip_hdr_fromto:tag_key(From),
+            {ok, #dialog_id{callid = CallID,
+                            local_tag = LocalTag,
+                            remote_tag = RemoteTag}}
+    end.
 
-
+-spec uas_process(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
+uas_process(RequestSipMsg, ReqType, #dialog{remote_seq = empty} = Dialog0) ->
+    %% If the remote sequence number is empty, it MUST be set to the value
+    %% of the sequence number in the CSeq header field value in the request.
+    RemoteCSeq = ersip_sipmsg:get(cseq, RequestSipMsg),
+    RemoteCSeqNum = ersip_hdr_cseq:number(RemoteCSeq),
+    Dialog1 = Dialog0#dialog{remote_seq = RemoteCSeqNum},
+    uas_maybe_update_target(RequestSipMsg, ReqType, Dialog1);
+uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0) ->
+    %% If the remote sequence number was not empty, but the sequence number
+    %% of the request is lower than the remote sequence number, the request
+    %% is out of order and MUST be rejected with a 500 (Server Internal
+    %% Error) response.  If the remote sequence number was not empty, and
+    %% the sequence number of the request is greater than the remote
+    %% sequence number, the request is in order
+    RemoteCSeq = ersip_sipmsg:get(cseq, RequestSipMsg),
+    RemoteCSeqNum = ersip_hdr_cseq:number(RemoteCSeq),
+    case RemoteCSeq < StoredRCSeq of
+        true ->
+            {reply, ersip_sipmsg:reply(500, RequestSipMsg)};
+        false ->
+            Dialog1 = Dialog0#dialog{remote_seq = RemoteCSeqNum},
+            uas_maybe_update_target(RequestSipMsg, ReqType, Dialog1)
+    end.
 
 %%%===================================================================
 %%% Internal Implementation
@@ -536,3 +603,28 @@ fill_request_strict_route(RemoteTarget, RouteSet0, Req0) ->
     RURIRoute = ersip_hdr_route:make_route(RemoteTarget),
     RouteSet = ersip_route_set:add_last(RURIRoute, RouteSet1),
     ersip_sipmsg:set(route, RouteSet, Req1).
+
+-spec uas_maybe_update_target(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
+uas_maybe_update_target(_, regular, #dialog{} = Dialog) ->
+    {ok, Dialog};
+uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
+    %% When a UAS receives a target refresh request, it MUST replace the
+    %% dialog's remote target URI with the URI from the Contact header field
+    %% in that request, if present.
+    case ersip_sipmsg:find(contact, ReqSipMsg) of
+        not_found ->
+            {ok, Dialog};
+        {ok, [Contact]} ->
+            ContactURI = ersip_sipmsg:uri(Contact),
+            case ersip_uri:scheme(ContactURI) of
+                {scheme, S} when S == sip orelse S == sips ->
+                    {ok, Dialog#dialog{remote_target = ContactURI}};
+                _ ->
+                    Reply = ersip_reply:new(400, [{reason_phrase, <<"Invalid Contact URI scheme">>}]),
+                    {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+            end;
+        _ ->
+            %% star case and many contacs/
+            Reply = ersip_reply:new(400, [{reason_phrase, <<"Invalid Contact">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+    end.

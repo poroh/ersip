@@ -247,7 +247,7 @@ request_validation_maxforwards_is_zero_options_test() ->
             ?crlf "To: Bob <sip:bob@biloxi.com>"
             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "CSeq: 314159 OPTIONS"
             ?crlf ?crlf
           >>,
     {reply, BadMsg} = request_validation(raw_message(Msg)),
@@ -264,7 +264,7 @@ request_validation_maxforwards_is_zero_options_reply_test() ->
             ?crlf "To: Bob <sip:bob@biloxi.com>"
             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "CSeq: 314159 OPTIONS"
             ?crlf ?crlf
           >>,
     AllowMethodsList = [<<"INVITE">>,
@@ -304,7 +304,7 @@ request_validation_maxforwards_is_zero_options_reply_no_allow_test() ->
             ?crlf "To: Bob <sip:bob@biloxi.com>"
             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
             ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "CSeq: 314159 OPTIONS"
             ?crlf ?crlf
           >>,
     Options = #{validate => #{reply_on_options => true}},

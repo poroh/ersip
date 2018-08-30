@@ -26,6 +26,7 @@
 
 -export([id/1,
          uas_new/2,
+         uas_update/2,
          uac_new/2,
          uac_update/2,
          uac_request/2,
@@ -51,7 +52,8 @@
                  remote_target       :: ersip_uri:uri(),
                  secure              :: boolean(),
                  route_set           :: ersip_route_set:route_set(),
-                 state               :: state()
+                 state               :: state(),
+                 initial_req = undefined :: ersip_sipmsg:sipmsg() | undefined
                 }).
 -record(dialog_id, {local_tag  :: ersip_hdr_fromto:tag_key(),
                     remote_tag :: ersip_hdr_fromto:tag_key() | undefined,
@@ -68,6 +70,8 @@
 -type cc_check_result() :: ok | {error, term()}.
 -type uas_process_result() :: {ok, dialog()}
                             | {replay, ersip_sipmsg:sipmsg()}.
+
+-type uas_result() :: {dialog(), ersip_sipmsg:sipmsg()}.
 
 %%%===================================================================
 %%% API
@@ -99,7 +103,7 @@ id(#dialog{callid = CallId, local_tag = LocalTag, remote_tag = RemoteTag}) ->
 %% updated response is returned.
 %%
 %% Implements 12.1.1 UAS behavior
--spec uas_new(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> {dialog(), ersip_sipmsg:sipmsg()}.
+-spec uas_new(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> uas_result().
 uas_new(Request, Response) ->
     %% Check request/response pair can create dialog.
     case uas_can_create_dialog(Request, Response) of
@@ -111,6 +115,19 @@ uas_new(Request, Response) ->
     OutResponse = uas_update_response(Request, Response),
     Dialog = uas_create(Request, Response),
     {Dialog, OutResponse}.
+
+-spec uas_update(ersip_sipmsg:sipmsg(), dialog()) -> uas_result().
+uas_update(_, #dialog{state = confirmed}) ->
+    error({api_error, <<"call of uas_update after final response">>});
+uas_update(Response, #dialog{state = early, initial_req = Request} = Dialog) ->
+    State = state_by_response(Response),
+    UpdatedResp = uas_update_response(Request, Response),
+    case State of
+        early ->
+            {Dialog, UpdatedResp};
+        confirmed ->
+            {Dialog#dialog{state = confirmed, initial_req = undefined}, UpdatedResp}
+    end.
 
 %% @doc New dialog on UAC side.
 %%
@@ -194,7 +211,7 @@ uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
             %% with the URI from the Contact header field in that
             %% response, if present.
             Dialog1 = Dialog#dialog{state = confirmed},
-            case ersip_sipmsg:get(contact, Resp) of
+            case ersip_sipmsg:find(contact, Resp) of
                 not_found ->
                     {ok, Dialog1};
                 {ok, [Contact]} ->
@@ -293,12 +310,13 @@ uas_create(Request, Response) ->
     ReqTo        = ersip_sipmsg:get(to,      Request),
     [ReqContact] = ersip_sipmsg:get(contact, Request),
     RespTo       = ersip_sipmsg:get(to,      Response),
+    State        = state_by_response(Response),
 
     #dialog{secure     = IsSecure,
             route_set  = RouteSet,
             %% The remote target MUST be set to the URI
             %% from the Contact header field of the request.
-            remote_target = ReqContact,
+            remote_target = ersip_hdr_contact:uri(ReqContact),
             %% The local sequence number MUST be empty.
             local_seq  = empty,
             %% The remote sequence number MUST be set to the value of the
@@ -320,7 +338,11 @@ uas_create(Request, Response) ->
             %% local URI MUST be set to the URI in the To field
             local_uri  = ersip_hdr_fromto:uri(ReqTo),
             %%
-            state = state_by_response(Response)
+            state = State,
+            initial_req = case State of
+                              early -> Request;
+                              confirmed -> undefined
+                          end
            }.
 
 -spec uac_create(ersip_request:request(), ersip_sipmsg:sipmsg()) -> dialog().
@@ -356,7 +378,7 @@ uac_create(Request, Response) ->
             route_set = RouteSet,
             %% The remote target MUST be set to the URI from the
             %% Contact header field of the response.
-            remote_target = RespContact,
+            remote_target = ersip_hdr_contact:uri(RespContact),
             %% The local sequence number MUST be set to the value of the sequence
             %% number in the CSeq header field of the request.
             local_seq    = ersip_hdr_cseq:number(ReqCseq),
@@ -435,7 +457,7 @@ check_contact(SipMsg) ->
         {ok, [_]} ->
             ok;
         {ok, List} when is_list(List) ->
-            {error, muliple_contact_forbidden};
+            {error, multiple_contact_forbidden};
         {ok, star} ->
             {error, invalid_star_contact};
         not_found ->
@@ -470,7 +492,7 @@ cc_check_uas_sips(Request, Response) ->
         case ersip_sipmsg:find(record_route, Request) of
             not_found ->
                 %% Note: contact is checked before.
-                {ok, [Contact]} = ersip_sipmsg:get(contact, Request),
+                [Contact] = ersip_sipmsg:get(contact, Request),
                 ersip_uri:scheme(ersip_hdr_contact:uri(Contact)) == {scheme, sips};
             {ok, RRSet} ->
                 TopRR = ersip_route_set:first(RRSet),
@@ -479,7 +501,7 @@ cc_check_uas_sips(Request, Response) ->
     case SIPSRURI orelse SIPSNextHop of
         true ->
             %% Note: contact is checked before.
-            {ok, [RespContact]} = ersip_sipmsg:get(contact, Response),
+            [RespContact] = ersip_sipmsg:get(contact, Response),
             case ersip_uri:scheme(ersip_hdr_contact:uri(RespContact)) of
                 {scheme, sips} ->
                     ok;
@@ -519,7 +541,7 @@ cc_check_uac_sips(Request, _Response) ->
     %% Note: contact is checked before.
     case SIPSRURI orelse SIPSRoute of
         true ->
-            {ok, [ReqContact]} = ersip_sipmsg:get(contact, Request),
+            [ReqContact] = ersip_sipmsg:get(contact, Request),
             case ersip_uri:scheme(ersip_hdr_contact:uri(ReqContact)) of
                 {scheme, sips} ->
                     ok;

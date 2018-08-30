@@ -10,6 +10,7 @@
 
 -export([make/1,
          make_by_uri/1,
+         tcp/0, udp/0,
          is_datagram/1,
          is_tls/1,
          is_reliable/1,
@@ -55,6 +56,15 @@ make_by_uri(URI) ->
         _ ->
             {transport, udp}
     end.
+
+
+-spec tcp() -> transport().
+tcp() ->
+    {transport, tcp}.
+
+-spec udp() -> transport().
+udp() ->
+    {transport, udp}.
 
 -spec parse(binary() | transport_atom()) -> Result when
       Result      :: {ok, transport()}

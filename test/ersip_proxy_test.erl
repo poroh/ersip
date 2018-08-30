@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% Common proxy routinges tests
+%% Statefull proxy tests
 %%
 %% TODO:
 %% Testcases:
@@ -1176,7 +1176,7 @@ branch_customization_test() ->
     ok.
 
 %%================================================================================
-%% Error conditoins
+%% Error conditions
 %%================================================================================
 
 error_ack_test() ->
@@ -1342,16 +1342,10 @@ default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
-    ersip_source:new(Peer, tcp_transport(), undefined).
-
-tcp_transport() ->
-    ersip_transport:make(tcp).
-
-udp_transport() ->
-    ersip_transport:make(udp).
+    ersip_source:new(Peer, ersip_transport:tcp(), undefined).
 
 default_udp_conn() ->
-    ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, udp_transport(), #{}).
+    ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, ersip_transport:udp(), #{}).
 
 create_client_trans_result(Code, Request) ->
     ReqSipMsg = send_req_via_default_conn(Request),

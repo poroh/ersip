@@ -11,6 +11,8 @@
 %% - Check record route with loose route
 %% - Check record route with strict route
 %% - Check filling of empty cseq fields
+%% - Target refreshing by request
+%% - Target refreshing by response
 %%
 
 
@@ -165,8 +167,17 @@ uas_dialog_rfc2543_compiance_test() ->
     %% If the value of the remote or local tags is null, the tag
     %% parameter MUST be omitted from the To or From header fields,
     %% respectively.
-    {_, ByeSipMsg} = ersip_dialog:uac_request(bye_sipmsg(), Dialog),
-    ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, ByeSipMsg))),
+    {_, ByeSipMsgB} = ersip_dialog:uac_request(bye_sipmsg(), Dialog),
+    ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, ByeSipMsgB))),
+
+    %% Check that message sent without from tag is mached dialog
+    %% created by initial invite.
+    {ok, DialogA} = ersip_dialog:uac_new(InvReq, InvResp200),
+    {_, ByeSipMsgA0} = ersip_dialog:uac_request(bye_sipmsg(), DialogA),
+    ByeSipMsgA = clear_tag(from, ByeSipMsgA0),
+    {ok, ByeADialogId} = ersip_dialog:uas_dialog_id(ByeSipMsgA),
+    ?assertEqual(ersip_dialog:id(Dialog), ByeADialogId),
+
     ok.
 
 uac_dialog_rfc2543_compiance_test() ->
@@ -187,7 +198,15 @@ uac_dialog_rfc2543_compiance_test() ->
     %% respectively.
     {_, ByeSipMsg} = ersip_dialog:uac_request(bye_sipmsg(), Dialog),
     ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, ByeSipMsg))),
-    ?debugFmt("~s", [ersip_sipmsg:serialize(ByeSipMsg)]),
+
+    %% Check that message sent without from tag is mached dialog
+    %% created by initial invite.
+    {DialogB, _} = ersip_dialog:uas_new(InvSipMsg, InvResp200),
+    {_, ByeSipMsgB0} = ersip_dialog:uac_request(bye_sipmsg(), DialogB),
+    ByeSipMsgB = clear_tag(from, ByeSipMsgB0),
+    {ok, ByeBDialogId} = ersip_dialog:uas_dialog_id(ByeSipMsgB),
+    ?assertEqual(ersip_dialog:id(Dialog), ByeBDialogId),
+
     ok.
 
 %%%===================================================================

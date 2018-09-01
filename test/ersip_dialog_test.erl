@@ -6,12 +6,11 @@
 %% Common dialog support test
 %%
 %% TODO:
-%% 1. rfc2543 compliance test - without tags in response/request
-%% 2. In-dialog ACK (check that CSeq passing)
-%% 3. In-dialog CANCEL (check that CSeq passing)
-%% 4. Check record route with loose route
-%% 5. Check record route with strict route
-%% 6. Check filling of empty cseq fields
+%% - In-dialog ACK (check that CSeq passing)
+%% - In-dialog CANCEL (check that CSeq passing)
+%% - Check record route with loose route
+%% - Check record route with strict route
+%% - Check filling of empty cseq fields
 %%
 
 
@@ -41,8 +40,15 @@ dialog_create_test() ->
     %% ====================
     %% Sending BYE through UAC dialog:
     {_UACDialog1, ByeSipMsgA} = ersip_dialog:uac_request(bye_sipmsg(), UACDialogConfirmed),
-    %% Check that message is filled in according to dialog:
 
+    %% --------------------
+    %% Check that dialog identifier of UAS is equal to calculated by request:
+    ?assertMatch({ok, _}, ersip_dialog:uas_dialog_id(ByeSipMsgA)),
+    {ok, ByeUASDialogId} = ersip_dialog:uas_dialog_id(ByeSipMsgA),
+    ?assertEqual(ersip_dialog:id(UASDialogConfirmed), ByeUASDialogId),
+
+    %% --------------------
+    %% Check that message is filled in according to dialog:
     %% 1. The URI in the To field of the request MUST be set to the
     %% remote URI from the dialog state.
     ?assertEqual(ersip_hdr_fromto:uri(ersip_sipmsg:get(to, InvSipMsg)),
@@ -90,8 +96,15 @@ dialog_create_test() ->
     %% ====================
     %% Sending BYE through UAS dialog:
     {_UASDialog1, ByeSipMsgB} = ersip_dialog:uac_request(bye_sipmsg(), UASDialogConfirmed),
-    %% Check that message is filled in according to dialog:
 
+    %% --------------------
+    %% Check that dialog identifier of UAC is equal to calculated by request:
+    ?assertMatch({ok, _}, ersip_dialog:uas_dialog_id(ByeSipMsgB)),
+    {ok, ByeBDialogId} = ersip_dialog:uas_dialog_id(ByeSipMsgB),
+    ?assertEqual(ersip_dialog:id(UACDialogConfirmed), ByeBDialogId),
+
+    %% --------------------
+    %% Check that message is filled in according to dialog:
     %% 1. The URI in the To field of the request MUST be set to the
     %% remote URI from the dialog state.
     ?assertEqual(ersip_hdr_fromto:uri(ersip_sipmsg:get(from, InvSipMsg)),
@@ -135,6 +148,46 @@ dialog_create_test() ->
     ?assertEqual(ersip_hdr_contact:uri(RemoteContactB),
                  ersip_sipmsg:ruri(ByeSipMsgB)),
 
+    ok.
+
+uas_dialog_rfc2543_compiance_test() ->
+    %% A UAS MUST be prepared to receive a
+    %% request without a tag in the From field, in which case the tag is
+    %% considered to have a value of null.
+    %%
+    %%    This is to maintain backwards compatibility with RFC 2543, which
+    %%    did not mandate From tags.
+    InvReq = invite_request(),
+    InvSipMsg = clear_tag(from, ersip_request:sipmsg(InvReq)),
+    InvResp200 = invite_reply(200, InvSipMsg),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200)),
+    {Dialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp200),
+    %% If the value of the remote or local tags is null, the tag
+    %% parameter MUST be omitted from the To or From header fields,
+    %% respectively.
+    {_, ByeSipMsg} = ersip_dialog:uac_request(bye_sipmsg(), Dialog),
+    ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, ByeSipMsg))),
+    ok.
+
+uac_dialog_rfc2543_compiance_test() ->
+    %% A UAC MUST be prepared to receive a response without a tag in
+    %% the To field, in which case the tag is considered to have a
+    %% value of null.
+    %%
+    %%    This is to maintain backwards compatibility with RFC 2543,
+    %%    which did not mandate To tags.
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp200 = clear_tag(to, invite_reply(200, InvSipMsg)),
+    ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, InvResp200))),
+    ?assertMatch({ok, _}, ersip_dialog:uac_new(InvReq, InvResp200)),
+    {ok, Dialog} = ersip_dialog:uac_new(InvReq, InvResp200),
+    %% If the value of the remote or local tags is null, the tag
+    %% parameter MUST be omitted from the To or From header fields,
+    %% respectively.
+    {_, ByeSipMsg} = ersip_dialog:uac_request(bye_sipmsg(), Dialog),
+    ?assertEqual(undefined, ersip_hdr_fromto:tag(ersip_sipmsg:get(to, ByeSipMsg))),
+    ?debugFmt("~s", [ersip_sipmsg:serialize(ByeSipMsg)]),
     ok.
 
 %%%===================================================================
@@ -196,3 +249,8 @@ create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
 make_contact(ContactBin) when is_binary(ContactBin) ->
     Contact = ersip_hdr_contact:make(ContactBin),
     [Contact].
+
+clear_tag(H, SipMsg) when H == from; H == to ->
+    FromOrTo0 = ersip_sipmsg:get(H, SipMsg),
+    FromOrTo = ersip_hdr_fromto:set_tag(undefined, FromOrTo0),
+    ersip_sipmsg:set(H, FromOrTo, SipMsg).

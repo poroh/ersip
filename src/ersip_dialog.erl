@@ -169,20 +169,8 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     Req2  = ersip_sipmsg:set(from, From, Req1),
     %% The Call-ID of the request MUST be set to the Call-ID of the dialog.
     Req3  = ersip_sipmsg:set(callid, Dialog0#dialog.callid, Req2),
-    %% if the local sequence number is not empty, the value of the
-    %% local sequence number MUST be incremented by one, and this
-    %% value MUST be placed into the CSeq header field.
-    CSeq0  = get_or_create(cseq, Req0),
-    CSeqNum = ersip_hdr_cseq:number(CSeq0),
-    CSeq  = case Dialog0#dialog.local_seq of
-                empty ->
-                    CSeq0;
-                N when N >= CSeqNum ->
-                    ersip_hdr_cseq:set_number(N+1, CSeq0);
-                _ ->
-                    CSeq0
-            end,
-    Req4 = ersip_sipmsg:set(cseq, CSeq, Req3),
+    Req4 = maybe_update_cseq(Req0, Dialog0, Req3),
+    CSeq = ersip_sipmsg:get(cseq, Req4),
     Dialog1 = Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)},
     %% The UAC uses the remote target and route set to build the
     %% Request-URI and Route header field of the request.
@@ -650,3 +638,49 @@ uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
             Reply = ersip_reply:new(400, [{reason, <<"Invalid Contact">>}]),
             {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
     end.
+
+%% Normative:
+%% 12.2.1.1 Generating the Request
+%% Requests within a dialog MUST contain strictly monotonically
+%% increasing and contiguous CSeq sequence numbers (increasing-by-one)
+%% in each direction (excepting ACK and CANCEL of course, whose
+%% numbers equal the requests being acknowledged or cancelled).
+%% Therefore, if the local sequence number is not empty, the value of
+%% the local sequence number MUST be incremented by one, and this
+%% value MUST be placed into the CSeq header field.  If the local
+%% sequence number is empty, an initial value MUST be chosen using the
+%% guidelines of Section 8.1.1.5.  The method field in the CSeq header
+%% field value MUST match the method of the request.
+%%
+%% Implementation: we do not touch ACK and CANCEL sequence number if
+%% they are in order.
+-spec maybe_update_cseq(ersip_sipmsg:sipmsg(), dialog(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+maybe_update_cseq(InReq, #dialog{local_seq = empty}, Req) ->
+    CSeq = get_or_create(cseq, InReq),
+    ersip_sipmsg:set(cseq, CSeq, Req);
+maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
+    ACK = ersip_method:ack(),
+    CANCEL = ersip_method:cancel(),
+    case ersip_sipmsg:method(InReq) of
+        Method when Method == ACK orelse Method == CANCEL ->
+            case ersip_sipmsg:find(cseq, InReq) of
+                {ok, CSeq} ->
+                    ersip_sipmsg:set(cseq, CSeq, Req);
+                not_found ->
+                    set_cseq(InReq, LocalSeq-1, Req)
+            end;
+        _ ->
+            set_cseq(InReq, LocalSeq, Req)
+    end.
+
+-spec set_cseq(ersip_sipmsg:sipmsg(), pos_integer(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+set_cseq(InReq, LocalSeq, Req) ->
+    CSeq0  = get_or_create(cseq, InReq),
+    CSeqNum = ersip_hdr_cseq:number(CSeq0),
+    CSeq = case LocalSeq >= CSeqNum of
+               true ->
+                   ersip_hdr_cseq:set_number(LocalSeq+1, CSeq0);
+               _ ->
+                   CSeq0
+           end,
+    ersip_sipmsg:set(cseq, CSeq, Req).

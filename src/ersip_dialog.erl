@@ -261,6 +261,19 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
         true ->
             {reply, ersip_sipmsg:reply(500, RequestSipMsg)};
         false ->
+            %% Note that RFC 3261 has clause:
+            %%
+            %% Requests sent within a dialog, as any other requests,
+            %% are atomic.  If a particular request is accepted by the
+            %% UAS, all the state changes associated with it are
+            %% performed.  If the request is rejected, none of the
+            %% state changes are performed.
+            %%
+            %% So to be fully conformant we need to update remote_seq
+            %% iff response on request is 2xx. But I've checked all
+            %% major implementations (pjsip, sofia sip, exosip). All
+            %% of them update remote_seq after the check and do not
+            %% care about response.
             Dialog1 = Dialog0#dialog{remote_seq = RemoteCSeqNum},
             uas_maybe_update_target(RequestSipMsg, ReqType, Dialog1)
     end.

@@ -6,8 +6,6 @@
 %% Common dialog support test
 %%
 %% TODO:
-%% - In-dialog ACK (check that CSeq passing)
-%% - In-dialog CANCEL (check that CSeq passing)
 %% - Check record route with loose route
 %% - Check record route with strict route
 %% - Check filling of empty cseq fields
@@ -209,6 +207,32 @@ uac_dialog_rfc2543_compiance_test() ->
 
     ok.
 
+
+indialog_ack_and_cancel_cseq_test() ->
+    %% Requests within a dialog MUST contain strictly monotonically
+    %% increasing and contiguous CSeq sequence numbers (increasing-by-one)
+    %% in each direction (excepting ACK and CANCEL of course, whose numbers
+    %% equal the requests being acknowledged or cancelled).
+    {UASDialog0, UACDialog0} = create_uas_uac_dialogs(invite_request()),
+    {UASDialog1, ReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UASDialog0),
+    {_, AckSipMsg}    = ersip_dialog:uac_request(ack_sipmsg(), UASDialog1),
+    {_, CancelSipMsg} = ersip_dialog:uac_request(cancel_sipmsg(), UASDialog1),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(AckSipMsg)),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(CancelSipMsg)),
+
+    {UACDialog1, UACReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UACDialog0),
+    {_, UACAckSipMsg}    = ersip_dialog:uac_request(ack_sipmsg(), UACDialog1),
+    {_, UACCancelSipMsg} = ersip_dialog:uac_request(cancel_sipmsg(), UACDialog1),
+    ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACAckSipMsg)),
+    ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACCancelSipMsg)),
+    ok.
+
+
+uas_message_checking_test() ->
+    %% 
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -238,6 +262,21 @@ invite_reply(Code, InvSipMsg) ->
     InvResp = ersip_sipmsg:reply(Code, InvSipMsg),
     ersip_sipmsg:set(contact, make_contact(<<"sip:a@127.0.0.1:5070">>), InvResp).
 
+create_uas_uac_dialogs(Req) ->
+    InvSipMsg = ersip_request:sipmsg(Req),
+    InvResp180UAS = invite_reply(180, InvSipMsg),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
+    {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+
+    ?assertMatch({ok, _}, ersip_dialog:uac_new(Req, InvResp180UAC)),
+    {ok, UACDialogEarly} = ersip_dialog:uac_new(Req, InvResp180UAC),
+
+    InvResp200UAS = invite_reply(200, InvSipMsg),
+    {UASDialogConfirmed, _} = ersip_dialog:uas_update(InvResp200UAS, UASDialogEarly),
+
+    {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAS, UACDialogEarly),
+    {UASDialogConfirmed, UACDialogConfirmed}.
+
 bye_sipmsg() ->
     create_sipmsg(bye_bin(), make_default_source(), []).
 
@@ -245,6 +284,39 @@ bye_bin() ->
     <<"BYE sip:bob@biloxi.com SIP/2.0" ?crlf
       "Max-Forwards: 70" ?crlf
       ?crlf>>.
+
+reinvite_sipmsg() ->
+    Bin =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+          "Max-Forwards: 70" ?crlf
+          "Content-Type: application/sdp" ?crlf
+          "Content-Length: 4" ?crlf
+          "CSeq: 314160 INVITE" ?crlf
+          ?crlf
+          "Test">>,
+    create_sipmsg(Bin, make_default_source(), []).
+
+ack_sipmsg() ->
+    Bin =
+        <<"ACK sip:bob@biloxi.com SIP/2.0" ?crlf
+          "Max-Forwards: 70" ?crlf
+          "Content-Type: application/sdp" ?crlf
+          "Content-Length: 4" ?crlf
+          "CSeq: 314160 ACK" ?crlf
+          ?crlf
+          "Test">>,
+    create_sipmsg(Bin, make_default_source(), []).
+
+cancel_sipmsg() ->
+    Bin =
+        <<"CANCEL sip:bob@biloxi.com SIP/2.0" ?crlf
+          "Max-Forwards: 70" ?crlf
+          "Content-Type: application/sdp" ?crlf
+          "Content-Length: 4" ?crlf
+          "CSeq: 314160 CANCEL" ?crlf
+          ?crlf
+          "Test">>,
+    create_sipmsg(Bin, make_default_source(), []).
 
 make_default_source() ->
     tcp_source(default_peer()).
@@ -273,3 +345,6 @@ clear_tag(H, SipMsg) when H == from; H == to ->
     FromOrTo0 = ersip_sipmsg:get(H, SipMsg),
     FromOrTo = ersip_hdr_fromto:set_tag(undefined, FromOrTo0),
     ersip_sipmsg:set(H, FromOrTo, SipMsg).
+
+cseq_number(SipMsg) ->
+    ersip_hdr_cseq:number(ersip_sipmsg:get(cseq, SipMsg)).

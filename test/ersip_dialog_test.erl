@@ -6,9 +6,7 @@
 %% Common dialog support test
 %%
 %% TODO:
-%% - Check record route with loose route
 %% - Check record route with strict route
-%% - Check filling of empty cseq fields
 %% - Target refreshing by request
 %% - Target refreshing by response
 %%
@@ -260,6 +258,23 @@ uas_message_checking_cseq_test() ->
     ?assertEqual(CSeqNew, ersip_dialog:remote_seq(UpdatedDialog1)),
     ok.
 
+loose_routing_dialog_test() ->
+    %% Create dialogs with defined route set:
+    {BobDialog, AliceDialog} = create_uas_uac_dialogs(invite_request(), fun loose_route/2),
+    {_, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
+    RouteBob = ersip_sipmsg:get(route, ReInviteFromBob),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@pc33.atlanta.com">>), ersip_sipmsg:ruri(ReInviteFromBob)),
+    ?assertEqual(ersip_uri:make(<<"sip:biloxi.com;lr">>), ersip_hdr_route:uri(ersip_route_set:first(RouteBob))),
+    ?assertEqual(ersip_uri:make(<<"sip:atlanta.com;lr">>), ersip_hdr_route:uri(ersip_route_set:last(RouteBob))),
+
+    {_, ReInviteFromAlice} = ersip_dialog:uac_request(reinvite_sipmsg(), AliceDialog),
+    RouteAlice = ersip_sipmsg:get(route, ReInviteFromAlice),
+    ?assertEqual(ersip_uri:make(<<"sip:bob@192.0.2.4">>), ersip_sipmsg:ruri(ReInviteFromAlice)),
+    ?assertEqual(ersip_uri:make(<<"sip:atlanta.com;lr">>), ersip_hdr_route:uri(ersip_route_set:first(RouteAlice))),
+    ?assertEqual(ersip_uri:make(<<"sip:biloxi.com;lr">>), ersip_hdr_route:uri(ersip_route_set:last(RouteAlice))),
+
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -286,23 +301,31 @@ invite_request_bin() ->
       ?crlf
       "Test">>.
 
+
 invite_reply(Code, InvSipMsg) ->
     InvResp = ersip_sipmsg:reply(Code, InvSipMsg),
-    ersip_sipmsg:set(contact, make_contact(<<"sip:a@127.0.0.1:5070">>), InvResp).
+    ersip_sipmsg:set(contact, make_contact(<<"sip:bob@192.0.2.4">>), InvResp).
+
 
 create_uas_uac_dialogs(Req) ->
-    InvSipMsg = ersip_request:sipmsg(Req),
+    create_uas_uac_dialogs(Req, fun(_, ReqResp) -> ReqResp end).
+
+create_uas_uac_dialogs(Req, ProxyFun) ->
+    InvSipMsg0 = ersip_request:sipmsg(Req),
+    InvSipMsg = ProxyFun(request, InvSipMsg0),
     InvResp180UAS = invite_reply(180, InvSipMsg),
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
-    {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    {UASDialogEarly, InvResp180UAC0} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    InvResp180UAC = ProxyFun(response, InvResp180UAC0),
 
     ?assertMatch({ok, _}, ersip_dialog:uac_new(Req, InvResp180UAC)),
     {ok, UACDialogEarly} = ersip_dialog:uac_new(Req, InvResp180UAC),
 
     InvResp200UAS = invite_reply(200, InvSipMsg),
     {UASDialogConfirmed, _} = ersip_dialog:uas_update(InvResp200UAS, UASDialogEarly),
+    InvResp200UAC = ProxyFun(response, InvResp200UAS),
 
-    {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAS, UACDialogEarly),
+    {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAC, UACDialogEarly),
     {UASDialogConfirmed, UACDialogConfirmed}.
 
 bye_sipmsg() ->
@@ -387,3 +410,20 @@ set_cseq_number(Seq, Req) ->
     CSeq0 = ersip_sipmsg:get(cseq, Req),
     CSeq  = ersip_hdr_cseq:set_number(Seq, CSeq0),
     ersip_sipmsg:set(cseq, CSeq, Req).
+
+loose_route(request, ReqSipMsg) ->
+    %% Add proxy record route:
+    RRRouteA = ersip_hdr_route:make_route(ersip_uri:make(<<"sip:atlanta.com;lr">>)),
+    RRRouteB = ersip_hdr_route:make_route(ersip_uri:make(<<"sip:biloxi.com;lr">>)),
+    RRSet0 = ersip_route_set:new(),
+    %% Note: (RFC3261: 16.6 item 4):
+    %% If this proxy wishes to remain on the path of future requests
+    %% in a dialog created by this request (assuming the request
+    %% creates a dialog), it MUST insert a Record-Route header field
+    %% value into the copy before any existing Record-Route header
+    %% field values, even if a Route header field is already present.
+    RRSet1  = ersip_route_set:add_first(RRRouteA, RRSet0),
+    RRSet   = ersip_route_set:add_first(RRRouteB, RRSet1),
+    ersip_sipmsg:set(record_route, RRSet, ReqSipMsg);
+loose_route(response, RespSipMsg) ->
+    RespSipMsg.

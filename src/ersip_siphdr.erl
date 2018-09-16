@@ -95,7 +95,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
       SrcSipMsg    :: ersip_sipmsg:sipmsg(),
       DstSipMsg    :: ersip_sipmsg:sipmsg(),
       NewDstSipMsg :: ersip_sipmsg:sipmsg().
-copy_header(HdrAtom, SrcMsg, DstMsg0) ->
+copy_header(HdrAtom, SrcMsg, DstMsg0) when is_atom(HdrAtom) ->
     DstMsg1 =
         case maps:find(HdrAtom, ersip_sipmsg:headers(SrcMsg)) of
             {ok, Value} ->
@@ -104,7 +104,9 @@ copy_header(HdrAtom, SrcMsg, DstMsg0) ->
             error->
                 DstMsg0
         end,
-    copy_raw_header(HdrAtom, SrcMsg, DstMsg1).
+    copy_raw_header(HdrAtom, SrcMsg, DstMsg1);
+copy_header(HeaderName, SrcMsg, DstMsg) when is_binary(HeaderName) ->
+    copy_raw_header(HeaderName, SrcMsg, DstMsg).
 
 -spec copy_headers(HeaderList, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
       HeaderList   :: [known_header() | binary()],

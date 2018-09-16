@@ -20,7 +20,8 @@
          serialize_rev_iolist/2,
          as_integer/1
         ]).
--export_type([header/0]).
+-export_type([header/0,
+              header_key/0]).
 
 %%%===================================================================
 %%% Types

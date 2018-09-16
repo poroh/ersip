@@ -32,6 +32,7 @@
 -type transport() :: known_transport()
                    | other_transport().
 -type known_transport() :: {transport, transport_atom()}.
+-type known_transport(X) :: {transport, X}.
 -type other_transport() :: {other_transport, binary()}.
 -type port_number() :: 0..65535 | {default_port, transport()}.
 
@@ -58,11 +59,11 @@ make_by_uri(URI) ->
     end.
 
 
--spec tcp() -> transport().
+-spec tcp() -> known_transport(tcp).
 tcp() ->
     {transport, tcp}.
 
--spec udp() -> transport().
+-spec udp() -> known_transport(udp).
 udp() ->
     {transport, udp}.
 

@@ -34,7 +34,7 @@
 -record(message, {type    = undefined :: {request,  method() | undefined, binary() | undefined}
                                        | {response, 100..699 | undefined, binary() | undefined}
                                        | undefined,
-                  headers = #{}       :: #{binary() := ersip_hdr:header()},
+                  headers = #{}       :: #{ersip_hdr:header_key() := ersip_hdr:header()},
                   body    = []        :: iolist(),
                   source = undefined  :: undefined
                                        | ersip_source:source()

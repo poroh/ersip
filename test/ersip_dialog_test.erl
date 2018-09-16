@@ -261,18 +261,71 @@ uas_message_checking_cseq_test() ->
 loose_routing_dialog_test() ->
     %% Create dialogs with defined route set:
     {BobDialog, AliceDialog} = create_uas_uac_dialogs(invite_request(), fun loose_route/2),
+
     {_, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
     RouteBob = ersip_sipmsg:get(route, ReInviteFromBob),
     ?assertEqual(ersip_uri:make(<<"sip:alice@pc33.atlanta.com">>), ersip_sipmsg:ruri(ReInviteFromBob)),
+    %% Check requirements:
+    %%
+    %% Creating route set:
+    %% 1. The route set MUST be set to the list of URIs in the
+    %%    Record-Route header field from the request, taken in order
+    %%    and preserving all URI parameters.
+    %%
+    %% Filling loose-route request:
+    %% 2. If the route set is not empty, and the first URI in the
+    %%    route set contains the lr parameter (see Section 19.1.1),
+    %%    the UAC MUST place the remote target URI into the
+    %%    Request-URI and MUST include a Route header field containing
+    %%    the route set values in order, including all parameters.
     ?assertEqual(ersip_uri:make(<<"sip:biloxi.com;lr">>), ersip_hdr_route:uri(ersip_route_set:first(RouteBob))),
     ?assertEqual(ersip_uri:make(<<"sip:atlanta.com;lr">>), ersip_hdr_route:uri(ersip_route_set:last(RouteBob))),
 
     {_, ReInviteFromAlice} = ersip_dialog:uac_request(reinvite_sipmsg(), AliceDialog),
     RouteAlice = ersip_sipmsg:get(route, ReInviteFromAlice),
     ?assertEqual(ersip_uri:make(<<"sip:bob@192.0.2.4">>), ersip_sipmsg:ruri(ReInviteFromAlice)),
+    %% Check requirements:
+    %%
+    %% Creating route set:
+    %% 1. The route set MUST be set to the list of URIs in the
+    %%    Record-Route header field from the response, taken in
+    %%    reverse order and preserving all URI parameters.
+    %%
+    %% Filling loose-route request:
+    %% 2. If the route set is not empty, and the first URI in the
+    %%    route set contains the lr parameter (see Section 19.1.1),
+    %%    the UAC MUST place the remote target URI into the
+    %%    Request-URI and MUST include a Route header field containing
+    %%    the route set values in order, including all parameters.
     ?assertEqual(ersip_uri:make(<<"sip:atlanta.com;lr">>), ersip_hdr_route:uri(ersip_route_set:first(RouteAlice))),
     ?assertEqual(ersip_uri:make(<<"sip:biloxi.com;lr">>), ersip_hdr_route:uri(ersip_route_set:last(RouteAlice))),
+    ok.
 
+strict_routing_dialog_test() ->
+    %% Create dialogs with defined route set:
+    {BobDialog, AliceDialog} = create_uas_uac_dialogs(invite_request(), fun strict_route/2),
+
+    %% Check requirements:
+    %%
+    %% If the route set is not empty, and its first URI does not
+    %% contain the lr parameter, the UAC MUST place the first URI from
+    %% the route set into the Request-URI, stripping any parameters
+    %% that are not allowed in a Request-URI.  The UAC MUST add a
+    %% Route header field containing the remainder of the route set
+    %% values in order, including all parameters.  The UAC MUST then
+    %% place the remote target URI into the Route header field as the
+    %% last value.
+    {_, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
+    RouteBob = ersip_sipmsg:get(route, ReInviteFromBob),
+    ?assertEqual(ersip_uri:make(<<"sip:biloxi.com">>), ersip_sipmsg:ruri(ReInviteFromBob)),
+    ?assertEqual(ersip_uri:make(<<"sip:atlanta.com">>), ersip_hdr_route:uri(ersip_route_set:first(RouteBob))),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@pc33.atlanta.com">>), ersip_hdr_route:uri(ersip_route_set:last(RouteBob))),
+
+    {_, ReInviteFromAlice} = ersip_dialog:uac_request(reinvite_sipmsg(), AliceDialog),
+    RouteAlice = ersip_sipmsg:get(route, ReInviteFromAlice),
+    ?assertEqual(ersip_uri:make(<<"sip:atlanta.com">>), ersip_sipmsg:ruri(ReInviteFromAlice)),
+    ?assertEqual(ersip_uri:make(<<"sip:biloxi.com">>), ersip_hdr_route:uri(ersip_route_set:first(RouteAlice))),
+    ?assertEqual(ersip_uri:make(<<"sip:bob@192.0.2.4">>), ersip_hdr_route:uri(ersip_route_set:last(RouteAlice))),
     ok.
 
 
@@ -413,17 +466,25 @@ set_cseq_number(Seq, Req) ->
 
 loose_route(request, ReqSipMsg) ->
     %% Add proxy record route:
-    RRRouteA = ersip_hdr_route:make_route(ersip_uri:make(<<"sip:atlanta.com;lr">>)),
-    RRRouteB = ersip_hdr_route:make_route(ersip_uri:make(<<"sip:biloxi.com;lr">>)),
+    RRRoutes = [<<"sip:atlanta.com;lr">>, <<"sip:biloxi.com;lr">>],
     RRSet0 = ersip_route_set:new(),
-    %% Note: (RFC3261: 16.6 item 4):
-    %% If this proxy wishes to remain on the path of future requests
-    %% in a dialog created by this request (assuming the request
-    %% creates a dialog), it MUST insert a Record-Route header field
-    %% value into the copy before any existing Record-Route header
-    %% field values, even if a Route header field is already present.
-    RRSet1  = ersip_route_set:add_first(RRRouteA, RRSet0),
-    RRSet   = ersip_route_set:add_first(RRRouteB, RRSet1),
+    RRSet = add_routes(RRRoutes, RRSet0),
     ersip_sipmsg:set(record_route, RRSet, ReqSipMsg);
 loose_route(response, RespSipMsg) ->
     RespSipMsg.
+
+strict_route(request, ReqSipMsg) ->
+    %% Add proxy record route:
+    RRRoutes = [<<"sip:atlanta.com">>, <<"sip:biloxi.com">>],
+    RRSet0 = ersip_route_set:new(),
+    RRSet = add_routes(RRRoutes, RRSet0),
+    ersip_sipmsg:set(record_route, RRSet, ReqSipMsg);
+strict_route(response, RespSipMsg) ->
+    RespSipMsg.
+
+add_routes([], RouteSet) ->
+    RouteSet;
+add_routes([URI|Rest], RouteSet0) ->
+    Route = ersip_hdr_route:make_route(ersip_uri:make(URI)),
+    RouteSet = ersip_route_set:add_first(Route, RouteSet0),
+    add_routes(Rest, RouteSet).

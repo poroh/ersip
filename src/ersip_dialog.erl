@@ -177,8 +177,7 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     %% Request-URI and Route header field of the request.
     #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog1,
     Req5 = fill_request_route(RemoteTarget, RouteSet, Req4),
-    Req6 = ersip_sipmsg:set(route, RouteSet, Req5),
-    {Dialog1, Req6}.
+    {Dialog1, Req5}.
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.2 Processing the Responses

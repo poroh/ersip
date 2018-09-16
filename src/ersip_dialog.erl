@@ -32,7 +32,8 @@
          uac_request/2,
          uac_trans_result/3,
          uas_dialog_id/1,
-         uas_process/3
+         uas_process/3,
+         remote_seq/1
         ]).
 
 -export_type([dialog/0,
@@ -277,6 +278,10 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
             Dialog1 = Dialog0#dialog{remote_seq = RemoteCSeqNum},
             uas_maybe_update_target(RequestSipMsg, ReqType, Dialog1)
     end.
+
+-spec remote_seq(dialog()) -> ersip_hdr_cseq:cseq_num() | empty.
+remote_seq(#dialog{remote_seq = RCSeq}) ->
+    RCSeq.
 
 %%%===================================================================
 %%% Internal Implementation

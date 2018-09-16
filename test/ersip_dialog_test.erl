@@ -228,8 +228,36 @@ indialog_ack_and_cancel_cseq_test() ->
     ok.
 
 
-uas_message_checking_test() ->
-    %% 
+uas_message_checking_cseq_test() ->
+    %% 1. If the remote sequence number is empty, it MUST be set to
+    %% the value of the sequence number in the CSeq header field value
+    %% in the request.
+    {UASDialog0, UACDialog0} = create_uas_uac_dialogs(invite_request()),
+    %% Note that UAC dialog has empty remote sequence number, so we
+    %% use initially UAC side as UAS for CSeq checking:
+    CSeq = <<"3251">>,
+    {_, ReInviteSipMsg} =
+        ersip_dialog:uac_request(reinvite_sipmsg(#{cseq => CSeq}), UASDialog0),
+    ?assertEqual(empty, ersip_dialog:remote_seq(UACDialog0)),
+    {ok, UpdatedDialog} = ersip_dialog:uas_process(ReInviteSipMsg, target_referesh, UACDialog0),
+    ?assertEqual(binary_to_integer(CSeq), ersip_dialog:remote_seq(UpdatedDialog)),
+
+    %% If the remote sequence number was not empty, but the sequence
+    %% number of the request is lower than the remote sequence number,
+    %% the request is out of order and MUST be rejected with a 500
+    %% (Server Internal Error) response.
+    {_, ReInviteSipMsg1} = ersip_dialog:uac_request(reinvite_sipmsg(), UASDialog0),
+    ReInviteSipMsg2 = set_cseq_number(3250, ReInviteSipMsg1),
+    ?assertMatch({reply, _}, ersip_dialog:uas_process(ReInviteSipMsg2, target_referesh, UpdatedDialog)),
+    {reply, Resp500} = ersip_dialog:uas_process(ReInviteSipMsg2, target_referesh, UpdatedDialog),
+    ?assertEqual(500, ersip_sipmsg:status(Resp500)),
+
+    %% Check that in-order message updates cseq:
+    CSeqNew = 3252,
+    ReInviteSipMsg3 = set_cseq_number(CSeqNew, ReInviteSipMsg1),
+    ?assertMatch({ok, _}, ersip_dialog:uas_process(ReInviteSipMsg3, target_referesh, UpdatedDialog)),
+    {ok, UpdatedDialog1} = ersip_dialog:uas_process(ReInviteSipMsg3, target_referesh, UpdatedDialog),
+    ?assertEqual(CSeqNew, ersip_dialog:remote_seq(UpdatedDialog1)),
     ok.
 
 
@@ -286,12 +314,18 @@ bye_bin() ->
       ?crlf>>.
 
 reinvite_sipmsg() ->
+    reinvite_sipmsg(#{}).
+
+reinvite_sipmsg(UserOpts) ->
+    FullOpts = maps:merge(#{cseq => <<"314160">>},
+                          UserOpts),
+    #{cseq := CSeq} = FullOpts,
     Bin =
         <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
           "Max-Forwards: 70" ?crlf
           "Content-Type: application/sdp" ?crlf
           "Content-Length: 4" ?crlf
-          "CSeq: 314160 INVITE" ?crlf
+          "CSeq: ", CSeq/binary, " INVITE" ?crlf
           ?crlf
           "Test">>,
     create_sipmsg(Bin, make_default_source(), []).
@@ -348,3 +382,8 @@ clear_tag(H, SipMsg) when H == from; H == to ->
 
 cseq_number(SipMsg) ->
     ersip_hdr_cseq:number(ersip_sipmsg:get(cseq, SipMsg)).
+
+set_cseq_number(Seq, Req) ->
+    CSeq0 = ersip_sipmsg:get(cseq, Req),
+    CSeq  = ersip_hdr_cseq:set_number(Seq, CSeq0),
+    ersip_sipmsg:set(cseq, CSeq, Req).

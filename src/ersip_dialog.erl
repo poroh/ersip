@@ -5,15 +5,23 @@
 %%
 %% SIP dialog support
 %%
-%% UAC:
-%%   1. Call uac_new when response with code 101..299 is received on request
-%%   2. Call uac_update when another response is received on initial request
-%%   3. Call uac_request to make request matching dialog to send
-%%   4. Call uac_trans_result when response on dialog request is received
+%% Initial requests:
+%%    UAC:
+%%      1. Call uac_new when response with code 101..299 is received on request
+%%      2. Call uac_update when another response is received on initial request
 %%
-%% UAS:
-%%   1. Call uas_dialog_id to get dialog identifier and find dialog state
-%%   2. Call uas_process to update dialog state related to received request.
+%%    UAS:
+%%      1. Call uas_dialog_id to get dialog identifier and find dialog state
+%%      2. Call uas_process to update dialog state related to received request.
+%%
+%% In-dialog requests:
+%%    UAC:
+%%      1. Call uac_request to make request matching dialog to send
+%%      2. Call uac_trans_result when response on dialog request is received
+%%
+%%    UAS:
+%%      1. Call uas_dialog_id to get dialog identifier and find dialog state
+%%      2. Call uas_process to update dialog state related to received request.
 %%
 %% Request types:
 %%   1. Regular
@@ -64,7 +72,7 @@
 -type dialog() :: #dialog{}.
 -type id()     :: #dialog_id{}.
 -type state() :: early | confirmed.
--type request_type() :: target_referesh
+-type request_type() :: target_refresh
                       | regular.
 
 -type cc_check_fun() :: fun((ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result()).
@@ -145,7 +153,7 @@ uac_new(Req, Response) ->
 
 -spec uac_update(ersip_sipmsg:sipmsg(), dialog()) -> {ok, dialog()} | terminate_dialog.
 uac_update(Response, #dialog{} = Dialog) ->
-    uac_trans_result(Response, target_referesh, Dialog).
+    uac_trans_result(Response, target_refresh, Dialog).
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.1 Generating the Request
@@ -193,7 +201,7 @@ uac_trans_result(timeout, _, #dialog{}) ->
     terminate_dialog;
 uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
     case ersip_sipmsg:status(Resp) of
-        Code when Code >= 200 andalso Code =< 299 andalso ReqType == target_referesh ->
+        Code when Code >= 200 andalso Code =< 299 andalso ReqType == target_refresh ->
             %% When a UAC receives a 2xx response to a target refresh
             %% request, it MUST replace the dialog's remote target URI
             %% with the URI from the Contact header field in that
@@ -634,7 +642,7 @@ fill_request_strict_route(RemoteTarget, RouteSet0, Req0) ->
 -spec uas_maybe_update_target(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
 uas_maybe_update_target(_, regular, #dialog{} = Dialog) ->
     {ok, Dialog};
-uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
+uas_maybe_update_target(ReqSipMsg, target_refresh, #dialog{} = Dialog) ->
     %% When a UAS receives a target refresh request, it MUST replace the
     %% dialog's remote target URI with the URI from the Contact header field
     %% in that request, if present.

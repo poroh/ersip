@@ -6,9 +6,8 @@
 %% Common dialog support test
 %%
 %% TODO:
-%% - Check record route with strict route
-%% - Target refreshing by request
-%% - Target refreshing by response
+%%  - Check that Record-route are ignored for target_refresher
+%%     messages
 %%
 
 
@@ -237,7 +236,7 @@ uas_message_checking_cseq_test() ->
     {_, ReInviteSipMsg} =
         ersip_dialog:uac_request(reinvite_sipmsg(#{cseq => CSeq}), UASDialog0),
     ?assertEqual(empty, ersip_dialog:remote_seq(UACDialog0)),
-    {ok, UpdatedDialog} = ersip_dialog:uas_process(ReInviteSipMsg, target_referesh, UACDialog0),
+    {ok, UpdatedDialog} = ersip_dialog:uas_process(ReInviteSipMsg, target_refresh, UACDialog0),
     ?assertEqual(binary_to_integer(CSeq), ersip_dialog:remote_seq(UpdatedDialog)),
 
     %% If the remote sequence number was not empty, but the sequence
@@ -246,15 +245,15 @@ uas_message_checking_cseq_test() ->
     %% (Server Internal Error) response.
     {_, ReInviteSipMsg1} = ersip_dialog:uac_request(reinvite_sipmsg(), UASDialog0),
     ReInviteSipMsg2 = set_cseq_number(3250, ReInviteSipMsg1),
-    ?assertMatch({reply, _}, ersip_dialog:uas_process(ReInviteSipMsg2, target_referesh, UpdatedDialog)),
-    {reply, Resp500} = ersip_dialog:uas_process(ReInviteSipMsg2, target_referesh, UpdatedDialog),
+    ?assertMatch({reply, _}, ersip_dialog:uas_process(ReInviteSipMsg2, target_refresh, UpdatedDialog)),
+    {reply, Resp500} = ersip_dialog:uas_process(ReInviteSipMsg2, target_refresh, UpdatedDialog),
     ?assertEqual(500, ersip_sipmsg:status(Resp500)),
 
     %% Check that in-order message updates cseq:
     CSeqNew = 3252,
     ReInviteSipMsg3 = set_cseq_number(CSeqNew, ReInviteSipMsg1),
-    ?assertMatch({ok, _}, ersip_dialog:uas_process(ReInviteSipMsg3, target_referesh, UpdatedDialog)),
-    {ok, UpdatedDialog1} = ersip_dialog:uas_process(ReInviteSipMsg3, target_referesh, UpdatedDialog),
+    ?assertMatch({ok, _}, ersip_dialog:uas_process(ReInviteSipMsg3, target_refresh, UpdatedDialog)),
+    {ok, UpdatedDialog1} = ersip_dialog:uas_process(ReInviteSipMsg3, target_refresh, UpdatedDialog),
     ?assertEqual(CSeqNew, ersip_dialog:remote_seq(UpdatedDialog1)),
     ok.
 
@@ -328,6 +327,23 @@ strict_routing_dialog_test() ->
     ?assertEqual(ersip_uri:make(<<"sip:bob@192.0.2.4">>), ersip_hdr_route:uri(ersip_route_set:last(RouteAlice))),
     ok.
 
+target_refresh_test() ->
+    %% Create dialogs with defined route set:
+    {BobDialog,  AliceDialog} = create_uas_uac_dialogs(invite_request()),
+    NewBobContact = <<"sip:bob-new@192.0.2.5">>,
+    {BobDialog1, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(#{contact => NewBobContact}), BobDialog),
+    {ok, AliceDialogRefreshed} = ersip_dialog:uas_process(ReInviteFromBob, target_refresh, AliceDialog),
+    AliceReInviteResp0 = ersip_sipmsg:reply(200, ReInviteFromBob),
+    NewAliceContact = <<"sip:alice-new@pc34.atlanta.com">>,
+    AliceReInviteResp = ersip_sipmsg:set(contact, make_contact(NewAliceContact), AliceReInviteResp0),
+    {ok, BobDialogRefreshed} = ersip_dialog:uac_trans_result(AliceReInviteResp, target_refresh, BobDialog1),
+
+    {_, RefreshedReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialogRefreshed),
+    ?assertEqual(ersip_uri:make(NewAliceContact), ersip_sipmsg:ruri(RefreshedReInviteFromBob)),
+
+    {_, RefreshedReInviteFromAlice} = ersip_dialog:uac_request(reinvite_sipmsg(), AliceDialogRefreshed),
+    ?assertEqual(ersip_uri:make(NewBobContact), ersip_sipmsg:ruri(RefreshedReInviteFromAlice)),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -393,14 +409,18 @@ reinvite_sipmsg() ->
     reinvite_sipmsg(#{}).
 
 reinvite_sipmsg(UserOpts) ->
-    FullOpts = maps:merge(#{cseq => <<"314160">>},
+    FullOpts = maps:merge(#{cseq => <<"314160">>,
+                            contact => <<"sip:bob@192.0.2.4">>},
                           UserOpts),
-    #{cseq := CSeq} = FullOpts,
+    #{cseq     := CSeq,
+      contact := Contact
+     } = FullOpts,
     Bin =
         <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
           "Max-Forwards: 70" ?crlf
           "Content-Type: application/sdp" ?crlf
           "Content-Length: 4" ?crlf
+          "Contact: ", Contact/binary, ?crlf,
           "CSeq: ", CSeq/binary, " INVITE" ?crlf
           ?crlf
           "Test">>,

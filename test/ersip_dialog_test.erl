@@ -345,6 +345,39 @@ target_refresh_test() ->
     ?assertEqual(ersip_uri:make(NewBobContact), ersip_sipmsg:ruri(RefreshedReInviteFromAlice)),
     ok.
 
+neg_400_on_star_contact_test() ->
+    InvSipMsg0 = ersip_request:sipmsg(invite_request()),
+    InvSipMsg  = ersip_sipmsg:set(contact, ersip_hdr_contact_list:make_star(), InvSipMsg0),
+    ?assertMatch({reply, _}, ersip_dialog:uas_verify(InvSipMsg)),
+    {reply, Resp400} = ersip_dialog:uas_verify(InvSipMsg),
+    ?assertEqual(400, ersip_sipmsg:status(Resp400)),
+    ok.
+
+neg_400_on_multiple_contact_test() ->
+    InvSipMsg0 = ersip_request:sipmsg(invite_request()),
+    ContactList = [ersip_hdr_contact:make(<<"sip:alice@pc33.atlanta.com">>), ersip_hdr_contact:make(<<"sip:bob@192.0.2.4">>)],
+    InvSipMsg  = ersip_sipmsg:set(contact, ContactList, InvSipMsg0),
+    ?assertMatch({reply, _}, ersip_dialog:uas_verify(InvSipMsg)),
+    {reply, Resp400} = ersip_dialog:uas_verify(InvSipMsg),
+    ?assertEqual(400, ersip_sipmsg:status(Resp400)),
+    ok.
+
+neg_400_on_no_contact_test() ->
+    InvSipMsg0 = ersip_request:sipmsg(invite_request()),
+    ContactList = [],
+    InvSipMsg  = ersip_sipmsg:set(contact, ContactList, InvSipMsg0),
+    ?assertMatch({reply, _}, ersip_dialog:uas_verify(InvSipMsg)),
+    {reply, Resp400} = ersip_dialog:uas_verify(InvSipMsg),
+    ?assertEqual(400, ersip_sipmsg:status(Resp400)),
+    ok.
+
+neg_400_on_bad_record_route_test() ->
+    InvSipMsg = create_sipmsg(invite_request_bin(#{record_route => <<"aaaa">>}), make_default_source(), []),
+    ?assertMatch({reply, _}, ersip_dialog:uas_verify(InvSipMsg)),
+    {reply, Resp400} = ersip_dialog:uas_verify(InvSipMsg),
+    ?assertEqual(400, ersip_sipmsg:status(Resp400)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -357,6 +390,15 @@ invite_request() ->
     ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target).
 
 invite_request_bin() ->
+    invite_request_bin(#{}).
+
+invite_request_bin(Options) ->
+    RecordRoute = case Options of
+                      #{record_route := RR} ->
+                          <<"Record-Route: ", RR/binary, ?crlf>>;
+                      _ ->
+                          <<>>
+                  end,
     <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
       "Max-Forwards: 70" ?crlf
@@ -364,7 +406,8 @@ invite_request_bin() ->
       "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
       "Call-ID: a84b4c76e66710" ?crlf
       "CSeq: 314159 INVITE" ?crlf
-      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf,
+      RecordRoute/binary,
       "Content-Type: application/sdp" ?crlf
       "Content-Length: 4" ?crlf
       ?crlf

@@ -11,8 +11,10 @@
 %%      2. Call uac_update when another response is received on initial request
 %%
 %%    UAS:
-%%      1. Call uas_dialog_id to get dialog identifier and find dialog state
-%%      2. Call uas_process to update dialog state related to received request.
+%%      1. Call uas_verify/1 to check that is well-formed
+%%      2. Pass for processing and get response
+%%      3. Call uas_new/2 to create server-side transaction
+%%      4. Call uas_update/2 for each next response (until final response has been sent).
 %%
 %% In-dialog requests:
 %%    UAC:
@@ -33,6 +35,7 @@
 -module(ersip_dialog).
 
 -export([id/1,
+         uas_verify/1,
          uas_new/2,
          uas_update/2,
          uac_new/2,
@@ -78,7 +81,7 @@
 -type cc_check_fun() :: fun((ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result()).
 -type cc_check_result() :: ok | {error, term()}.
 -type uas_process_result() :: {ok, dialog()}
-                            | {replay, ersip_sipmsg:sipmsg()}.
+                            | {reply, ersip_sipmsg:sipmsg()}.
 
 -type uas_result() :: {dialog(), ersip_sipmsg:sipmsg()}.
 
@@ -104,6 +107,28 @@ id(#dialog{callid = CallId, local_tag = LocalTag, remote_tag = RemoteTag}) ->
                remote_tag = RemoteTagKey,
                callid     = ersip_hdr_callid:make_key(CallId)
               }.
+
+-spec uas_verify(ersip_sipmsg:sipmsg()) -> ok | {reply, ersip_sipmsg:sipmsg()}.
+uas_verify(ReqSipMsg) ->
+    case check_contact(ReqSipMsg) of
+        ok ->
+            case check_record_route(ReqSipMsg) of
+                ok ->
+                    ok;
+                {error, {bad_record_route, _}} ->
+                    Reply = ersip_reply:new(400, [{reason, <<"Invalid Record-Route">>}]),
+                    {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+            end;
+        {error, multiple_contact_forbidden} ->
+            Reply = ersip_reply:new(400, [{reason, <<"Invalid Too Many Contacts">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)};
+        {error, invalid_star_contact} ->
+            Reply = ersip_reply:new(400, [{reason, <<"Star Contact Forbidden">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)};
+        {error, contact_required} ->
+            Reply = ersip_reply:new(400, [{reason, <<"No Contact Specified">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+    end.
 
 %% @doc New dialog on UAS side.
 %%
@@ -481,6 +506,10 @@ check_contact(SipMsg) ->
 
 -spec cc_check_record_route(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result().
 cc_check_record_route(Request, _) ->
+    check_record_route(Request).
+
+-spec check_record_route(ersip_sipmsg:sipmsg()) -> ok | {error, {bad_record_route, term()}}.
+check_record_route(Request) ->
     case ersip_sipmsg:find(record_route, Request) of
         {ok, _} ->
             ok;

@@ -112,6 +112,32 @@ message_set_invalid_method_test() ->
                                 {method, ok}],
                                M0)).
 
+message_get_headers_test() ->
+    M0 = ersip_msg:new(),
+    M1 = ersip_msg:set([{type,   request},
+        {method, <<"INVITE">>},
+        {ruri,       <<"sip:alice@example.com">>},
+        {<<"Via">>,  <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>},
+        {<<"From">>, <<"sip:bob@biloxi.com">>},
+        {<<"To">>,   <<"sip:alice@example.com">>},
+        {<<"Max-Forwards">>, <<"70">>},
+        {<<"CSeq">>, <<"1 INVITE">>},
+        {<<"Call-Id">>, <<"some-call-id">>}
+    ], M0),
+    Headers = ersip_msg:get_headers(M1),
+    ?assertEqual([<<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>],
+        get_header_values(<<"Via">>, Headers)),
+    ?assertEqual([<<"sip:bob@biloxi.com">>],
+        get_header_values(<<"From">>, Headers)),
+    ?assertEqual([<<"sip:alice@example.com">>],
+        get_header_values(<<"To">>, Headers)),
+    ?assertEqual([<<"70">>],
+        get_header_values(<<"Max-Forwards">>, Headers)),
+    ?assertEqual([<<"1 INVITE">>],
+        get_header_values(<<"CSeq">>, Headers)),
+    ?assertEqual([<<"some-call-id">>],
+        get_header_values(<<"Call-Id">>, Headers)).
+
 message_set(Type, Item, Values) ->
     lists:foreach(
       fun(Val) ->
@@ -121,3 +147,15 @@ message_set(Type, Item, Values) ->
               ?assertEqual(Val, ersip_msg:get(Item, Msg1))
       end,
       Values).
+
+get_header_values(Name, Headers) ->
+    [Header] = lists:filter(fun(H) ->
+                                case ersip_hdr:name(H) of
+                                    Name ->
+                                        true;
+                                    _ ->
+                                        false
+                                end
+                            end,
+        Headers),
+    ersip_hdr:raw_values(Header).

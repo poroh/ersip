@@ -460,6 +460,59 @@ bad_request_on_bad_contact_test() ->
     check_400_uas_resp(ersip_sipmsg:set(contact, make_contact(<<"unknown:x.y">>), ReInviteFromBob0), AliceDialog),
     ok.
 
+bad_contact_is_ignored_by_uac_test() ->
+    {BobDialog,  _AliceDialog} = create_uas_uac_dialogs(invite_request()),
+    {BobDialog1, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
+    AliceReInviteResp0 = ersip_sipmsg:reply(200, ReInviteFromBob),
+    AliceReInviteResp = ersip_sipmsg:set(contact, star, AliceReInviteResp0),
+    {ok, BobDialog1} = ersip_dialog:uac_trans_result(AliceReInviteResp, target_refresh, BobDialog1),
+    ok.
+
+second_provisional_response_test() ->
+    %% Check that second provisional response does not change state of
+    %% the dialog on UAS side:
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180UAS = invite_reply(180, InvSipMsg),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
+    {UASDialogEarly, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    ?assertMatch({UASDialogEarly, _}, ersip_dialog:uas_update(InvResp180UAS, UASDialogEarly)),
+    ok.
+
+uas_check_contact_test() ->
+    %% The URI provided in the Contact header field MUST be a SIP or
+    %% SIPS URI. If the request that initiated the dialog contained a
+    %% SIPS URI in the Request-URI or in the top Record-Route header
+    %% field value, if there was any, or the Contact header field if
+    %% there was no Record-Route header field, the Contact header
+    %% field in the response MUST be a SIPS URI.
+    InvSipMsg0 = ersip_request:sipmsg(invite_request()),
+    InvSipMsg = ersip_sipmsg:set_ruri(ersip_uri:make(<<"sips:bob@biloxy.com">>), InvSipMsg0),
+    InvResp200 = invite_reply(200, InvSipMsg),
+    %% 1. Check that we cannot create dialog with SIP URI:
+    InvResp200Sip = ersip_sipmsg:set(contact, make_contact(<<"sip:bob@192.0.2.4">>), InvResp200),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Sip)),
+    %% 2. Check that we can create dialog with SIPs URI:
+    InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Sips)),
+    %% 3. Check that we cannot create dialog with star contact:
+    InvResp200Star = ersip_sipmsg:set(contact, star, InvResp200),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Star)),
+    %% 4. Check that we cannot create dialog with star contact in request:
+    InvSipMsgStar = ersip_sipmsg:set(contact, star, InvSipMsg),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsgStar, InvResp200Sip)),
+    %% 5. Check that if top record route contains SIPS RURI then
+    %% Contact is checked to be SIPS URI.
+    InvSipMsgSIPSRR = set_routes(record_route, [<<"sip:atlanta.com;lr">>, <<"sips:biloxi.com;lr">>], InvSipMsg),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sip)),
+    %% 6. Check that we can create dialog with SIPS URI:
+    InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sips)),
+    ok.
+
+
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -635,20 +688,21 @@ set_cseq_number(Seq, Req) ->
 loose_route(request, ReqSipMsg) ->
     %% Add proxy record route:
     RRRoutes = [<<"sip:atlanta.com;lr">>, <<"sip:biloxi.com;lr">>],
-    RRSet0 = ersip_route_set:new(),
-    RRSet = add_routes(RRRoutes, RRSet0),
-    ersip_sipmsg:set(record_route, RRSet, ReqSipMsg);
+    set_routes(record_route, RRRoutes, ReqSipMsg);
 loose_route(response, RespSipMsg) ->
     RespSipMsg.
 
 strict_route(request, ReqSipMsg) ->
     %% Add proxy record route:
     RRRoutes = [<<"sip:atlanta.com">>, <<"sip:biloxi.com">>],
-    RRSet0 = ersip_route_set:new(),
-    RRSet = add_routes(RRRoutes, RRSet0),
-    ersip_sipmsg:set(record_route, RRSet, ReqSipMsg);
+    set_routes(record_route, RRRoutes, ReqSipMsg);
 strict_route(response, RespSipMsg) ->
     RespSipMsg.
+
+set_routes(Header, Routes, SipMsg) ->
+    RRSet0 = ersip_route_set:new(),
+    RRSet = add_routes(Routes, RRSet0),
+    ersip_sipmsg:set(Header, RRSet, SipMsg).
 
 add_routes([], RouteSet) ->
     RouteSet;
@@ -667,3 +721,4 @@ check_400_uas_resp(Req, Dialog) ->
     ?assertMatch({reply, _}, ersip_dialog:uas_process(Req, target_refresh, Dialog)),
     {reply, Resp400} = ersip_dialog:uas_process(Req, target_refresh, Dialog),
     ?assertEqual(400, ersip_sipmsg:status(Resp400)).
+

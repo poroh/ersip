@@ -22,7 +22,10 @@
 dialog_create_test() ->
     InvReq = invite_request(),
     InvSipMsg = ersip_request:sipmsg(InvReq),
+
     InvResp180UAS = invite_reply(180, InvSipMsg),
+
+    ?assertEqual(no_dialog, ersip_dialog:uas_dialog_id(InvSipMsg)),
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
     {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
 
@@ -201,9 +204,7 @@ uac_dialog_rfc2543_compiance_test() ->
     ByeSipMsgB = clear_tag(from, ByeSipMsgB0),
     {ok, ByeBDialogId} = ersip_dialog:uas_dialog_id(ByeSipMsgB),
     ?assertEqual(ersip_dialog:id(Dialog), ByeBDialogId),
-
     ok.
-
 
 indialog_ack_and_cancel_cseq_test() ->
     %% Requests within a dialog MUST contain strictly monotonically
@@ -224,6 +225,24 @@ indialog_ack_and_cancel_cseq_test() ->
     ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACCancelSipMsg)),
     ok.
 
+indialog_ack_and_cancel_cseq_no_cseq_test() ->
+    %% Requests within a dialog MUST contain strictly monotonically
+    %% increasing and contiguous CSeq sequence numbers (increasing-by-one)
+    %% in each direction (excepting ACK and CANCEL of course, whose numbers
+    %% equal the requests being acknowledged or cancelled).
+    {UASDialog0, UACDialog0} = create_uas_uac_dialogs(invite_request()),
+    {UASDialog1, ReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UASDialog0),
+    {_, AckSipMsg}    = ersip_dialog:uac_request(del_cseq(ack_sipmsg()), UASDialog1),
+    {_, CancelSipMsg} = ersip_dialog:uac_request(del_cseq(cancel_sipmsg()), UASDialog1),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(AckSipMsg)),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(CancelSipMsg)),
+
+    {UACDialog1, UACReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UACDialog0),
+    {_, UACAckSipMsg}    = ersip_dialog:uac_request(del_cseq(ack_sipmsg()), UACDialog1),
+    {_, UACCancelSipMsg} = ersip_dialog:uac_request(del_cseq(cancel_sipmsg()), UACDialog1),
+    ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACAckSipMsg)),
+    ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACCancelSipMsg)),
+    ok.
 
 uas_message_checking_cseq_test() ->
     %% 1. If the remote sequence number is empty, it MUST be set to
@@ -533,7 +552,11 @@ uac_check_contact_test() ->
     check_new_uac_ok(InvReq4),
     ok.
 
-
+uas_update_after_confirmed_test() ->
+    {BobDialog, _} = create_uas_uac_dialogs(invite_request()),
+    Resp200 = invite_reply(200, ersip_request:sipmsg(invite_request())),
+    ?assertError({api_error, _}, ersip_dialog:uas_update(Resp200, BobDialog)),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -665,6 +688,7 @@ info_sipmsg(UserOpts) ->
               end,
     Bin =
         <<"INFO sip:bob@biloxi.com SIP/2.0" ?crlf
+          "From: Alice <sip:alice@atlanta.com>" ?crlf
           "Max-Forwards: 70" ?crlf,
           Contact/binary,
           "CSeq: ", CSeq/binary, " INFO" ?crlf
@@ -775,3 +799,6 @@ check_new_uac_ok(Req) ->
     InvSipMsg = ersip_request:sipmsg(Req),
     InvResp200 = invite_reply(200, InvSipMsg),
     ?assertMatch({ok, _}, ersip_dialog:uac_new(Req, InvResp200)).
+
+del_cseq(SipMsg) ->
+    ersip_sipmsg:remove(cseq, SipMsg).

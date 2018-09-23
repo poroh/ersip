@@ -378,6 +378,34 @@ neg_400_on_bad_record_route_test() ->
     ?assertEqual(400, ersip_sipmsg:status(Resp400)),
     ok.
 
+uas_verify_test() ->
+    InvSipMsg1 = create_sipmsg(invite_request_bin(#{}), make_default_source(), []),
+    ?assertEqual(ok, ersip_dialog:uas_verify(InvSipMsg1)),
+    InvSipMsg2 = create_sipmsg(invite_request_bin(#{record_route => <<"<sip:atlanta.com>">>}), make_default_source(), []),
+    ?assertEqual(ok, ersip_dialog:uas_verify(InvSipMsg2)),
+    ok.
+
+uac_trans_result_terminates_dialog_test() ->
+    {BobDialog,  _} = create_uas_uac_dialogs(invite_request()),
+    {BobDialog1, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
+
+    %% If the response for a request within a dialog is a 481
+    %% (Call/Transaction Does Not Exist) or a 408 (Request Timeout),
+    %% the UAC SHOULD terminate the dialog.  A UAC SHOULD also
+    %% terminate a dialog if no response at all is received for the
+    %% request (the client transaction would inform the TU about the
+    %% timeout.)
+
+    %% 1. 481
+    AliceReInviteResp481 = ersip_sipmsg:reply(481, ReInviteFromBob),
+    ?assertEqual(terminate_dialog, ersip_dialog:uac_trans_result(AliceReInviteResp481, target_refresh, BobDialog1)),
+    %% 2. 408
+    AliceReInviteResp408 = ersip_sipmsg:reply(408, ReInviteFromBob),
+    ?assertEqual(terminate_dialog, ersip_dialog:uac_trans_result(AliceReInviteResp408, target_refresh, BobDialog1)),
+    %% 3. timeout
+    ?assertEqual(terminate_dialog, ersip_dialog:uac_trans_result(timeout, target_refresh, BobDialog1)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

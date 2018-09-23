@@ -527,6 +527,9 @@ uas_check_contact_test() ->
     %% 6. Check that we can create dialog with SIPS URI:
     InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sips)),
+    %% 7. Bad contact format:
+    InvSipMsgBadContct = ersip_request:sipmsg(invite_request(#{contact => <<"@">>})),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsgBadContct, InvResp200)),
     ok.
 
 uac_check_contact_test() ->
@@ -558,6 +561,42 @@ uas_update_after_confirmed_test() ->
     ?assertError({api_error, _}, ersip_dialog:uas_update(Resp200, BobDialog)),
     ok.
 
+is_secure_test() ->
+    InvSipMsg = create_sipmsg(invite_request_bin(#{ruri => <<"sips:bob@biloxi.com">>,
+                                                   contact => <<"sips:alice@pc32.atlanta.com">>}),
+                              tls_source(default_peer()), []),
+    Target = ersip_uri:make(<<"sips:127.0.0.1;transport=tls">>),
+    InvReq = ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target),
+
+    InvResp200 = invite_reply(200, InvSipMsg),
+    InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
+
+    %% 12.1.1 UAS behavior
+    %% If the request arrived over TLS, and the Request-URI contained
+    %% a SIPS URI, the "secure" flag is set to TRUE.
+    {BobDialog, InvResp} = ersip_dialog:uas_new(InvSipMsg, InvResp200Sips),
+    ?assertEqual(true, ersip_dialog:is_secure(BobDialog)),
+
+    %% 12.1.2 UAC Behavior
+    %% If the request was sent over TLS, and the Request-URI contained a
+    %% SIPS URI, the "secure" flag is set to TRUE.
+    {ok, AliceDialog} = ersip_dialog:uac_new(InvReq, InvResp),
+    ?assertEqual(true, ersip_dialog:is_secure(AliceDialog)),
+
+    ok.
+
+check_no_secure_when_on_undefined_source_test() ->
+    InvSipMsg = create_sipmsg(invite_request_bin(#{ruri => <<"sips:bob@biloxi.com">>,
+                                                   contact => <<"sips:alice@pc32.atlanta.com">>}),
+                              undefined, []),
+
+    InvResp200 = invite_reply(200, InvSipMsg),
+    InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
+
+    {BobDialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp200Sips),
+    ?assertEqual(false, ersip_dialog:is_secure(BobDialog)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -565,12 +604,12 @@ uas_update_after_confirmed_test() ->
 -define(crlf, "\r\n").
 
 invite_request() ->
-    InvSipMsg = create_sipmsg(invite_request_bin(), make_default_source()),
+    InvSipMsg = create_sipmsg(invite_request_bin(), make_default_source(), []),
     Target = ersip_uri:make(<<"sip:127.0.0.1">>),
     ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target).
 
 invite_request(Opts) ->
-    InvSipMsg = create_sipmsg(invite_request_bin(Opts), make_default_source()),
+    InvSipMsg = create_sipmsg(invite_request_bin(Opts), make_default_source(), []),
     Target = ersip_uri:make(<<"sip:127.0.0.1">>),
     ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target).
 
@@ -726,8 +765,8 @@ default_peer() ->
 tcp_source(Peer) ->
     ersip_source:new(Peer, ersip_transport:tcp(), undefined).
 
-create_sipmsg(Msg, Source) when is_binary(Msg) ->
-    create_sipmsg(Msg, Source, all).
+tls_source(Peer) ->
+    ersip_source:new(Peer, ersip_transport:tls(), undefined).
 
 create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
     P  = ersip_parser:new_dgram(Msg),

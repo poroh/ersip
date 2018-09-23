@@ -44,7 +44,8 @@
          uac_trans_result/3,
          uas_dialog_id/1,
          uas_process/3,
-         remote_seq/1
+         remote_seq/1,
+         is_secure/1
         ]).
 
 -export_type([dialog/0,
@@ -314,6 +315,10 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
 -spec remote_seq(dialog()) -> ersip_hdr_cseq:cseq_num() | empty.
 remote_seq(#dialog{remote_seq = RCSeq}) ->
     RCSeq.
+
+-spec is_secure(dialog()) -> boolean().
+is_secure(#dialog{secure = Secure}) ->
+    Secure.
 
 %%%===================================================================
 %%% Internal Implementation

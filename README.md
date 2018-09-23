@@ -6,7 +6,9 @@
 Some time ago I found that there are no opensource SIP library that
 does not force you to some software design. All libraries provides
 some framework that is required in your project if you want to use
-SIP. I beleive that this is wrong way.
+SIP. I believe that this is wrong way. Goal of this project is to
+provide high-level primitives that implements all SIP functions but
+leave to user how to organize these primitives in his/her software.
 
 ## Roadmap
 
@@ -23,7 +25,8 @@ SIP. I beleive that this is wrong way.
   + Registrar support (completed)
   + Parser limits enforcement (completed)
   + Statefull proxy support (completed)
-  + Dialog support (in-progress)
+  + Common dialog support (completed)
+  + INVITE dialog support (in-progress)
   + Authorization and proxy authorization
   + High-level UA support
   + Detailed documentation and tutorials

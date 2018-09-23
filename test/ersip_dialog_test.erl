@@ -338,11 +338,8 @@ target_refresh_test() ->
     AliceReInviteResp = ersip_sipmsg:set(contact, make_contact(NewAliceContact), AliceReInviteResp0),
     {ok, BobDialogRefreshed} = ersip_dialog:uac_trans_result(AliceReInviteResp, target_refresh, BobDialog1),
 
-    {_, RefreshedReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialogRefreshed),
-    ?assertEqual(ersip_uri:make(NewAliceContact), ersip_sipmsg:ruri(RefreshedReInviteFromBob)),
-
-    {_, RefreshedReInviteFromAlice} = ersip_dialog:uac_request(reinvite_sipmsg(), AliceDialogRefreshed),
-    ?assertEqual(ersip_uri:make(NewBobContact), ersip_sipmsg:ruri(RefreshedReInviteFromAlice)),
+    ?assertEqual(ersip_uri:make(NewAliceContact), remote_target(BobDialogRefreshed)),
+    ?assertEqual(ersip_uri:make(NewBobContact),   remote_target(AliceDialogRefreshed)),
     ok.
 
 neg_400_on_star_contact_test() ->
@@ -404,6 +401,63 @@ uac_trans_result_terminates_dialog_test() ->
     ?assertEqual(terminate_dialog, ersip_dialog:uac_trans_result(AliceReInviteResp408, target_refresh, BobDialog1)),
     %% 3. timeout
     ?assertEqual(terminate_dialog, ersip_dialog:uac_trans_result(timeout, target_refresh, BobDialog1)),
+
+    %% Dialog does not terminated on other response codes:
+    [begin
+         Reply = ersip_sipmsg:reply(Code, ReInviteFromBob),
+         ?assertMatch({ok, _}, ersip_dialog:uac_trans_result(Reply, target_refresh, BobDialog1))
+     end || Code <- [200, 299, 400, 407, 409, 499, 500, 599, 600, 699]],
+    ok.
+
+no_contact_means_no_refresh_test() ->
+    %% Check last "if present" in clause:
+    %%
+    %% When a UAS receives a target refresh request, it MUST replace the
+    %% dialog's remote target URI with the URI from the Contact header field
+    %% in that request, if present.
+
+    NoContact = <<>>,
+    {BobDialog,  AliceDialog} = create_uas_uac_dialogs(invite_request()),
+
+    BobRURI   = remote_target(AliceDialog),
+    AliceRURI = remote_target(BobDialog),
+
+    {BobDialog1, ReInviteFromBob} = ersip_dialog:uac_request(reinvite_sipmsg(#{contact => NoContact}), BobDialog),
+
+    {ok, AliceDialogAfter} = ersip_dialog:uas_process(ReInviteFromBob, target_refresh, AliceDialog),
+    AliceReInviteResp0 = ersip_sipmsg:reply(200, ReInviteFromBob),
+    AliceReInviteResp = ersip_sipmsg:remove(contact, AliceReInviteResp0),
+    {ok, BobDialogAfter} = ersip_dialog:uac_trans_result(AliceReInviteResp, target_refresh, BobDialog1),
+
+    ?assertEqual(AliceRURI, remote_target(BobDialogAfter)),
+    ?assertEqual(BobRURI,   remote_target(AliceDialogAfter)),
+
+    ok.
+
+regular_requests_means_no_refresh_test() ->
+    {BobDialog,  AliceDialog} = create_uas_uac_dialogs(invite_request()),
+
+    BobRURI   = remote_target(AliceDialog),
+    AliceRURI = remote_target(BobDialog),
+
+    NewBobContact = <<"sip:bob-new@192.0.2.5">>,
+    {BobDialog1, InfoFromBob} = ersip_dialog:uac_request(info_sipmsg(#{contact => NewBobContact}), BobDialog),
+    {ok, AliceDialogAfter} = ersip_dialog:uas_process(InfoFromBob, regular, AliceDialog),
+    AliceInfoResp0 = ersip_sipmsg:reply(200, InfoFromBob),
+    NewAliceContact = <<"sip:alice-new@pc34.atlanta.com">>,
+    AliceInfoResp = ersip_sipmsg:set(contact, make_contact(NewAliceContact), AliceInfoResp0),
+    {ok, BobDialogAfter} = ersip_dialog:uac_trans_result(AliceInfoResp, regular, BobDialog1),
+
+    ?assertEqual(AliceRURI, remote_target(BobDialogAfter)),
+    ?assertEqual(BobRURI,   remote_target(AliceDialogAfter)),
+
+    ok.
+
+bad_request_on_bad_contact_test() ->
+    {BobDialog,  AliceDialog} = create_uas_uac_dialogs(invite_request()),
+    {_, ReInviteFromBob0} = ersip_dialog:uac_request(reinvite_sipmsg(), BobDialog),
+    check_400_uas_resp(ersip_sipmsg:set(contact, star, ReInviteFromBob0), AliceDialog),
+    check_400_uas_resp(ersip_sipmsg:set(contact, make_contact(<<"unknown:x.y">>), ReInviteFromBob0), AliceDialog),
     ok.
 
 %%%===================================================================
@@ -481,20 +535,43 @@ reinvite_sipmsg() ->
 
 reinvite_sipmsg(UserOpts) ->
     FullOpts = maps:merge(#{cseq => <<"314160">>,
-                            contact => <<"sip:bob@192.0.2.4">>},
+                            contact => <<"sip:alice@pc33.atlanta.com">>},
                           UserOpts),
-    #{cseq     := CSeq,
-      contact := Contact
+    #{cseq    := CSeq,
+      contact := ContactOpt
      } = FullOpts,
+    Contact = case ContactOpt of
+                  <<>> -> <<>>;
+                  _ -> <<"Contact: ", ContactOpt/binary, ?crlf>>
+              end,
     Bin =
         <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
           "Max-Forwards: 70" ?crlf
           "Content-Type: application/sdp" ?crlf
-          "Content-Length: 4" ?crlf
-          "Contact: ", Contact/binary, ?crlf,
+          "Content-Length: 4" ?crlf,
+          Contact/binary,
           "CSeq: ", CSeq/binary, " INVITE" ?crlf
           ?crlf
           "Test">>,
+    create_sipmsg(Bin, make_default_source(), []).
+
+info_sipmsg(UserOpts) ->
+    FullOpts = maps:merge(#{cseq => <<"314160">>,
+                            contact => <<"sip:alice@pc33.atlanta.com">>},
+                          UserOpts),
+    #{cseq    := CSeq,
+      contact := ContactOpt
+     } = FullOpts,
+    Contact = case ContactOpt of
+                  <<>> -> <<>>;
+                  _ -> <<"Contact: ", ContactOpt/binary, ?crlf>>
+              end,
+    Bin =
+        <<"INFO sip:bob@biloxi.com SIP/2.0" ?crlf
+          "Max-Forwards: 70" ?crlf,
+          Contact/binary,
+          "CSeq: ", CSeq/binary, " INFO" ?crlf
+          ?crlf>>,
     create_sipmsg(Bin, make_default_source(), []).
 
 ack_sipmsg() ->
@@ -579,3 +656,14 @@ add_routes([URI|Rest], RouteSet0) ->
     Route = ersip_hdr_route:make_route(ersip_uri:make(URI)),
     RouteSet = ersip_route_set:add_first(Route, RouteSet0),
     add_routes(Rest, RouteSet).
+
+remote_target(Dialog) ->
+    %% Trick to extract remote target is to send message and get RURI
+    %% from it.
+    {_, SipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), Dialog),
+    ersip_sipmsg:ruri(SipMsg).
+
+check_400_uas_resp(Req, Dialog) ->
+    ?assertMatch({reply, _}, ersip_dialog:uas_process(Req, target_refresh, Dialog)),
+    {reply, Resp400} = ersip_dialog:uas_process(Req, target_refresh, Dialog),
+    ?assertEqual(400, ersip_sipmsg:status(Resp400)).

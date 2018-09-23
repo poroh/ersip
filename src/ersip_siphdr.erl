@@ -12,7 +12,8 @@
          parse_header/2,
          copy_headers/3,
          copy_header/3,
-         set_header/3
+         set_header/3,
+         remove_header/2
         ]).
 -export_type([known_header/0]).
 
@@ -150,6 +151,20 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
     SipMsg2    = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),
     SipMsg2.
 
+-spec remove_header(known_header(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+remove_header(Header, SipMsg) when is_atom(Header) ->
+    #descr{name = Name} = header_descr(Header),
+    OldHeaders = ersip_sipmsg:headers(SipMsg),
+    OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
+
+    RawHdr = ersip_hdr:new(Name),
+
+    NewHeaders = maps:remove(Header, OldHeaders),
+    NewRawMsg = ersip_msg:del_header(RawHdr, OldRawMsg),
+
+    SipMsg1 = ersip_sipmsg:set_headers(NewHeaders, SipMsg),
+    SipMsg2 = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),
+    SipMsg2.
 
 %%%===================================================================
 %%% Internal implementation

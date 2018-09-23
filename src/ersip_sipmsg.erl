@@ -25,6 +25,7 @@
          get/2,
          set/3,
          copy/3,
+         remove/2,
 
          %% Body manipulation:
          has_body/1,
@@ -169,6 +170,10 @@ set(HdrAtom, Value, #sipmsg{} = Msg) ->
 -spec copy(known_header(), Src :: sipmsg(), Dst :: sipmsg()) -> sipmsg().
 copy(HdrAtom, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
     ersip_siphdr:copy_headers([HdrAtom], SrcMsg, DstMsg).
+
+-spec remove(known_header(), sipmsg()) -> sipmsg().
+remove(HdrAtom, SipMsg) ->
+    ersip_siphdr:remove_header(HdrAtom, SipMsg).
 
 -spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->

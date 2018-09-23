@@ -37,26 +37,18 @@ Working examples:
 
   + Sateful SIP proxy: https://github.com/poroh/ersip_proxy
 
-## Basics
+## Provided primitives
 
-Idea of this project to provide SIP stack that:
+Primitives that provided by SIP stack:
 
-  + can be integrated anywhere in any other infrastructure
-  + has 100% test coverage
-  + fully conformant with IETF standards and BCPs
-
-To do this this library provides high-level building blocks:
-
-  + SIP parser
-  + SIP message
-  + Proxy functions
-  + Stateless proxy functions
-  + Statefull proxy object description
-  + Transactions
-  + UAs
-
-All layers and objects has well-defined interface and well-defined
-side effects/callbacks that need to be implemented.
+  + Connection parser split streams and retrieve low level SIP messages (ersip_conn)
+  + Low level SIP message processing (ersip_msg)
+  + Lazy high-level SIP message processing (ersip_sipmsg)
+  + Transactions support (ersip_trans)
+  + Basic UAS support (ersip_uas)
+  + Registrar function support (ersip_registrar)
+  + SIP stateful proxy function support (ersip_proxy)
+  + SIP common dialog support (ersip_dialog)
 
 ## Supported RFC
 

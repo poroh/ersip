@@ -123,6 +123,9 @@ add_topmost_to_singleton_test() ->
     ?assertError({api_error, _}, ersip_hdr:add_topmost([],H0)),
     ok.
 
+get_name_test() ->
+    H0 = ersip_hdr:new(<<"Allow">>),
+    ?assertEqual(<<"Allow">>, ersip_hdr:name(H0)).
 
 %%%===================================================================
 %%% Helpers

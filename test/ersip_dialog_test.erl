@@ -510,6 +510,28 @@ uas_check_contact_test() ->
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sips)),
     ok.
 
+uac_check_contact_test() ->
+    %% 12.1.2 UAC Behavior
+    %% If the request has a Request-URI or a topmost Route header
+    %% field value with a SIPS URI, the Contact header field MUST
+    %% contain a SIPS URI.
+    InvReq1 = invite_request(#{ruri => <<"sips:bob@biloxi.com">>,
+                               contact => <<"sip:alice@pc32.atlanta.com">>}),
+    check_new_uac_error(InvReq1),
+    InvReq2 = invite_request(#{ruri => <<"sip:bob@biloxi.com">>,
+                               contact => <<"sip:alice@pc32.atlanta.com">>,
+                               route => [<<"sips:biloxi.com">>]}),
+    check_new_uac_error(InvReq2),
+
+    %% Check success consturction:
+    InvReq3 = invite_request(#{ruri => <<"sips:bob@biloxi.com">>,
+                               contact => <<"sips:alice@pc32.atlanta.com">>}),
+    check_new_uac_ok(InvReq3),
+    InvReq4 = invite_request(#{ruri => <<"sip:bob@biloxi.com">>,
+                               contact => <<"sips:alice@pc32.atlanta.com">>,
+                               route => [<<"sips:biloxi.com">>]}),
+    check_new_uac_ok(InvReq4),
+    ok.
 
 
 
@@ -524,25 +546,47 @@ invite_request() ->
     Target = ersip_uri:make(<<"sip:127.0.0.1">>),
     ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target).
 
+invite_request(Opts) ->
+    InvSipMsg = create_sipmsg(invite_request_bin(Opts), make_default_source()),
+    Target = ersip_uri:make(<<"sip:127.0.0.1">>),
+    ersip_request:new(InvSipMsg, ersip_branch:make_random(7), Target).
+
 invite_request_bin() ->
     invite_request_bin(#{}).
 
 invite_request_bin(Options) ->
+    RURI = maps:get(ruri, Options, <<"sip:bob@biloxi.com">>),
     RecordRoute = case Options of
                       #{record_route := RR} ->
                           <<"Record-Route: ", RR/binary, ?crlf>>;
                       _ ->
                           <<>>
                   end,
-    <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+    Contact = case Options of
+                  #{contact := <<>>} ->
+                      <<>>;
+                  #{contact := ContactVal} ->
+                      <<"Contact: ", ContactVal/binary, ?crlf>>;
+                  _ ->
+                      <<"Contact: <sip:alice@pc33.atlanta.com>", ?crlf>>
+              end,
+    Route = case Options of
+                #{route := Routes} ->
+                    IORoutes = [<<"Route: ", R/binary, ?crlf>> || R <- Routes],
+                    iolist_to_binary(IORoutes);
+                _ ->
+                    <<>>
+            end,
+    <<"INVITE ", RURI/binary, " SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
       "Max-Forwards: 70" ?crlf
       "To: Bob <sip:bob@biloxi.com>" ?crlf
       "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
       "Call-ID: a84b4c76e66710" ?crlf
-      "CSeq: 314159 INVITE" ?crlf
-      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf,
+      "CSeq: 314159 INVITE" ?crlf,
+      Contact/binary,
       RecordRoute/binary,
+      Route/binary,
       "Content-Type: application/sdp" ?crlf
       "Content-Length: 4" ?crlf
       ?crlf
@@ -722,3 +766,12 @@ check_400_uas_resp(Req, Dialog) ->
     {reply, Resp400} = ersip_dialog:uas_process(Req, target_refresh, Dialog),
     ?assertEqual(400, ersip_sipmsg:status(Resp400)).
 
+check_new_uac_error(Req) ->
+    InvSipMsg = ersip_request:sipmsg(Req),
+    InvResp200 = invite_reply(200, InvSipMsg),
+    ?assertMatch({error, _}, ersip_dialog:uac_new(Req, InvResp200)).
+
+check_new_uac_ok(Req) ->
+    InvSipMsg = ersip_request:sipmsg(Req),
+    InvResp200 = invite_reply(200, InvSipMsg),
+    ?assertMatch({ok, _}, ersip_dialog:uac_new(Req, InvResp200)).

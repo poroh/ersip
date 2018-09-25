@@ -11,11 +11,13 @@
 -export([uri/1,
          expires/2,
          set_expires/2,
+         params/1,
          make/1,
          parse/1,
          assemble/1
         ]).
--export_type([contact/0]).
+-export_type([contact/0,
+              contact_param/0]).
 
 %%%===================================================================
 %%% Types
@@ -59,6 +61,10 @@ set_expires({expires, ExpiresVal}, #contact{} = Contact) when is_integer(Expires
 set_expires(ExpiresVal, #contact{params = Params} = Contact) when is_integer(ExpiresVal) ->
     NewParams = lists:keystore(expires, 1, Params, {expires, ExpiresVal}),
     Contact#contact{params = NewParams}.
+
+-spec params(contact()) -> [contact_param()].
+params(#contact{params = Params}) ->
+    Params.
 
 -spec make(binary()) -> contact().
 make(Bin) when is_binary(Bin) ->

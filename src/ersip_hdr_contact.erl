@@ -12,6 +12,7 @@
          expires/2,
          set_expires/2,
          params/1,
+         set_param/3,
          make/1,
          parse/1,
          assemble/1
@@ -65,6 +66,11 @@ set_expires(ExpiresVal, #contact{params = Params} = Contact) when is_integer(Exp
 -spec params(contact()) -> [contact_param()].
 params(#contact{params = Params}) ->
     Params.
+
+set_param(ParamName, Value, #contact{params = Params} = Contact)
+        when is_binary(ParamName), is_binary(Value) ->
+    NewParams = [{ParamName, Value} | Params],
+    Contact#contact{params = NewParams}.
 
 -spec make(binary()) -> contact().
 make(Bin) when is_binary(Bin) ->

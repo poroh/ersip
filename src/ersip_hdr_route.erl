@@ -11,6 +11,7 @@
 -export([uri/1,
          is_loose_route/1,
          params/1,
+         set_param/3,
          make/1,
          parse/1,
          build/2,
@@ -53,6 +54,11 @@ is_loose_route(#route{uri = URI}) ->
 -spec params(route()) -> [route_param()].
 params(#route{params = P}) ->
     P.
+
+-spec set_param(Key :: binary(), Value :: binary(), route()) -> route().
+set_param(Key, Value, #route{params = Params} = Route)
+        when is_binary(Key), is_binary(Value) ->
+    Route#route{params = [{Key, Value} | Params]}.
 
 -spec make(iolist()) -> route_set().
 make(Binary) ->

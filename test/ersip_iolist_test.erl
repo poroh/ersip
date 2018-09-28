@@ -14,7 +14,7 @@
 %%% Cases
 %%%===================================================================
 
-is_emtpy_test() ->
+is_empty_test() ->
     ?assertEqual(true, ersip_iolist:is_empty(<<>>)),
     ?assertEqual(true, ersip_iolist:is_empty([])),
     ?assertEqual(true, ersip_iolist:is_empty([<<>>])),

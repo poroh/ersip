@@ -5,15 +5,25 @@
 %%
 %% SIP dialog support
 %%
-%% UAC:
-%%   1. Call uac_new when response with code 101..299 is received on request
-%%   2. Call uac_update when another response is received on initial request
-%%   3. Call uac_request to make request matching dialog to send
-%%   4. Call uac_trans_result when response on dialog request is received
+%% Initial requests:
+%%    UAC:
+%%      1. Call uac_new when response with code 101..299 is received on request
+%%      2. Call uac_update when another response is received on initial request
 %%
-%% UAS:
-%%   1. Call uas_dialog_id to get dialog identifier and find dialog state
-%%   2. Call uas_process to update dialog state related to received request.
+%%    UAS:
+%%      1. Call uas_verify/1 to check that is well-formed
+%%      2. Pass for processing and get response
+%%      3. Call uas_new/2 to create server-side transaction
+%%      4. Call uas_update/2 for each next response (until final response has been sent).
+%%
+%% In-dialog requests:
+%%    UAC:
+%%      1. Call uac_request to make request matching dialog to send
+%%      2. Call uac_trans_result when response on dialog request is received
+%%
+%%    UAS:
+%%      1. Call uas_dialog_id to get dialog identifier and find dialog state
+%%      2. Call uas_process to update dialog state related to received request.
 %%
 %% Request types:
 %%   1. Regular
@@ -25,6 +35,7 @@
 -module(ersip_dialog).
 
 -export([id/1,
+         uas_verify/1,
          uas_new/2,
          uas_update/2,
          uac_new/2,
@@ -32,7 +43,9 @@
          uac_request/2,
          uac_trans_result/3,
          uas_dialog_id/1,
-         uas_process/3
+         uas_process/3,
+         remote_seq/1,
+         is_secure/1
         ]).
 
 -export_type([dialog/0,
@@ -63,13 +76,13 @@
 -type dialog() :: #dialog{}.
 -type id()     :: #dialog_id{}.
 -type state() :: early | confirmed.
--type request_type() :: target_referesh
+-type request_type() :: target_refresh
                       | regular.
 
 -type cc_check_fun() :: fun((ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result()).
 -type cc_check_result() :: ok | {error, term()}.
 -type uas_process_result() :: {ok, dialog()}
-                            | {replay, ersip_sipmsg:sipmsg()}.
+                            | {reply, ersip_sipmsg:sipmsg()}.
 
 -type uas_result() :: {dialog(), ersip_sipmsg:sipmsg()}.
 
@@ -95,6 +108,28 @@ id(#dialog{callid = CallId, local_tag = LocalTag, remote_tag = RemoteTag}) ->
                remote_tag = RemoteTagKey,
                callid     = ersip_hdr_callid:make_key(CallId)
               }.
+
+-spec uas_verify(ersip_sipmsg:sipmsg()) -> ok | {reply, ersip_sipmsg:sipmsg()}.
+uas_verify(ReqSipMsg) ->
+    case check_contact(ReqSipMsg) of
+        ok ->
+            case check_record_route(ReqSipMsg) of
+                ok ->
+                    ok;
+                {error, {bad_record_route, _}} ->
+                    Reply = ersip_reply:new(400, [{reason, <<"Invalid Record-Route">>}]),
+                    {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+            end;
+        {error, multiple_contact_forbidden} ->
+            Reply = ersip_reply:new(400, [{reason, <<"Invalid Too Many Contacts">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)};
+        {error, invalid_star_contact} ->
+            Reply = ersip_reply:new(400, [{reason, <<"Star Contact Forbidden">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)};
+        {error, contact_required} ->
+            Reply = ersip_reply:new(400, [{reason, <<"No Contact Specified">>}]),
+            {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
+    end.
 
 %% @doc New dialog on UAS side.
 %%
@@ -144,7 +179,7 @@ uac_new(Req, Response) ->
 
 -spec uac_update(ersip_sipmsg:sipmsg(), dialog()) -> {ok, dialog()} | terminate_dialog.
 uac_update(Response, #dialog{} = Dialog) ->
-    uac_trans_result(Response, target_referesh, Dialog).
+    uac_trans_result(Response, target_refresh, Dialog).
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.1 Generating the Request
@@ -176,8 +211,7 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     %% Request-URI and Route header field of the request.
     #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog1,
     Req5 = fill_request_route(RemoteTarget, RouteSet, Req4),
-    Req6 = ersip_sipmsg:set(route, RouteSet, Req5),
-    {Dialog1, Req6}.
+    {Dialog1, Req5}.
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.2 Processing the Responses
@@ -193,7 +227,7 @@ uac_trans_result(timeout, _, #dialog{}) ->
     terminate_dialog;
 uac_trans_result(Resp, ReqType, #dialog{} = Dialog) ->
     case ersip_sipmsg:status(Resp) of
-        Code when Code >= 200 andalso Code =< 299 andalso ReqType == target_referesh ->
+        Code when Code >= 200 andalso Code =< 299 andalso ReqType == target_refresh ->
             %% When a UAC receives a 2xx response to a target refresh
             %% request, it MUST replace the dialog's remote target URI
             %% with the URI from the Contact header field in that
@@ -261,9 +295,30 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
         true ->
             {reply, ersip_sipmsg:reply(500, RequestSipMsg)};
         false ->
+            %% Note that RFC 3261 has clause:
+            %%
+            %% Requests sent within a dialog, as any other requests,
+            %% are atomic.  If a particular request is accepted by the
+            %% UAS, all the state changes associated with it are
+            %% performed.  If the request is rejected, none of the
+            %% state changes are performed.
+            %%
+            %% So to be fully conformant we need to update remote_seq
+            %% iff response on request is 2xx. But I've checked all
+            %% major implementations (pjsip, sofia sip, exosip). All
+            %% of them update remote_seq after the check and do not
+            %% care about response.
             Dialog1 = Dialog0#dialog{remote_seq = RemoteCSeqNum},
             uas_maybe_update_target(RequestSipMsg, ReqType, Dialog1)
     end.
+
+-spec remote_seq(dialog()) -> ersip_hdr_cseq:cseq_num() | empty.
+remote_seq(#dialog{remote_seq = RCSeq}) ->
+    RCSeq.
+
+-spec is_secure(dialog()) -> boolean().
+is_secure(#dialog{secure = Secure}) ->
+    Secure.
 
 %%%===================================================================
 %%% Internal Implementation
@@ -456,6 +511,10 @@ check_contact(SipMsg) ->
 
 -spec cc_check_record_route(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result().
 cc_check_record_route(Request, _) ->
+    check_record_route(Request).
+
+-spec check_record_route(ersip_sipmsg:sipmsg()) -> ok | {error, {bad_record_route, term()}}.
+check_record_route(Request) ->
     case ersip_sipmsg:find(record_route, Request) of
         {ok, _} ->
             ok;
@@ -617,7 +676,7 @@ fill_request_strict_route(RemoteTarget, RouteSet0, Req0) ->
 -spec uas_maybe_update_target(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
 uas_maybe_update_target(_, regular, #dialog{} = Dialog) ->
     {ok, Dialog};
-uas_maybe_update_target(ReqSipMsg, target_referesh, #dialog{} = Dialog) ->
+uas_maybe_update_target(ReqSipMsg, target_refresh, #dialog{} = Dialog) ->
     %% When a UAS receives a target refresh request, it MUST replace the
     %% dialog's remote target URI with the URI from the Contact header field
     %% in that request, if present.

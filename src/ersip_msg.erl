@@ -15,6 +15,7 @@
          del_header/2,
          add/3,
          get/2,
+         get_headers/1,
          source/1,
          set_source/2,
          serialize/1,
@@ -34,7 +35,7 @@
 -record(message, {type    = undefined :: {request,  method() | undefined, binary() | undefined}
                                        | {response, 100..699 | undefined, binary() | undefined}
                                        | undefined,
-                  headers = #{}       :: #{binary() := ersip_hdr:header()},
+                  headers = #{}       :: #{ersip_hdr:header_key() := ersip_hdr:header()},
                   body    = []        :: iolist(),
                   source = undefined  :: undefined
                                        | ersip_source:source()
@@ -76,6 +77,10 @@ get(body,   #message{body = X                 }) -> X;
 get(HeaderName, #message{headers = H}) when is_binary(HeaderName) ->
     Key = ersip_hdr:make_key(HeaderName),
     maps:get(Key, H, ersip_hdr:new(HeaderName)).
+
+-spec get_headers(message()) -> [ersip_hdr:header()].
+get_headers(#message{headers = H}) ->
+    maps:values(H).
 
 -spec set(list({item(), term()}), message()) -> message().
 set(List, Message) ->

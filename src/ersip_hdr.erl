@@ -14,13 +14,15 @@
          add_value/2,
          add_values/2,
          raw_values/1,
+         name/1,
          add_topmost/2,
          replace_topmost/2,
          take_topmost/1,
          serialize_rev_iolist/2,
          as_integer/1
         ]).
--export_type([header/0]).
+-export_type([header/0,
+              header_key/0]).
 
 %%%===================================================================
 %%% Types
@@ -135,6 +137,10 @@ as_integer(#header{values = []}) ->
     {error, no_header};
 as_integer(#header{values = [_,_ |_]}) ->
     {error, multiple_values}.
+
+-spec name(header()) -> binary().
+name(#header{name = Name}) ->
+    Name.
 
 %%%===================================================================
 %%% Internal implementation

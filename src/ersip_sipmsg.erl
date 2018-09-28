@@ -364,7 +364,7 @@ method_from_raw(RawMsg) ->
 ruri_from_raw(Msg) ->
     case ersip_msg:get(type, Msg) of
         request ->
-            URIBin = ersip_msg:get(ruri, Msg),
+            URIBin = iolist_to_binary(ersip_msg:get(ruri, Msg)),
             case ersip_uri:parse(URIBin) of
                 {ok, _} = R ->
                     R;

@@ -434,6 +434,13 @@ userdata_test() ->
     ?assertError({error, no_user_data}, ersip_sipmsg:user_data(SipMsg3)),
     ok.
 
+raw_ruri_manipulation_test() ->
+    SipMsg = default_sipmsg(),
+    RURI = ersip_sipmsg:ruri(SipMsg),
+    SipMsg2 = ersip_sipmsg:set_ruri(RURI, SipMsg),
+    RawMsg = ersip_sipmsg:raw_message(SipMsg2),
+    {ok, _} = ersip_sipmsg:parse(RawMsg, all),
+    ok.
 
 %%%===================================================================
 %%% Helpers

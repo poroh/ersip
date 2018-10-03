@@ -133,9 +133,7 @@ parse_contact_params(Bin) ->
 do_parse_contact_params(<<>>) ->
     {ok, [], <<>>};
 do_parse_contact_params(Bin) ->
-    ersip_parser_aux:parse_kvps(fun contact_params_validator/2,
-                                <<";">>,
-                                Bin).
+    ersip_parser_aux:parse_params(fun contact_params_validator/2, $;, Bin).
 
 -spec contact_params_validator(binary(), binary() | novalue) -> Result when
       Result :: {ok, {q, ersip_qvalue:qvalue()}}

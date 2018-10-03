@@ -138,6 +138,23 @@ message_get_headers_test() ->
     ?assertEqual([<<"some-call-id">>],
         get_header_values(<<"Call-Id">>, Headers)).
 
+
+clear_headers_test() ->
+    M0 = ersip_msg:new(),
+    M1 = ersip_msg:set([{type,   request},
+        {method, <<"INVITE">>},
+        {ruri,       <<"sip:alice@example.com">>},
+        {<<"Via">>,  <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>},
+        {<<"From">>, <<"sip:bob@biloxi.com">>},
+        {<<"To">>,   <<"sip:alice@example.com">>},
+        {<<"Max-Forwards">>, <<"70">>},
+        {<<"CSeq">>, <<"1 INVITE">>},
+        {<<"Call-Id">>, <<"some-call-id">>}
+    ], M0),
+    M2 = ersip_msg:clear_headers(M1),
+    ?assertEqual([], ersip_msg:get_headers(M2)),
+    ok.
+
 message_set(Type, Item, Values) ->
     lists:foreach(
       fun(Val) ->
@@ -159,3 +176,5 @@ get_header_values(Name, Headers) ->
                             end,
         Headers),
     ersip_hdr:raw_values(Header).
+
+

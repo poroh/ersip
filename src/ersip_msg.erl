@@ -16,6 +16,7 @@
          add/3,
          get/2,
          get_headers/1,
+         clear_headers/1,
          source/1,
          set_source/2,
          serialize/1,
@@ -81,6 +82,10 @@ get(HeaderName, #message{headers = H}) when is_binary(HeaderName) ->
 -spec get_headers(message()) -> [ersip_hdr:header()].
 get_headers(#message{headers = H}) ->
     maps:values(H).
+
+-spec clear_headers(message()) -> message().
+clear_headers(#message{} = Message) ->
+    Message#message{headers = #{}}.
 
 -spec set(list({item(), term()}), message()) -> message().
 set(List, Message) ->

@@ -11,3 +11,6 @@ rebar.lock
 .concrete/DEV_MODE
 .rebar
 tags
+.rebar3
+ebin
+.DS_Store

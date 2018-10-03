@@ -9,6 +9,7 @@
 -module(ersip_hdr_contact_list).
 
 -export([make/1,
+         make_star/0,
          build/2,
          parse/1
         ]).
@@ -19,7 +20,8 @@
 %%% Types
 %%%===================================================================
 
--type contact_list() :: star
+-type star_contact() :: star.
+-type contact_list() :: star_contact()
                       | [ersip_hdr_contact:contact()].
 
 -type parse_result() :: {ok, contact_list()}
@@ -42,6 +44,10 @@ make(Binary) ->
         {error, Reason} ->
             error(Reason)
     end.
+
+-spec make_star() -> star_contact().
+make_star() ->
+    star.
 
 -spec build(HeaderName :: binary(), contact_list()) -> ersip_hdr:header().
 build(HdrName, star) ->

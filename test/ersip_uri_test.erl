@@ -310,6 +310,13 @@ get_parts_test() ->
     ?assertEqual([Scheme, Port, Host], ersip_uri:get([scheme, port, host], URI)),
     ok.
 
+parse_three_params_test() ->
+  Uri = ersip_uri:make(<<"sip:carol@chicago.com;param1=value1;param2=value2;param3=value3">>),
+  Params = #{<<"param1">> => <<"value1">>,
+             <<"param2">> => <<"value2">>,
+             <<"param3">> => <<"value3">>},
+  ?assertEqual(Params, ersip_uri:params(Uri)).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

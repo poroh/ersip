@@ -299,7 +299,7 @@ maybe_add_params({error, _} = Err, _) ->
 maybe_add_params({ok, #sip_uri_data{} = SIPData}, <<>>) ->
     {ok, SIPData};
 maybe_add_params({ok, #sip_uri_data{} = SIPData}, ParamsBin) ->
-    ParamsList = binary:split(ParamsBin, <<";">>),
+    ParamsList = binary:split(ParamsBin, <<";">>, [global]),
     R =
         lists:foldl(fun(_, {error, _} = Err) ->
                             Err;

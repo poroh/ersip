@@ -10,7 +10,7 @@
 
 -export([make/1,
          make_by_uri/1,
-         tcp/0, udp/0,
+         tcp/0, tls/0, udp/0,
          is_datagram/1,
          is_tls/1,
          is_reliable/1,
@@ -62,6 +62,10 @@ make_by_uri(URI) ->
 -spec tcp() -> known_transport(tcp).
 tcp() ->
     {transport, tcp}.
+
+-spec tls() -> known_transport(tls).
+tls() ->
+    {transport, tls}.
 
 -spec udp() -> known_transport(udp).
 udp() ->

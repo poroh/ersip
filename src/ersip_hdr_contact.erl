@@ -15,6 +15,7 @@
          set_param/3,
          make/1,
          parse/1,
+         parse_hdr/1,
          assemble/1
         ]).
 -export_type([contact/0,
@@ -83,18 +84,27 @@ make(Bin) when is_binary(Bin) ->
 
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
+    case parse_hdr(Bin) of
+        {ok, Contact, <<>>} ->
+            {ok, Contact};
+        {ok, _, _} ->
+            {error, {invalid_contact, Bin}};
+        {error, _} = Err ->
+            Err
+    end.
+
+-spec parse_hdr(binary()) -> ersip_parser_aux:parse_result(contact()).
+parse_hdr(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
                fun ersip_parser_aux:trim_lws/1,
                fun parse_contact_params/1
               ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of
-        {ok, [{DisplayName, URI}, _, ParamsList], <<>>} ->
-            {ok,
-             #contact{display_name = DisplayName,
-                      uri          = URI,
-                      params       = ParamsList
-                     }
-            };
+        {ok, [{DisplayName, URI}, _, ParamsList], Rest} ->
+            Contact = #contact{display_name = DisplayName,
+                               uri          = URI,
+                               params       = ParamsList},
+            {ok, Contact, Rest};
         {error, Reason} ->
             {error, {invalid_contact, Reason}}
     end.
@@ -127,7 +137,7 @@ assemble(#contact{} = Contact) ->
 parse_contact_params(<<$;, Bin/binary>>) ->
     do_parse_contact_params(Bin);
 parse_contact_params(Bin) ->
-    do_parse_contact_params(Bin).
+    {ok, [], Bin}.
 
 -spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
 do_parse_contact_params(<<>>) ->

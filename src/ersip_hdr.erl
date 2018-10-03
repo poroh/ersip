@@ -225,7 +225,7 @@ may_have_multiple_values({hdr_key, <<"cseq">>}) ->
 may_have_multiple_values({hdr_key, <<"v">>}) -> %% Via
     true;
 may_have_multiple_values({hdr_key, <<"m">>}) -> %% Contact
-    true;
+    false;
 may_have_multiple_values({hdr_key, <<"k">>}) -> %% Supported
     true;
 may_have_multiple_values({hdr_key, <<"unsupported">>}) ->

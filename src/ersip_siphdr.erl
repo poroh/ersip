@@ -13,7 +13,8 @@
          copy_headers/3,
          copy_header/3,
          set_header/3,
-         remove_header/2
+         remove_header/2,
+         set_raw_header/2
         ]).
 -export_type([known_header/0]).
 
@@ -21,27 +22,8 @@
 %%% Types
 %%%===================================================================
 
--type known_header() :: from
-                      | to
-                      | callid
-                      | cseq
-                      | maxforwards
-                      | topmost_via
-                      | content_type
-                      | allow
-                      | route
-                      | record_route
-                      | supported
-                      | unsupported
-                      | require
-                      | proxy_require
-                      | contact
-                      | expires
-                      | minexpires
-                      | date.
 
--record(descr, {name         :: binary(),
-                required     :: header_required(),
+-record(descr, {required     :: header_required(),
                 parse_fun    :: parse_fun_type(),
                 assemble_fun :: undefined | assemble_fun_type()
                }).
@@ -51,38 +33,21 @@
 -type parse_fun_result() :: {ok, Value :: term()}
                           | {error, Reason :: term()}.
 -type assemble_fun_type() :: fun((Name :: binary(), Value :: term()) -> ersip_hdr:header()).
+-type known_header() :: ersip_hdr_names:known_header().
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 all_known_headers() ->
-    [from,
-     to,
-     callid,
-     cseq,
-     maxforwards,
-     topmost_via,
-     content_type,
-     allow,
-     supported,
-     unsupported,
-     require,
-     proxy_require,
-     route,
-     record_route,
-     contact,
-     expires,
-     minexpires,
-     date
-    ].
+    ersip_hdr_names:all_known_headers().
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
       ValueOrError :: {ok, term()}
                     | {error, term()}.
 parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
     Descr = header_descr(HdrAtom),
-    case get_header(Descr, Msg) of
+    case get_header(HdrAtom, Descr, Msg) of
         {ok, no_header} ->
             {ok, no_header};
         {ok, Hdr} ->
@@ -107,7 +72,12 @@ copy_header(HdrAtom, SrcMsg, DstMsg0) when is_atom(HdrAtom) ->
         end,
     copy_raw_header(HdrAtom, SrcMsg, DstMsg1);
 copy_header(HeaderName, SrcMsg, DstMsg) when is_binary(HeaderName) ->
-    copy_raw_header(HeaderName, SrcMsg, DstMsg).
+    case ersip_hdr_names:known_header_form(HeaderName) of
+        {ok, HdrAtom} ->
+            copy_header(HdrAtom, SrcMsg, DstMsg);
+        not_found ->
+            copy_raw_header(HeaderName, SrcMsg, DstMsg)
+    end.
 
 -spec copy_headers(HeaderList, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
       HeaderList   :: [known_header() | binary()],
@@ -123,10 +93,8 @@ copy_headers(HeaderList, SrcSipMsg, DstSipMsg) ->
 
 -spec set_header(known_header(), Value :: term(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 set_header(Header, Value, SipMsg) when is_atom(Header) ->
-    #descr{name = Name,
-           assemble_fun = AssembleF
-          } = header_descr(Header),
-    PrintName  = ersip_hdr_names:print_form(Name),
+    #descr{assemble_fun = AssembleF} = header_descr(Header),
+    PrintName  = ersip_hdr_names:print_form(Header),
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
@@ -151,13 +119,32 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
     SipMsg2    = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),
     SipMsg2.
 
+%% @doc Set header to specified value. If this value is already parsed
+%% then also updates parsed cached value.
+-spec set_raw_header(ersip_hdr:header(), ersip_sipmsg:sipmsg()) -> {ok, ersip_sipmsg:sipmsg()} | {error, term()}.
+set_raw_header(RawHdr, SipMsg0) ->
+    SipMsg = do_set_raw_header(RawHdr, SipMsg0),
+    case ersip_hdr_names:known_header_form(ersip_hdr:make_key(RawHdr)) of
+        not_found ->
+            %% For unknown headers: set only raw header and that is it.
+            {ok, SipMsg};
+        {ok, HdrAtom} ->
+            %% For known headers: set only raw header and try to parse
+            %% it if it is already parsed
+            case maps:find(HdrAtom, ersip_sipmsg:headers(SipMsg)) of
+                {ok, _} ->
+                    ersip_sipmsg:parse(SipMsg, [HdrAtom]);
+                error ->
+                    {ok, SipMsg}
+            end
+    end.
+
 -spec remove_header(known_header(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 remove_header(Header, SipMsg) when is_atom(Header) ->
-    #descr{name = Name} = header_descr(Header),
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
-    RawHdr = ersip_hdr:new(Name),
+    RawHdr = ersip_hdr:new(Header),
 
     NewHeaders = maps:remove(Header, OldHeaders),
     NewRawMsg = ersip_msg:del_header(RawHdr, OldRawMsg),
@@ -189,18 +176,19 @@ remove_header(Header, SipMsg) when is_atom(Header) ->
 parse_header_by_descr(#descr{parse_fun = F}, Hdr) ->
     F(Hdr).
 
--spec get_header(descr(), ersip_sipmsg:sipmsg()) -> Result when
+-spec get_header(known_header(), descr(), ersip_sipmsg:sipmsg()) -> Result when
       Result :: {ok, ersip_hdr:header()}
               | {ok, no_header}
               | {error, {no_required_header, binary()}}.
-get_header(#descr{name = N} = D, SipMsg) ->
-    Hdr = ersip_msg:get(N, ersip_sipmsg:raw_message(SipMsg)),
+get_header(HdrAtom, #descr{} = D, SipMsg) ->
+    HdrKey = ersip_hdr_names:make_key(HdrAtom),
+    Hdr = ersip_msg:get(HdrKey, ersip_sipmsg:raw_message(SipMsg)),
     Required = is_required(SipMsg, D#descr.required),
     case ersip_hdr:is_empty(Hdr) of
         true ->
             case Required of
                 true ->
-                    {error, {no_required_header, N}};
+                    {error, {no_required_header, ersip_hdr_names:print_form(HdrKey)}};
                 false ->
                     {ok, no_header}
             end;
@@ -233,131 +221,117 @@ required_essentials(SipMsg) ->
       }.
 
 -spec copy_raw_header(HeaderName, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
-      HeaderName   :: binary() | ersip_siphdr:known_header(),
+      HeaderName   :: ersip_hdr_names:name_forms(),
       SrcSipMsg    :: ersip_sipmsg:sipmsg(),
       DstSipMsg    :: ersip_sipmsg:sipmsg(),
       NewDstSipMsg :: ersip_sipmsg:sipmsg().
-copy_raw_header(Header, SrcSipMsg, DstSipMsg) when is_binary(Header) ->
+copy_raw_header(Header, SrcSipMsg, DstSipMsg) ->
+    Key = ersip_hdr_names:make_key(Header),
     SrcRawMsg = ersip_sipmsg:raw_message(SrcSipMsg),
-    SrcH = ersip_msg:get(Header, SrcRawMsg),
+    SrcH = ersip_msg:get(Key, SrcRawMsg),
     DstRawMsg = ersip_sipmsg:raw_message(DstSipMsg),
     NewDstRawMsg = ersip_msg:set_header(SrcH, DstRawMsg),
-    ersip_sipmsg:set_raw_message(NewDstRawMsg, DstSipMsg);
-copy_raw_header(HdrAtom, SrcSipMsg, DstSipMsg) when is_atom(HdrAtom) ->
-    #descr{name = Name} = header_descr(HdrAtom),
-    copy_raw_header(Name, SrcSipMsg, DstSipMsg).
+    ersip_sipmsg:set_raw_message(NewDstRawMsg, DstSipMsg).
+
+-spec do_set_raw_header(ersip_hdr:header(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+do_set_raw_header(RawHdr, SipMsg) ->
+    NewRawMsg = ersip_msg:set_header(RawHdr, ersip_sipmsg:raw_message(SipMsg)),
+    ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg).
 
 %%%
 %%% Headers description
 %%%
+
 -spec header_descr(known_header()) -> #descr{}.
 header_descr(from) ->
-    #descr{name         = <<"from">>,
-           required     = all,
+    #descr{required     = all,
            parse_fun    = fun ersip_hdr_fromto:parse/1,
            assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(to) ->
-    #descr{name         = <<"to">>,
-           required     = all,
+    #descr{required     = all,
            parse_fun    = fun ersip_hdr_fromto:parse/1,
            assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(cseq) ->
-    #descr{name         = <<"cseq">>,
-           required     = all,
+    #descr{required     = all,
            parse_fun    = fun ersip_hdr_cseq:parse/1,
            assemble_fun = fun ersip_hdr_cseq:build/2
           };
 header_descr(callid) ->
-    #descr{name         = <<"call-id">>,
-           required     = all,
+    #descr{required     = all,
            parse_fun    = fun ersip_hdr_callid:parse/1,
            assemble_fun = fun ersip_hdr_callid:build/2
           };
 header_descr(maxforwards) ->
-    #descr{name         = <<"max-forwards">>,
-           required     = optional, %% It was optional in RFC2543
+    #descr{required     = optional, %% It was optional in RFC2543
            parse_fun    = fun ersip_hdr_maxforwards:parse/1,
            assemble_fun = fun ersip_hdr_maxforwards:build/2
           };
 header_descr(topmost_via) ->
     %% Note We trim Via header on connection receive so responses on
     %% UA does not contain Via.
-    #descr{name         = <<"via">>,
-           required     = requests,
+    #descr{required     = requests,
            parse_fun    = fun ersip_hdr_via:topmost_via/1,
            assemble_fun = undefined
           };
 header_descr(content_type) ->
-    #descr{name         = <<"content-type">>,
-           required     = with_body,
+    #descr{required     = with_body,
            parse_fun    = fun ersip_hdr_content_type:parse/1,
            assemble_fun = fun ersip_hdr_content_type:build/2
           };
 header_descr(route) ->
-    #descr{name         = <<"route">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_route:parse/1,
            assemble_fun = fun ersip_hdr_route:build/2
           };
 header_descr(record_route) ->
-    #descr{name         = <<"record-route">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_route:parse/1,
            assemble_fun = fun ersip_hdr_route:build/2
           };
 header_descr(allow) ->
-    #descr{name         = <<"allow">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_allow:parse/1,
            assemble_fun = fun ersip_hdr_allow:build/2
           };
 header_descr(supported) ->
-    #descr{name         = <<"supported">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(unsupported) ->
-    #descr{name         = <<"unsupported">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(require) ->
-    #descr{name         = <<"require">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(proxy_require) ->
-    #descr{name         = <<"proxy-require">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(contact) ->
-    #descr{name         = <<"contact">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_contact_list:parse/1,
            assemble_fun = fun ersip_hdr_contact_list:build/2
           };
 header_descr(expires) ->
-    #descr{name         = <<"expires">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
           };
 header_descr(minexpires) ->
-    #descr{name         = <<"min-expires">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
           };
 header_descr(date) ->
-    #descr{name         = <<"date">>,
-           required     = optional,
+    #descr{required     = optional,
            parse_fun    = fun ersip_hdr_date:parse/1,
            assemble_fun = fun ersip_hdr_date:build/2
           }.

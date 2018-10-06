@@ -75,8 +75,8 @@ get(reason, #message{type = {response, _, X}}) -> X;
 get(method, #message{type = {request,  X, _}}) -> X;
 get(ruri,   #message{type = {request,  _, X}}) -> X;
 get(body,   #message{body = X                 }) -> X;
-get(HeaderName, #message{headers = H}) when is_binary(HeaderName) ->
-    Key = ersip_hdr:make_key(HeaderName),
+get(HeaderName, #message{headers = H}) ->
+    Key = ersip_hdr_names:make_key(HeaderName),
     maps:get(Key, H, ersip_hdr:new(HeaderName)).
 
 -spec get_headers(message()) -> [ersip_hdr:header()].

@@ -161,7 +161,7 @@ parse_request_with_body_no_content_type_test() ->
     {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     ?assertEqual({error,{header_error,
                          {content_type,
-                          {no_required_header,<<"content-type">>}}}},
+                          {no_required_header,<<"Content-Type">>}}}},
                  ersip_sipmsg:parse(PMsg, all)).
 
 parse_request_with_invalid_ruri_test() ->

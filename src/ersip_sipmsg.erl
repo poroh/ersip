@@ -33,6 +33,7 @@
          %% Underlying message manipulation:
          raw_message/1,
          raw_header/2,
+         set_raw_header/2,
 
          %% Parse and build message
          parse/2,
@@ -186,6 +187,10 @@ raw_message(#sipmsg{raw = R}) ->
 -spec raw_header(HdrName :: binary(), sipmsg()) -> ersip_hdr:header().
 raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
     ersip_msg:get(HdrName, raw_message(Msg)).
+
+-spec set_raw_header(ersip_hdr:header(), sipmsg()) -> sipmsg().
+set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
+    ersip_siphdr:set_raw_header(RawHdr, SipMsg).
 
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.

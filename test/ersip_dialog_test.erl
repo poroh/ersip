@@ -33,7 +33,7 @@ dialog_create_test() ->
     {ok, UACDialogEarly} = ersip_dialog:uac_new(InvReq, InvResp180UAC),
 
     InvResp200UAS = invite_reply(200, InvSipMsg),
-    {UASDialogConfirmed, InvResp200UAC} = ersip_dialog:uas_update(InvResp200UAS, UASDialogEarly),
+    {UASDialogConfirmed, InvResp200UAC} = ersip_dialog:uas_pass_response(InvSipMsg, InvResp200UAS, UASDialogEarly),
 
     {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAS, UACDialogEarly),
 
@@ -495,7 +495,7 @@ second_provisional_response_test() ->
     InvResp180UAS = invite_reply(180, InvSipMsg),
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
     {UASDialogEarly, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
-    ?assertMatch({UASDialogEarly, _}, ersip_dialog:uas_update(InvResp180UAS, UASDialogEarly)),
+    ?assertMatch({UASDialogEarly, _}, ersip_dialog:uas_pass_response(InvSipMsg, InvResp180UAS, UASDialogEarly)),
     ok.
 
 uas_check_contact_test() ->
@@ -557,8 +557,9 @@ uac_check_contact_test() ->
 
 uas_update_after_confirmed_test() ->
     {BobDialog, _} = create_uas_uac_dialogs(invite_request()),
-    Resp200 = invite_reply(200, ersip_request:sipmsg(invite_request())),
-    ?assertError({api_error, _}, ersip_dialog:uas_update(Resp200, BobDialog)),
+    InvSipMsg = ersip_request:sipmsg(invite_request()),
+    Resp200 = invite_reply(200, InvSipMsg),
+    ?assertMatch({BobDialog, _RespSipMsg}, ersip_dialog:uas_pass_response(InvSipMsg, Resp200, BobDialog)),
     ok.
 
 is_secure_test() ->
@@ -675,7 +676,7 @@ create_uas_uac_dialogs(Req, ProxyFun) ->
     {ok, UACDialogEarly} = ersip_dialog:uac_new(Req, InvResp180UAC),
 
     InvResp200UAS = invite_reply(200, InvSipMsg),
-    {UASDialogConfirmed, _} = ersip_dialog:uas_update(InvResp200UAS, UASDialogEarly),
+    {UASDialogConfirmed, _} = ersip_dialog:uas_pass_response(InvSipMsg, InvResp200UAS, UASDialogEarly),
     InvResp200UAC = ProxyFun(response, InvResp200UAS),
 
     {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAC, UACDialogEarly),

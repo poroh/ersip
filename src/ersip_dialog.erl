@@ -14,7 +14,7 @@
 %%      1. Call uas_verify/1 to check that is well-formed
 %%      2. Pass for processing and get response
 %%      3. Call uas_new/2 to create server-side transaction
-%%      4. Call uas_update/2 for each next response (until final response has been sent).
+%%      4. Call uas_pass_response/2 for each next response.
 %%
 %% In-dialog requests:
 %%    UAC:
@@ -37,7 +37,7 @@
 -export([id/1,
          uas_verify/1,
          uas_new/2,
-         uas_update/2,
+         uas_pass_response/3,
          uac_new/2,
          uac_update/2,
          uac_request/2,
@@ -151,17 +151,18 @@ uas_new(Request, Response) ->
     Dialog = uas_create(Request, Response),
     {Dialog, OutResponse}.
 
--spec uas_update(ersip_sipmsg:sipmsg(), dialog()) -> uas_result().
-uas_update(_, #dialog{state = confirmed}) ->
-    error({api_error, <<"call of uas_update after final response">>});
-uas_update(Response, #dialog{state = early, initial_req = Request} = Dialog) ->
-    State = state_by_response(Response),
-    UpdatedResp = uas_update_response(Request, Response),
+-spec uas_pass_response(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg(), dialog()) -> uas_result().
+uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
+    UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
+    {Dialog, UpdatedResp};
+uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
+    State = state_by_response(RespSipMsg),
+    UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
     case State of
         early ->
             {Dialog, UpdatedResp};
         confirmed ->
-            {Dialog#dialog{state = confirmed, initial_req = undefined}, UpdatedResp}
+            {Dialog#dialog{state = confirmed}, UpdatedResp}
     end.
 
 %% @doc New dialog on UAC side.

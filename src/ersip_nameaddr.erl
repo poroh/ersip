@@ -52,7 +52,7 @@ parse(NameAddrBin) ->
                     {error, {einval, address}}
             end;
         {{display_name, []} = DN, <<R/binary>>} ->
-            case binary:match(R, <<";">>) of
+            case binary:match(R, [<<",">>, <<";">>]) of
                 {Pos, 1} ->
                     Addr = binary:part(R, 0, Pos),
                     case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of

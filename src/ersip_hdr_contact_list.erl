@@ -93,10 +93,19 @@ add_to_maybe_contact_list(<<"*">>, {ok, []}) ->
     {ok, star};
 add_to_maybe_contact_list(_, {ok, star}) ->
     {error, {invalid_contact, <<"multiple contacts and star are invalid">>}};
-add_to_maybe_contact_list(Bin, {ok, ConatactList}) when is_list(ConatactList) ->
-    case ersip_hdr_contact:parse(Bin) of
-        {ok, Contact} ->
-            {ok, [Contact | ConatactList]};
+add_to_maybe_contact_list(<<>>, {ok, _} = Result) ->
+    Result;
+add_to_maybe_contact_list(Bin, {ok, ContactList}) when is_list(ContactList) ->
+    case ersip_hdr_contact:parse_hdr(Bin) of
+        {ok, Contact, Rest0} ->
+            case ersip_bin:trim_head_lws(Rest0) of
+                <<>> ->
+                    {ok, [Contact | ContactList]};
+                <<",", Rest1/binary>> ->
+                    Rest2 = ersip_bin:trim_head_lws(Rest1),
+                    add_to_maybe_contact_list(Rest2, {ok, [Contact | ContactList]})
+            end;
         {error, _} = Error ->
+            io:format("add_to_maybe_contact_list: ~p", [Bin]),
             Error
     end.

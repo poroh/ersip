@@ -123,7 +123,8 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
 %% then also updates parsed cached value.
 -spec set_raw_header(ersip_hdr:header(), ersip_sipmsg:sipmsg()) -> {ok, ersip_sipmsg:sipmsg()} | {error, term()}.
 set_raw_header(RawHdr, SipMsg0) ->
-    SipMsg = do_set_raw_header(RawHdr, SipMsg0),
+    NewRawMsg = ersip_msg:set_header(RawHdr, ersip_sipmsg:raw_message(SipMsg0)),
+    SipMsg = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg0),
     case ersip_hdr_names:known_header_form(ersip_hdr:make_key(RawHdr)) of
         not_found ->
             %% For unknown headers: set only raw header and that is it.
@@ -131,9 +132,11 @@ set_raw_header(RawHdr, SipMsg0) ->
         {ok, HdrAtom} ->
             %% For known headers: set only raw header and try to parse
             %% it if it is already parsed
-            case maps:find(HdrAtom, ersip_sipmsg:headers(SipMsg)) of
+            ParsedHeaders = ersip_sipmsg:headers(SipMsg),
+            case maps:find(HdrAtom, ParsedHeaders) of
                 {ok, _} ->
-                    ersip_sipmsg:parse(SipMsg, [HdrAtom]);
+                    ParsedHeaders1 = maps:remove(HdrAtom, ParsedHeaders),
+                    ersip_sipmsg:parse(ersip_sipmsg:set_headers(ParsedHeaders1, SipMsg), [HdrAtom]);
                 error ->
                     {ok, SipMsg}
             end
@@ -233,15 +236,9 @@ copy_raw_header(Header, SrcSipMsg, DstSipMsg) ->
     NewDstRawMsg = ersip_msg:set_header(SrcH, DstRawMsg),
     ersip_sipmsg:set_raw_message(NewDstRawMsg, DstSipMsg).
 
--spec do_set_raw_header(ersip_hdr:header(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-do_set_raw_header(RawHdr, SipMsg) ->
-    NewRawMsg = ersip_msg:set_header(RawHdr, ersip_sipmsg:raw_message(SipMsg)),
-    ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg).
-
 %%%
 %%% Headers description
 %%%
-
 -spec header_descr(known_header()) -> #descr{}.
 header_descr(from) ->
     #descr{required     = all,

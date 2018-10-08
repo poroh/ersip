@@ -406,7 +406,7 @@ get_parts_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    SipMsg = create_sipmsg(Msg),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ?assertEqual(undefined, ersip_sipmsg:status(SipMsg)),
     ?assertEqual(undefined, ersip_sipmsg:reason(SipMsg)),
     ?assertEqual({method, <<"INVITE">>}, ersip_sipmsg:method(SipMsg)),
@@ -442,20 +442,63 @@ raw_ruri_manipulation_test() ->
     {ok, _} = ersip_sipmsg:parse(RawMsg, all),
     ok.
 
+set_raw_header_not_parsed_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    {ok, SipMsg0} = ersip_sipmsg:parse(Msg, []),
+    NewContact0 = ersip_hdr:new(<<"Contact">>),
+    NewContactBin = <<"Alice <sip:alice@pc34.atlanta.com>">>,
+    NewContact  = ersip_hdr:add_value(NewContactBin, NewContact0),
+    {ok, SipMsg1} = ersip_sipmsg:set_raw_header(NewContact, SipMsg0),
+    {ok, SipMsg2} = ersip_sipmsg:parse(SipMsg1, [contact]),
+    ParsedContactList = ersip_sipmsg:get(contact, SipMsg2),
+    ?assertMatch([_], ParsedContactList),
+    [NewAliceContact] = ParsedContactList,
+    ?assertEqual(NewContactBin, iolist_to_binary(ersip_hdr_contact:assemble(NewAliceContact))),
+    ok.
+
+set_raw_header_parsed_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    {ok, SipMsg0} = ersip_sipmsg:parse(Msg, [contact]),
+    NewContact0 = ersip_hdr:new(<<"Contact">>),
+    NewContactBin = <<"Alice <sip:alice@pc34.atlanta.com>">>,
+    NewContact  = ersip_hdr:add_value(NewContactBin, NewContact0),
+    {ok, SipMsg1} = ersip_sipmsg:set_raw_header(NewContact, SipMsg0),
+    ParsedContactList = ersip_sipmsg:get(contact, SipMsg1),
+    ?assertMatch([_], ParsedContactList),
+    [NewAliceContact] = ParsedContactList,
+    ?assertEqual(NewContactBin, iolist_to_binary(ersip_hdr_contact:assemble(NewAliceContact))),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
-create_sipmsg(Msg) ->
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
-    SipMsg.
-
 rebuild_sipmsg(SipMsg) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
-    P  = ersip_parser:new_dgram(SipMsgBin),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg1} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg1} = ersip_sipmsg:parse(SipMsgBin, all),
     SipMsg1.
 
 default_sipmsg() ->
@@ -473,5 +516,6 @@ default_sipmsg() ->
           ?crlf "Content-Length: 4"
           ?crlf ?crlf "Test"
         >>,
-    create_sipmsg(Msg).
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    SipMsg.
 

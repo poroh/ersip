@@ -194,7 +194,7 @@ set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
 
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.
--spec parse(ersip_msg:message() | sipmsg(), [known_header()] | all) -> Result when
+-spec parse(ersip_msg:message() | sipmsg() | binary() | iolist(), [known_header()] | all) -> Result when
       Result :: {ok, sipmsg()}
               | {error, term()}.
 parse(#sipmsg{} = SipMsg, all) ->
@@ -207,6 +207,16 @@ parse(#sipmsg{} = SipMsg, Headers) ->
     HeadersToParse = Headers -- AlreadyParsed,
     MaybeMsg = {ok, SipMsg},
     lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+parse(SipMsgBin, What) when is_binary(SipMsgBin) ->
+    P  = ersip_parser:new_dgram(SipMsgBin),
+    case ersip_parser:parse(P) of
+        {{ok, PMsg}, _P2} ->
+            parse(PMsg, What);
+        {{error, Reason}, _} ->
+            {error, {generic_parse_error, Reason}};
+        {more_data, _} ->
+            {error, truncated_message}
+    end;
 parse(RawMsg, all) ->
     parse(RawMsg, ersip_siphdr:all_known_headers());
 parse(RawMsg, Headers) ->
@@ -224,6 +234,7 @@ parse(RawMsg, Headers) ->
                 end,
                 MaybeMsg1,
                 [{fun parse_validate_cseq/1, invalid_cseq}]).
+
 
 -spec serialize(sipmsg()) -> iolist().
 serialize(#sipmsg{} = SipMsg) ->

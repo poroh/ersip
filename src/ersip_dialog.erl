@@ -65,8 +65,7 @@
                  remote_target       :: ersip_uri:uri(),
                  secure              :: boolean(),
                  route_set           :: ersip_route_set:route_set(),
-                 state               :: state(),
-                 initial_req = undefined :: ersip_sipmsg:sipmsg() | undefined
+                 state               :: state()
                 }).
 -record(dialog_id, {local_tag  :: ersip_hdr_fromto:tag_key(),
                     remote_tag :: ersip_hdr_fromto:tag_key() | undefined,
@@ -382,11 +381,7 @@ uas_create(Request, Response) ->
             %% local URI MUST be set to the URI in the To field
             local_uri  = ersip_hdr_fromto:uri(ReqTo),
             %%
-            state = State,
-            initial_req = case State of
-                              early -> Request;
-                              confirmed -> undefined
-                          end
+            state = State
            }.
 
 -spec uac_create(ersip_request:request(), ersip_sipmsg:sipmsg()) -> dialog().

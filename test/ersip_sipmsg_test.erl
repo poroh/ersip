@@ -546,6 +546,16 @@ remove_custom_header_test() ->
     ?assertEqual(true, ersip_hdr:is_empty(RHdrNoCustomRB)),
     ok.
 
+remove_body_test() ->
+    SipMsg = default_sipmsg(),
+    SipMsgNoBody = ersip_sipmsg:remove_body(SipMsg),
+    ?assertEqual(false, ersip_sipmsg:has_body(SipMsgNoBody)),
+    SipMsgNoBodyNoCT = ersip_sipmsg:remove(<<"Content-Length">>, SipMsgNoBody),
+    SipMsgRB = rebuild_sipmsg(SipMsgNoBodyNoCT),
+    ?assertEqual(false, ersip_sipmsg:has_body(SipMsgRB)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

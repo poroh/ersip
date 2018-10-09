@@ -29,6 +29,7 @@
 
          %% Body manipulation:
          has_body/1,
+         remove_body/1,
 
          %% Underlying message manipulation:
          raw_message/1,
@@ -176,9 +177,15 @@ copy(HdrNameForm, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
 remove(HdrName, SipMsg) ->
     ersip_siphdr:remove_header(HdrName, SipMsg).
 
--spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
+-spec has_body(sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->
     not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
+
+-spec remove_body(sipmsg()) -> sipmsg().
+remove_body(#sipmsg{} = SipMsg) ->
+    RawMsg = raw_message(SipMsg),
+    RawMsgNoBody = ersip_msg:set(body, [], RawMsg),
+    set_raw_message(RawMsgNoBody, SipMsg).
 
 -spec raw_message(sipmsg()) -> ersip_msg:message().
 raw_message(#sipmsg{raw = R}) ->

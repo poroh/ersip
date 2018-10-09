@@ -57,7 +57,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
     end.
 
 -spec copy_header(Header, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
-      Header       :: known_header() | binary(),
+      Header       :: ersip_hdr_names:name_forms(),
       SrcSipMsg    :: ersip_sipmsg:sipmsg(),
       DstSipMsg    :: ersip_sipmsg:sipmsg(),
       NewDstSipMsg :: ersip_sipmsg:sipmsg().
@@ -72,11 +72,14 @@ copy_header(HdrAtom, SrcMsg, DstMsg0) when is_atom(HdrAtom) ->
         end,
     copy_raw_header(HdrAtom, SrcMsg, DstMsg1);
 copy_header(HdrName, SrcMsg, DstMsg) when is_binary(HdrName) ->
-    case ersip_hdr_names:known_header_form(HdrName) of
+    HdrKey = ersip_hdr_names:make_key(HdrName),
+    copy_header(HdrKey, SrcMsg, DstMsg);
+copy_header({hdr_key, _} = HdrKey, SrcMsg, DstMsg) ->
+    case ersip_hdr_names:known_header_form(HdrKey) of
         {ok, HdrAtom} ->
             copy_header(HdrAtom, SrcMsg, DstMsg);
         not_found ->
-            copy_raw_header(HdrName, SrcMsg, DstMsg)
+            copy_raw_header(HdrKey, SrcMsg, DstMsg)
     end.
 
 -spec copy_headers(HeaderList, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when

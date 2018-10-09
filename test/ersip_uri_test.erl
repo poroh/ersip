@@ -310,6 +310,31 @@ get_parts_test() ->
     ?assertEqual([Scheme, Port, Host], ersip_uri:get([scheme, port, host], URI)),
     ok.
 
+user_manip_test() ->
+    URIBob = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
+    URIAlice = ersip_uri:set_user(<<"alice">>, URIBob),
+    ?assertEqual(<<"alice">>, ersip_uri:user(URIAlice)),
+    ?assertEqual(<<"sip:alice@1.1.1.1:5091">>, ersip_uri:assemble_bin(URIAlice)),
+    ok.
+
+host_manip_test() ->
+    URIBob = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
+    Biloxi = ersip_host:make(<<"biloxi.com">>),
+    URIBob@Biloxi = ersip_uri:set_host(Biloxi, URIBob),
+    ?assertEqual(Biloxi, ersip_uri:host(URIBob@Biloxi)),
+    ?assertEqual(<<"sip:bob@biloxi.com:5091">>, ersip_uri:assemble_bin(URIBob@Biloxi)),
+    ok.
+
+port_manip_test() ->
+    URIBob5091 = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
+    URIBob5092 = ersip_uri:set_port(5092, URIBob5091),
+    ?assertEqual(5092, ersip_uri:port(URIBob5092)),
+    ?assertEqual(<<"sip:bob@1.1.1.1:5092">>, ersip_uri:assemble_bin(URIBob5092)),
+    URIBobDef = ersip_uri:set_port(undefined, URIBob5091),
+    ?assertEqual(undefined, ersip_uri:port(URIBobDef)),
+    ?assertEqual(<<"sip:bob@1.1.1.1">>, ersip_uri:assemble_bin(URIBobDef)),
+    ok.
+
 parse_three_params_test() ->
   Uri = ersip_uri:make(<<"sip:carol@chicago.com;param1=value1;param2=value2;param3=value3">>),
   Params = #{<<"param1">> => <<"value1">>,

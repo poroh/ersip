@@ -9,11 +9,18 @@
 -module(ersip_uri).
 
 -export([scheme/1,
+         user/1,
+         set_user/2,
+         host/1,
+         set_host/2,
+         port/1,
+         set_port/2,
          get/2,
          make/1,
          make_key/1,
          parse/1,
          assemble/1,
+         assemble_bin/1,
          params/1,
          clear_params/1,
          set_param/3,
@@ -55,6 +62,30 @@
 -spec scheme(uri()) -> scheme().
 scheme(#uri{scheme = S}) ->
     S.
+
+-spec user(ersip_uri:uri()) -> binary().
+user(#uri{data = #sip_uri_data{user = {user, U}}}) ->
+    U.
+
+-spec set_user(binary(), ersip_uri:uri()) -> ersip_uri:uri().
+set_user(NewUser, #uri{data = #sip_uri_data{} = D} = U) ->
+    U#uri{data = D#sip_uri_data{user = {user, NewUser}}}.
+
+-spec host(ersip_uri:uri()) -> ersip_host:host().
+host(#uri{data = #sip_uri_data{host = H}}) ->
+    H.
+
+-spec set_host(ersip:host(), ersip_uri:uri()) -> ersip_uri:uri().
+set_host(H, #uri{data = #sip_uri_data{} = D} = U) ->
+    U#uri{data = D#sip_uri_data{host = H}}.
+
+-spec port(ersip_uri:uri()) -> undefined | inet:port_number().
+port(#uri{data = #sip_uri_data{port = P}}) ->
+    P.
+
+-spec set_port(undefined | inet:port_number(), ersip_uri:uri()) -> ersip_uri:uri().
+set_port(P, #uri{data = #sip_uri_data{} = D} = U) ->
+    U#uri{data = D#sip_uri_data{port = P}}.
 
 -spec get(Parts, uri()) -> Result when
       Parts :: uri_part_name()
@@ -112,6 +143,10 @@ assemble(#uri{scheme = Scheme, data = Data}) ->
     [assemble_scheme(Scheme), $:,
      assemble_data(Data)
     ].
+
+-spec assemble_bin(uri()) -> binary().
+assemble_bin(#uri{} = U) ->
+    iolist_to_binary(assemble(U)).
 
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->

@@ -20,8 +20,6 @@
 
 -export_type([route/0]).
 
--include("ersip_uri.hrl").
-
 %%%===================================================================
 %%% Types
 %%%===================================================================
@@ -98,15 +96,15 @@ build(HdrName, {route_set, _} = RouteSet) ->
       RouteSet).
 
 -spec make_route(binary() | ersip_uri:uri()) -> route().
-make_route(#uri{} = URI) ->
-    #route{display_name = {display_name, []}, uri = URI};
 make_route(Bin) when is_binary(Bin) ->
     case parse_route(Bin) of
         {ok, Route} ->
             Route;
         {error, _} = Error ->
             error(Error)
-    end.
+    end;
+make_route(URI) ->
+    #route{display_name = {display_name, []}, uri = URI}.
 
 %%%===================================================================
 %%% Helpers

@@ -223,8 +223,8 @@ parse_gen_param_value(Bin) ->
                     R;
                 _ ->
                     case ersip_host:parse(Bin) of
-                        {ok, Host} ->
-                            {ok, Host, <<>>};
+                        {ok, _Host, _Rest} = Result ->
+                            Result;
                         _ ->
                             {error, {inval_gen_param_value, Bin}}
                     end

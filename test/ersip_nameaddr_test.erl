@@ -12,7 +12,7 @@
 
 nameaddr_parse_test() ->
     Ex1 = <<"\"A. G. Bell\" <sip:agb@bell-telephone.com> ;tag=a48s">>,
-    {ok, Ex1Host} = ersip_host:parse(<<"bell-telephone.com">>),
+    Ex1Host = ersip_host:make(<<"bell-telephone.com">>),
     Ex1URI = ersip_uri:make([{user, <<"agb">>}, {host, Ex1Host}]),
     {ok,
      {{display_name, <<"\"A. G. Bell\"">>},
@@ -22,7 +22,7 @@ nameaddr_parse_test() ->
     } = ersip_nameaddr:parse(Ex1),
 
     Ex2 = <<"Bob <sip:bob@biloxi.com>;tag=a6c85cf">>,
-    {ok, Ex2Host} = ersip_host:parse(<<"biloxi.com">>),
+    Ex2Host = ersip_host:make(<<"biloxi.com">>),
     Ex2URI = ersip_uri:make([{user, <<"bob">>}, {host, Ex2Host}]),
     {ok,
      {{display_name, [<<"Bob">>]},
@@ -32,7 +32,7 @@ nameaddr_parse_test() ->
     } = ersip_nameaddr:parse(Ex2),
 
     Ex3 = <<"Bob Smith <sip:bob-smith@biloxi.com>;tag=a6c85cf">>,
-    {ok, Ex3Host} = ersip_host:parse(<<"biloxi.com">>),
+    Ex3Host = ersip_host:make(<<"biloxi.com">>),
     Ex3URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex3Host}]),
     {ok,
      {{display_name, [<<"Bob">>, <<"Smith">>]},
@@ -42,7 +42,7 @@ nameaddr_parse_test() ->
     } = ersip_nameaddr:parse(Ex3),
 
     Ex4 = <<"<sip:bob-smith@biloxi.com>;tag=a6c85cf">>,
-    {ok, Ex4Host} = ersip_host:parse(<<"biloxi.com">>),
+    Ex4Host = ersip_host:make(<<"biloxi.com">>),
     Ex4URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex4Host}]),
     {ok,
      {{display_name, []},
@@ -52,7 +52,7 @@ nameaddr_parse_test() ->
     } = ersip_nameaddr:parse(Ex4),
 
     Ex5 = <<"sip:bob-smith@biloxi.com;tag=a6c85cf">>,
-    {ok, Ex5Host} = ersip_host:parse(<<"biloxi.com">>),
+    Ex5Host = ersip_host:make(<<"biloxi.com">>),
     Ex5URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex5Host}]),
     {ok,
      {{display_name, []},
@@ -62,7 +62,7 @@ nameaddr_parse_test() ->
     } = ersip_nameaddr:parse(Ex5),
 
     Ex6 = <<"sip:bob-smith@biloxi.com">>,
-    {ok, Ex6Host} = ersip_host:parse(<<"biloxi.com">>),
+    Ex6Host = ersip_host:make(<<"biloxi.com">>),
     Ex6URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex6Host}]),
     {ok,
      {{display_name, []},

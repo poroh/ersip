@@ -94,11 +94,11 @@ uri_test() ->
        {ok, #uri{data = #sip_uri_data{host = {hostname, <<"b">>}}}},
        ersip_uri:parse(<<"sip:b">>)),
 
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:%:5090">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:%">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:a.-">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b:x">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:[::1">>)),
+    ?assertMatch({error, {invalid_hostport, _}}, ersip_uri:parse(<<"sip:%:5090">>)),
+    ?assertMatch({error, {invalid_hostport, _}}, ersip_uri:parse(<<"sip:%">>)),
+    ?assertMatch({error, {invalid_hostport, _}}, ersip_uri:parse(<<"sip:a.-">>)),
+    ?assertMatch({error, {invalid_hostport, _}}, ersip_uri:parse(<<"sip:b:x">>)),
+    ?assertMatch({error, {invalid_ipv6_reference, _}}, ersip_uri:parse(<<"sip:[::1">>)),
     ?assertMatch({error, {invalid_port, _}}, ersip_uri:parse(<<"sip:[::1]:">>)),
     ?assertMatch({error, {invalid_port, _}}, ersip_uri:parse(<<"sip:[::1]x">>)),
 
@@ -148,7 +148,7 @@ uri_test() ->
                            params = #{maddr => {ipv4, {1,1,1,1}}}}}},
        ersip_uri:parse(<<"sip:b;maddr=1.1.1.1">>)),
 
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;maddr=&">>)),
+    ?assertMatch({error, {invalid_maddr, _}}, ersip_uri:parse(<<"sip:b;maddr=&">>)),
 
     ?assertEqual(
        {ok, #uri{data = #sip_uri_data{

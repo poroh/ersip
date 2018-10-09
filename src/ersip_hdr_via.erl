@@ -96,8 +96,10 @@ params(#via{via_params = VP}) ->
                  | ersip_transport:port_number().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
-        {ok, Host} ->
+        {ok, Host, <<>>} ->
             set_param(received, Host, Via);
+        {ok, _, _} ->
+            error({error, {invalid_host, Value}});
         {error, _} = Error ->
             error(Error)
     end;
@@ -226,8 +228,10 @@ parse_sent_by_host_port(<<$[, _/binary>> = IPv6RefPort, host, Acc) ->
             HostBin = binary:part(IPv6RefPort, {0, Pos+1}),
             Rest = binary:part(IPv6RefPort, {Pos+1, byte_size(IPv6RefPort)-Pos-1}),
             case ersip_host:parse(HostBin) of
-                {ok, Host} ->
+                {ok, Host, <<>>} ->
                     parse_sent_by_host_port(Rest, port, Acc#{host => Host});
+                {ok, _Host, _Rest} ->
+                    {error, {invalid_ipv6_reference, IPv6RefPort}};
                 {error, _} = Err ->
                     Err
             end
@@ -235,8 +239,10 @@ parse_sent_by_host_port(<<$[, _/binary>> = IPv6RefPort, host, Acc) ->
 parse_sent_by_host_port(Binary, host, Acc) ->
     [HostBin | MayBePort] = binary:split(Binary, <<":">>),
     case ersip_host:parse(HostBin) of
-        {ok, Host} ->
+        {ok, Host, <<>>} ->
             parse_sent_by_host_port(MayBePort, port, Acc#{host => Host});
+        {ok, _Host, _Rest} ->
+            {error, {invalid_host, HostBin}};
         {error, _} = Err ->
             Err
     end;
@@ -323,9 +329,9 @@ via_params_val_impl(<<"ttl">>, Value) ->
 via_params_val_impl(<<"received">>, Value) ->
     %% "received" EQUAL (IPv4address / IPv6address)
     case ersip_host:parse(Value) of
-        {ok, {ipv4, _} = Host} ->
+        {ok, {ipv4, _} = Host, <<>>} ->
             {ok, {received, Host}};
-        {ok, {ipv6, _} = Host} ->
+        {ok, {ipv6, _} = Host, <<>>} ->
             {ok, {received, Host}};
         _ ->
             {error, {invalid_received, Value}}
@@ -333,7 +339,7 @@ via_params_val_impl(<<"received">>, Value) ->
 via_params_val_impl(<<"maddr">>, Value) ->
     %% "received" EQUAL (IPv4address / IPv6address)
     case ersip_host:parse(Value) of
-        {ok, Host} ->
+        {ok, Host, <<>>} ->
             {ok, {maddr, Host}};
         _ ->
             {error, {invalid_maddr, Value}}

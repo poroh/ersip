@@ -55,17 +55,15 @@ is_host(_) ->
     false.
 
 %% @doc Generate host specification from binary.
--spec parse(binary()) -> parse_result().
-parse(<<$[, _/binary>> = R) ->
-    parse_ipv6_reference(R);
-parse(<<Char/utf8, _/binary>> = R) when ?is_HEXDIG(Char) ->
-    case parse_address(R) of
-        {ok, _} = Result -> Result;
-        {error, {invalid_address, _}}  -> %% second try
-            assume_its_hostname(R)
-    end;
-parse(Bin) when is_binary(Bin) ->
-    assume_its_hostname(Bin).
+-spec parse(binary()) -> ersip_parser_aux:parse_result(host()).
+parse(Binary) ->
+    {MaybeHost, Rest} = split_host(Binary),
+    case do_parse(MaybeHost) of
+        {ok, Host} ->
+            {ok, Host, Rest};
+        {error, _} = Error ->
+            Error
+    end.
 
 %% @doc make comparable hostname (from rfc3261 comparision rules).
 -spec make_key(host()) -> host().
@@ -109,7 +107,7 @@ make({hostname, _} = Host) ->
     assure_host(Host);
 make(Addr) when is_binary(Addr)  ->
     case parse(Addr) of
-        {ok, Host} ->
+        {ok, Host, <<>>} ->
             Host;
         {error, _} ->
             error({error, {invalid_host, Addr}})
@@ -120,6 +118,37 @@ make(Addr) when is_binary(Addr)  ->
 %%%===================================================================
 
 -type nonempty_binary() :: <<_:8,_:_*8>>.
+
+-define(VALID_HOST_CHAR(C), (?is_alphanum(C)
+                             orelse C == $.
+                             orelse C == $-
+                             orelse C == $:
+                             orelse C == $[
+                             orelse C == $])).
+
+-spec do_parse(binary()) -> parse_result().
+do_parse(<<$[, _/binary>> = R) ->
+    parse_ipv6_reference(R);
+do_parse(<<Char/utf8, _/binary>> = R) when ?is_HEXDIG(Char) ->
+    case parse_address(R) of
+        {ok, _} = Result -> Result;
+        {error, {invalid_address, _}}  -> %% second try
+            assume_its_hostname(R)
+    end;
+do_parse(Bin) when is_binary(Bin) ->
+    assume_its_hostname(Bin).
+
+-spec split_host(binary()) -> {MaybeHost :: binary(), Rest :: binary()}.
+split_host(Binary) ->
+    Pos = find_host_end(Binary, 0),
+    <<Host:Pos/binary, Rest/binary>> = Binary,
+    {Host, Rest}.
+
+-spec find_host_end(binary(), non_neg_integer()) -> non_neg_integer().
+find_host_end(<<Char, Rest/binary>>, Pos) when ?VALID_HOST_CHAR(Char) ->
+    find_host_end(Rest, Pos+1);
+find_host_end(_, Pos) ->
+    Pos.
 
 %% @private
 %% @doc Parse IPv6 reference
@@ -239,3 +268,4 @@ assume_its_hostname(Bin) ->
         false ->
             {error, {invalid_host, Bin}}
     end.
+

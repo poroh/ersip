@@ -295,17 +295,17 @@ parse_hostport(User, R) ->
         case split_hostport(HostPort) of
             {ok, {HostBin, <<>>}} ->
                 case ersip_host:parse(HostBin) of
-                    {ok, Host} ->
+                    {ok, Host, <<>>} ->
                         {ok, #sip_uri_data{user = User, host = Host }};
                     _ ->
-                        {error, {einval, host}}
+                        {error, {invalid_hostport, HostPort}}
                 end;
             {ok, {HostBin, PortBin}} ->
                 case {ersip_host:parse(HostBin), parse_port(PortBin)} of
-                    {{ok, Host}, {ok, Port}} ->
+                    {{ok, Host, <<>>}, {ok, Port}} ->
                         {ok, #sip_uri_data{user = User, host = Host, port = Port}};
                     _ ->
-                        {error, {einval, hostport}}
+                        {error, {invalid_hostport, {HostBin, PortBin}}}
                 end;
             {error, _} = Error ->
                 Error
@@ -390,10 +390,10 @@ parse_and_add_param(Param, SIPData) ->
         {<<"maddr">>, A} ->
             %% maddr-param       =  "maddr=" host
             case ersip_host:parse(A) of
-                {ok, Host} ->
+                {ok, Host, <<>>} ->
                     set_param(maddr, Host, SIPData);
                 _ ->
-                    {error, {einval, maddr}}
+                    {error, {invalid_maddr, A}}
             end;
 
         {<<"user">>, U} ->
@@ -544,12 +544,12 @@ split_uri(Bin) ->
 -spec split_hostport(binary()) -> Result when
       Result :: {ok, {binary(), binary()}}
               | {error, Error},
-      Error :: {einval, invalid_ipv6_reference}
+      Error :: {invalid_ipv6_reference, binary()}
              | {invalid_port, binary()}.
 split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
     case binary:match(IPv6RefPort, <<"]">>) of
         nomatch ->
-            {error, {einval, invalid_ipv6_reference}};
+            {error, {invalid_ipv6_reference, IPv6RefPort}};
         {Pos, 1} when Pos + 1 =:= byte_size(IPv6RefPort) ->
             %% No port specified
             {ok, {IPv6RefPort, <<>>}};

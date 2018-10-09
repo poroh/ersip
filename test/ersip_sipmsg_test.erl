@@ -493,6 +493,59 @@ set_raw_header_parsed_test() ->
     ?assertEqual(NewContactBin, iolist_to_binary(ersip_hdr_contact:assemble(NewAliceContact))),
     ok.
 
+remove_header_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf ?crlf
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    ?assertNotEqual(not_found, ersip_sipmsg:find(content_type, SipMsg)),
+    lists:foreach(fun(HdrNameForm) ->
+                          SipMsgNoCT = ersip_sipmsg:remove(HdrNameForm, SipMsg),
+                          ?assertEqual(not_found, ersip_sipmsg:find(content_type, SipMsgNoCT)),
+                          ?assertEqual(not_found, ersip_sipmsg:find(content_type, rebuild_sipmsg(SipMsgNoCT)))
+                  end,
+                  [content_type,
+                   <<"Content-Type">>,
+                   <<"cOnTeNt-TyPe">>,
+                   ersip_hdr:make_key(<<"Content-Type">>),
+                   <<"c">>]),
+    ok.
+
+remove_custom_header_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "MyCustomHeader: Value"
+            ?crlf ?crlf
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    RHdr = ersip_sipmsg:raw_header(<<"MyCustomHeader">>, SipMsg),
+    ?assertEqual(false, ersip_hdr:is_empty(RHdr)),
+    SipMsgNoCustom = ersip_sipmsg:remove(<<"MyCustomHeader">>, SipMsg),
+    RHdrNoCustom = ersip_sipmsg:raw_header(<<"MyCustomHeader">>, SipMsgNoCustom),
+    ?assertEqual(true, ersip_hdr:is_empty(RHdrNoCustom)),
+
+    SipMsgNoCustomRB = rebuild_sipmsg(SipMsgNoCustom),
+    RHdrNoCustomRB = ersip_sipmsg:raw_header(<<"MyCustomHeader">>, SipMsgNoCustomRB),
+    ?assertEqual(true, ersip_hdr:is_empty(RHdrNoCustomRB)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

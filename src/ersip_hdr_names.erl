@@ -15,7 +15,7 @@
          all_known_headers/0
         ]).
 
--export_type([header_key/0]).
+-export_type([header_key/0, name_forms/0]).
 
 %%%===================================================================
 %%% Types

@@ -135,9 +135,9 @@ set_header(Header, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(Header),
     Message#message{headers = H#{Key => Header}}.
 
--spec del_header(ersip_hdr:header(), message()) -> message().
-del_header(Header, #message{headers = H} = Message) ->
-    Key = ersip_hdr:make_key(Header),
+-spec del_header(ersip_hdr_names:name_forms() | ersip_hdr:header(), message()) -> message().
+del_header(HeaderName, #message{headers = H} = Message) ->
+    Key = ersip_hdr:make_key(HeaderName),
     Message#message{headers = maps:remove(Key, H)}.
 
 -spec add(Name, Value, message()) -> message() when

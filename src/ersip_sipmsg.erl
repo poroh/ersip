@@ -172,9 +172,9 @@ set(HdrAtom, Value, #sipmsg{} = Msg) ->
 copy(HdrAtom, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
     ersip_siphdr:copy_headers([HdrAtom], SrcMsg, DstMsg).
 
--spec remove(known_header(), sipmsg()) -> sipmsg().
-remove(HdrAtom, SipMsg) ->
-    ersip_siphdr:remove_header(HdrAtom, SipMsg).
+-spec remove(ersip_hdr_name:name_forms(), sipmsg()) -> sipmsg().
+remove(HdrName, SipMsg) ->
+    ersip_siphdr:remove_header(HdrName, SipMsg).
 
 -spec has_body(ersip_sipmsg:sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->

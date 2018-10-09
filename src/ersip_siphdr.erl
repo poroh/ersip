@@ -71,12 +71,12 @@ copy_header(HdrAtom, SrcMsg, DstMsg0) when is_atom(HdrAtom) ->
                 DstMsg0
         end,
     copy_raw_header(HdrAtom, SrcMsg, DstMsg1);
-copy_header(HeaderName, SrcMsg, DstMsg) when is_binary(HeaderName) ->
-    case ersip_hdr_names:known_header_form(HeaderName) of
+copy_header(HdrName, SrcMsg, DstMsg) when is_binary(HdrName) ->
+    case ersip_hdr_names:known_header_form(HdrName) of
         {ok, HdrAtom} ->
             copy_header(HdrAtom, SrcMsg, DstMsg);
         not_found ->
-            copy_raw_header(HeaderName, SrcMsg, DstMsg)
+            copy_raw_header(HdrName, SrcMsg, DstMsg)
     end.
 
 -spec copy_headers(HeaderList, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
@@ -142,7 +142,7 @@ set_raw_header(RawHdr, SipMsg0) ->
             end
     end.
 
--spec remove_header(known_header(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+-spec remove_header(ersip_hdr_names:name_forms(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 remove_header(Header, SipMsg) when is_atom(Header) ->
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
@@ -154,7 +154,19 @@ remove_header(Header, SipMsg) when is_atom(Header) ->
 
     SipMsg1 = ersip_sipmsg:set_headers(NewHeaders, SipMsg),
     SipMsg2 = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg1),
-    SipMsg2.
+    SipMsg2;
+remove_header(HdrName, SipMsg) when is_binary(HdrName) ->
+    HdrKey = ersip_hdr:make_key(HdrName),
+    remove_header(HdrKey, SipMsg);
+remove_header({hdr_key, _} = HKey, SipMsg) ->
+    case ersip_hdr_names:known_header_form(HKey) of
+        {ok, HdrAtom} ->
+            remove_header(HdrAtom, SipMsg);
+        not_found ->
+            OldRawMsg = ersip_sipmsg:raw_message(SipMsg),
+            NewRawMsg = ersip_msg:del_header(HKey, OldRawMsg),
+            ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg)
+    end.
 
 %%%===================================================================
 %%% Internal implementation

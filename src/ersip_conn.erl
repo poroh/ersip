@@ -83,7 +83,7 @@ conn_data(Binary, #sip_conn{parser = Parser} = Conn) ->
 
 -spec add_via(ersip_msg:message(), ersip_branch:branch(), sip_conn()) -> ersip_msg:message().
 add_via(Msg, Branch, #sip_conn{local_addr = {LocalAddr, LocalPort}, transport = SIPTransport}) ->
-    ViaH = ersip_msg:get(<<"via">>, Msg),
+    ViaH = ersip_msg:get(<<"Via">>, Msg),
     Via = ersip_hdr_via:new(LocalAddr, LocalPort, SIPTransport, Branch),
     ViaH1 = ersip_hdr:add_topmost(ersip_hdr_via:assemble(Via), ViaH),
     ersip_msg:set_header(ViaH1, Msg).

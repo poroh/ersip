@@ -15,15 +15,15 @@
 %%%===================================================================
 
 hostname_parse_test() ->
-    ?assertEqual({ok, {ipv4, {127, 0, 0, 1}}},             ersip_host:parse(<<"127.0.0.1">>)),
-    ?assertEqual({ok, {ipv6, {0, 0, 0, 0,   0, 0, 0, 1}}}, ersip_host:parse(<<"[::1]">>)),
-    ?assertEqual({ok, {hostname, <<"example.com">>}},        ersip_host:parse(<<"example.com">>)),
-    ?assertEqual({ok, {hostname, <<"example.com.">>}},       ersip_host:parse(<<"example.com.">>)),
-    ?assertEqual({ok, {hostname, <<"exa-mple.com.">>}},      ersip_host:parse(<<"exa-mple.com.">>)),
-    ?assertEqual({ok, {hostname, <<"x.com">>}},              ersip_host:parse(<<"x.com">>)),
-    ?assertEqual({ok, {hostname, <<"10.com">>}},             ersip_host:parse(<<"10.com">>)),
-    ?assertEqual({ok, {hostname, <<"10.c-m">>}},             ersip_host:parse(<<"10.c-m">>)),
-    ?assertEqual({ok, {hostname, <<"10.c--m">>}},            ersip_host:parse(<<"10.c--m">>)),
+    ?assertEqual({ok, {ipv4, {127, 0, 0, 1}}, <<>>},             ersip_host:parse(<<"127.0.0.1">>)),
+    ?assertEqual({ok, {ipv6, {0, 0, 0, 0,   0, 0, 0, 1}}, <<>>}, ersip_host:parse(<<"[::1]">>)),
+    ?assertEqual({ok, {hostname, <<"example.com">>}, <<>>},      ersip_host:parse(<<"example.com">>)),
+    ?assertEqual({ok, {hostname, <<"example.com.">>}, <<>>},     ersip_host:parse(<<"example.com.">>)),
+    ?assertEqual({ok, {hostname, <<"exa-mple.com.">>}, <<>>},    ersip_host:parse(<<"exa-mple.com.">>)),
+    ?assertEqual({ok, {hostname, <<"x.com">>}, <<>>},            ersip_host:parse(<<"x.com">>)),
+    ?assertEqual({ok, {hostname, <<"10.com">>}, <<>>},           ersip_host:parse(<<"10.com">>)),
+    ?assertEqual({ok, {hostname, <<"10.c-m">>}, <<>>},           ersip_host:parse(<<"10.c-m">>)),
+    ?assertEqual({ok, {hostname, <<"10.c--m">>}, <<>>},          ersip_host:parse(<<"10.c--m">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"127..">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"[">>)),
     ?assertMatch({error, {invalid_ipv6, _}},  ersip_host:parse(<<"[]">>)),
@@ -85,7 +85,7 @@ make_key_test() ->
 %%%===================================================================
 
 check_reassemble(Binary) ->
-    {ok, Host} = ersip_host:parse(Binary),
+    Host = ersip_host:make(Binary),
     ?assertEqual(Binary, iolist_to_binary(ersip_host:assemble(Host))).
 
 make_key(Bin) ->

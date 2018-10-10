@@ -53,7 +53,7 @@ encode_impl(<<Byte:8, Rest/binary>>, #char_table{size = S} =CT, X, L) when X =< 
 -define(CAP_ALPHA_SIZE,   ($Z-$A+1)).
 -define(ALPHA_SIZE,       (?SMALL_ALPHA_SIZE + ?CAP_ALPHA_SIZE)).
 -define(DIGIT_SIZE,       ($9-$0+1)).
--define(OTHER_SIZE,       10).
+-define(OTHER_SIZE,       9).
 
 -spec token_chars() -> char_table().
 token_chars() ->
@@ -61,20 +61,19 @@ token_chars() ->
                 tfun = fun token_translate/1
                }.
 
--define(DIGIT_SHIFT, 10).
+-define(DIGIT_SHIFT, 9).
 -define(SMALL_ALPHA_SHIFT, (?DIGIT_SHIFT + ?DIGIT_SIZE)).
 -define(CAP_ALPHA_SHIFT, (?SMALL_ALPHA_SHIFT + ?SMALL_ALPHA_SIZE)).
 
 token_translate(0) -> $-;
 token_translate(1) -> $.;
 token_translate(2) -> $!;
-token_translate(3) -> $%;
-token_translate(4) -> $*;
-token_translate(5) -> $_;
-token_translate(6) -> $+;
-token_translate(7) -> $`;
-token_translate(8) -> $';
-token_translate(9) -> $~;
+token_translate(3) -> $*;
+token_translate(4) -> $_;
+token_translate(5) -> $+;
+token_translate(6) -> $`;
+token_translate(7) -> $';
+token_translate(8) -> $~;
 token_translate(X) when X >= ?DIGIT_SHIFT,
                         X < ?SMALL_ALPHA_SHIFT ->
     X - ?DIGIT_SHIFT + $0;

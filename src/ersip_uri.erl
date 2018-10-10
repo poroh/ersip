@@ -63,7 +63,9 @@
 scheme(#uri{scheme = S}) ->
     S.
 
--spec user(ersip_uri:uri()) -> binary().
+-spec user(ersip_uri:uri()) -> binary() | undefined.
+user(#uri{data = #sip_uri_data{user = undefined}}) ->
+    undefined;
 user(#uri{data = #sip_uri_data{user = {user, U}}}) ->
     U.
 

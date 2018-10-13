@@ -7,7 +7,7 @@
 %%
 
 
--module(ersip_hdr_names_test).
+-module(ersip_hnames_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
@@ -47,7 +47,7 @@ compact_form_test() ->
           HeadersL),
     lists:foreach(
       fun({FieldName, CompactForm}) ->
-              ?assertEqual(CompactForm, ersip_hdr_names:compact_form(FieldName))
+              ?assertEqual(CompactForm, ersip_hnames:compact_form(FieldName))
       end,
       HeadersF).
 
@@ -76,4 +76,4 @@ print_form_test() ->
 %%%===================================================================
 
 test_print_form(Bin) ->
-    ?assertEqual(Bin, ersip_hdr_names:print_form(ersip_bin:to_lower(Bin))).
+    ?assertEqual(Bin, ersip_hnames:print_form(ersip_bin:to_lower(Bin))).

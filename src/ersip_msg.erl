@@ -76,7 +76,7 @@ get(method, #message{type = {request,  X, _}}) -> X;
 get(ruri,   #message{type = {request,  _, X}}) -> X;
 get(body,   #message{body = X                 }) -> X;
 get(HeaderName, #message{headers = H}) ->
-    Key = ersip_hdr_names:make_key(HeaderName),
+    Key = ersip_hnames:make_key(HeaderName),
     maps:get(Key, H, ersip_hdr:new(HeaderName)).
 
 -spec get_headers(message()) -> [ersip_hdr:header()].
@@ -135,7 +135,7 @@ set_header(Header, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(Header),
     Message#message{headers = H#{Key => Header}}.
 
--spec del_header(ersip_hdr_names:name_forms() | ersip_hdr:header(), message()) -> message().
+-spec del_header(ersip_hnames:name_forms() | ersip_hdr:header(), message()) -> message().
 del_header(HeaderName, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(HeaderName),
     Message#message{headers = maps:remove(Key, H)}.

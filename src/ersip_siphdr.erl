@@ -33,14 +33,14 @@
 -type parse_fun_result() :: {ok, Value :: term()}
                           | {error, Reason :: term()}.
 -type assemble_fun_type() :: fun((Name :: binary(), Value :: term()) -> ersip_hdr:header()).
--type known_header() :: ersip_hdr_names:known_header().
+-type known_header() :: ersip_hnames:known_header().
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
 all_known_headers() ->
-    ersip_hdr_names:all_known_headers().
+    ersip_hnames:all_known_headers().
 
 -spec parse_header(known_header(), ersip_sipmsg:sipmsg()) -> ValueOrError when
       ValueOrError :: {ok, term()}
@@ -57,7 +57,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
     end.
 
 -spec copy_header(Header, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
-      Header       :: ersip_hdr_names:name_forms(),
+      Header       :: ersip_hnames:name_forms(),
       SrcSipMsg    :: ersip_sipmsg:sipmsg(),
       DstSipMsg    :: ersip_sipmsg:sipmsg(),
       NewDstSipMsg :: ersip_sipmsg:sipmsg().
@@ -72,10 +72,10 @@ copy_header(HdrAtom, SrcMsg, DstMsg0) when is_atom(HdrAtom) ->
         end,
     copy_raw_header(HdrAtom, SrcMsg, DstMsg1);
 copy_header(HdrName, SrcMsg, DstMsg) when is_binary(HdrName) ->
-    HdrKey = ersip_hdr_names:make_key(HdrName),
+    HdrKey = ersip_hnames:make_key(HdrName),
     copy_header(HdrKey, SrcMsg, DstMsg);
 copy_header({hdr_key, _} = HdrKey, SrcMsg, DstMsg) ->
-    case ersip_hdr_names:known_header_form(HdrKey) of
+    case ersip_hnames:known_header_form(HdrKey) of
         {ok, HdrAtom} ->
             copy_header(HdrAtom, SrcMsg, DstMsg);
         not_found ->
@@ -97,7 +97,7 @@ copy_headers(HeaderList, SrcSipMsg, DstSipMsg) ->
 -spec set_header(known_header(), Value :: term(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 set_header(Header, Value, SipMsg) when is_atom(Header) ->
     #descr{assemble_fun = AssembleF} = header_descr(Header),
-    PrintName  = ersip_hdr_names:print_form(Header),
+    PrintName  = ersip_hnames:print_form(Header),
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
 
@@ -128,7 +128,7 @@ set_header(Header, Value, SipMsg) when is_atom(Header) ->
 set_raw_header(RawHdr, SipMsg0) ->
     NewRawMsg = ersip_msg:set_header(RawHdr, ersip_sipmsg:raw_message(SipMsg0)),
     SipMsg = ersip_sipmsg:set_raw_message(NewRawMsg, SipMsg0),
-    case ersip_hdr_names:known_header_form(ersip_hdr:make_key(RawHdr)) of
+    case ersip_hnames:known_header_form(ersip_hdr:make_key(RawHdr)) of
         not_found ->
             %% For unknown headers: set only raw header and that is it.
             {ok, SipMsg};
@@ -145,7 +145,7 @@ set_raw_header(RawHdr, SipMsg0) ->
             end
     end.
 
--spec remove_header(ersip_hdr_names:name_forms(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+-spec remove_header(ersip_hnames:name_forms(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 remove_header(Header, SipMsg) when is_atom(Header) ->
     OldHeaders = ersip_sipmsg:headers(SipMsg),
     OldRawMsg  = ersip_sipmsg:raw_message(SipMsg),
@@ -162,7 +162,7 @@ remove_header(HdrName, SipMsg) when is_binary(HdrName) ->
     HdrKey = ersip_hdr:make_key(HdrName),
     remove_header(HdrKey, SipMsg);
 remove_header({hdr_key, _} = HKey, SipMsg) ->
-    case ersip_hdr_names:known_header_form(HKey) of
+    case ersip_hnames:known_header_form(HKey) of
         {ok, HdrAtom} ->
             remove_header(HdrAtom, SipMsg);
         not_found ->
@@ -199,14 +199,14 @@ parse_header_by_descr(#descr{parse_fun = F}, Hdr) ->
               | {ok, no_header}
               | {error, {no_required_header, binary()}}.
 get_header(HdrAtom, #descr{} = D, SipMsg) ->
-    HdrKey = ersip_hdr_names:make_key(HdrAtom),
+    HdrKey = ersip_hnames:make_key(HdrAtom),
     Hdr = ersip_msg:get(HdrKey, ersip_sipmsg:raw_message(SipMsg)),
     Required = is_required(SipMsg, D#descr.required),
     case ersip_hdr:is_empty(Hdr) of
         true ->
             case Required of
                 true ->
-                    {error, {no_required_header, ersip_hdr_names:print_form(HdrKey)}};
+                    {error, {no_required_header, ersip_hnames:print_form(HdrKey)}};
                 false ->
                     {ok, no_header}
             end;
@@ -239,12 +239,12 @@ required_essentials(SipMsg) ->
       }.
 
 -spec copy_raw_header(HeaderName, SrcSipMsg, DstSipMsg) -> NewDstSipMsg when
-      HeaderName   :: ersip_hdr_names:name_forms(),
+      HeaderName   :: ersip_hnames:name_forms(),
       SrcSipMsg    :: ersip_sipmsg:sipmsg(),
       DstSipMsg    :: ersip_sipmsg:sipmsg(),
       NewDstSipMsg :: ersip_sipmsg:sipmsg().
 copy_raw_header(Header, SrcSipMsg, DstSipMsg) ->
-    Key = ersip_hdr_names:make_key(Header),
+    Key = ersip_hnames:make_key(Header),
     SrcRawMsg = ersip_sipmsg:raw_message(SrcSipMsg),
     SrcH = ersip_msg:get(Key, SrcRawMsg),
     DstRawMsg = ersip_sipmsg:raw_message(DstSipMsg),

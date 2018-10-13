@@ -6,7 +6,7 @@
 %% SIP Header names
 %%
 
--module(ersip_hdr_names).
+-module(ersip_hnames).
 
 -export([make_key/1,
          compact_form/1,
@@ -52,7 +52,7 @@
 make_key({hdr_key, _} = Key) ->
     Key;
 make_key(HeaderName) when is_binary(HeaderName) ->
-    {hdr_key, ersip_hdr_names:compact_form(HeaderName)};
+    {hdr_key, ersip_hnames:compact_form(HeaderName)};
 make_key(KnownHeader) when is_atom(KnownHeader) ->
     known_header_key_map(KnownHeader).
 

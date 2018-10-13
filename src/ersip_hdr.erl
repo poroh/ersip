@@ -36,7 +36,7 @@
 -type value() :: iolist() | binary().
 
 -type header() :: #header{}.
--type header_key() :: ersip_hdr_names:header_key().
+-type header_key() :: ersip_hnames:header_key().
 
 %%%===================================================================
 %%% API
@@ -48,7 +48,7 @@
 make_key(#header{key = Key}) ->
     Key;
 make_key(HeaderName) ->
-    ersip_hdr_names:make_key(HeaderName).
+    ersip_hnames:make_key(HeaderName).
 
 %% @doc Create new headers.
 -spec new(Name :: binary()) -> header().
@@ -59,12 +59,12 @@ new(Name) when is_binary(Name) ->
             multiple_values = may_have_multiple_values(Key)
            };
 new(KnownHeader) when is_atom(KnownHeader)  ->
-    Key = ersip_hdr_names:make_key(KnownHeader),
-    #header{name = ersip_hdr_names:print_form(KnownHeader),
+    Key = ersip_hnames:make_key(KnownHeader),
+    #header{name = ersip_hnames:print_form(KnownHeader),
             key  = Key,
             multiple_values = may_have_multiple_values(Key)};
 new({hdr_key, _} = HdrKey)  ->
-    #header{name = ersip_hdr_names:print_form(HdrKey),
+    #header{name = ersip_hnames:print_form(HdrKey),
             key  = HdrKey,
             multiple_values = may_have_multiple_values(HdrKey)
            }.

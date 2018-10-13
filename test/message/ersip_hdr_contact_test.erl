@@ -90,6 +90,7 @@ set_param_test() ->
 
     AliceWCustomP = ersip_hdr_contact:set_param(<<"myparam">>, <<"Value">>, Alice),
     ?assertEqual(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;myparam=Value">>), AliceWCustomP),
+    ?assertEqual({ok, <<"Value">>}, ersip_hdr_contact:param(<<"MyParam">>, AliceWCustomP)),
     ok.
 
 set_param_error_test() ->

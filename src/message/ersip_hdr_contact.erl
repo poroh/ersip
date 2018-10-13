@@ -13,6 +13,7 @@
          set_expires/2,
          qvalue/2,
          set_qvalue/2,
+         param/2,
          set_param/3,
          make/1,
          parse/1,
@@ -79,6 +80,11 @@ qvalue(#contact{hparams = HParams}, Default) ->
 set_qvalue({qvalue, _} = QVal, #contact{hparams = HParams} = Contact) ->
     NewHParams = ersip_hparams:set(q, QVal, <<"q">>, ersip_qvalue:assemble(QVal), HParams),
     Contact#contact{hparams = NewHParams}.
+
+
+-spec param(Name :: binary(), contact()) -> {ok, Value :: binary()} | not_found.
+param(Name, #contact{hparams = HParams}) when is_binary(Name) ->
+    ersip_hparams:find_raw(Name, HParams).
 
 -spec set_param(Name :: binary(), PValue :: binary(), contact()) -> contact().
 set_param(PName, PValue, #contact{hparams = HParams} = Contact)

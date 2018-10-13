@@ -15,7 +15,9 @@
          all_known_headers/0
         ]).
 
--export_type([header_key/0, name_forms/0]).
+-export_type([header_key/0,
+              known_header/0,
+              name_forms/0]).
 
 %%%===================================================================
 %%% Types
@@ -145,7 +147,7 @@ print_form_map({hdr_key, <<"min-expires">>})   -> <<"Min-Expires">>;
 print_form_map({hdr_key, Name}) ->
     Name.
 
--spec known_header_key_map(header_key()) -> {ok, known_header()} | not_found.
+-spec known_header_key_map(known_header()) -> header_key().
 known_header_key_map(from          ) -> {hdr_key, <<"f">>}             ;
 known_header_key_map(to            ) -> {hdr_key, <<"t">>}             ;
 known_header_key_map(cseq          ) -> {hdr_key, <<"cseq">>}          ;

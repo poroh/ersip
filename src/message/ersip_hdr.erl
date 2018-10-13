@@ -44,14 +44,15 @@
 
 %% @doc Create key by the header name.
 -spec make_key(NameOrHeader) -> header_key() when
-      NameOrHeader :: binary() | header().
+      NameOrHeader :: ersip_hnames:name_forms()
+                    | header().
 make_key(#header{key = Key}) ->
     Key;
 make_key(HeaderName) ->
     ersip_hnames:make_key(HeaderName).
 
 %% @doc Create new headers.
--spec new(Name :: binary()) -> header().
+-spec new(ersip_hnames:name_forms()) -> header().
 new(Name) when is_binary(Name) ->
     Key = make_key(Name),
     #header{name = Name,

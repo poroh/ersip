@@ -41,7 +41,9 @@
             -> {ok, {Key :: term(), Value :: term()}}
                    | {error, term()}
                    | skip).
--type gen_param() :: binary() | ersip_host:host().
+-type gen_param()      :: {Key ::binary(), gen_param_value()}.
+-type gen_param_list() :: [gen_param()].
+-type gen_param_value() :: binary().
 
 -export_type([parse_result/0,
               parse_result/1,
@@ -173,12 +175,12 @@ parse_kvps(Validator, Sep, Bin) ->
     end.
 
 %% generic-param 1*(Sep generic-param)
--spec parse_params(char(), binary()) -> parse_result([gen_param()]).
+-spec parse_params(char(), binary()) -> parse_result(gen_param_list()).
 parse_params(Sep, Bin) ->
     do_parse_params(ersip_bin:trim_head_lws(Bin), Sep, []).
 
 %% generic-param  =  token [ EQUAL gen-value ]
--spec parse_gen_param(binary()) -> parse_result({Key :: binary(), gen_param()}).
+-spec parse_gen_param(binary()) -> parse_result(gen_param()).
 parse_gen_param(Bin) ->
     case parse_token(Bin) of
         {ok, Key, Rest0} ->
@@ -200,7 +202,7 @@ parse_gen_param(Bin) ->
     end.
 
 %% gen-value      =  token / host / quoted-string
--spec parse_gen_param_value(binary()) -> parse_result(gen_param()).
+-spec parse_gen_param_value(binary()) -> parse_result(gen_param_value()).
 parse_gen_param_value(<<>>) ->
     {ok, <<>>, <<>>};
 parse_gen_param_value(Bin) ->
@@ -405,7 +407,7 @@ parse_sep(Sep, <<Sep/utf8, R/binary>>) ->
 parse_sep(Sep, Bin) ->
     {error, {no_separator, Sep, Bin}}.
 
--spec do_parse_params(binary(), char(), [gen_param()]) -> parse_result([{binary(), gen_param()}]).
+-spec do_parse_params(binary(), char(), gen_param_list()) -> parse_result(gen_param_list()).
 do_parse_params(Bin, Sep, Acc) ->
     case parse_gen_param(Bin) of
         {ok, Val, Rest0} ->

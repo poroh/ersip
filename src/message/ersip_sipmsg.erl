@@ -169,11 +169,11 @@ get(HdrAtom, #sipmsg{} = Msg) ->
 set(HdrAtom, Value, #sipmsg{} = Msg) ->
     ersip_siphdr:set_header(HdrAtom, Value, Msg).
 
--spec copy(ersip_hdr_names:name_forms(), Src :: sipmsg(), Dst :: sipmsg()) -> sipmsg().
+-spec copy(ersip_hnames:name_forms(), Src :: sipmsg(), Dst :: sipmsg()) -> sipmsg().
 copy(HdrNameForm, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
     ersip_siphdr:copy_header(HdrNameForm, SrcMsg, DstMsg).
 
--spec remove(ersip_hdr_name:name_forms(), sipmsg()) -> sipmsg().
+-spec remove(ersip_hnames:name_forms(), sipmsg()) -> sipmsg().
 remove(HdrName, SipMsg) ->
     ersip_siphdr:remove_header(HdrName, SipMsg).
 
@@ -195,7 +195,7 @@ raw_message(#sipmsg{raw = R}) ->
 raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
     ersip_msg:get(HdrName, raw_message(Msg)).
 
--spec set_raw_header(ersip_hdr:header(), sipmsg()) -> sipmsg().
+-spec set_raw_header(ersip_hdr:header(), sipmsg()) -> {ok, ersip_sipmsg:sipmsg()} | {error, term()}.
 set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
     ersip_siphdr:set_raw_header(RawHdr, SipMsg).
 

@@ -74,7 +74,7 @@ is_empty([X|Rest]) ->
 %% @doc join list of iolists with separator
 -spec join(Sep, List) -> iolist() when
       List :: [ iolist() ],
-      Sep  :: iolist() | binary().
+      Sep  :: iolist() | binary() | char().
 join(_, []) ->
     [];
 join(_, [ X ]) ->

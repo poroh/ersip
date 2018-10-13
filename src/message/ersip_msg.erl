@@ -36,13 +36,13 @@
 -record(message, {type    = undefined :: {request,  method() | undefined, binary() | undefined}
                                        | {response, 100..699 | undefined, binary() | undefined}
                                        | undefined,
-                  headers = #{}       :: #{ersip_hdr:header_key() := ersip_hdr:header()},
+                  headers = #{}       :: #{ersip_hnames:header_key() := ersip_hdr:header()},
                   body    = []        :: iolist(),
                   source = undefined  :: undefined
                                        | ersip_source:source()
                  }).
 
--type header_name() :: binary().
+-type header_name() :: ersip_hnames:name_forms().
 -type item() :: type
               | status
               | reason

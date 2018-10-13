@@ -77,7 +77,7 @@ set_user(NewUser, #uri{data = #sip_uri_data{} = D} = U) ->
 host(#uri{data = #sip_uri_data{host = H}}) ->
     H.
 
--spec set_host(ersip:host(), ersip_uri:uri()) -> ersip_uri:uri().
+-spec set_host(ersip_host:host(), ersip_uri:uri()) -> ersip_uri:uri().
 set_host(H, #uri{data = #sip_uri_data{} = D} = U) ->
     U#uri{data = D#sip_uri_data{host = H}}.
 

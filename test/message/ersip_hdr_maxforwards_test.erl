@@ -6,7 +6,7 @@
 %% Maxforwards tests
 %%
 
--module(ersip_maxforwards_test).
+-module(ersip_hdr_maxforwards_test).
 
 -include_lib("eunit/include/eunit.hrl").
 

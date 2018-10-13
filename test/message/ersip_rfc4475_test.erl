@@ -24,7 +24,7 @@
 %      transports, unreason, wsinv].
 
 fname(Name) ->
-    lists:concat(["test/rfc4475/", Name, ".dat"]).
+    lists:concat(["test/message/rfc4475/", Name, ".dat"]).
 
 -define(GOOD(Id),{title(Id), ?_assertMatch({ok, _}, haveto(Id))}).
 -define(GOOD_DGRAM(Id),{title(Id), ?_assertMatch({ok, _}, dgram_haveto(Id))}).

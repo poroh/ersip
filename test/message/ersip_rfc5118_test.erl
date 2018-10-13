@@ -34,7 +34,7 @@
 
 
 fname(Name) ->
-    lists:concat(["test/rfc5118/", Name]).
+    lists:concat(["test/message/rfc5118/", Name]).
 
 -define(GOOD(Id),{title(Id), ?_assertMatch({ok, _}, haveto(Id))}).
 -define(BAD(Id),{title( Id), ?_assertMatch({error, _}, haveto(Id))}).

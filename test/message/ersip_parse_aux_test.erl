@@ -122,14 +122,13 @@ parse_kvp_test() ->
 
 
 parse_params_test() ->
-    Validator = fun(Key, Value) -> {ok, {Key, Value}} end,
     {ok,
      [{<<"a">>, <<"b">>},
       {<<"c">>, <<"d">>}
      ],
      <<>>
-    } = ersip_parser_aux:parse_params(Validator, $;, <<"a=b;c=d">>),
-    ?assertMatch({error, _}, ersip_parser_aux:parse_params(Validator, $;, <<"a=\"">>)),
+    } = ersip_parser_aux:parse_params($;, <<"a=b;c=d">>),
+    ?assertMatch({error, _}, ersip_parser_aux:parse_params($;, <<"a=\"">>)),
     ok.
 
 %%%===================================================================

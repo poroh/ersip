@@ -20,7 +20,7 @@
          parse_sep/2,
          parse_non_neg_int/1,
          parse_kvps/3,
-         parse_params/3,
+         parse_params/2,
          parse_gen_param_value/1
         ]).
 
@@ -173,21 +173,9 @@ parse_kvps(Validator, Sep, Bin) ->
     end.
 
 %% generic-param 1*(Sep generic-param)
--spec parse_params(parse_kvps_validator(), char(), binary()) -> parse_result([gen_param()]).
-parse_params(Validator, Sep, Bin) ->
-    case do_parse_params(ersip_bin:trim_head_lws(Bin), Sep, []) of
-        {ok, GenList, Rest} ->
-            try
-                ParseResult =
-                    lists:filtermap(parse_kvps_make_validator_func(Validator), GenList),
-                {ok, ParseResult, Rest}
-            catch
-                throw:Error ->
-                    Error
-            end;
-        {error, _} = Error ->
-            Error
-    end.
+-spec parse_params(char(), binary()) -> parse_result([gen_param()]).
+parse_params(Sep, Bin) ->
+    do_parse_params(ersip_bin:trim_head_lws(Bin), Sep, []).
 
 %% generic-param  =  token [ EQUAL gen-value ]
 -spec parse_gen_param(binary()) -> parse_result({Key :: binary(), gen_param()}).
@@ -200,12 +188,12 @@ parse_gen_param(Bin) ->
                     Rest3 = ersip_bin:trim_head_lws(Rest2),
                     case parse_gen_param_value(Rest3) of
                         {ok, Value, Rest4} ->
-                            {ok, [Key, Value], Rest4};
+                            {ok, {Key, Value}, Rest4};
                         {error, Reason} ->
                             {error, {invalid_param_value, Reason}}
                     end;
                 {error, _} ->
-                    {ok, [Key], Rest0}
+                    {ok, {Key, <<>>}, Rest0}
             end;
         {error, Reason} ->
             {error, {invalid_param, Reason}}
@@ -213,6 +201,8 @@ parse_gen_param(Bin) ->
 
 %% gen-value      =  token / host / quoted-string
 -spec parse_gen_param_value(binary()) -> parse_result(gen_param()).
+parse_gen_param_value(<<>>) ->
+    {ok, <<>>, <<>>};
 parse_gen_param_value(Bin) ->
     case quoted_string(Bin) of
         {ok, Val, Rest} ->
@@ -415,7 +405,7 @@ parse_sep(Sep, <<Sep/utf8, R/binary>>) ->
 parse_sep(Sep, Bin) ->
     {error, {no_separator, Sep, Bin}}.
 
--spec do_parse_params(binary(), char(), [gen_param()]) -> parse_result([gen_param()]).
+-spec do_parse_params(binary(), char(), [gen_param()]) -> parse_result([{binary(), gen_param()}]).
 do_parse_params(Bin, Sep, Acc) ->
     case parse_gen_param(Bin) of
         {ok, Val, Rest0} ->

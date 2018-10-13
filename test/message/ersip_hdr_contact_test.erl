@@ -21,6 +21,7 @@ rebuild_test() ->
     rebuild(<<"<sip:a@b>;q=1">>),
     rebuild(<<"<sip:a@b>;expires=0">>),
     rebuild(<<"<sip:a@b>;q=1;expires=0">>),
+    rebuild(<<"<sip:a@b>;Q=1;ExPiRes=0;a=b">>),
     rebuild(<<"<sip:a@b>;a=b">>),
     rebuild(<<"<sip:a@b>;a">>),
     rebuild(<<"A B <sip:a@b>;a">>),
@@ -59,6 +60,9 @@ expires_test() ->
 
     AliceNoExpires = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
     ?assertEqual(21, ersip_hdr_contact:expires(AliceNoExpires, 21)),
+
+    Alice45 = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;Expires=45">>),
+    ?assertEqual(45, ersip_hdr_contact:expires(Alice45, any)),
     ok.
 
 qvalue_test() ->
@@ -93,7 +97,7 @@ set_param_error_test() ->
     ?assertError({invalid_expires, _}, ersip_hdr_contact:set_param(<<"expires">>, <<"@">>, Alice)),
     ?assertError({invalid_qvalue, _}, ersip_hdr_contact:set_param(<<"q">>, <<"2">>, Alice)),
     ?assertError({invalid_param, _}, ersip_hdr_contact:set_param(<<"@">>, <<"Value">>, Alice)),
-    ?assertError({invalid_param, _}, ersip_hdr_contact:set_param(<<"@">>, novalue, Alice)),
+    ?assertError({invalid_param, _}, ersip_hdr_contact:set_param(<<"@">>, <<>>, Alice)),
     ok.
 
 %%%===================================================================

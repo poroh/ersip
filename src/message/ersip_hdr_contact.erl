@@ -13,7 +13,6 @@
          set_expires/2,
          qvalue/2,
          set_qvalue/2,
-         params/1,
          set_param/3,
          make/1,
          parse/1,
@@ -29,7 +28,7 @@
 
 -record(contact, {display_name  :: undefined | ersip_nameaddr:display_name(),
                   uri           :: ersip_uri:uri(),
-                  params        :: [contact_param()]
+                  hparams       :: ersip_hparams:hparams()
                  }).
 -type contact() :: #contact{}.
 
@@ -40,6 +39,7 @@
 
 -type parse_result() :: {ok, contact()}
                       | {error, {invalid_contact, term()}}.
+-type known_param() :: q | expires.
 
 %%%===================================================================
 %%% API
@@ -50,11 +50,11 @@ uri(#contact{uri = URI}) ->
     URI.
 
 -spec expires(contact(), Default :: non_neg_integer()) -> non_neg_integer().
-expires(#contact{params = Params}, Default) ->
-    case lists:keyfind(expires, 1, Params) of
-        false ->
+expires(#contact{hparams = HParams}, Default) ->
+    case ersip_hparams:find(expires, HParams) of
+        not_found ->
             Default;
-        {expires, V} ->
+        {ok, V} ->
             V
     end.
 
@@ -62,35 +62,30 @@ expires(#contact{params = Params}, Default) ->
       ExpiresVal :: non_neg_integer().
 set_expires({expires, ExpiresVal}, #contact{} = Contact) when is_integer(ExpiresVal) ->
     set_expires(ExpiresVal, Contact);
-set_expires(ExpiresVal, #contact{params = Params} = Contact) when is_integer(ExpiresVal) ->
-    NewParams = lists:keystore(expires, 1, Params, {expires, ExpiresVal}),
-    Contact#contact{params = NewParams}.
+set_expires(ExpiresVal, #contact{hparams = HParams} = Contact) when is_integer(ExpiresVal) ->
+    NewHParams = ersip_hparams:set(expires, ExpiresVal, <<"expires">>, integer_to_binary(ExpiresVal), HParams),
+    Contact#contact{hparams = NewHParams}.
 
 -spec qvalue(contact(), Default :: term()) -> ersip_qvalue:qvalue() | term().
-qvalue(#contact{params = Params}, Default) ->
-    case lists:keyfind(q, 1, Params) of
-        false ->
+qvalue(#contact{hparams = HParams}, Default) ->
+    case ersip_hparams:find(q, HParams) of
+        not_found ->
             Default;
-        {q, V} ->
+        {ok, V} ->
             V
     end.
 
 -spec set_qvalue(ersip_qvalue:qvalue(), contact()) -> contact().
-set_qvalue({qvalue, _} = QVal, #contact{params = Params} = Contact) ->
-    NewParams = lists:keystore(q, 1, Params, {q, QVal}),
-    Contact#contact{params = NewParams}.
+set_qvalue({qvalue, _} = QVal, #contact{hparams = HParams} = Contact) ->
+    NewHParams = ersip_hparams:set(q, QVal, <<"q">>, ersip_qvalue:assemble(QVal), HParams),
+    Contact#contact{hparams = NewHParams}.
 
--spec params(contact()) -> [contact_param()].
-params(#contact{params = Params}) ->
-    Params.
-
--spec set_param(Name :: binary(), PValue :: binary() | novalue, contact()) -> contact().
-set_param(PName, PValue, #contact{params = Params} = Contact)
-        when is_binary(PName), (is_binary(PValue) orelse PValue == novalue) ->
-    case contact_params_validator(PName, PValue) of
-        {ok, {Key, Value}} ->
-            NewParams = [{Key, Value} | proplists:delete(Key, Params)],
-            Contact#contact{params = NewParams};
+-spec set_param(Name :: binary(), PValue :: binary(), contact()) -> contact().
+set_param(PName, PValue, #contact{hparams = HParams} = Contact)
+        when is_binary(PName), is_binary(PValue) ->
+    case set_hparam(PName, PValue, HParams) of
+        {ok, NewHParam} ->
+            Contact#contact{hparams = NewHParam};
         {error, Reason} ->
             error(Reason)
     end.
@@ -122,10 +117,10 @@ parse_hdr(Bin) ->
                fun parse_contact_params/1
               ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of
-        {ok, [{DisplayName, URI}, _, ParamsList], Rest} ->
+        {ok, [{DisplayName, URI}, _, HParams], Rest} ->
             Contact = #contact{display_name = DisplayName,
                                uri          = URI,
-                               params       = ParamsList},
+                               hparams      = HParams},
             {ok, Contact, Rest};
         {error, Reason} ->
             {error, {invalid_contact, Reason}}
@@ -135,73 +130,96 @@ parse_hdr(Bin) ->
 assemble(#contact{} = Contact) ->
     #contact{display_name = DN,
            uri = URI,
-           params = ParamsList
+           hparams = HParams
           } = Contact,
-    [ersip_nameaddr:assemble(DN, URI),
-     lists:map(fun({q, QValue}) ->
-                       [<<";q=">>, ersip_qvalue:assemble(QValue)];
-                  ({expires, Expires}) ->
-                       ExpiresBin = integer_to_binary(Expires),
-                       [<<";expires=", ExpiresBin/binary>>];
-                  ({Key, Value}) when is_binary(Value) ->
-                       [<<";">>, Key, <<"=">>, Value];
-                  ({Key, novalue})  ->
-                       [<<";">>, Key]
-               end,
-               ParamsList)
-    ].
+    HParamsIO0 = ersip_hparams:assemble(HParams),
+    HParamsIO =
+        case ersip_iolist:is_empty(HParamsIO0) of
+            true -> [];
+            false -> [$; | HParamsIO0]
+        end,
+    [ersip_nameaddr:assemble(DN, URI), HParamsIO].
 
 %%%===================================================================
 %%% Internal Implementation
 %%%===================================================================
 
--spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
+-spec param_name_to_atom(binary()) -> {ok, known_param()} | not_found | {error, {invalid_param, binary()}}.
+param_name_to_atom(<<"expires">>) -> {ok, expires};
+param_name_to_atom(<<"q">>)       -> {ok, q};
+param_name_to_atom(X) when is_binary(X) ->
+    case ersip_parser_aux:check_token(X) of
+        true -> not_found;
+        false -> {error, {invalid_param, X}}
+    end.
+
+-spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_contact_params(<<$;, Bin/binary>>) ->
     do_parse_contact_params(Bin);
 parse_contact_params(Bin) ->
-    {ok, [], Bin}.
+    {ok, ersip_hparams:new(), Bin}.
 
--spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
+-spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 do_parse_contact_params(Bin) ->
-    ersip_parser_aux:parse_params(fun contact_params_validator/2, $;, Bin).
-
--spec contact_params_validator(binary(), binary() | novalue) -> Result when
-      Result :: {ok, {q, ersip_qvalue:qvalue()}}
-              | {ok, {expires, non_neg_integer()}}
-              | {ok, {binary(), novalue}}
-              | {ok, {binary(), binary()}}
-              | {error, term()}.
-contact_params_validator(Key, Val) ->
-    case ersip_parser_aux:check_token(Key) of
-        false ->
-            {error, {invalid_param, Key}};
-        true ->
-            LowerKey = ersip_bin:to_lower(Key),
-            do_contact_params_validator(LowerKey, Val)
+    case ersip_parser_aux:parse_params($;, Bin) of
+        {ok, PList, Rest} ->
+            try
+                HParams =
+                    lists:foldl(fun({Key, Value}, HParams) ->
+                                        case set_hparam(Key, Value, HParams) of
+                                            {ok, NewHParam} ->
+                                                NewHParam;
+                                            {error, _} = Error ->
+                                                throw(Error)
+                                        end
+                                end,
+                                ersip_hparams:new(),
+                                PList),
+                {ok, HParams, Rest}
+            catch
+                throw:{error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
--spec do_contact_params_validator(binary(), binary() | novalue) -> Result when
-      Result :: {ok, {q, ersip_qvalue:qvalue()}}
-              | {ok, {expires, non_neg_integer()}}
-              | {ok, {binary(), novalue}}
-              | {ok, {binary(), binary()}}
-              | {error, term()}.
-do_contact_params_validator(<<"q">>, Value) ->
-    case ersip_qvalue:parse(Value) of
-        {ok, QValue} ->
-            {ok, {q, QValue}};
-        {error, Reason} ->
-            {error, {invalid_qvalue, Reason}}
-    end;
-do_contact_params_validator(<<"expires">>, Value) ->
+
+-spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
+      Value :: {expires, integer()}
+             | {q, ersip_qvalue:qvalue()},
+      Err   :: {invalid_expires, binary()}
+             | {invalid_qvalue, binary()}.
+parse_param(expires, Value) ->
     try
-        {ok, {expires, binary_to_integer(Value)}}
+        {ok, binary_to_integer(Value)}
     catch
         error:badarg ->
             {error, {invalid_expires, Value}}
     end;
-do_contact_params_validator(Key, novalue) ->
-    {ok, {Key, novalue}};
-do_contact_params_validator(Key, Value) when is_binary(Value) ->
-    {ok, {Key, Value}}.
+parse_param(q, Value) ->
+    case ersip_qvalue:parse(Value) of
+        {ok, _} = Ok -> Ok;
+        {error, Reason} ->
+            {error, {invalid_qvalue, Reason}}
+    end.
 
+
+-spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> Result when
+      Result :: {ok, ersip_hparams:hparams()}
+              | {error, term()}.
+set_hparam(PName, PValue, HParams) ->
+    LowerName = ersip_bin:to_lower(PName),
+    case param_name_to_atom(LowerName) of
+        {ok, ParsedName} ->
+            case parse_param(ParsedName, PValue) of
+                {ok, ParsedValue} ->
+                    {ok, ersip_hparams:set(ParsedName, ParsedValue, PName, PValue, HParams)};
+                {error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error;
+        not_found ->
+            {ok, ersip_hparams:set_raw(PName, PValue, HParams)}
+    end.

@@ -11,6 +11,8 @@
 -export([uri/1,
          expires/2,
          set_expires/2,
+         qvalue/2,
+         set_qvalue/2,
          params/1,
          set_param/3,
          make/1,
@@ -64,14 +66,34 @@ set_expires(ExpiresVal, #contact{params = Params} = Contact) when is_integer(Exp
     NewParams = lists:keystore(expires, 1, Params, {expires, ExpiresVal}),
     Contact#contact{params = NewParams}.
 
+-spec qvalue(contact(), Default :: term()) -> ersip_qvalue:qvalue() | term().
+qvalue(#contact{params = Params}, Default) ->
+    case lists:keyfind(q, 1, Params) of
+        false ->
+            Default;
+        {q, V} ->
+            V
+    end.
+
+-spec set_qvalue(ersip_qvalue:qvalue(), contact()) -> contact().
+set_qvalue({qvalue, _} = QVal, #contact{params = Params} = Contact) ->
+    NewParams = lists:keystore(q, 1, Params, {q, QVal}),
+    Contact#contact{params = NewParams}.
+
 -spec params(contact()) -> [contact_param()].
 params(#contact{params = Params}) ->
     Params.
 
-set_param(ParamName, Value, #contact{params = Params} = Contact)
-        when is_binary(ParamName), is_binary(Value) ->
-    NewParams = [{ParamName, Value} | Params],
-    Contact#contact{params = NewParams}.
+-spec set_param(Name :: binary(), PValue :: binary() | novalue, contact()) -> contact().
+set_param(PName, PValue, #contact{params = Params} = Contact)
+        when is_binary(PName), (is_binary(PValue) orelse PValue == novalue) ->
+    case contact_params_validator(PName, PValue) of
+        {ok, {Key, Value}} ->
+            NewParams = [{Key, Value} | proplists:delete(Key, Params)],
+            Contact#contact{params = NewParams};
+        {error, Reason} ->
+            error(Reason)
+    end.
 
 -spec make(binary()) -> contact().
 make(Bin) when is_binary(Bin) ->
@@ -140,8 +162,6 @@ parse_contact_params(Bin) ->
     {ok, [], Bin}.
 
 -spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result([contact_param()]).
-do_parse_contact_params(<<>>) ->
-    {ok, [], <<>>};
 do_parse_contact_params(Bin) ->
     ersip_parser_aux:parse_params(fun contact_params_validator/2, $;, Bin).
 
@@ -150,32 +170,38 @@ do_parse_contact_params(Bin) ->
               | {ok, {expires, non_neg_integer()}}
               | {ok, {binary(), novalue}}
               | {ok, {binary(), binary()}}
-              | {error, {invalid_contact, term()}}.
-contact_params_validator(<<"q">>, Value) ->
+              | {error, term()}.
+contact_params_validator(Key, Val) ->
+    case ersip_parser_aux:check_token(Key) of
+        false ->
+            {error, {invalid_param, Key}};
+        true ->
+            LowerKey = ersip_bin:to_lower(Key),
+            do_contact_params_validator(LowerKey, Val)
+    end.
+
+-spec do_contact_params_validator(binary(), binary() | novalue) -> Result when
+      Result :: {ok, {q, ersip_qvalue:qvalue()}}
+              | {ok, {expires, non_neg_integer()}}
+              | {ok, {binary(), novalue}}
+              | {ok, {binary(), binary()}}
+              | {error, term()}.
+do_contact_params_validator(<<"q">>, Value) ->
     case ersip_qvalue:parse(Value) of
         {ok, QValue} ->
             {ok, {q, QValue}};
         {error, Reason} ->
-            {error, {invalid_contact, Reason}}
+            {error, {invalid_qvalue, Reason}}
     end;
-contact_params_validator(<<"expires">>, Value) ->
+do_contact_params_validator(<<"expires">>, Value) ->
     try
         {ok, {expires, binary_to_integer(Value)}}
     catch
         error:badarg ->
-            {error, {invalid_contact, {invalid_expires, Value}}}
+            {error, {invalid_expires, Value}}
     end;
-contact_params_validator(Key, novalue) ->
-    case ersip_parser_aux:check_token(Key) of
-        true ->
-            {ok, {Key, novalue}};
-        false ->
-            {error, {invalid_contact, {invalid_param, Key}}}
-    end;
-contact_params_validator(Key, Value) when is_binary(Value) ->
-    case ersip_parser_aux:check_token(Key) of
-        true ->
-            {ok, {Key, Value}};
-        false ->
-            {error, {invalid_contact, {invalid_param, Key}}}
-    end.
+do_contact_params_validator(Key, novalue) ->
+    {ok, {Key, novalue}};
+do_contact_params_validator(Key, Value) when is_binary(Value) ->
+    {ok, {Key, Value}}.
+

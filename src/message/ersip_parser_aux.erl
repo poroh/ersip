@@ -215,8 +215,10 @@ parse_gen_param_value(Bin) ->
                     R;
                 _ ->
                     case ersip_host:parse(Bin) of
-                        {ok, _Host, _Rest} = Result ->
-                            Result;
+                        {ok, _Host, Rest} ->
+                            RestPos = byte_size(Bin) - byte_size(Rest),
+                            <<HostBin:RestPos/binary, _/binary>> = Bin,
+                            {ok, HostBin, Rest};
                         _ ->
                             {error, {inval_gen_param_value, Bin}}
                     end

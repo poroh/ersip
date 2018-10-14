@@ -224,8 +224,8 @@ maybe_add_received(Via, #sip_conn{} = Conn) ->
 
 -spec maybe_fill_rport(ersip_hdr_via:via(), sip_conn()) -> ersip_hdr_via:via().
 maybe_fill_rport(Via, #sip_conn{} = Conn) ->
-    case ersip_hdr_via:params(Via) of
-        #{rport := true} ->
+    case ersip_hdr_via:has_rport(Via) of
+        true ->
             %% RFC 3581:
             %% When a server compliant to this specification (which can be a proxy
             %% or UAS) receives a request, it examines the topmost Via header field
@@ -240,7 +240,7 @@ maybe_fill_rport(Via, #sip_conn{} = Conn) ->
             Via1 = ersip_hdr_via:set_param(rport, remote_port(Conn), Via),
             Via2 = ersip_hdr_via:set_param(received, remote_ip(Conn), Via1),
             Via2;
-        _ ->
+        false ->
             Via
     end.
 

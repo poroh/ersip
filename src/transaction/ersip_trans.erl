@@ -144,8 +144,14 @@ client_id(OutReq) ->
 client_id(RecvVia, SipMsg) ->
     CSeqHdr = ersip_sipmsg:get(cseq, SipMsg),
     Method = ersip_hdr_cseq:method(CSeqHdr),
-    Branch = ersip_hdr_via:branch(RecvVia),
-    ersip_trans_id:make_client(Branch, Method).
+    case ersip_hdr_via:branch(RecvVia) of
+        {ok, Branch} ->
+            ersip_trans_id:make_client(Branch, Method);
+        undefined ->
+            %% Case when response does not contains branch
+            FakeBranch = ersip_branch:make_random(6),
+            ersip_trans_id:make_client(FakeBranch, Method)
+    end.
 
 %%%===================================================================
 %%% Internal implementation

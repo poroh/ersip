@@ -12,17 +12,24 @@
          new/4,
          topmost_via/1,
          sent_protocol/1,
-         params/1,
+         received/1,
+         has_rport/1,
+         rport/1,
+         maddr/1,
+         ttl/1,
+         raw_param/2,
          set_param/3,
          branch/1,
          sent_by/1,
          sent_by_key/1,
          make_key/1,
          assemble/1,
+         assemble_bin/1,
          parse/1
         ]).
 
 -export_type([via/0,
+              via_key/0,
               sent_by/0
              ]).
 
@@ -32,24 +39,26 @@
 
 -record(via, {sent_protocol  :: sent_protocol(),
               sent_by        :: internal_sent_by(),
-              via_params     :: via_params()
+              hparams        :: ersip_hparams:hparams()
              }).
 -type via()           :: #via{}.
 -type sent_protocol() :: {sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport()}.
 -type sent_by()       :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number()}.
 -type internal_sent_by() :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port}.
--type via_params()    :: #{branch   => ersip_branch:branch(),
-                           maddr    => ersip_host:host(),
-                           received => ersip_host:host(),
-                           ttl      => non_neg_integer(),
-                           rport    => ersip_transport:port_number() | true,
-                           binary() => binary()
-                          }.
 -type known_via_params() :: branch
                           | maddr
                           | received
                           | ttl
                           | rport.
+-type rport_value() :: ersip_transport:port_number() | true.
+-type via_key() :: {sent_protocol(), sent_by(), via_params_key()}.
+-type via_params_key()    :: #{branch   => ersip_branch:branch(),
+                               maddr    => ersip_host:host(),
+                               received => ersip_host:host(),
+                               ttl      => non_neg_integer(),
+                               rport    => ersip_transport:port_number() | true,
+                               binary() => binary()
+                              }.
 
 %%%===================================================================
 %%% API
@@ -59,14 +68,16 @@
 new(Address, Port, Transport) ->
     #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
          sent_by = {sent_by, Address, Port},
-         via_params = #{}
+         hparams = ersip_hparams:new()
         }.
 
 -spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
 new(Address, Port, Transport, Branch) ->
+    HParams0 = ersip_hparams:new(),
+    HParams = ersip_hparams:set(branch, Branch, <<"Branch">>, ersip_branch:assemble(Branch), HParams0),
     #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
          sent_by = {sent_by, Address, Port},
-         via_params = #{branch => Branch}
+         hparams = HParams
         }.
 
 -spec topmost_via(ersip_hdr:header()) -> Result when
@@ -85,9 +96,9 @@ topmost_via(Header) ->
 sent_protocol(#via{sent_protocol = Sp}) ->
     Sp.
 
--spec params(via()) -> via_params().
-params(#via{via_params = VP}) ->
-    VP.
+-spec raw_param(ParamName :: binary(), via()) -> {ok, ParamValue :: binary()} | not_found.
+raw_param(ParamName, #via{hparams = HParams}) when is_binary(ParamName) ->
+    ersip_hparams:find_raw(ParamName, HParams).
 
 -spec set_param(ParamName, Value, via()) -> via() when
       ParamName :: known_via_params() | binary(),
@@ -103,16 +114,16 @@ set_param(received, Value, Via) when is_binary(Value) ->
         {error, _} = Error ->
             error(Error)
     end;
-set_param(received, {Type, _} = Value , #via{via_params = VP} = Via)
+set_param(received, {Type, _} = Value , #via{hparams = HP} = Via)
   when Type =:= ipv4 orelse Type =:= ipv6 ->
-    Via#via{via_params = VP#{received => Value}};
+    HPNew = ersip_hparams:set(received, Value, <<"received">>, assemble_param_value(received, Value), HP),
+    Via#via{hparams = HPNew};
 set_param(received, Value, _) ->
     error({error, {bad_received_via_param, Value}});
-set_param(rport, Value, #via{via_params = VP} = Via)
-  when is_integer(Value) andalso Value >= 1 andalso Value =< 65535 ->
-    Via#via{via_params = VP#{rport => Value}};
-set_param(rport, true, #via{via_params = VP} = Via) ->
-    Via#via{via_params = VP#{rport => true}};
+set_param(rport, Value, #via{hparams = HP} = Via)
+  when is_integer(Value) andalso Value >= 1 andalso Value =< 65535 orelse Value == true ->
+    HPNew = ersip_hparams:set(rport, Value, <<"rport">>, assemble_param_value(rport, Value), HP),
+    Via#via{hparams = HPNew};
 set_param(rport, Value, _) ->
     error({error, {bad_rport_via_param, Value}}).
 
@@ -129,17 +140,54 @@ sent_by(#via{sent_by = SentBy}) ->
 sent_by_key(#via{} = Via) ->
     sent_by_make_key(sent_by(Via)).
 
--spec branch(via()) -> ersip_branch:branch() | undefined.
-branch(#via{} = Via) ->
-    Params = params(Via),
-    maps:get(branch, Params, undefined).
+-spec branch(via()) -> {ok, ersip_branch:branch()} | undefined.
+branch(#via{hparams = HParams}) ->
+    case ersip_hparams:find(branch, HParams) of
+        {ok, BranchValue} -> {ok, BranchValue};
+        not_found -> undefined
+    end.
 
--spec make_key(via()) -> via().
-make_key(#via{} = Via) ->
-    #via{sent_protocol = sent_protocol_make_key(sent_protocol(Via)),
-         sent_by       = sent_by_make_key(sent_by(Via)),
-         via_params    = via_params_make_key(params(Via))
-        }.
+-spec received(via()) -> {ok, ersip_host:host()} | undefined.
+received(#via{hparams = HParams}) ->
+    case ersip_hparams:find(received, HParams) of
+        {ok, Host} -> {ok, Host};
+        not_found  -> undefined
+    end.
+
+-spec has_rport(via()) -> boolean().
+has_rport(#via{hparams = HParams}) ->
+    case ersip_hparams:find(rport, HParams) of
+        {ok, _} ->   true;
+        not_found -> false
+    end.
+
+-spec rport(via()) -> {ok, rport_value()} | undefined.
+rport(#via{hparams = HParams}) ->
+    case ersip_hparams:find(rport, HParams) of
+        {ok, RPortVal} -> {ok, RPortVal};
+        not_found      -> undefined
+    end.
+
+
+-spec maddr(via()) -> {ok, ersip_host:host()} | undefined.
+maddr(#via{hparams = HParams}) ->
+    case ersip_hparams:find(maddr, HParams) of
+        {ok, Host} -> {ok, Host};
+        not_found  -> undefined
+    end.
+
+-spec ttl(via()) -> {ok, non_neg_integer()} | undefined.
+ttl(#via{hparams = HParams}) ->
+    case ersip_hparams:find(ttl, HParams) of
+        {ok, TTL} -> {ok, TTL};
+        not_found -> undefined
+    end.
+
+-spec make_key(via()) -> via_key().
+make_key(#via{hparams = HParams} = Via) ->
+    {sent_protocol_make_key(sent_protocol(Via)),
+     sent_by_make_key(sent_by(Via)),
+     via_params_make_key(HParams)}.
 
 -spec assemble(via()) -> iolist().
 assemble(#via{} = Via) ->
@@ -147,7 +195,7 @@ assemble(#via{} = Via) ->
        sent_protocol =
            {sent_protocol, Protocol, ProtocolVersion, Transport},
        sent_by    = {sent_by, Host, Port},
-       via_params = Params
+       hparams = HParams
       } = Via,
     [Protocol, $/, ProtocolVersion, $/, ersip_transport:assemble_upper(Transport),
      <<" ">>, ersip_host:assemble(Host),
@@ -157,8 +205,12 @@ assemble(#via{} = Via) ->
          Port ->
              [$:, integer_to_binary(Port)]
      end,
-     assemble_params(Params)
+     assemble_params(HParams)
     ].
+
+-spec assemble_bin(via()) -> binary().
+assemble_bin(#via{} = Via) ->
+    iolist_to_binary(assemble(Via)).
 
 -spec parse(iolist()) -> {ok, via()} | {error, term()}.
 parse(IOList) ->
@@ -176,10 +228,10 @@ parse_via(ViaBinary) ->
                fun ersip_parser_aux:trim_lws/1,
                fun parse_via_params/1],
     case ersip_parser_aux:parse_all(ViaBinary, Parsers) of
-        {ok, [SentProtocol, _, SentBy, _, ViaParams], _} ->
+        {ok, [SentProtocol, _, SentBy, _, HParams], _} ->
             Via = #via{sent_protocol = SentProtocol,
                        sent_by       = SentBy,
-                       via_params    = ViaParams},
+                       hparams       = HParams},
             {ok, Via};
         {error, _} = Error ->
             Error
@@ -273,17 +325,22 @@ parse_transport(Binary) ->
             Error
     end.
 
--spec parse_via_params(binary()) -> ersip_parser_aux:parse_result(via_params()).
+-spec parse_via_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_via_params(<<$;, Rest/binary>>) ->
     do_parse_via_params(Rest);
 parse_via_params(Binary) ->
-    do_parse_via_params(Binary).
+    {ok, ersip_hparams:new(), Binary}.
 
--spec do_parse_via_params(binary()) -> ersip_parser_aux:parse_result(via_params()).
-do_parse_via_params(Binary) ->
-    case ersip_parser_aux:parse_kvps(fun via_params_val/2, <<";">>, Binary) of
-        {ok, L, Rest} ->
-            {ok, maps:from_list(L), Rest};
+-spec do_parse_via_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
+do_parse_via_params(Bin) ->
+    case ersip_hparams:parse_raw(Bin) of
+        {ok, HParams0, Rest} ->
+            case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+                {ok, HParams} ->
+                    {ok, HParams, Rest};
+                {error, _} = Error ->
+                    Error
+            end;
         {error, _} = Error ->
             Error
     end.
@@ -291,7 +348,7 @@ do_parse_via_params(Binary) ->
 %% via-params        =  via-ttl / via-maddr
 %%                      / via-received / via-branch
 %%                      / via-extension
--spec via_params_val(Key, Value) -> Result when
+-spec parse_known(Key, Value) -> Result when
       Key    :: binary(),
       Value  :: binary(),
       Result :: {ok, {ResultKey, ResultVal}}
@@ -300,25 +357,7 @@ do_parse_via_params(Binary) ->
       ResultVal :: non_neg_integer()
                  | ersip_host:host()
                  | binary().
-via_params_val(<<"rport">>, novalue) ->
-    {ok, {rport, true}};
-via_params_val(Key, novalue) ->
-    {ok, {Key, true}};
-via_params_val(Key, Value) ->
-    KeyT = ersip_bin:to_lower(ersip_bin:trim_head_lws(Key)),
-    ValT = ersip_bin:trim_head_lws(Value),
-    via_params_val_impl(KeyT, ValT).
-
--spec via_params_val_impl(Key, Value) -> Result when
-      Key    :: binary(),
-      Value  :: binary(),
-      Result :: {ok, {ResultKey, ResultVal}}
-              | {error, term()},
-      ResultKey :: known_via_params() | binary(),
-      ResultVal :: non_neg_integer()
-                 | ersip_host:host()
-                 | binary().
-via_params_val_impl(<<"ttl">>, Value) ->
+parse_known(<<"ttl">>, Value) ->
     %% 1*3DIGIT ; 0 to 255
     case ersip_parser_aux:parse_non_neg_int(Value) of
         {ok, TTL, <<>>} when TTL >= 0 andalso TTL =< 255 ->
@@ -326,7 +365,7 @@ via_params_val_impl(<<"ttl">>, Value) ->
         _ ->
             {error, {invalid_ttl, Value}}
     end;
-via_params_val_impl(<<"received">>, Value) ->
+parse_known(<<"received">>, Value) ->
     %% "received" EQUAL (IPv4address / IPv6address)
     case ersip_host:parse(Value) of
         {ok, {ipv4, _} = Host, <<>>} ->
@@ -336,7 +375,7 @@ via_params_val_impl(<<"received">>, Value) ->
         _ ->
             {error, {invalid_received, Value}}
     end;
-via_params_val_impl(<<"maddr">>, Value) ->
+parse_known(<<"maddr">>, Value) ->
     %% "received" EQUAL (IPv4address / IPv6address)
     case ersip_host:parse(Value) of
         {ok, Host, <<>>} ->
@@ -344,7 +383,7 @@ via_params_val_impl(<<"maddr">>, Value) ->
         _ ->
             {error, {invalid_maddr, Value}}
     end;
-via_params_val_impl(<<"branch">>, Value) ->
+parse_known(<<"branch">>, Value) ->
     %% "branch" EQUAL token
     case ersip_parser_aux:parse_token(Value) of
         {ok, Branch, <<>>} ->
@@ -352,7 +391,9 @@ via_params_val_impl(<<"branch">>, Value) ->
         _ ->
             {error, {invalid_branch, Value}}
     end;
-via_params_val_impl(<<"rport">>, Value) ->
+parse_known(<<"rport">>, <<>>) ->
+    {ok, {rport, true}};
+parse_known(<<"rport">>, Value) ->
     %% response-port = "rport" [EQUAL 1*DIGIT]
     case ersip_transport:parse_port_number(Value) of
         {ok, Port, <<>>} ->
@@ -360,13 +401,8 @@ via_params_val_impl(<<"rport">>, Value) ->
         _ ->
             {error, {invalid_rport, Value}}
     end;
-via_params_val_impl(Key, Value) ->
-    case ersip_parser_aux:parse_gen_param_value(Value) of
-        {ok, ParsedValue, <<>>} ->
-            {ok, {Key, ParsedValue}};
-        _ ->
-            {error, {invalid_gen_param, {Key, Value}}}
-    end.
+parse_known(_, _) ->
+    {ok, unknown}.
 
 -spec sent_protocol_make_key(sent_protocol()) -> sent_protocol().
 sent_protocol_make_key(Protocol) ->
@@ -376,9 +412,9 @@ sent_protocol_make_key(Protocol) ->
 sent_by_make_key({sent_by, Host, Port}) ->
     {sent_by, ersip_host:make_key(Host), Port}.
 
--spec via_params_make_key(via_params()) -> via_params().
+-spec via_params_make_key(ersip_hparams:hparams()) -> via_params_key().
 via_params_make_key(Params) ->
-    L = maps:to_list(Params),
+    L = ersip_hparams:to_list(Params),
     LKeys = lists:map(fun({Key, Value}) ->
                               via_param_make_key(Key, Value)
                       end,
@@ -403,28 +439,24 @@ via_param_make_key(rport, R) ->
 via_param_make_key(OtherKey, OtherValue) when is_binary(OtherKey) ->
     {ersip_bin:to_lower(OtherKey), OtherValue}.
 
--spec assemble_params(via_params()) -> [iolist()].
-assemble_params(Params) ->
-    lists:map(fun assemble_param/1,
-              maps:to_list(Params)).
+-spec assemble_params(ersip_hparams:hparams()) -> [iolist()].
+assemble_params(HParams) ->
+    HParamsIO0 = ersip_hparams:assemble(HParams),
+    case ersip_iolist:is_empty(HParamsIO0) of
+        true -> [];
+        false -> [$; | HParamsIO0]
+    end.
 
--spec assemble_param({Name, Value}) -> iolist() when
-      Name :: known_via_params()
-            | binary(),
-      Value :: term().
-assemble_param({received, Value}) ->
-    [<<";received=">>, ersip_host:assemble(Value)];
-assemble_param({rport, true}) ->
-    <<";rport">>;
-assemble_param({rport, Value}) ->
-    [<<";rport=">>, integer_to_binary(Value)];
-assemble_param({ttl, Value}) ->
-    [<<";ttl=">>, integer_to_binary(Value)];
-assemble_param({maddr, Value}) ->
-    [<<";maddr=">>, ersip_host:assemble(Value)];
-assemble_param({branch, Value}) ->
-    [<<";branch=">>, ersip_branch:assemble(Value)];
-assemble_param({Name, true}) ->
-    [<<";", Name/binary>>];
-assemble_param({Name, Value}) ->
-    <<";", Name/binary, "=", Value/binary>>.
+-spec assemble_param_value(known_via_params(), term()) -> iolist().
+assemble_param_value(received, Value) ->
+    ersip_host:assemble(Value);
+assemble_param_value(rport, true) ->
+    <<>>;
+assemble_param_value(rport, Value) ->
+    integer_to_binary(Value);
+assemble_param_value(ttl, Value) ->
+    integer_to_binary(Value);
+assemble_param_value(maddr, Value) ->
+    ersip_host:assemble(Value);
+assemble_param_value(branch, Value) ->
+    ersip_branch:assemble(Value).

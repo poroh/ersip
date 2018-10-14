@@ -423,19 +423,19 @@ check_received(RemoteIp, Msg, Conn) ->
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
     RemoteHost = ersip_host:make(RemoteIp),
-    ?assertMatch(#{received := RemoteHost}, ersip_hdr_via:params(Via)).
+    ?assertMatch({ok, RemoteHost}, ersip_hdr_via:received(Via)).
 
 check_rport(RemotePort, Msg, Conn) ->
     {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
-    ?assertMatch(#{rport := RemotePort}, ersip_hdr_via:params(Via)).
+    ?assertMatch({ok, RemotePort}, ersip_hdr_via:rport(Via)).
 
 check_no_received(Msg, Conn) ->
     {_, [{new_request, NewMsg}]} = ersip_conn:conn_data(Msg, Conn),
     ViaH = ersip_msg:get(<<"via">>, NewMsg),
     {ok, Via} = ersip_hdr_via:topmost_via(ViaH),
-    ?assertMatch(error, maps:find(received, ersip_hdr_via:params(Via))).
+    ?assertMatch(undefined, ersip_hdr_via:received(Via)).
 
 parse_msg(Msg) ->
     P  = ersip_parser:new_dgram(Msg),

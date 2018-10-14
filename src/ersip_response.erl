@@ -30,7 +30,6 @@
       Result :: {direct, target()}
               | {reuse, target()}.
 target(Via) ->
-    ViaParams = ersip_hdr_via:params(Via),
     {sent_protocol, _, _, Transport} = ersip_hdr_via:sent_protocol(Via),
     case ersip_transport:is_reliable(Transport) of
         true ->
@@ -52,8 +51,8 @@ target(Via) ->
             %% to..
             {reuse, make_target_from_received(Via)};
         false ->
-            case ViaParams of
-                #{maddr := Host} ->
+            case ersip_hdr_via:maddr(Via) of
+                {ok, Host} ->
                     %% Otherwise, if the Via header field value
                     %% contains a "maddr" parameter, the response MUST
                     %% be forwarded to the address listed there, using
@@ -65,15 +64,13 @@ target(Via) ->
                     %% present.
                     Port = select_port(Via),
                     Options =
-                        case ViaParams of
-                            #{ttl := TTL} ->
-                                #{ttl => TTL};
-                            _ ->
-                                #{ttl => 1}
+                        case ersip_hdr_via:ttl(Via) of
+                            {ok, TTL} -> #{ttl => TTL};
+                            undefined -> #{ttl => 1}
                         end,
                     {direct, {Host, Port, Transport, Options}};
-                 _ ->
-                    target_rfc3261_or_3581(ViaParams, Via)
+                undefined ->
+                    target_rfc3261_or_3581(Via)
             end
     end.
 
@@ -85,15 +82,12 @@ target(Via) ->
 -spec make_target_from_received(ersip_hdr_via:via()) -> target().
 make_target_from_received(Via) ->
     {sent_protocol, _, _, Transport} = ersip_hdr_via:sent_protocol(Via),
-    ViaParams = ersip_hdr_via:params(Via),
-    Host =
-        case ViaParams of
-            #{received := H} ->
-                H;
-            _ ->
-                {sent_by, H, _} = ersip_hdr_via:sent_by(Via),
-                H
-        end,
+    Host = case ersip_hdr_via:received(Via) of
+               {ok, H} -> H;
+               undefined ->
+                   {sent_by, H, _} = ersip_hdr_via:sent_by(Via),
+                   H
+           end,
     {Host, select_port(Via), Transport, #{}}.
 
 
@@ -102,9 +96,11 @@ select_port(Via) ->
     {sent_by, _, SentByPort} = ersip_hdr_via:sent_by(Via),
     SentByPort.
 
-target_rfc3261_or_3581(ViaParams, Via) ->
-    case ViaParams of
-        #{received := Host, rport := Port} when Port /= true ->
+target_rfc3261_or_3581(Via) ->
+    MaybeReceived = ersip_hdr_via:received(Via),
+    MaybeRPort    = ersip_hdr_via:rport(Via),
+    case {MaybeReceived, MaybeRPort} of
+        {{ok, Host}, {ok, Port}} when is_integer(Port) ->
             %% RFC 3581:
             %% When a server attempts to send a response, it examines the topmost
             %% Via header field value of that response.  If the "sent-protocol"

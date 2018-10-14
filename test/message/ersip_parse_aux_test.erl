@@ -67,7 +67,7 @@ token_list_test() ->
 parse_gen_param_value_test() ->
     ?assertEqual({ok, <<"a">>, <<>>}, ersip_parser_aux:parse_gen_param_value(<<"a">>)),
     ?assertEqual({ok, <<"\"a\"">>, <<>>}, ersip_parser_aux:parse_gen_param_value(<<"\"a\"">>)),
-    ?assertEqual({ok, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}, <<>>}, ersip_parser_aux:parse_gen_param_value(<<"[::1]">>)).
+    ?assertEqual({ok, <<"[::1]">>, <<>>}, ersip_parser_aux:parse_gen_param_value(<<"[::1]">>)).
 
 
 parse_lws_test() ->

@@ -205,7 +205,7 @@ process_response_no_forward_via_test() ->
     PrevVia = ersip_hdr_via:new(ersip_host:make(<<"127.0.0.2">>), 5060, ersip_transport:make(udp)),
     ProcessResult = ersip_proxy_stateless:process_response(PrevVia, RawRespMsg),
     %% Action is drop because unmatched via
-    ?assertMatch({drop, via_not_match}, ProcessResult),
+    ?assertMatch({drop, via_no_branch}, ProcessResult),
     ok.
 
 process_response_via_not_match_test() ->

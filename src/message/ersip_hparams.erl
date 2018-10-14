@@ -17,8 +17,10 @@
 
 -export([new/0,
          parse_raw/1,
+         parse_known/2,
          assemble/1,
          assemble_bin/1,
+         to_list/1,
          find/2,
          find_raw/2,
          set_raw/3,
@@ -43,6 +45,11 @@
 -type parsed_value() :: term().
 -type orig_value()   :: binary() | novalue.
 
+-type parse_known_fun() :: fun((lower_key(), orig_value()) -> parse_known_fun_result()).
+-type parse_known_fun_result() :: {ok, {parsed_name(), parsed_value()}}
+                                | {ok, unknown}
+                                | {error, term()}.
+
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -58,6 +65,25 @@ parse_raw(Binary) ->
         {ok, Result, Rest} ->
             {ok, fill_hparams(Result), Rest}
     end.
+
+%% @doc Enrich parameters with parsed values.  ParseKnownFun should
+%% return result of the parameter parsing (see type definition).
+-spec parse_known(parse_known_fun(), hparams()) -> {ok, hparams()} | {error, term()}.
+parse_known(ParseKnownFun, #hparams{order = Order, orig = Orig} = HParams0) ->
+    lists:foldl(fun(_LowerKey, {error, _} = Error) ->
+                        Error;
+                   (LowerKey, {ok, HParams}) ->
+                        {_, OrigValue} = maps:get(LowerKey, Orig),
+                        case ParseKnownFun(LowerKey, OrigValue) of
+                            {ok, unknown} -> {ok, HParams};
+                            {ok, {ParsedName, ParsedValue}} ->
+                                {ok, set_parsed(LowerKey, ParsedName, ParsedValue, HParams)};
+                            {error, _} = Error ->
+                                Error
+                        end
+                end,
+                {ok, HParams0},
+                Order).
 
 -spec assemble(hparams()) -> iolist().
 assemble(#hparams{} = HParams) ->
@@ -75,6 +101,23 @@ assemble(#hparams{} = HParams) ->
 -spec assemble_bin(hparams()) -> binary().
 assemble_bin(#hparams{} = HParams) ->
     iolist_to_binary(assemble(HParams)).
+
+-spec to_list(hparams()) -> Result when
+      Result :: [Item],
+      Item   :: {parsed_name(), parsed_value()}
+              | {lower_key(),   orig_value()}.
+to_list(#hparams{} = HParams) ->
+    [begin
+         case maps:find(LowerKey, HParams#hparams.parsed) of
+             {ok, ParsedName} ->
+                 {LowerKey, ParsedValue} = maps:get(ParsedName, HParams#hparams.parsed),
+                 {ParsedName, ParsedValue};
+             error ->
+                 {_, Value} = maps:get(LowerKey, HParams#hparams.orig),
+                 {LowerKey, Value}
+         end
+     end || LowerKey <- HParams#hparams.order].
+
 
 -spec find(parsed_name(), hparams()) -> {ok, parsed_value()} | not_found.
 find(ParsedName, #hparams{parsed = P}) when is_atom(ParsedName) ->
@@ -149,4 +192,9 @@ fill_hparams(Pairs) ->
                 new(),
                 Pairs).
 
+-spec set_parsed(lower_key(), parsed_name(), parsed_value(), hparams()) -> hparams().
+set_parsed(LowerKey, ParsedName, ParsedValue, #hparams{parsed = PMap0} = HParams) ->
+    PMap = PMap0#{ParsedName => {LowerKey, ParsedValue},
+                  LowerKey   => ParsedName},
+    HParams#hparams{parsed = PMap}.
 

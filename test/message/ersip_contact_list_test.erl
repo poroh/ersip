@@ -26,10 +26,17 @@ contact_list_parse_test() ->
     ?assertEqual([AContact], make(<<ABin/binary>>)),
     ok.
 
+parse_empty_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_contact_list:parse(create([<<"sip:a@b">>, <<>>, <<"sip:c@d">>]))),
+    ok.
+
+
 contact_parse_errors_test() ->
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"*,*">>))),
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"*, sip:a@b">>))),
+    ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create([<<"*">>, <<"sip:a@b">>]))),
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"sip:a@b, *">>))),
+    ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create([<<"sip:a@b">>, <<"*">>, <<"sip:c@d">>]))),
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"a@b, sip:c@d">>))),
     ok.
 
@@ -52,9 +59,15 @@ make_error_test() ->
 %%% Helpers
 %%%===================================================================
 
-create(ContactBin) ->
-    HRoute = ersip_hdr:new(<<"Contact">>),
-    ersip_hdr:add_value(ContactBin, HRoute).
+create(ContactBin) when is_binary(ContactBin) ->
+    HContact = ersip_hdr:new(<<"Contact">>),
+    ersip_hdr:add_value(ContactBin, HContact);
+create(ContactList) when is_list(ContactList) ->
+    lists:foldl(fun(ContactBin, HContact) ->
+                        ersip_hdr:add_value(ContactBin, HContact)
+                end,
+                ersip_hdr:new(<<"Contact">>),
+                ContactList).
 
 make(ContactBin) ->
     HContact = create(ContactBin),

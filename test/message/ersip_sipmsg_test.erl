@@ -34,14 +34,24 @@ parse_request_test() ->
     {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
+    ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:callid(SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
+    ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:maxforwards(SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
+    From = ersip_sipmsg:from(SipMsg),
     To   = ersip_sipmsg:get(to, SipMsg),
+    To   = ersip_sipmsg:to(SipMsg),
     ?assertEqual({tag, <<"1928301774">>},       ersip_hdr_fromto:tag(From)),
     ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
+    Via  = ersip_sipmsg:topmost_via(SipMsg),
     ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
-                 ersip_hdr_via:sent_by(Via)).
+                 ersip_hdr_via:sent_by(Via)),
+    CSeq = ersip_sipmsg:get(cseq, SipMsg),
+    CSeq = ersip_sipmsg:cseq(SipMsg),
+    ?assertEqual(314159, ersip_hdr_cseq:number(CSeq)),
+    ?assertEqual(ersip_method:invite(), ersip_hdr_cseq:method(CSeq)),
+    ok.
 
 
 parse_request_append_all_test() ->

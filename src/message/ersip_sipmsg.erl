@@ -20,6 +20,15 @@
          set_status/2,
          reason/1,
 
+         %% Required headers. Function raise error if message does not
+         %% contain corresponding header.
+         from/1,
+         to/1,
+         callid/1,
+         cseq/1,
+         maxforwards/1,
+         topmost_via/1,
+
          %% Headers manipulation:
          find/2,
          get/2,
@@ -121,6 +130,30 @@ set_status(Code, #sipmsg{} = SipMsg) ->
             RawMsg = ersip_msg:set(status, Code, raw_message(SipMsg)),
             set_raw_message(RawMsg, SipMsg)
     end.
+
+-spec from(sipmsg()) -> ersip_hdr_fromto:fromto().
+from(#sipmsg{} = SipMsg) ->
+    get(from, SipMsg).
+
+-spec to(sipmsg()) -> ersip_hdr_fromto:fromto().
+to(#sipmsg{} = SipMsg) ->
+    get(to, SipMsg).
+
+-spec callid(sipmsg()) -> ersip_hdr_callid:callid().
+callid(#sipmsg{} = SipMsg) ->
+    get(callid, SipMsg).
+
+-spec cseq(sipmsg()) -> ersip_hdr_cseq:cseq().
+cseq(#sipmsg{} = SipMsg) ->
+    get(cseq, SipMsg).
+
+-spec maxforwards(sipmsg()) -> ersip_hdr_maxforwards:maxforwards().
+maxforwards(#sipmsg{} = SipMsg) ->
+    get(maxforwards, SipMsg).
+
+-spec topmost_via(sipmsg()) -> ersip_hdr_via:via().
+topmost_via(#sipmsg{} = SipMsg) ->
+    get(topmost_via, SipMsg).
 
 -spec reason(ersip_sipmsg:sipmsg()) -> undefined | binary().
 reason(#sipmsg{} = SipMsg) ->

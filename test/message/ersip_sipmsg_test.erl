@@ -30,9 +30,7 @@ parse_request_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:callid(SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
@@ -68,9 +66,7 @@ parse_request_append_all_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg0} = ersip_sipmsg:parse(PMsg,  [from]),
+    {ok, SipMsg0} = ersip_sipmsg:parse(Msg,  [from]),
     {ok, SipMsg} = ersip_sipmsg:parse(SipMsg0, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
@@ -96,9 +92,7 @@ parse_response_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
@@ -107,7 +101,8 @@ parse_response_test() ->
     ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
     ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
-                 ersip_hdr_via:sent_by(Via)).
+                 ersip_hdr_via:sent_by(Via)),
+    ok.
 
 parse_response_error_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -123,9 +118,8 @@ parse_response_error_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    ?assertMatch({error, {invalid_cseq, _}}, ersip_sipmsg:parse(PMsg, [content_type])).
+    ?assertMatch({error, {invalid_cseq, _}}, ersip_sipmsg:parse(Msg, [content_type])),
+    ok.
 
 parse_request_without_body_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -140,9 +134,7 @@ parse_request_without_body_test() ->
             ?crlf "Content-Length: 0"
             ?crlf ?crlf
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
@@ -152,7 +144,8 @@ parse_request_without_body_test() ->
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
     ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)),
-    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)).
+    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)),
+    ok.
 
 parse_request_with_body_no_content_type_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -167,12 +160,11 @@ parse_request_with_body_no_content_type_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
     ?assertEqual({error,{header_error,
                          {content_type,
                           {no_required_header,<<"Content-Type">>}}}},
-                 ersip_sipmsg:parse(PMsg, all)).
+                 ersip_sipmsg:parse(Msg, all)),
+    ok.
 
 parse_request_with_invalid_ruri_test() ->
     Msg = <<"INVITE bob@biloxi.com SIP/2.0"
@@ -186,10 +178,8 @@ parse_request_with_invalid_ruri_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    ?assertMatch({error,{invalid_ruri, _}},
-                 ersip_sipmsg:parse(PMsg, all)).
+    ?assertMatch({error,{invalid_ruri, _}}, ersip_sipmsg:parse(Msg, all)),
+    ok.
 
 parse_on_demand_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -205,9 +195,7 @@ parse_on_demand_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, []),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, []),
     ?assertEqual(ersip_hdr_callid:make(CallId),        ersip_sipmsg:get(callid, SipMsg)),
     ?assertEqual(ersip_hdr_maxforwards:make(<<"70">>), ersip_sipmsg:get(maxforwards, SipMsg)),
     From = ersip_sipmsg:get(from, SipMsg),
@@ -216,7 +204,8 @@ parse_on_demand_test() ->
     ?assertEqual({display_name, [<<"Bob">>]}, ersip_hdr_fromto:display_name(To)),
     Via  = ersip_sipmsg:get(topmost_via, SipMsg),
     ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
-                 ersip_hdr_via:sent_by(Via)).
+                 ersip_hdr_via:sent_by(Via)),
+    ok.
 
 parse_no_required_field_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -231,10 +220,8 @@ parse_no_required_field_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    ?assertMatch({error, _}, ersip_sipmsg:parse(PMsg, all)).
-
+    ?assertMatch({error, _}, ersip_sipmsg:parse(Msg, all)),
+    ok.
 
 parse_on_demand_parse_error_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -250,11 +237,10 @@ parse_on_demand_parse_error_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, []),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, []),
     ?assertEqual(ersip_hdr_callid:make(CallId), ersip_sipmsg:get(callid, SipMsg)),
-    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)).
+    ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)),
+    ok.
 
 reply_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
@@ -271,9 +257,7 @@ reply_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ToTag = {tag, <<"4212312424">>},
     ReplyOpts = ersip_reply:new(404, [{to_tag, ToTag}]),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
@@ -316,9 +300,7 @@ reply_totag_autogenerated_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ReplyOpts = ersip_reply:new(404),
     RespMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     ToTag = ersip_hdr_fromto:tag(ersip_sipmsg:get(to, RespMsg)),
@@ -340,9 +322,7 @@ reply_indialog_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ReplyOpts = ersip_reply:new(404, [{reason, <<"My Not Found">>}]),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     %% The From field of the response MUST equal the From header field of
@@ -378,9 +358,7 @@ reply_100_trying_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    P  = ersip_parser:new_dgram(Msg),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
     ReplyOpts = ersip_reply:new(100),
     RespSipMsg = ersip_sipmsg:reply(ReplyOpts, SipMsg),
     %% The From field of the response MUST equal the From header field of
@@ -563,6 +541,22 @@ remove_body_test() ->
     SipMsgNoBodyNoCT = ersip_sipmsg:remove(<<"Content-Length">>, SipMsgNoBody),
     SipMsgRB = rebuild_sipmsg(SipMsgNoBodyNoCT),
     ?assertEqual(false, ersip_sipmsg:has_body(SipMsgRB)),
+    ok.
+
+cannot_set_status_of_request_test() ->
+    ReqSipMsg = default_sipmsg(),
+    ?assertEqual(request, ersip_sipmsg:type(ReqSipMsg)),
+    ?assertError({api_error, _}, ersip_sipmsg:set_status(200, ReqSipMsg)),
+    ok.
+
+raw_parse_error_test() ->
+    ?assertMatch({error, truncated_message}, ersip_sipmsg:parse(<<"@">>, all)),
+    ?assertMatch({error, truncated_message}, ersip_sipmsg:parse(<<"SIP/2.0 200 OK" ?crlf>>, all)),
+    ?assertMatch({error, truncated_message}, ersip_sipmsg:parse(<<"INVITE sip:alice@atlanta.com SIP/2.0" ?crlf>>, all)),
+    ?assertMatch({error, truncated_message}, ersip_sipmsg:parse(<<"INVITE sip:alice@atlanta.com SIP/2.0" ?crlf>>, all)),
+    ?assertMatch({error, {generic_parse_error, _}},
+                 ersip_sipmsg:parse(<<"INVITE sip:alice@atlanta.com SIP/2.0" ?crlf
+                                      "Content-Length: 100" ?crlf ?crlf>>, all)),
     ok.
 
 

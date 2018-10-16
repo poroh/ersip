@@ -168,37 +168,37 @@ parse_fromto(Bin) ->
             Error
     end.
 
+-spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
 parse_params(<<$;, Bin/binary>>) ->
     parse_params(Bin);
 parse_params(<<>>) ->
     {ok, [], <<>>};
 parse_params(Bin) ->
-    ersip_parser_aux:parse_kvps(fun fromto_params_validator/2,
-                                <<";">>,
-                                Bin).
+    case ersip_parser_aux:parse_params($;, Bin) of
+        {ok, Params, <<>>} ->
+            do_parse_params(Params, []);
+        _ ->
+            {error, {invalid_parameters, Bin}}
+    end.
 
-fromto_params_validator(<<"tag">>, Value) ->
+-spec do_parse_params(ersip_parser_aux:gen_param_list(), ersip_parser_aux:gen_param_list()) ->
+                             ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
+do_parse_params([], Acc) ->
+    {ok, lists:reverse(Acc), <<>>};
+do_parse_params([{<<"tag">>, Value} | Rest], Acc) ->
     %% tag-param   =  "tag" EQUAL token
     case ersip_parser_aux:check_token(Value) of
         true ->
-            {ok, {tag, {tag, Value}}};
+            do_parse_params(Rest, [{tag, {tag, Value}} | Acc]);
         false ->
             {error, {invalid_tag, Value}}
     end;
-fromto_params_validator(Key, novalue) ->
-    case ersip_parser_aux:check_token(Key) of
-        true ->
-            {ok, {ersip_bin:to_lower(Key), novalue}};
-        false ->
-            {error, {invalid_gen_param, Key}}
-    end;
-fromto_params_validator(Key, Value) ->
-    case ersip_parser_aux:parse_gen_param_value(Value) of
-        {ok, ParsedValue, <<>>} ->
-            {ok, {ersip_bin:to_lower(Key), ParsedValue}};
-        _ ->
-            {error, {invalid_gen_param, {Key, Value}}}
-    end.
+do_parse_params([{Key, <<>>} | Rest], Acc) ->
+    Acc1 = [{ersip_bin:to_lower(Key), novalue} | Acc],
+    do_parse_params(Rest, Acc1);
+do_parse_params([{Key, Value} | Rest], Acc) ->
+    Acc1 = [{ersip_bin:to_lower(Key), Value} | Acc],
+    do_parse_params(Rest, Acc1).
 
 -spec assemble_params(fromto_params()) -> [iolist()].
 assemble_params(Params) ->

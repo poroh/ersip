@@ -24,6 +24,12 @@
          parse_gen_param_value/1
         ]).
 
+-export_type([parse_result/0,
+              parse_result/1,
+              parser_fun/0,
+              separator/0,
+              gen_param_list/0]).
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
@@ -44,11 +50,6 @@
 -type gen_param()      :: {Key ::binary(), gen_param_value()}.
 -type gen_param_list() :: [gen_param()].
 -type gen_param_value() :: binary().
-
--export_type([parse_result/0,
-              parse_result/1,
-              parser_fun/0,
-              separator/0]).
 
 %%%===================================================================
 %%% API

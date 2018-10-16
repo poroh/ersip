@@ -137,30 +137,4 @@ parse_params(<<$;, Bin/binary>>) ->
 parse_params(<<>>) ->
     {ok, [], <<>>};
 parse_params(Bin) ->
-    ersip_parser_aux:parse_kvps(fun params_validator/2,
-                                <<";">>,
-                                Bin).
-
-%% parameter               = attribute "=" value
-%% attribute               = token
-%% value                   = token | quoted-string    
-params_validator(Key, Value) ->
-    case parse_parameter(Value) of
-        {ok, ParsedValue, <<>>} ->
-            {ok, {ersip_bin:to_lower(Key), ParsedValue}};
-        _ ->
-            {error, {invalid_parameter, {Key, Value}}}
-    end.
-
-parse_parameter(Bin) ->
-    case ersip_parser_aux:quoted_string(Bin) of
-        {ok, Val, <<>>} ->
-            {ok, Val, <<>>};
-        error ->
-            case ersip_parser_aux:parse_token(Bin) of
-                {ok, _, <<>>} = R ->
-                    R;
-                _ ->
-                    {error, {invalid_parameter, Bin}}
-            end
-    end.
+    ersip_parser_aux:parse_params($;, Bin).

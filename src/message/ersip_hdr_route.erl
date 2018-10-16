@@ -161,25 +161,20 @@ parse_route_params(<<$;, Bin/binary>>) ->
 parse_route_params(<<>>) ->
     {ok, [], <<>>};
 parse_route_params(Bin) ->
-    ersip_parser_aux:parse_kvps(fun route_params_validator/2,
-                                <<";">>,
-                                Bin).
-
--spec route_params_validator(binary(), binary() | novalue) -> Result when
-      Result :: {ok, {binary(), novalue}}
-              | {ok, {binary(), binary()}}
-              | {error, {invalid_rr_param, binary()}}.
-route_params_validator(Key, novalue) ->
-    case ersip_parser_aux:check_token(Key) of
-        true ->
-            {ok, {Key, novalue}};
-        false ->
-            {error, {invalid_rr_param, Key}}
-    end;
-route_params_validator(Key, Value) when is_binary(Value) ->
-    case ersip_parser_aux:check_token(Key) of
-        true ->
-            {ok, {Key, Value}};
-        false ->
-            {error, {invalid_rr_param, Key}}
+    case ersip_parser_aux:parse_params($;, Bin) of
+        {ok, Params, <<>>} ->
+            do_parse_params(Params, []);
+        _ ->
+            {error, {invalid_parameters, Bin}}
     end.
+
+-spec do_parse_params(ersip_parser_aux:gen_param_list(), ersip_parser_aux:gen_param_list()) ->
+                             ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
+do_parse_params([], Acc) ->
+    {ok, lists:reverse(Acc), <<>>};
+do_parse_params([{Key, <<>>} | Rest], Acc) ->
+    Acc1 = [{Key, novalue} | Acc],
+    do_parse_params(Rest, Acc1);
+do_parse_params([{Key, Value} | Rest], Acc) ->
+    Acc1 = [{Key, Value} | Acc],
+    do_parse_params(Rest, Acc1).

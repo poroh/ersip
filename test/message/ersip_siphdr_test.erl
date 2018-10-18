@@ -28,9 +28,10 @@ copy_hdr_test() ->
             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
             ?crlf "Content-Type: application/sdp"
             ?crlf "Content-Length: 4"
+            ?crlf "My-Header: Header Value"
             ?crlf ?crlf "Test"
           >>,
-    SipMsg = parse_sip_message(MsgBin),
+    {ok, SipMsg} = ersip_sipmsg:parse(MsgBin, [from, to, maxforwards]),
     MsgBin2
         = <<"INVITE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -44,14 +45,18 @@ copy_hdr_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    SipMsg2 = parse_sip_message(MsgBin2),
-    SipMsg3 = ersip_siphdr:copy_headers([from, to, maxforwards, callid],
+    {ok, SipMsg2} = ersip_sipmsg:parse(MsgBin2, [from, to, maxforwards]),
+    SipMsg3 = ersip_siphdr:copy_headers([from, to, maxforwards, callid, <<"my-header">>],
                                         SipMsg, SipMsg2),
 
-    MaxForwards = ersip_sipmsg:get(maxforwards, SipMsg3),
+    MaxForwards = ersip_sipmsg:maxforwards(SipMsg3),
     ?assertEqual(70, ersip_hdr_maxforwards:value(MaxForwards)),
-    From = ersip_sipmsg:get(from, SipMsg3),
-    ?assertEqual(<<"Bob <sip:bob@biloxi.com>">>, iolist_to_binary(ersip_hdr_fromto:assemble(From))).
+    From = ersip_sipmsg:from(SipMsg3),
+    ?assertEqual(<<"Bob <sip:bob@biloxi.com>">>, ersip_hdr_fromto:assemble_bin(From)),
+    MyHeader = ersip_sipmsg:raw_header(<<"my-header">>, SipMsg3),
+    [HeaderValue] = ersip_hdr:raw_values(MyHeader),
+    ?assertMatch(<<"Header Value">>, iolist_to_binary(HeaderValue)),
+    ok.
 
 
 set_hdr_test() ->
@@ -68,9 +73,9 @@ set_hdr_test() ->
             ?crlf "Content-Length: 4"
             ?crlf ?crlf "Test"
           >>,
-    SipMsg = parse_sip_message(MsgBin),
+    {ok, SipMsg} = ersip_sipmsg:parse(MsgBin, []),
     SipMsg2 = ersip_siphdr:set_header(maxforwards, ersip_hdr_maxforwards:make(<<"20">>), SipMsg),
-    MaxForwards = ersip_sipmsg:get(maxforwards, SipMsg2),
+    MaxForwards = ersip_sipmsg:maxforwards(SipMsg2),
     ?assertEqual(20, ersip_hdr_maxforwards:value(MaxForwards)).
 
 spaces_before_colon_hdr_test() ->
@@ -87,16 +92,11 @@ spaces_before_colon_hdr_test() ->
             ?crlf "Content-Length  : 4"
             ?crlf ?crlf "Test"
           >>,
-    SipMsg = parse_sip_message(MsgBin),
-    ToHeader = ersip_sipmsg:get(to, SipMsg),
-    ?assertEqual(ersip_hdr_fromto:make(<<"sip:bob@biloxi.com">>), ToHeader).
+    {ok, SipMsg} = ersip_sipmsg:parse(MsgBin, all),
+    ToHeader = ersip_sipmsg:to(SipMsg),
+    ?assertEqual(ersip_hdr_fromto:make(<<"sip:bob@biloxi.com">>), ToHeader),
+    ok.
 
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
-
-parse_sip_message(Bin) ->
-    P  = ersip_parser:new_dgram(Bin),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, [from, to, maxforwards]),
-    SipMsg.

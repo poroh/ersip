@@ -19,7 +19,8 @@
          params/1,
          parse/1,
          build/2,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 -export_type([fromto/0,
               tag/0,
@@ -139,6 +140,10 @@ assemble(#fromto{} = FromTo) ->
     [NameAddr, assemble_params(params(FromTo))];
 assemble({tag, TagBin}) when is_binary(TagBin) ->
     TagBin.
+
+-spec assemble_bin(fromto()) -> binary().
+assemble_bin(#fromto{} = FromTo) ->
+    iolist_to_binary(assemble(FromTo)).
 
 %%%===================================================================
 %%% Internal Implementation

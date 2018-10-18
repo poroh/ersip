@@ -12,14 +12,19 @@
          new/4,
          topmost_via/1,
          sent_protocol/1,
+         branch/1,
+         set_branch/2,
          received/1,
+         set_received/2,
          has_rport/1,
          rport/1,
+         set_rport/2,
          maddr/1,
+         set_maddr/2,
          ttl/1,
+         set_ttl/2,
          raw_param/2,
          set_param/3,
-         branch/1,
          sent_by/1,
          sent_by_key/1,
          make_key/1,
@@ -51,6 +56,7 @@
                           | ttl
                           | rport.
 -type rport_value() :: ersip_transport:port_number() | true.
+-type ttl_value()   :: 0..255.
 -type via_key() :: {sent_protocol(), sent_by(), via_params_key()}.
 -type via_params_key()    :: #{branch   => ersip_branch:branch(),
                                maddr    => ersip_host:host(),
@@ -124,6 +130,16 @@ set_param(rport, Value, #via{hparams = HP} = Via)
   when is_integer(Value) andalso Value >= 1 andalso Value =< 65535 orelse Value == true ->
     HPNew = ersip_hparams:set(rport, Value, <<"rport">>, assemble_param_value(rport, Value), HP),
     Via#via{hparams = HPNew};
+set_param(maddr, Host , #via{hparams = HP} = Via) ->
+    HPNew = ersip_hparams:set(maddr, Host, <<"maddr">>, assemble_param_value(maddr, Host), HP),
+    Via#via{hparams = HPNew};
+set_param(ttl, Value, #via{hparams = HP} = Via)
+  when is_integer(Value) andalso Value >= 0 andalso Value =< 255 ->
+    HPNew = ersip_hparams:set(ttl, Value, <<"ttl">>, assemble_param_value(ttl, Value), HP),
+    Via#via{hparams = HPNew};
+set_param(branch, {branch, _} = Value, #via{hparams = HP} = Via) ->
+    HPNew = ersip_hparams:set(branch, Value, <<"branch">>, assemble_param_value(branch, Value), HP),
+    Via#via{hparams = HPNew};
 set_param(rport, Value, _) ->
     error({error, {bad_rport_via_param, Value}}).
 
@@ -147,12 +163,20 @@ branch(#via{hparams = HParams}) ->
         not_found -> undefined
     end.
 
+-spec set_branch(ersip_branch:branch(), via()) -> via().
+set_branch(Branch, #via{} = Via) ->
+    set_param(branch, Branch, Via).
+
 -spec received(via()) -> {ok, ersip_host:host()} | undefined.
 received(#via{hparams = HParams}) ->
     case ersip_hparams:find(received, HParams) of
         {ok, Host} -> {ok, Host};
         not_found  -> undefined
     end.
+
+-spec set_received(ersip_host:host(), via()) -> via().
+set_received(Host, #via{} = Via) ->
+    set_param(received, Host, Via).
 
 -spec has_rport(via()) -> boolean().
 has_rport(#via{hparams = HParams}) ->
@@ -168,6 +192,9 @@ rport(#via{hparams = HParams}) ->
         not_found      -> undefined
     end.
 
+-spec set_rport(rport_value(), via()) -> via().
+set_rport(RPort, #via{} = Via) ->
+    set_param(rport, RPort, Via).
 
 -spec maddr(via()) -> {ok, ersip_host:host()} | undefined.
 maddr(#via{hparams = HParams}) ->
@@ -176,12 +203,20 @@ maddr(#via{hparams = HParams}) ->
         not_found  -> undefined
     end.
 
--spec ttl(via()) -> {ok, non_neg_integer()} | undefined.
+-spec set_maddr(ersip_host:host(), via()) -> via().
+set_maddr(Host, #via{} = Via) ->
+    set_param(maddr, Host, Via).
+
+-spec ttl(via()) -> {ok, ttl_value()} | undefined.
 ttl(#via{hparams = HParams}) ->
     case ersip_hparams:find(ttl, HParams) of
         {ok, TTL} -> {ok, TTL};
         not_found -> undefined
     end.
+
+-spec set_ttl(ttl_value(), via()) -> via().
+set_ttl(TTLValue, #via{} = Via) ->
+    set_param(ttl, TTLValue, Via).
 
 -spec make_key(via()) -> via_key().
 make_key(#via{hparams = HParams} = Via) ->

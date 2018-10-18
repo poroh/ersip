@@ -33,8 +33,6 @@
 -type options()  :: map().
 -type maybe_message() :: {ok, ersip_msg:message()}
                        | {error, term()}.
--type maybe_via() :: {ok, ersip_hdr_via:via()}
-                   | {error, term()}.
 
 %%%===================================================================
 %%% API
@@ -215,9 +213,9 @@ maybe_add_received(Via, #sip_conn{} = Conn) ->
     RemoteIP = remote_ip(Conn),
     case ersip_hdr_via:sent_by(Via) of
         {sent_by, {hostname, _}, _} ->
-            ersip_hdr_via:set_param(received, RemoteIP, Via);
+            ersip_hdr_via:set_received(RemoteIP, Via);
         {sent_by, IP, _} when IP =/= RemoteIP ->
-            ersip_hdr_via:set_param(received, RemoteIP, Via);
+            ersip_hdr_via:set_received(RemoteIP, Via);
         _ ->
             Via
     end.

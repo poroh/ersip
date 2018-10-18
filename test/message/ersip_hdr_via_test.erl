@@ -258,7 +258,7 @@ set_param_received_error_test() ->
 set_param_rport_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=1234;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    Via1 = ersip_hdr_via:set_param(rport, 4321, Via),
+    Via1 = ersip_hdr_via:set_rport(4321, Via),
     ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>,
                  ersip_hdr_via:assemble_bin(Via1)),
     ?assertEqual({ok, 4321}, ersip_hdr_via:rport(Via1)),
@@ -267,7 +267,7 @@ set_param_rport_test() ->
 set_param_rport_to_true_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=1234;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    Via1 = ersip_hdr_via:set_param(rport, true, Via),
+    Via1 = ersip_hdr_via:set_rport(true, Via),
     ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport;maddr=x.com">>,
                  ersip_hdr_via:assemble_bin(Via1)),
     ?assertEqual({ok, true}, ersip_hdr_via:rport(Via1)),
@@ -282,6 +282,34 @@ set_param_rport_error_test() ->
     ?assertError({error, _}, ersip_hdr_via:set_param(rport, -1, Via)),
     ?assertError({error, _}, ersip_hdr_via:set_param(rport, 0, Via)),
     ok.
+
+set_ttl_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    Via1 = ersip_hdr_via:set_ttl(99, Via),
+    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=99;maddr=x.com">>,
+                 ersip_hdr_via:assemble_bin(Via1)),
+    ?assertEqual({ok, 99}, ersip_hdr_via:ttl(Via1)),
+    ok.
+
+set_maddr_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    Via1 = ersip_hdr_via:set_maddr(ersip_host:make(<<"[::1]">>), Via),
+    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;maddr=[::1]">>,
+                 ersip_hdr_via:assemble_bin(Via1)),
+    ?assertEqual({ok, ersip_host:make(<<"[::1]">>)}, ersip_hdr_via:maddr(Via1)),
+    ok.
+
+set_branch_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    Via1 = ersip_hdr_via:set_branch(ersip_branch:make(<<"branch_v2">>), Via),
+    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v2;ttl=200;maddr=x.com">>,
+                 ersip_hdr_via:assemble_bin(Via1)),
+    ?assertEqual({ok, ersip_branch:make(<<"branch_v2">>)}, ersip_hdr_via:branch(Via1)),
+    ok.
+
 
 %%%===================================================================
 %%% Implementation

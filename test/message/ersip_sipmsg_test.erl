@@ -431,20 +431,7 @@ raw_ruri_manipulation_test() ->
     ok.
 
 set_raw_header_not_parsed_test() ->
-    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
-    {ok, SipMsg0} = ersip_sipmsg:parse(Msg, []),
+    {ok, SipMsg0} = ersip_sipmsg:parse(default_msg(), []),
     NewContact0 = ersip_hdr:new(<<"Contact">>),
     NewContactBin = <<"Alice <sip:alice@pc34.atlanta.com>">>,
     NewContact  = ersip_hdr:add_value(NewContactBin, NewContact0),
@@ -457,20 +444,7 @@ set_raw_header_not_parsed_test() ->
     ok.
 
 set_raw_header_parsed_test() ->
-    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Type: application/sdp"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
-    {ok, SipMsg0} = ersip_sipmsg:parse(Msg, [contact]),
+    {ok, SipMsg0} = ersip_sipmsg:parse(default_msg(), [contact]),
     NewContact0 = ersip_hdr:new(<<"Contact">>),
     NewContactBin = <<"Alice <sip:alice@pc34.atlanta.com>">>,
     NewContact  = ersip_hdr:add_value(NewContactBin, NewContact0),
@@ -478,7 +452,18 @@ set_raw_header_parsed_test() ->
     ParsedContactList = ersip_sipmsg:get(contact, SipMsg1),
     ?assertMatch([_], ParsedContactList),
     [NewAliceContact] = ParsedContactList,
-    ?assertEqual(NewContactBin, iolist_to_binary(ersip_hdr_contact:assemble(NewAliceContact))),
+    ?assertEqual(NewContactBin, ersip_hdr_contact:assemble_bin(NewAliceContact)),
+    ok.
+
+set_raw_header_unknown_header_test() ->
+    {ok, SipMsg0} = ersip_sipmsg:parse(default_msg(), []),
+    MyHeader0 = ersip_hdr:new(<<"My-Header">>),
+    MyHeaderVal = <<"My Header Value">>,
+    MyHeader  = ersip_hdr:add_value(MyHeaderVal, MyHeader0),
+    {ok, SipMsg} = ersip_sipmsg:set_raw_header(MyHeader, SipMsg0),
+    SipMsgRB = rebuild_sipmsg(SipMsg),
+    MyHeaderRB = ersip_sipmsg:raw_header(<<"my-header">>, SipMsgRB),
+    ?assertEqual(MyHeader, MyHeaderRB),
     ok.
 
 remove_header_test() ->
@@ -568,21 +553,22 @@ rebuild_sipmsg(SipMsg) ->
     {ok, SipMsg1} = ersip_sipmsg:parse(SipMsgBin, all),
     SipMsg1.
 
+default_msg() ->
+    <<"INVITE sip:bob@biloxi.com SIP/2.0"
+      ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+      ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+      ?crlf "Max-Forwards: 70"
+      ?crlf "To: Bob <sip:bob@biloxi.com>"
+      ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+      ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+      ?crlf "CSeq: 314159 INVITE"
+      ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+      ?crlf "Content-Type: application/sdp"
+      ?crlf "Content-Length: 4"
+      ?crlf ?crlf "Test"
+    >>.
+
 default_sipmsg() ->
-    Msg =
-        <<"INVITE sip:bob@biloxi.com SIP/2.0"
-          ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-          ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-          ?crlf "Max-Forwards: 70"
-          ?crlf "To: Bob <sip:bob@biloxi.com>"
-          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-          ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
-          ?crlf "CSeq: 314159 INVITE"
-          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-          ?crlf "Content-Type: application/sdp"
-          ?crlf "Content-Length: 4"
-          ?crlf ?crlf "Test"
-        >>,
-    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(default_msg(), all),
     SipMsg.
 

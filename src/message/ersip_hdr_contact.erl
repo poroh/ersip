@@ -18,7 +18,8 @@
          make/1,
          parse/1,
          parse_hdr/1,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 -export_type([contact/0,
               contact_param/0]).
@@ -145,6 +146,10 @@ assemble(#contact{} = Contact) ->
             false -> [$; | HParamsIO0]
         end,
     [ersip_nameaddr:assemble(DN, URI), HParamsIO].
+
+-spec assemble_bin(contact()) -> binary().
+assemble_bin(#contact{} = Contact) ->
+    iolist_to_binary(assemble(Contact)).
 
 %%%===================================================================
 %%% Internal Implementation

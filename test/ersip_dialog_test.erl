@@ -764,10 +764,10 @@ default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
-    ersip_source:new(Peer, ersip_transport:tcp(), undefined).
+    ersip_source:new(default_peer(), Peer, ersip_transport:tcp(), undefined).
 
 tls_source(Peer) ->
-    ersip_source:new(Peer, ersip_transport:tls(), undefined).
+    ersip_source:new(default_peer(), Peer, ersip_transport:tls(), undefined).
 
 create_sipmsg(Msg, Source, HeadersToParse) when is_binary(Msg) ->
     P  = ersip_parser:new_dgram(Msg),

@@ -982,8 +982,8 @@ peer() ->
 
 udp_source() ->
     Transport = ersip_transport:make(udp),
-    ersip_source:new(peer(), Transport, undefined).
+    ersip_source:new(peer(), peer(), Transport, undefined).
 
 tls_source() ->
     Transport = ersip_transport:make(tls),
-    ersip_source:new(peer(), Transport, undefined).
+    ersip_source:new(peer(), peer(), Transport, undefined).

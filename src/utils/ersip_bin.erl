@@ -10,6 +10,7 @@
 -include("ersip_sip_abnf.hrl").
 
 -export([to_lower/1,
+         to_lower_utf8/1,
          to_upper/1,
          trim_lws/1,
          trim_head_lws/1,
@@ -22,9 +23,16 @@
 %%%===================================================================
 
 -spec to_lower( binary() ) -> binary().
-to_lower(Binary) when is_binary(Binary) ->
+to_lower_utf8(Binary) when is_binary(Binary) ->
     << <<(unicode_to_lower(C))/utf8>> || <<C/utf8>> <= Binary >>;
-to_lower(Binary) -> erlang:error(badarg, [Binary]).
+to_lower_utf8(Binary) -> erlang:error(badarg, [Binary]).
+
+to_lower(Binary) when is_binary(Binary) ->
+    << <<(if
+              C >= $A andalso C =< $Z -> C - $A + $a;
+              true -> C
+          end)>> || <<C>> <= Binary >>;
+to_lower(V) -> erlang:error(badarg, [V]).
 
 -spec to_upper( binary() ) -> binary().
 to_upper(Binary) when is_binary(Binary) ->

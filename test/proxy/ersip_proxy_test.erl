@@ -1342,7 +1342,7 @@ default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
-    ersip_source:new(Peer, ersip_transport:tcp(), undefined).
+    ersip_source:new(default_peer(), Peer, ersip_transport:tcp(), undefined).
 
 default_udp_conn() ->
     ersip_conn:new({127, 0, 0, 1}, 5061, {127, 0, 0, 2}, 5060, ersip_transport:udp(), #{}).

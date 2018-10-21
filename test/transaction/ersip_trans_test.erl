@@ -202,7 +202,7 @@ default_nexthop() ->
     ersip_uri:make(<<"sip:127.0.0.2">>).
 
 udp_source(Peer) ->
-    ersip_source:new(Peer, udp_transport(), undefined).
+    ersip_source:new(default_peer(), Peer, udp_transport(), undefined).
 
 udp_transport() ->
     ersip_transport:make(udp).

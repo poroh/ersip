@@ -9,7 +9,7 @@
 
 -module(ersip_source).
 
--export([new/3,
+-export([new/4,
          source_id/1,
          transport/1,
          is_tls/1]).
@@ -19,7 +19,8 @@
 %%% Types
 %%%===================================================================
 
--record(source, {peer      :: {ersip_host:host(), inet:port_number()},
+-record(source, {local     :: {ersip_host:host(), inet:port_number()},
+                 peer      :: {ersip_host:host(), inet:port_number()},
                  transport :: ersip_transport:transport(),
                  source_id :: term()
                 }).
@@ -29,11 +30,13 @@
 %%% API
 %%%===================================================================
 
--spec new(Peer, ersip_transport:transport(), SourceId) -> source() when
-      Peer  :: {ersip_host:host(), inet:port_number()},
+-spec new(Local, Peer, ersip_transport:transport(), SourceId) -> source() when
+      Local  :: {ersip_host:host(), inet:port_number()},
+      Peer   :: {ersip_host:host(), inet:port_number()},
       SourceId :: term().
-new(Peer, Transport, SourceId) ->
-    #source{peer = Peer,
+new(Local, Peer, Transport, SourceId) ->
+    #source{local     = Local,
+            peer      = Peer,
             transport = Transport,
             source_id = SourceId
            }.

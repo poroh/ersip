@@ -274,7 +274,7 @@ default_peer() ->
     {{127, 0, 0, 1}, 5060}.
 
 tcp_source(Peer) ->
-    ersip_source:new(Peer, ersip_transport:tcp(), undefined).
+    ersip_source:new(default_peer(), Peer, ersip_transport:tcp(), undefined).
 
 create_sipmsg(Msg, Source) when is_binary(Msg) ->
     create_sipmsg(Msg, Source, all).

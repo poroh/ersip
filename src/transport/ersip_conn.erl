@@ -116,9 +116,9 @@ take_via(Msg, #sip_conn{} = SIPConn) ->
 %%%===================================================================
 
 -spec source(sip_conn()) -> ersip_source:source().
-source(#sip_conn{remote_addr = Peer, transport = T, options = Opts}) ->
+source(#sip_conn{local_addr = Local, remote_addr = Peer, transport = T, options = Opts}) ->
     SourceId = maps:get(source_id, Opts, undefined),
-    ersip_source:new(Peer, T, SourceId).
+    ersip_source:new(Local, Peer, T, SourceId).
 
 -spec remote_ip(sip_conn()) -> ersip_host:host().
 remote_ip(#sip_conn{remote_addr = {RemoteIP, _}}) ->

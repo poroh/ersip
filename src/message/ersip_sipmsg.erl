@@ -38,6 +38,8 @@
 
          %% Body manipulation:
          has_body/1,
+         body/1,
+         body_bin/1,
          remove_body/1,
 
          %% Underlying message manipulation:
@@ -213,6 +215,14 @@ remove(HdrName, SipMsg) ->
 -spec has_body(sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->
     not ersip_iolist:is_empty(ersip_msg:get(body, raw_message(Msg))).
+
+-spec body(sipmsg()) -> iolist() | binary().
+body(#sipmsg{} = Msg) ->
+    ersip_msg:get(body, raw_message(Msg)).
+
+-spec body_bin(sipmsg()) -> iolist() | binary().
+body_bin(#sipmsg{} = SipMsg) ->
+    iolist_to_binary(body(SipMsg)).
 
 -spec remove_body(sipmsg()) -> sipmsg().
 remove_body(#sipmsg{} = SipMsg) ->

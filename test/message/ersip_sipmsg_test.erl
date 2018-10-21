@@ -49,6 +49,7 @@ parse_request_test() ->
     CSeq = ersip_sipmsg:cseq(SipMsg),
     ?assertEqual(314159, ersip_hdr_cseq:number(CSeq)),
     ?assertEqual(ersip_method:invite(), ersip_hdr_cseq:method(CSeq)),
+    ?assertEqual(<<"Test">>, ersip_sipmsg:body_bin(SipMsg)),
     ok.
 
 

@@ -13,6 +13,7 @@
          local/1,
          remote/1,
          source_id/1,
+         set_source_id/2,
          transport/1,
          is_tls/1]).
 -export_type([source/0]).
@@ -55,6 +56,10 @@ remote(#source{peer = Remote}) ->
 -spec source_id(source()) -> term().
 source_id(#source{source_id = SId}) ->
     SId.
+
+-spec set_source_id(term(), source()) -> source().
+set_source_id(SID, #source{} = Source) ->
+    Source#source{source_id = SID}.
 
 -spec transport(source()) -> ersip_transport:transport().
 transport(#source{transport = T}) ->

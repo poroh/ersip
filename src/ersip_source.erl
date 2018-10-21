@@ -10,6 +10,8 @@
 -module(ersip_source).
 
 -export([new/4,
+         local/1,
+         remote/1,
          source_id/1,
          transport/1,
          is_tls/1]).
@@ -40,6 +42,15 @@ new(Local, Peer, Transport, SourceId) ->
             transport = Transport,
             source_id = SourceId
            }.
+
+
+-spec local(source()) -> {ersip_host:host(), inet:port_number()}.
+local(#source{local = Local}) ->
+    Local.
+
+-spec remote(source()) -> {ersip_host:host(), inet:port_number()}.
+remote(#source{peer = Remote}) ->
+    Remote.
 
 -spec source_id(source()) -> term().
 source_id(#source{source_id = SId}) ->

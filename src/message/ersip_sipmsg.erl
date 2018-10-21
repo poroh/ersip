@@ -58,6 +58,7 @@
 
          %% Metadata manipulation:
          source/1,
+         source_id/1,
          user_data/1,
          set_user_data/2,
          clear_user_data/1
@@ -317,6 +318,10 @@ reply(Reply, #sipmsg{} = SipMsg) ->
 -spec source(sipmsg()) -> undefined | ersip_source:source().
 source(#sipmsg{} = SipMsg) ->
     ersip_msg:source(raw_message(SipMsg)).
+
+-spec source_id(sipmsg()) -> term().
+source_id(#sipmsg{} = SipMsg) ->
+    ersip_source:source_id(ersip_msg:source(raw_message(SipMsg))).
 
 -spec user_data(sipmsg()) -> term().
 user_data(#sipmsg{user = undefined}) ->

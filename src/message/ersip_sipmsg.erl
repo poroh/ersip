@@ -499,7 +499,8 @@ reply_impl(Reply, SipMsg) ->
             undefined ->
                 maybe_set_to_tag(Reply, SipMsg, RSipMsg2)
         end,
-    RSipMsg3.
+    RSipMsg4 = set_source(source(SipMsg), RSipMsg3),
+    RSipMsg4.
 
 %% When a 100 (Trying) response is generated, any
 %% Timestamp header field present in the request MUST be
@@ -552,4 +553,10 @@ parse_validate_cseq(#sipmsg{headers = #{cseq := CSeq}} = SipMsg) ->
     ReqMethod == CSeqMethod;
 parse_validate_cseq(#sipmsg{}) ->
     true.
+
+-spec set_source(ersip_source:source() | undefined, sipmsg()) -> sipmsg().
+set_source(Src, SipMsg) ->
+    RawMsg0 = raw_message(SipMsg),
+    RawMsg = ersip_msg:set_source(Src, RawMsg0),
+    set_raw_message(RawMsg, SipMsg).
 

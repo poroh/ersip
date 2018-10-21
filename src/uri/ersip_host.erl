@@ -8,6 +8,8 @@
 
 -module(ersip_host).
 -export([is_host/1,
+         is_ip_address/1,
+         ip_address/1,
          parse/1,
          make/1,
          make_key/1,
@@ -53,6 +55,17 @@ is_host({ipv6, {A0,A1,A2,A3,A4,A5,A6,A7}}) ->
               [A0,A1,A2,A3,A4,A5,A6,A7]);
 is_host(_) ->
     false.
+
+-spec is_ip_address(host()) -> boolean().
+is_ip_address({ipv4, _}) -> true;
+is_ip_address({ipv6, _}) -> true;
+is_ip_address({hostname, _}) -> false.
+
+-spec ip_address(host()) -> inet:ip_address().
+ip_address({ipv4, A}) -> A;
+ip_address({ipv6, A}) -> A;
+ip_address({hostname, _}) -> error({api_error, <<"cannot get IP from hostname host. Use resolve.">>}).
+
 
 %% @doc Generate host specification from binary.
 -spec parse(binary()) -> ersip_parser_aux:parse_result(host()).

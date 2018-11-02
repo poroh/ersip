@@ -36,7 +36,9 @@ make(Bin) when is_binary(Bin) ->
             Expires;
         {error, Reason} ->
             error(Reason)
-    end.
+    end;
+make(Val) when Val >= 0 ->
+    {expires, Val}.
 
 -spec parse(ersip_hdr:header()) -> parse_result(parse_errors()).
 parse(Header) ->

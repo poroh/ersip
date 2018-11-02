@@ -111,11 +111,13 @@ tag_key(#fromto{} = FT) ->
             tag_key(Tag)
     end.
 
--spec parse(ersip_hdr:header()) -> {ok, fromto()}
-                                       | {error, Error} when
+-spec parse(ersip_hdr:header() | binary()) -> {ok, fromto()}
+                                            | {error, Error} when
       Error :: {einval, address}
              | no_value
              | multiple_values.
+parse(Header) when is_binary(Header) ->
+    parse_fromto(Header);
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->

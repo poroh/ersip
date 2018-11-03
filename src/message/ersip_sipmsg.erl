@@ -51,6 +51,8 @@
          parse/2,
          serialize/1,
          serialize_bin/1,
+         assemble/1,     %% Synonym of serialize
+         assemble_bin/1, %% Synonym of serialize_bin
 
          %% SIP-specific
          new_request/2,
@@ -293,6 +295,14 @@ serialize(#sipmsg{} = SipMsg) ->
 
 -spec serialize_bin(sipmsg()) -> binary().
 serialize_bin(#sipmsg{} = SipMsg) ->
+    iolist_to_binary(serialize(SipMsg)).
+
+-spec assemble(sipmsg()) -> iolist().
+assemble(#sipmsg{} = SipMsg) ->
+    ersip_msg:serialize(raw_message(SipMsg)).
+
+-spec assemble_bin(sipmsg()) -> binary().
+assemble_bin(#sipmsg{} = SipMsg) ->
     iolist_to_binary(serialize(SipMsg)).
 
 %% Creating new request. To be more generic headers (even required)

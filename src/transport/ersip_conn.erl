@@ -13,7 +13,8 @@
 -export([new/6,
          conn_data/2,
          add_via/3,
-         take_via/2
+         take_via/2,
+         source/1
         ]).
 -export_type([sip_conn/0]).
 
@@ -110,15 +111,14 @@ take_via(Msg, #sip_conn{} = SIPConn) ->
             end
     end.
 
-
-%%%===================================================================
-%%% Internal Implementation
-%%%===================================================================
-
 -spec source(sip_conn()) -> ersip_source:source().
 source(#sip_conn{local_addr = Local, remote_addr = Peer, transport = T, options = Opts}) ->
     SourceId = maps:get(source_id, Opts, undefined),
     ersip_source:new(Local, Peer, T, SourceId).
+
+%%%===================================================================
+%%% Internal Implementation
+%%%===================================================================
 
 -spec remote_ip(sip_conn()) -> ersip_host:host().
 remote_ip(#sip_conn{remote_addr = {RemoteIP, _}}) ->

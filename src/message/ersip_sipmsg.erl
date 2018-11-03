@@ -41,6 +41,7 @@
          body/1,
          body_bin/1,
          remove_body/1,
+         set_body/2,
 
          %% Underlying message manipulation:
          raw_message/1,
@@ -231,6 +232,12 @@ body_bin(#sipmsg{} = SipMsg) ->
 remove_body(#sipmsg{} = SipMsg) ->
     RawMsg = raw_message(SipMsg),
     RawMsgNoBody = ersip_msg:set(body, [], RawMsg),
+    set_raw_message(RawMsgNoBody, SipMsg).
+
+-spec set_body(iolist() | binary(), sipmsg()) -> sipmsg().
+set_body(Body, #sipmsg{} = SipMsg) ->
+    RawMsg = raw_message(SipMsg),
+    RawMsgNoBody = ersip_msg:set(body, Body, RawMsg),
     set_raw_message(RawMsgNoBody, SipMsg).
 
 -spec raw_message(sipmsg()) -> ersip_msg:message().

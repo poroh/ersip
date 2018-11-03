@@ -48,11 +48,13 @@ make(Header) ->
 make_key({callid, _} = C) ->
     C.
 
--spec parse(ersip_hdr:header()) -> Result when
+-spec parse(ersip_hdr:header() | binary()) -> Result when
       Result :: {ok, callid()}
               | {error, Error},
       Error :: no_callid
              | {invalid_callid, binary()}.
+parse(Value)  when is_binary(Value)->
+    parse_callid(Value);
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->

@@ -80,7 +80,7 @@ new(Address, Port, Transport) ->
 -spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
 new(Address, Port, Transport, Branch) ->
     HParams0 = ersip_hparams:new(),
-    HParams = ersip_hparams:set(branch, Branch, <<"Branch">>, ersip_branch:assemble(Branch), HParams0),
+    HParams = ersip_hparams:set(branch, Branch, <<"branch">>, ersip_branch:assemble(Branch), HParams0),
     #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
          sent_by = {sent_by, Address, Port},
          hparams = HParams

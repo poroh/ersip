@@ -11,7 +11,8 @@
 
 -module(ersip_id).
 
--export([token/1]).
+-export([token/1,
+         word/1]).
 
 %%%===================================================================
 %%% Types
@@ -30,6 +31,10 @@
 -spec token(binary()) -> binary().
 token(Bin) ->
     encode(Bin, token_chars()).
+
+-spec word(binary()) -> binary().
+word(Bin) ->
+    encode(Bin, word_chars()).
 
 %%%===================================================================
 %%% Helpers
@@ -61,9 +66,9 @@ token_chars() ->
                 tfun = fun token_translate/1
                }.
 
--define(DIGIT_SHIFT, 9).
--define(SMALL_ALPHA_SHIFT, (?DIGIT_SHIFT + ?DIGIT_SIZE)).
--define(CAP_ALPHA_SHIFT, (?SMALL_ALPHA_SHIFT + ?SMALL_ALPHA_SIZE)).
+-define(TOKEN_DIGIT_SHIFT, 9).
+-define(TOKEN_SMALL_ALPHA_SHIFT, (?TOKEN_DIGIT_SHIFT + ?DIGIT_SIZE)).
+-define(TOKEN_CAP_ALPHA_SHIFT, (?TOKEN_SMALL_ALPHA_SHIFT + ?SMALL_ALPHA_SIZE)).
 
 token_translate(0) -> $-;
 token_translate(1) -> $.;
@@ -74,12 +79,63 @@ token_translate(5) -> $+;
 token_translate(6) -> $`;
 token_translate(7) -> $';
 token_translate(8) -> $~;
-token_translate(X) when X >= ?DIGIT_SHIFT,
-                        X < ?SMALL_ALPHA_SHIFT ->
-    X - ?DIGIT_SHIFT + $0;
-token_translate(X) when X >= ?SMALL_ALPHA_SHIFT,
-                        X < ?CAP_ALPHA_SHIFT ->
-    X - ?SMALL_ALPHA_SHIFT + $a;
-token_translate(X) when X >= ?CAP_ALPHA_SHIFT,
-                        X < ?CAP_ALPHA_SHIFT + ?CAP_ALPHA_SIZE ->
-    X - ?CAP_ALPHA_SHIFT + $A.
+token_translate(X) when X >= ?TOKEN_DIGIT_SHIFT,
+                        X < ?TOKEN_SMALL_ALPHA_SHIFT ->
+    X - ?TOKEN_DIGIT_SHIFT + $0;
+token_translate(X) when X >= ?TOKEN_SMALL_ALPHA_SHIFT,
+                        X < ?TOKEN_CAP_ALPHA_SHIFT ->
+    X - ?TOKEN_SMALL_ALPHA_SHIFT + $a;
+token_translate(X) when X >= ?TOKEN_CAP_ALPHA_SHIFT,
+                        X < ?TOKEN_CAP_ALPHA_SHIFT + ?CAP_ALPHA_SIZE ->
+    X - ?TOKEN_CAP_ALPHA_SHIFT + $A.
+
+
+%% word     =  1*(alphanum /
+%%             "-" / "." / "!" / "%" / "*" /
+%%             "_" / "+" / "`" / "'" / "~" /
+%%             "(" / ")" / "<" / ">" /
+%%             ":" / "\" / DQUOTE /
+%%             "/" / "[" / "]" / "?" /
+%%             "{" / "}" )
+-define(WORD_OTHER_SIZE, 22).
+-spec word_chars() -> char_table().
+word_chars() ->
+    #char_table{size = ?ALPHA_SIZE + ?DIGIT_SIZE + ?WORD_OTHER_SIZE,
+                tfun = fun word_translate/1
+               }.
+
+-define(WORD_DIGIT_SHIFT, ?WORD_OTHER_SIZE).
+-define(WORD_SMALL_ALPHA_SHIFT, (?WORD_DIGIT_SHIFT + ?DIGIT_SIZE)).
+-define(WORD_CAP_ALPHA_SHIFT, (?WORD_SMALL_ALPHA_SHIFT + ?SMALL_ALPHA_SIZE)).
+
+word_translate(0)  -> $-;
+word_translate(1)  -> $.;
+word_translate(2)  -> $!;
+word_translate(3)  -> $*;
+word_translate(4)  -> $_;
+word_translate(5)  -> $+;
+word_translate(6)  -> $`;
+word_translate(7)  -> $';
+word_translate(8)  -> $~;
+word_translate(9)  -> $(;
+word_translate(10) -> $);
+word_translate(11) -> $<;
+word_translate(12) -> $>;
+word_translate(13) -> $:;
+word_translate(14) -> $\\;
+word_translate(15) -> $";
+word_translate(16) -> $/;
+word_translate(17) -> $[;
+word_translate(18) -> $];
+word_translate(19) -> $?;
+word_translate(20) -> ${;
+word_translate(21) -> $};
+word_translate(X) when X >= ?WORD_DIGIT_SHIFT,
+                        X < ?WORD_SMALL_ALPHA_SHIFT ->
+    X - ?WORD_DIGIT_SHIFT + $0;
+word_translate(X) when X >= ?WORD_SMALL_ALPHA_SHIFT,
+                        X < ?WORD_CAP_ALPHA_SHIFT ->
+    X - ?WORD_SMALL_ALPHA_SHIFT + $a;
+word_translate(X) when X >= ?WORD_CAP_ALPHA_SHIFT,
+                        X < ?WORD_CAP_ALPHA_SHIFT + ?CAP_ALPHA_SIZE ->
+    X - ?WORD_CAP_ALPHA_SHIFT + $A.

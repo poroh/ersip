@@ -11,6 +11,7 @@
 
 -export([make/1,
          make_key/1,
+         make_random/1,
          parse/1,
          build/2,
          assemble/1
@@ -47,6 +48,10 @@ make(Header) ->
 -spec make_key(callid()) -> callid().
 make_key({callid, _} = C) ->
     C.
+
+-spec make_random(NumBytes :: pos_integer()) -> callid().
+make_random(NumBytes) ->
+    make(ersip_id:word(crypto:strong_rand_bytes(NumBytes))).
 
 -spec parse(ersip_hdr:header() | binary()) -> Result when
       Result :: {ok, callid()}

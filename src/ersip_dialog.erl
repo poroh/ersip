@@ -13,7 +13,7 @@
 %%    UAS:
 %%      1. Call uas_verify/1 to check that is well-formed
 %%      2. Pass for processing and get response
-%%      3. Call uas_new/2 to create server-side transaction
+%%      3. Call uas_new/2 or uas_create/2 + uas_pass_response/2 to create server-side transaction
 %%      4. Call uas_pass_response/2 for each next response.
 %%
 %% In-dialog requests:
@@ -37,6 +37,7 @@
 -export([id/1,
          uas_verify/1,
          uas_new/2,
+         uas_create/2,
          uas_pass_response/3,
          uac_new/2,
          uac_update/2,
@@ -147,8 +148,19 @@ uas_new(Request, Response) ->
             ok
     end,
     OutResponse = uas_update_response(Request, Response),
-    Dialog = uas_create(Request, Response),
+    Dialog = do_uas_create(Request, Response),
     {Dialog, OutResponse}.
+
+-spec uas_create(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> dialog().
+uas_create(Request, Response) ->
+    %% Check request/response pair can create dialog.
+    case uas_can_create_dialog(Request, Response) of
+        {error, Reason} ->
+            error({cannot_create_dialog, Reason});
+        ok ->
+            ok
+    end,
+    do_uas_create(Request, Response).
 
 -spec uas_pass_response(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg(), dialog()) -> uas_result().
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
@@ -324,8 +336,8 @@ is_secure(#dialog{secure = Secure}) ->
 %%% Internal Implementation
 %%%===================================================================
 
--spec uas_create(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> dialog().
-uas_create(Request, Response) ->
+-spec do_uas_create(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> dialog().
+do_uas_create(Request, Response) ->
     %% If the request arrived over TLS, and the Request-URI contained
     %% a SIPS URI, the "secure" flag is set to TRUE.
     IsSecure =

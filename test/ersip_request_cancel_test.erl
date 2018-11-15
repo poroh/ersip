@@ -83,7 +83,5 @@ invite_bin(_Options) ->
       ?crlf>>.
 
 parse_message(Bin) when is_binary(Bin) ->
-    P  = ersip_parser:new_dgram(Bin),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Bin, all),
     SipMsg.

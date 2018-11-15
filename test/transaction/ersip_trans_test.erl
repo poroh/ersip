@@ -163,6 +163,45 @@ client_transaction_match_test() ->
     ?assertEqual(ersip_trans:client_id(OutReq), ersip_trans:client_id(Via, Local200OK)),
     ok.
 
+malformed_invite_test() ->
+    BadTo  = <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+               "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+               "To: Bob <sip:боб@biloxi.com>" ?crlf
+               "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+               "Call-ID: a84b4c76e66710" ?crlf
+               "CSeq: 314159 INVITE" ?crlf
+               "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+               "Content-Type: application/sdp" ?crlf
+               "Content-Length: 0" ?crlf
+               ?crlf>>,
+    {ok, SipMsgBadTo} = ersip_sipmsg:parse(BadTo, []),
+    ?assertMatch({error, _}, ersip_trans:validate(SipMsgBadTo)),
+
+    NoFrom  = <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+                "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+                "To: Bob <sip:bob@biloxi.com>" ?crlf
+                "Call-ID: a84b4c76e66710" ?crlf
+                "CSeq: 314159 INVITE" ?crlf
+                "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+                "Content-Type: application/sdp" ?crlf
+                "Content-Length: 0" ?crlf
+               ?crlf>>,
+    {ok, SipMsgNoFrom} = ersip_sipmsg:parse(NoFrom, []),
+    ?assertMatch({error, _}, ersip_trans:validate(SipMsgNoFrom)),
+
+    BadCSeq  = <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+                 "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+                 "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+                 "To: Bob <sip:bob@biloxi.com>" ?crlf
+                 "Call-ID: a84b4c76e66710" ?crlf
+                 "CSeq: x" ?crlf
+                 "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+                 "Content-Type: application/sdp" ?crlf
+                 "Content-Length: 0" ?crlf
+                 ?crlf>>,
+    {ok, SipMsgBadCSeq} = ersip_sipmsg:parse(BadCSeq, []),
+    ?assertMatch({error, _}, ersip_trans:validate(SipMsgBadCSeq)),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -320,8 +359,20 @@ ack_bin() ->
       "Content-Length: 0" ?crlf
       ?crlf>>.
 
+invite_bad() ->
+    <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:боб@biloxi.com>" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "Route: <sip:server10.biloxi.com;lr>" ?crlf
+      "CSeq: 314159 INVITE" ?crlf
+      "Contact: <sip:alice@pc33.atlanta.com>" ?crlf
+      "Content-Type: application/sdp" ?crlf
+      "Content-Length: 0" ?crlf
+      ?crlf>>.
+
 parse_message(Bin) when is_binary(Bin) ->
-    P  = ersip_parser:new_dgram(Bin),
-    {{ok, PMsg}, _P2} = ersip_parser:parse(P),
-    {ok, SipMsg} = ersip_sipmsg:parse(PMsg, all),
+    {ok, SipMsg} = ersip_sipmsg:parse(Bin, all),
     SipMsg.

@@ -35,6 +35,7 @@
          set/3,
          copy/3,
          remove/2,
+         filter_out_parsed/2,
 
          %% Body manipulation:
          has_body/1,
@@ -215,6 +216,11 @@ copy(HdrNameForm, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
 -spec remove(ersip_hnames:name_forms(), sipmsg()) -> sipmsg().
 remove(HdrName, SipMsg) ->
     ersip_siphdr:remove_header(HdrName, SipMsg).
+
+-spec filter_out_parsed(sipmsg(), [known_header()]) -> [known_header()].
+filter_out_parsed(#sipmsg{headers = H}, HdrNames) ->
+    lists:filter(fun(HName) -> not maps:is_key(HName, H) end,
+                 HdrNames).
 
 -spec has_body(sipmsg()) -> boolean().
 has_body(#sipmsg{} = Msg) ->

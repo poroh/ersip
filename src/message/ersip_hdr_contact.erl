@@ -8,7 +8,8 @@
 
 -module(ersip_hdr_contact).
 
--export([uri/1,
+-export([new/1,
+         uri/1,
          expires/2,
          set_expires/2,
          qvalue/2,
@@ -46,6 +47,11 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec new(ersip_uri:uri()) -> contact().
+new(URI) ->
+    #contact{uri = URI,
+             hparams = ersip_hparams:new()}.
 
 -spec uri(contact()) -> ersip_uri:uri().
 uri(#contact{uri = URI}) ->

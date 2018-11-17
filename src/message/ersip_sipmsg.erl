@@ -268,6 +268,11 @@ parse(#sipmsg{} = SipMsg, all) ->
     HeadersToParse = ersip_siphdr:all_known_headers() -- AlreadyParsed,
     MaybeMsg = {ok, SipMsg},
     lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+parse(#sipmsg{} = SipMsg, all_required) ->
+    AlreadyParsed = maps:keys(headers(SipMsg)),
+    HeadersToParse = required_headers(type(SipMsg)) -- AlreadyParsed,
+    MaybeMsg = {ok, SipMsg},
+    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
 parse(#sipmsg{} = SipMsg, Headers) ->
     AlreadyParsed = maps:keys(headers(SipMsg)),
     HeadersToParse = Headers -- AlreadyParsed,
@@ -285,6 +290,8 @@ parse(SipMsgBin, What) when is_binary(SipMsgBin) ->
     end;
 parse(RawMsg, all) ->
     parse(RawMsg, ersip_siphdr:all_known_headers());
+parse(RawMsg, all_required) ->
+    parse(RawMsg, required_headers(ersip_msg:get(type, RawMsg)));
 parse(RawMsg, Headers) ->
     MaybeMsg0 = create_from_raw(RawMsg),
     MaybeMsg1 = lists:foldl(fun maybe_parse_header/2, MaybeMsg0, Headers),
@@ -582,4 +589,8 @@ set_source(Src, SipMsg) ->
     RawMsg0 = raw_message(SipMsg),
     RawMsg = ersip_msg:set_source(Src, RawMsg0),
     set_raw_message(RawMsg, SipMsg).
+
+-spec required_headers(ersip_msg:type()) -> [known_header()].
+required_headers(request) -> [from, to, callid, cseq, topmost_via];
+required_headers(response) -> [from, to, callid, cseq].
 

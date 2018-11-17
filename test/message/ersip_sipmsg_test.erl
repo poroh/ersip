@@ -79,6 +79,41 @@ parse_request_append_all_test() ->
     ?assertEqual({sent_by, {hostname, <<"pc33.atlanta.com">>}, 5060},
                  ersip_hdr_via:sent_by(Via)).
 
+parse_request_all_required_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: x"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    {ok, SipMsg0} = ersip_sipmsg:parse(Msg,  all_required),
+    ?assertMatch({error, _}, ersip_sipmsg:parse(SipMsg0, all)).
+
+parse_response_all_required_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"SIP/2.0 200 OK"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>;tag=123"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: x"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    {ok, SipMsg0} = ersip_sipmsg:parse(Msg,  all_required),
+    ?assertMatch({error, _}, ersip_sipmsg:parse(SipMsg0, all)).
+
+
 parse_response_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"SIP/2.0 200 OK"

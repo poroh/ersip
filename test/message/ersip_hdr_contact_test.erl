@@ -101,6 +101,11 @@ set_param_error_test() ->
     ?assertError({invalid_param, _}, ersip_hdr_contact:set_param(<<"@">>, <<>>, Alice)),
     ok.
 
+assemble_new_test() ->
+    NewContact = ersip_hdr_contact:new(ersip_uri:make(<<"sip:a@b">>)),
+    ?assertEqual(<<"<sip:a@b>">>, ersip_hdr_contact:assemble_bin(NewContact)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

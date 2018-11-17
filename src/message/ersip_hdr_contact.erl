@@ -145,13 +145,17 @@ assemble(#contact{} = Contact) ->
            uri = URI,
            hparams = HParams
           } = Contact,
+    DisplayName = case DN of
+                      undefined -> {display_name, []};
+                      _ -> DN
+                  end,
     HParamsIO0 = ersip_hparams:assemble(HParams),
     HParamsIO =
         case ersip_iolist:is_empty(HParamsIO0) of
             true -> [];
             false -> [$; | HParamsIO0]
         end,
-    [ersip_nameaddr:assemble(DN, URI), HParamsIO].
+    [ersip_nameaddr:assemble(DisplayName, URI), HParamsIO].
 
 -spec assemble_bin(contact()) -> binary().
 assemble_bin(#contact{} = Contact) ->

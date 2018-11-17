@@ -260,7 +260,7 @@ set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
 
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.
--spec parse(ersip_msg:message() | sipmsg() | binary() | iolist(), [known_header()] | all) -> Result when
+-spec parse(ersip_msg:message() | sipmsg() | binary() | iolist(), [known_header()] | all | all_required) -> Result when
       Result :: {ok, sipmsg()}
               | {error, term()}.
 parse(#sipmsg{} = SipMsg, all) ->

@@ -78,6 +78,7 @@ message_serialize_req_test() ->
                         ?crlf "Call-Id: some-call-id"
                         ?crlf "CSeq: 1 INVITE"
                         ?crlf "Max-Forwards: 70"
+                        ?crlf "Content-Length: 0"
                         ?crlf ?crlf>>,
     ?assertEqual(ExpectedMessage, ersip_msg:serialize_bin(M1)).
 
@@ -102,6 +103,7 @@ message_serialize_resp_test() ->
                         ?crlf "From: sip:bob@biloxi.com"
                         ?crlf "Call-Id: some-call-id"
                         ?crlf "CSeq: 1 INVITE"
+                        ?crlf "Content-Length: 0"
                         ?crlf ?crlf>>,
     ?assertEqual(ExpectedMessage, ersip_msg:serialize_bin(M1)).
 

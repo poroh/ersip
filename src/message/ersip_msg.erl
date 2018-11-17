@@ -193,13 +193,20 @@ serialize_first_line(#message{type={response, StatusCode, Reason}}, Acc) ->
 -spec serialize_headers(message(), iolist()) -> iolist().
 serialize_headers(#message{headers = Headers}, Acc) ->
     Ordered    = header_keys_order(),
-    NotOrdered = maps:keys(maps:without(Ordered, Headers)),
+    NotOrdered = maps:keys(maps:without([{hdr_key, <<"l">>} | Ordered], Headers)),
     Acc1 = serialize_headers_in_order(Ordered, Headers, Acc),
-    Acc2 = serialize_headers_in_order(NotOrdered, Headers, Acc1),
-    [<<"\r\n\r\n">> | Acc2].
+    serialize_headers_in_order(NotOrdered, Headers, Acc1).
 
+-spec serialize_body(message(), iolist()) -> iolist().
 serialize_body(#message{body = Body}, Acc) ->
-    [Body | Acc].
+    case ersip_iolist:is_empty(Body) of
+        true ->
+            [<<"\r\n\r\n">>, <<"\r\nContent-Length: 0">> | Acc];
+        false ->
+            BodyBin = iolist_to_binary(Body),
+            Size = integer_to_binary(byte_size(BodyBin)),
+            [BodyBin, <<"\r\n\r\n">>, Size, <<"\r\nContent-Length: ">> | Acc]
+    end.
 
 header_keys_order() ->
     lists:map(fun ersip_hdr:make_key/1, ?headers_order).

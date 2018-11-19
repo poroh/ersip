@@ -16,7 +16,8 @@
          set_sipmsg/2,
          nexthop/1,
          set_nexthop/2,
-         send_via_conn/2
+         send_via_conn/2,
+         dialog_id/1
         ]).
 
 -export_type([request/0]).
@@ -82,6 +83,10 @@ send_via_conn(#request{sipmsg = SipMsg, branch = Branch}, SIPConn) ->
     RawMsg  = ersip_sipmsg:raw_message(SipMsg),
     RawMsg1 = ersip_conn:add_via(RawMsg, Branch, SIPConn),
     ersip_msg:serialize(RawMsg1).
+
+-spec dialog_id(request()) -> ersip_dialog:id().
+dialog_id(#request{sipmsg = SipMsg}) ->
+    ersip_sipmsg:dialog_id(SipMsg).
 
 %%%===================================================================
 %%% Implementation

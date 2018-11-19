@@ -35,6 +35,7 @@
 -module(ersip_dialog).
 
 -export([id/1,
+         make_id/3,
          uas_verify/1,
          uas_new/2,
          uas_create/2,
@@ -105,6 +106,13 @@ id(#dialog{callid = CallId, local_tag = LocalTag, remote_tag = RemoteTag}) ->
                 ersip_hdr_fromto:tag_key(RemoteTag)
         end,
     #dialog_id{local_tag  = ersip_hdr_fromto:tag_key(LocalTag),
+               remote_tag = RemoteTagKey,
+               callid     = ersip_hdr_callid:make_key(CallId)
+              }.
+
+-spec make_id(ersip_hdr_fromto:tag_key(), ersip_hdr_fromto:tag_key(), ersip_hdr_callid:callid()) -> id().
+make_id(LocalTagKey, RemoteTagKey, CallId) ->
+    #dialog_id{local_tag  = LocalTagKey,
                remote_tag = RemoteTagKey,
                callid     = ersip_hdr_callid:make_key(CallId)
               }.
@@ -273,18 +281,7 @@ uas_dialog_id(RequestSipMsg) ->
     %% computes the dialog identifier corresponding to the request and
     %% compares it with existing dialogs.  If there is a match, this
     %% is a mid-dialog request.
-    To     = ersip_sipmsg:get(to, RequestSipMsg),
-    From   = ersip_sipmsg:get(from, RequestSipMsg),
-    CallID = ersip_sipmsg:get(callid, RequestSipMsg),
-    case ersip_hdr_fromto:tag_key(To) of
-        undefined ->
-            no_dialog;
-        LocalTag ->
-            RemoteTag = ersip_hdr_fromto:tag_key(From),
-            {ok, #dialog_id{callid = CallID,
-                            local_tag = LocalTag,
-                            remote_tag = RemoteTag}}
-    end.
+    ersip_sipmsg:dialog_id(RequestSipMsg).
 
 -spec uas_process(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
 uas_process(RequestSipMsg, ReqType, #dialog{remote_seq = empty} = Dialog0) ->

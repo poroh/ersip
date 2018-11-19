@@ -59,7 +59,7 @@
          %% SIP-specific
          new_request/2,
          reply/2,
-         dialog_id/1,
+         dialog_id/2,
 
          %% Metadata manipulation:
          source/1,
@@ -346,19 +346,23 @@ reply(Code, #sipmsg{} = SipMsg) when is_integer(Code) andalso Code >= 100 andals
 reply(Reply, #sipmsg{} = SipMsg) ->
     reply_impl(Reply, SipMsg).
 
--spec dialog_id(sipmsg()) -> {ok, ersip_dialog:id()} | no_dialog.
-dialog_id(#sipmsg{} = SipMsg) ->
+-spec dialog_id(uas | uac, sipmsg()) -> {ok, ersip_dialog:id()} | no_dialog.
+dialog_id(Role, #sipmsg{} = SipMsg) ->
     To     = to(SipMsg),
     From   = from(SipMsg),
     CallID = callid(SipMsg),
     case ersip_hdr_fromto:tag_key(To) of
         undefined ->
             no_dialog;
-        LocalTag ->
-            RemoteTag = ersip_hdr_fromto:tag_key(From),
+        ToTag ->
+            FromTag = ersip_hdr_fromto:tag_key(From),
+            {LocalTag, RemoteTag} =
+                case Role of
+                    uas -> {ToTag, FromTag};
+                    uac -> {FromTag, ToTag}
+                end,
             {ok, ersip_dialog:make_id(LocalTag, RemoteTag, CallID)}
     end.
-
 
 -spec source(sipmsg()) -> undefined | ersip_source:source().
 source(#sipmsg{} = SipMsg) ->

@@ -86,7 +86,7 @@ send_via_conn(#request{sipmsg = SipMsg, branch = Branch}, SIPConn) ->
 
 -spec dialog_id(request()) -> ersip_dialog:id().
 dialog_id(#request{sipmsg = SipMsg}) ->
-    ersip_sipmsg:dialog_id(SipMsg).
+    ersip_sipmsg:dialog_id(uac, SipMsg).
 
 %%%===================================================================
 %%% Implementation

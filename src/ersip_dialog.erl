@@ -281,7 +281,7 @@ uas_dialog_id(RequestSipMsg) ->
     %% computes the dialog identifier corresponding to the request and
     %% compares it with existing dialogs.  If there is a match, this
     %% is a mid-dialog request.
-    ersip_sipmsg:dialog_id(RequestSipMsg).
+    ersip_sipmsg:dialog_id(uas, RequestSipMsg).
 
 -spec uas_process(ersip_sipmsg:sipmsg(), request_type(), dialog()) -> uas_process_result().
 uas_process(RequestSipMsg, ReqType, #dialog{remote_seq = empty} = Dialog0) ->

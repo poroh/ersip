@@ -47,7 +47,8 @@
          uas_dialog_id/1,
          uas_process/3,
          remote_seq/1,
-         is_secure/1
+         is_secure/1,
+         is_early/1
         ]).
 
 -export_type([dialog/0,
@@ -328,6 +329,12 @@ remote_seq(#dialog{remote_seq = RCSeq}) ->
 -spec is_secure(dialog()) -> boolean().
 is_secure(#dialog{secure = Secure}) ->
     Secure.
+
+-spec is_early(dialog()) -> boolean().
+is_early(#dialog{state = early}) ->
+    true;
+is_early(_) ->
+    false.
 
 %%%===================================================================
 %%% Internal Implementation

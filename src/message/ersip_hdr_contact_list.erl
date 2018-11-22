@@ -106,6 +106,5 @@ add_to_maybe_contact_list(Bin, {ok, ContactList}) when is_list(ContactList) ->
                     add_to_maybe_contact_list(Rest2, {ok, [Contact | ContactList]})
             end;
         {error, _} = Error ->
-            io:format("add_to_maybe_contact_list: ~p", [Bin]),
             Error
     end.

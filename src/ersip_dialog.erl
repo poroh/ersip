@@ -210,7 +210,10 @@ uac_update(RespSipMsg, #dialog{state = early} = Dialog) ->
             terminate_dialog;
         _ ->
             uac_trans_result(RespSipMsg, target_refresh, Dialog)
-    end.
+    end;
+uac_update(RespSipMsg, #dialog{} = Dialog) ->
+    uac_trans_result(RespSipMsg, target_refresh, Dialog).
+
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.1 Generating the Request

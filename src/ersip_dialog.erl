@@ -198,9 +198,19 @@ uac_new(Req, Response) ->
             {ok, Dialog}
     end.
 
--spec uac_update(ersip_sipmsg:sipmsg(), dialog()) -> {ok, dialog()} | terminate_dialog.
-uac_update(Response, #dialog{} = Dialog) ->
-    uac_trans_result(Response, target_refresh, Dialog).
+-spec uac_update(ersip_sipmsg:sipmsg() | timeout, dialog()) -> {ok, dialog()} | terminate_dialog.
+uac_update(timeout, #dialog{state = early}) ->
+    terminate_dialog;
+uac_update(RespSipMsg, #dialog{state = early} = Dialog) ->
+    %% Independent of the method, if a request outside of a dialog generates
+    %% a non-2xx final response, any early dialogs created through
+    %% provisional responses to that request are terminated.
+    case ersip_sipmsg:status(RespSipMsg) of
+        Status when Status >= 300 ->
+            terminate_dialog;
+        _ ->
+            uac_trans_result(RespSipMsg, target_refresh, Dialog)
+    end.
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.1 Generating the Request

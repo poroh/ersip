@@ -316,7 +316,8 @@ uas_process(RequestSipMsg, ReqType,  #dialog{remote_seq = StoredRCSeq} = Dialog0
     RemoteCSeqNum = ersip_hdr_cseq:number(RemoteCSeq),
     case RemoteCSeqNum =< StoredRCSeq of
         true ->
-            {reply, ersip_sipmsg:reply(500, RequestSipMsg)};
+            Reply500 = ersip_reply:new(500, [{reason, <<"Dialog sequence number mismatch">>}]),
+            {reply, ersip_sipmsg:reply(Reply500, RequestSipMsg)};
         false ->
             %% Note that RFC 3261 has clause:
             %%

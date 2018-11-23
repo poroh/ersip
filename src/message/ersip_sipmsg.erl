@@ -370,7 +370,13 @@ source(#sipmsg{} = SipMsg) ->
 
 -spec source_id(sipmsg()) -> term().
 source_id(#sipmsg{} = SipMsg) ->
-    ersip_source:source_id(ersip_msg:source(raw_message(SipMsg))).
+    Source = ersip_msg:source(raw_message(SipMsg)),
+    case Source of
+        undefined ->
+            error(<<"get source id from undefined source">>);
+        _ ->
+            ersip_source:source_id(Source)
+    end.
 
 -spec user_data(sipmsg()) -> term().
 user_data(#sipmsg{user = undefined}) ->

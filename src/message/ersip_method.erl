@@ -13,6 +13,9 @@
          ack/0,
          bye/0,
          cancel/0,
+         subscribe/0,
+         notify/0,
+         refer/0,
          register/0,
          parse/1,
          make/1,
@@ -37,6 +40,10 @@
 -define(CANCEL,   {method, <<"CANCEL">>}).
 -define(REGISTER, {method, <<"REGISTER">>}).
 
+-define(SUBSCRIBE, {method, <<"SUBSCRIBE">>}).
+-define(NOTIFY,    {method, <<"NOTIFY">>}).
+-define(REFER,     {method, <<"REFER">>}).
+
 options() ->
     ?OPTIONS.
 
@@ -54,6 +61,15 @@ cancel() ->
 
 register() ->
     ?REGISTER.
+
+subscribe() ->
+    ?SUBSCRIBE.
+
+notify() ->
+    ?NOTIFY.
+
+refer() ->
+    ?REFER.
 
 -spec parse(binary()) ->  {ok, method()}
                               | {error, Error} when

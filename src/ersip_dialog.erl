@@ -48,7 +48,8 @@
          uas_process/3,
          remote_seq/1,
          is_secure/1,
-         is_early/1
+         is_early/1,
+         target/1
         ]).
 
 -export_type([dialog/0,
@@ -135,7 +136,7 @@ uas_verify(ReqSipMsg) ->
         {error, invalid_star_contact} ->
             Reply = ersip_reply:new(400, [{reason, <<"Star Contact Forbidden">>}]),
             {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)};
-        {error, contact_required} ->
+        not_found ->
             Reply = ersip_reply:new(400, [{reason, <<"No Contact Specified">>}]),
             {reply, ersip_sipmsg:reply(Reply, ReqSipMsg)}
     end.
@@ -350,6 +351,10 @@ is_early(#dialog{state = early}) ->
 is_early(_) ->
     false.
 
+-spec target(dialog()) -> ersip_uri:uri().
+target(#dialog{remote_target = URI}) ->
+    URI.
+
 %%%===================================================================
 %%% Internal Implementation
 %%%===================================================================
@@ -436,7 +441,13 @@ uac_create(Request, Response) ->
             {ok, Set} ->
                 ersip_route_set:reverse(Set)
         end,
-    [RespContact] = ersip_sipmsg:get(contact, Response),
+    RTargetURI =
+        case ersip_sipmsg:find(contact, Response) of
+            {ok, [RespContact]} ->
+                ersip_hdr_contact:uri(RespContact);
+            not_found ->
+                ersip_request:nexthop(Request)
+        end,
     RespTo        = ersip_sipmsg:get(to,      Response),
 
     ReqCseq       = ersip_sipmsg:get(cseq,    ReqSipMsg),
@@ -447,7 +458,7 @@ uac_create(Request, Response) ->
             route_set = RouteSet,
             %% The remote target MUST be set to the URI from the
             %% Contact header field of the response.
-            remote_target = ersip_hdr_contact:uri(RespContact),
+            remote_target = RTargetURI,
             %% The local sequence number MUST be set to the value of the sequence
             %% number in the CSeq header field of the request.
             local_seq    = ersip_hdr_cseq:number(ReqCseq),
@@ -503,19 +514,21 @@ check_all([F | Rest], Request, Response) ->
 -spec cc_check_contact(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> cc_check_result().
 cc_check_contact(Request, Response) ->
     case check_contact(Request) of
+        not_found ->
+            {error, contact_required};
         {error, Reason} ->
             {error, {request_contact, Reason}};
         ok ->
             case check_contact(Response) of
-                ok ->
-                    ok;
+                ok -> ok;
+                not_found -> ok;
                 {error, Reason} ->
                     {error, {response_contact, Reason}}
             end
     end.
 
 
--spec check_contact(ersip_sipmsg:sipmsg()) -> cc_check_result().
+-spec check_contact(ersip_sipmsg:sipmsg()) -> cc_check_result() | not_found.
 check_contact(SipMsg) ->
     %% 8.1.1.8 Contact
     %%
@@ -530,7 +543,7 @@ check_contact(SipMsg) ->
         {ok, star} ->
             {error, invalid_star_contact};
         not_found ->
-            {error, contact_required};
+            not_found;
         {error, _} = Err ->
             Err
     end.
@@ -572,17 +585,20 @@ cc_check_uas_sips(Request, Response) ->
                 ersip_uri:scheme(ersip_hdr_route:uri(TopRR)) == {scheme, sips}
         end,
     case SIPSRURI orelse SIPSNextHop of
-        true ->
-            %% Note: contact is checked before.
-            [RespContact] = ersip_sipmsg:get(contact, Response),
-            case ersip_uri:scheme(ersip_hdr_contact:uri(RespContact)) of
-                {scheme, sips} ->
-                    ok;
-                Scheme ->
-                    {error, {response_contact_must_be_sips, Scheme}}
-            end;
         false ->
-            ok
+            ok;
+        true ->
+            %% Note: contact is checked on errors before.
+            case ersip_sipmsg:find(contact, Response) of
+                not_found -> ok;
+                {ok, [RespContact]} ->
+                    case ersip_uri:scheme(ersip_hdr_contact:uri(RespContact)) of
+                        {scheme, sips} ->
+                            ok;
+                        Scheme ->
+                            {error, {response_contact_must_be_sips, Scheme}}
+                    end
+            end
     end.
 
 %% @private
@@ -605,15 +621,14 @@ cc_check_uac_sips(Request, _Response) ->
     SIPSRoute =
         case ersip_sipmsg:find(route, Request) of
             not_found ->
-                %% Note: contact is checked before.
                 false;
             {ok, RRSet} ->
                 TopRR = ersip_route_set:first(RRSet),
                 ersip_uri:scheme(ersip_hdr_route:uri(TopRR)) == {scheme, sips}
         end,
-    %% Note: contact is checked before.
     case SIPSRURI orelse SIPSRoute of
         true ->
+            %% Note: contact is checked before.
             [ReqContact] = ersip_sipmsg:get(contact, Request),
             case ersip_uri:scheme(ersip_hdr_contact:uri(ReqContact)) of
                 {scheme, sips} ->

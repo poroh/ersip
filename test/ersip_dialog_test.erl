@@ -598,6 +598,24 @@ check_no_secure_when_on_undefined_source_test() ->
     ?assertEqual(false, ersip_dialog:is_secure(BobDialog)),
     ok.
 
+uac_create_dialog_no_contact_in_resp_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180UAS_0 = invite_reply(180, InvSipMsg),
+    InvResp180UAS = ersip_sipmsg:set(contact, [], InvResp180UAS_0),
+    ?assertMatch({ok, _}, ersip_dialog:uac_new(InvReq, InvResp180UAS)),
+    {ok, Dialog} = ersip_dialog:uac_new(InvReq, InvResp180UAS),
+    ?assertEqual(ersip_request:nexthop(InvReq), ersip_dialog:target(Dialog)),
+    ok.
+
+uas_create_dialog_no_contact_in_resp_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180_0 = invite_reply(180, InvSipMsg),
+    InvResp180 = ersip_sipmsg:set(contact, [], InvResp180_0),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

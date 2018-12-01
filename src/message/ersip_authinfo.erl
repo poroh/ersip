@@ -9,7 +9,8 @@
 
 -module(ersip_authinfo).
 
--export([make/1,
+-export([type/1,
+         make/1,
          parse/1,
          assemble/1,
          assemble_bin/1]).
@@ -26,6 +27,10 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec type(authinfo()) -> binary().
+type(#authinfo{type = T}) ->
+    ersip_bin:to_lower(T).
 
 -spec make(binary()) -> authinfo().
 make(Bin) ->

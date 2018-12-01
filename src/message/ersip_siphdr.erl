@@ -346,5 +346,27 @@ header_descr(date) ->
     #descr{required     = optional,
            parse_fun    = fun ersip_hdr_date:parse/1,
            assemble_fun = fun ersip_hdr_date:build/2
+          };
+header_descr(www_authenticate) ->
+    #descr{required     = optional,
+           parse_fun    = fun ersip_hdr_auth:parse/1,
+           assemble_fun = fun ersip_hdr_auth:build/2
+          };
+header_descr(authorization) ->
+    #descr{required     = optional,
+           parse_fun    = fun ersip_hdr_auth:parse/1,
+           assemble_fun = fun ersip_hdr_auth:build/2
+          };
+header_descr(proxy_authenticate) ->
+    #descr{required     = optional,
+           parse_fun    = fun ersip_hdr_auth:parse/1,
+           assemble_fun = fun ersip_hdr_auth:build/2
+          };
+header_descr(proxy_authorization) ->
+    #descr{required     = optional,
+           parse_fun    = fun ersip_hdr_auth:parse/1,
+           assemble_fun = fun ersip_hdr_auth:build/2
           }.
+
+
 

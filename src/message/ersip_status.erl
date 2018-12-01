@@ -41,10 +41,8 @@ reason_phrase(Code) ->
     reason_impl(Code).
 
 %%-spec bad_request_reason({error, any()}) -> reason().
-bad_request_reason({error, {header_error, {maxforwards, _}}}) ->
-    <<"Invalid max-forwards value">>;
 bad_request_reason({error, {header_error, {HeaderName, _}}}) when is_atom(HeaderName) ->
-    HeaderNameBin = atom_to_binary(HeaderName, utf8),
+    HeaderNameBin = ersip_hnames:print_form(HeaderName),
     <<"Invalid ", HeaderNameBin/binary," value">>;
 bad_request_reason({error, _}) ->
     <<"Bad Request">>.

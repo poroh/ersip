@@ -26,8 +26,8 @@ leave to user how to organize these primitives in his/her software.
   + Parser limits enforcement (completed)
   + Statefull proxy support (completed)
   + Common dialog support (completed)
-  + INVITE dialog support (in-progress)
-  + Authorization and proxy authorization
+  + Authorization and proxy authorization (in-progress)
+  + INVITE dialog support
   + High-level UA support
   + Detailed documentation and tutorials
 
@@ -85,6 +85,6 @@ Also I have experience in VOIP area:
   + Session Border Controller (developed from scratch)
 
 I try to contribute all my experience to this project because I
-beleive that SIP protocol is instrument the must be free and
+beleive that SIP protocol is instrument that must be free and
 available.
 

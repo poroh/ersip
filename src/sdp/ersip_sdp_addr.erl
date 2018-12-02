@@ -53,14 +53,14 @@ parse(Bin) when is_binary(Bin) ->
 -spec parse(binary(), binary(), binary()) -> parse_result().
 parse(NetType, AddrType, Address) ->
     MaybeNetType =
-        case ersip_parser_aux:check_token(NetType) of
+        case ersip_sdp_aux:check_token(NetType) of
             false ->
                 {error, {invalid_net_type, NetType}};
             true ->
                 {ok, ersip_bin:to_lower(NetType)}
         end,
     MaybeAddrType =
-        case ersip_parser_aux:check_token(AddrType) of
+        case ersip_sdp_aux:check_token(AddrType) of
             false ->
                 {error, {invalid_addr_type, AddrType}};
             true ->

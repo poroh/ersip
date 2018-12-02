@@ -87,7 +87,7 @@ parse_bw(Item) ->
         [_] ->
             {error, {invalid_bandwidth, Item}};
         [BWTypeBin, BWValueBin] ->
-            case ersip_parser_aux:check_token(BWTypeBin) of
+            case ersip_sdp_aux:check_token(BWTypeBin) of
                 false ->
                     {error, {invalid_bandwidth_type, BWTypeBin}};
                 true ->

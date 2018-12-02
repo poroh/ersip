@@ -4,6 +4,7 @@
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
 %% SDP session level
+%% RFC 4566
 %%
 
 -module(ersip_sdp).
@@ -63,7 +64,7 @@ parse(Bin) ->
                fun ersip_sdp_bandwidth:parse/1,
                fun ersip_sdp_time:parse/1,
                fun parse_key/1,
-               fun ersip_sdp_attr:parse_list/1,
+               fun ersip_sdp_attr:parse/1,
                fun ersip_sdp_media:parse/1
               ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of

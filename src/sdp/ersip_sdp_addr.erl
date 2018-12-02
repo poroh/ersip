@@ -35,19 +35,31 @@
 -spec make(binary()) -> addr().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
-        {ok, Addr} ->
+        {ok, Addr, <<>>} ->
             Addr;
+        {ok, _, _} ->
+            error({invalid_addr, Bin});
         {error, Reason} ->
             error(Reason)
     end.
 
--spec parse(binary()) -> parse_result().
+-spec parse(binary()) -> ersip_parser_aux:parse_result(addr()).
 parse(Bin) when is_binary(Bin) ->
-    case binary:split(Bin, <<" ">>, [global]) of
-        [NetType, AddrType, Address] ->
-            parse(NetType, AddrType, Address);
-        _ ->
-            {error, {invalid_address, Bin}}
+    Parsers = [fun ersip_sdp_aux:parse_token/1,
+               fun ersip_parser_aux:parse_lws/1,
+               fun ersip_sdp_aux:parse_token/1,
+               fun ersip_parser_aux:parse_lws/1,
+               fun parse_address/1],
+    case ersip_parser_aux:parse_all(Bin, Parsers) of
+        {ok, [NetType, _, AddrType, _, Address], Rest} ->
+            case parse(NetType, AddrType, Address) of
+                {ok, Addr} ->
+                    {ok, Addr, Rest};
+                {error, _} = Error ->
+                    Error
+            end;
+         {error, Reason} ->
+            {error, {invalid_addr, Reason}}
     end.
 
 -spec parse(binary(), binary(), binary()) -> parse_result().
@@ -116,3 +128,26 @@ do_parse(<<"in">>, <<"ip6">>, AddrBin) ->
     end;
 do_parse(_, _, _) ->
     {error, unknown_addr_type}.
+
+
+-spec parse_address(binary()) -> ersip_parser_aux:parse_result(binary()).
+parse_address(Bin) ->
+    AddrEnd = find_addr_end(Bin, 0),
+    <<Addr:AddrEnd/binary, Rest/binary>> = Bin,
+    {ok, Addr, Rest}.
+
+-spec find_addr_end(binary(), non_neg_integer()) -> non_neg_integer().
+find_addr_end(<<>>, Acc) ->
+    Acc;
+find_addr_end(<<"/", _/binary>>, Acc) ->
+    Acc;
+find_addr_end(<<" ", _/binary>>, Acc) ->
+    Acc;
+find_addr_end(<<"\r", _/binary>>, Acc) ->
+    Acc;
+find_addr_end(<<_:8, Rest/binary>>, Acc) ->
+    find_addr_end(Rest, Acc+1).
+
+
+
+

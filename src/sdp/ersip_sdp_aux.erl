@@ -8,7 +8,19 @@
 
 -module(ersip_sdp_aux).
 
--export([check_token/1]).
+-export([check_token/1,
+         parse_token/1,
+         parse_info/1,
+         parse_key/1,
+         parse_crlf/1,
+         binary_to_eol/2]).
+
+%%%===================================================================
+%%% Types
+%%%===================================================================
+
+-type parse_result(X) :: ersip_parser_aux:parse_result(X).
+-type maybe_binary() :: binary() | undefined.
 
 %%%===================================================================
 %%% API
@@ -21,13 +33,57 @@ check_token(Bin) ->
     lists:all(fun is_token_char/1,
               binary_to_list(Bin)).
 
+-spec parse_token(binary()) -> ersip_parser_aux:parse_result(binary()).
+parse_token(<<>>) ->
+    {error, token_expected};
+parse_token(<<C, _/binary>> = Bin) ->
+    case is_token_char(C) of
+        true ->
+            TokenEnd = find_token_end(Bin, 0),
+            <<Token:TokenEnd/binary, Rest/binary>> = Bin,
+            {ok, Token, Rest};
+        false ->
+            {error, token_expected}
+    end.
+
+%% information-field =   [%x69 "=" text CRLF]
+-spec parse_info(binary()) -> parse_result(maybe_binary()).
+parse_info(<<"i=", Rest/binary>>) ->
+    binary_to_eol(info, Rest);
+parse_info(Bin) ->
+    {ok, undefined, Bin}.
+
+%% key-field =           [%x6b "=" key-type CRLF]
+-spec parse_key(binary()) -> parse_result(maybe_binary()).
+parse_key(<<"k=", Rest/binary>>) ->
+    ersip_sdp_aux:binary_to_eol(key, Rest);
+parse_key(Bin) ->
+    {ok, undefined, Bin}.
+
+-spec parse_crlf(binary()) -> parse_result(true).
+parse_crlf(<<"\r\n", Rest/binary>>) ->
+    {ok, true, Rest};
+parse_crlf(_) ->
+    {error, crlf_expected}.
+
+-spec binary_to_eol(atom(), binary()) -> parse_result(binary()).
+binary_to_eol(Type, Bin) ->
+    case binary:split(Bin, <<"\r\n">>) of
+        [V, Rest1] ->
+            {ok, V, Rest1};
+        [V] ->
+            {error, {unexpected_end, {Type, V}}}
+    end.
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 
 -spec is_token_char(char()) -> boolean().
 is_token_char(C) when C >= $a, C =< $z ->
-    true; %% shortcut for most common token chars...
+    true;
+is_token_char(C) when C >= $A, C =< $Z ->
+    true;
 is_token_char(C) ->
     is_token_char_full(C).
 
@@ -46,3 +102,14 @@ is_token_char_full(16#5D) -> false; %% ']'
 is_token_char_full(C) when C < 16#21 -> false;
 is_token_char_full(C) when C > 16#7E -> false;
 is_token_char_full(_) -> true.
+
+-spec find_token_end(binary(), non_neg_integer()) -> non_neg_integer().
+find_token_end(<<>>, Acc) ->
+    Acc;
+find_token_end(<<C:8, Rest/binary>>, Acc) ->
+    case is_token_char(C) of
+        false ->
+            Acc;
+        true ->
+            find_token_end(Rest, Acc+1)
+    end.

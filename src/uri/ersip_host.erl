@@ -10,6 +10,7 @@
 -export([is_host/1,
          is_ip_address/1,
          ip_address/1,
+         check_hostname/1,
          parse/1,
          make/1,
          make_key/1,
@@ -66,6 +67,9 @@ ip_address({ipv4, A}) -> A;
 ip_address({ipv6, A}) -> A;
 ip_address({hostname, _}) -> error({api_error, <<"cannot get IP from hostname host. Use resolve.">>}).
 
+-spec check_hostname(binary()) -> boolean().
+check_hostname(Bin) when is_binary(Bin) ->
+    hostname_valid(Bin).
 
 %% @doc Generate host specification from binary.
 -spec parse(binary()) -> ersip_parser_aux:parse_result(host()).

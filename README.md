@@ -27,6 +27,7 @@ leave to user how to organize these primitives in his/her software.
   + Statefull proxy support (completed)
   + Common dialog support (completed)
   + Authorization and proxy authorization (in-progress)
+  + SDP support (in-progress)
   + INVITE dialog support
   + High-level UA support
   + Detailed documentation and tutorials
@@ -60,6 +61,7 @@ RFC supported in this SIP stack:
   + RFC 3581 An Extension to the Session Initiation Protocol (SIP) for Symmetric Response Routing (rport)
   + RFC 4475 Session Initiation Protocol (SIP) Torture Test Messages
   + RFC 5118 Session Initiation Protocol (SIP) Torture Test Messages for Internet Protocol Version 6 (IPv6)
+  + RFC 4566 SDP: Session Description Protocol (patially - in progress)
 
 ## About Author
 

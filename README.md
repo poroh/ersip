@@ -1,7 +1,7 @@
 
 [![Build Status](https://travis-ci.org/poroh/ersip.svg?branch=master)](https://travis-ci.org/poroh/ersip) [![Coverage Status](https://coveralls.io/repos/github/poroh/ersip/badge.svg?branch=master)](https://coveralls.io/github/poroh/ersip?branch=master)
 
-# Erlang SIP
+# Erlang SIP and SDP library
 
 Some time ago I found that there are no opensource SIP library that
 does not force you to some software design. All libraries provides

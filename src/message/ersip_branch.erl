@@ -54,7 +54,7 @@ make_key({branch, Bin}) ->
 make_key({branch_key, _} = Key) ->
     Key.
 
--spec assemble(branch()) -> iolist().
+-spec assemble(branch()) -> binary().
 assemble({branch, Bin}) ->
     Bin.
 

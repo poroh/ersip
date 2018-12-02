@@ -110,7 +110,8 @@ raw_param(ParamName, #via{hparams = HParams}) when is_binary(ParamName) ->
       ParamName :: known_via_params() | binary(),
       Value     :: binary()
                  | ersip_host:host()
-                 | ersip_transport:port_number().
+                 | ersip_transport:port_number()
+                 | ersip_branch:branch().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
         {ok, Host, <<>>} ->
@@ -482,9 +483,9 @@ assemble_params(HParams) ->
         false -> [$; | HParamsIO0]
     end.
 
--spec assemble_param_value(known_via_params(), term()) -> iolist().
+-spec assemble_param_value(known_via_params(), term()) -> binary().
 assemble_param_value(received, Value) ->
-    ersip_host:assemble(Value);
+    iolist_to_binary(ersip_host:assemble(Value));
 assemble_param_value(rport, true) ->
     <<>>;
 assemble_param_value(rport, Value) ->
@@ -492,6 +493,6 @@ assemble_param_value(rport, Value) ->
 assemble_param_value(ttl, Value) ->
     integer_to_binary(Value);
 assemble_param_value(maddr, Value) ->
-    ersip_host:assemble(Value);
+    iolist_to_binary(ersip_host:assemble(Value));
 assemble_param_value(branch, Value) ->
     ersip_branch:assemble(Value).

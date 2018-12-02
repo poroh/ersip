@@ -22,8 +22,8 @@
               uri          :: maybe_binary(),
               emails       :: [binary()],
               phones       :: [binary()],
-              conn         :: ersip_sdp_conn:conn() | undefined,
-              bandwidth    :: ersip_sdp_bandwidth:bandwidth() | undefined,
+              conn         :: ersip_sdp_addr:addr() | undefined,
+              bandwidth    :: ersip_sdp_bandwidth:bandwidth(),
               timings      :: ersip_sdp_time:timings(),
               key          :: maybe_binary(),
               attrs        :: ersip_sdp_attr:attr_list(),
@@ -59,7 +59,7 @@ parse(Bin) ->
                fun parse_uri/1,
                fun parse_emails/1,
                fun parse_phones/1,
-               fun ersip_sdp_conn:parse/1,
+               fun parse_conn/1,
                fun ersip_sdp_bandwidth:parse/1,
                fun ersip_sdp_time:parse/1,
                fun parse_key/1,
@@ -69,7 +69,7 @@ parse(Bin) ->
     case ersip_parser_aux:parse_all(Bin, Parsers) of
         {ok, [_Proto, Origin, SessionName,
               Info, URI, Emails, Conn, Band, Time, Key,
-              Attrs, Medias]} ->
+              Attrs, Medias], <<>>} ->
             SDP = #sdp{origin       = Origin,
                        session_name = SessionName,
                        info         = Info,
@@ -83,6 +83,8 @@ parse(Bin) ->
                        medias       = Medias
                       },
             {ok, SDP};
+        {ok, _, Rest} ->
+            {error, {invalid_sdp, Rest}};
         {error, Reason} ->
             {error, {bad_sdp, Reason}}
     end.
@@ -133,6 +135,22 @@ parse_emails(Bin) ->
 -spec parse_phones(binary()) -> parse_result([binary()]).
 parse_phones(Bin) ->
     do_parse_phones(Bin, []).
+
+-spec parse_conn(binary()) -> parse_result(ersip_sdp_addr:addr() | undefined).
+parse_conn(<<"c=", Rest/binary>>) ->
+    case binary_to_eol(connection, Rest) of
+        {ok, AddrBin, Rest1} ->
+            case ersip_sdp_addr:parse(AddrBin) of
+                {ok, Addr} ->
+                    {ok, Addr, Rest1};
+                {error, Reason} ->
+                    {error, {invalid_connection, Reason}}
+            end;
+        {error, Reason} ->
+            {error, {invalid_connection, Reason}}
+    end;
+parse_conn(Other) ->
+    {ok, undefined, Other}.
 
 %% key-field =           [%x6b "=" key-type CRLF]
 -spec parse_key(binary()) -> parse_result(maybe_binary()).

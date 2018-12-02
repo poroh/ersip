@@ -84,7 +84,7 @@ send_via_conn(#request{sipmsg = SipMsg, branch = Branch}, SIPConn) ->
     RawMsg1 = ersip_conn:add_via(RawMsg, Branch, SIPConn),
     ersip_msg:serialize(RawMsg1).
 
--spec dialog_id(request()) -> ersip_dialog:id().
+-spec dialog_id(request()) -> {ok, ersip_dialog:id()} | no_dialog.
 dialog_id(#request{sipmsg = SipMsg}) ->
     ersip_sipmsg:dialog_id(uac, SipMsg).
 

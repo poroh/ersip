@@ -50,6 +50,13 @@ parse_unknown_addr_type_test() ->
                  ersip_sdp_addr:parse(<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>)),
     ok.
 
+parse_invalid_addr_type_test() ->
+    ?assertMatch({error, {invalid_net_type, _}},
+                 ersip_sdp_addr:parse(<<"@">>, <<"IP4">>, <<"127.0.0.1">>)),
+    ?assertMatch({error, {invalid_addr_type, _}},
+                 ersip_sdp_addr:parse(<<"IN">>, <<"@">>, <<"127.0.0.1">>)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

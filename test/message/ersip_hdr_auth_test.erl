@@ -65,7 +65,6 @@ parse_error_test() ->
              "Content-Length: 0" ?crlf
              ?crlf>>,
     ParseResult = ersip_sipmsg:parse(Msg, [proxy_authenticate]),
-    ?debugVal(ersip_status:bad_request_reason(ParseResult)),
     ?assertMatch({error, _}, ParseResult),
     ok.
 

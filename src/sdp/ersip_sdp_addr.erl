@@ -8,7 +8,9 @@
 
 -module(ersip_sdp_addr).
 
--export([parse/3]).
+-export([make/1,
+         parse/1,
+         parse/3]).
 
 -export_type([addr/0]).
 
@@ -23,22 +25,58 @@
               | {unknown_addr, binary(), binary(), binary()}.
 
 -type fqdn() :: binary().
--type parse_result() :: ersip_parser_aux:parse_result(addr()).
+-type parse_result() :: {ok, addr()}
+                      | {error, term()}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
+-spec make(binary()) -> addr().
+make(Bin) when is_binary(Bin) ->
+    case parse(Bin) of
+        {ok, Addr} ->
+            Addr;
+        {error, Reason} ->
+            error(Reason)
+    end.
+
+-spec parse(binary()) -> parse_result().
+parse(Bin) when is_binary(Bin) ->
+    case binary:split(Bin, <<" ">>, [global]) of
+        [NetType, AddrType, Address] ->
+            parse(NetType, AddrType, Address);
+        _ ->
+            {error, {invalid_address, Bin}}
+    end.
+
 -spec parse(binary(), binary(), binary()) -> parse_result().
 parse(NetType, AddrType, Address) ->
-    R = do_parse(ersip_bin:to_lower(NetType),
-                 ersip_bin:to_lower(AddrType),
-                 Address),
-    case R of
-        {error, unknown_addr_type} ->
-            UnknownAddr = {unknown_addr, NetType, AddrType, Address},
-            {ok, UnknownAddr};
-        _ -> R
+    MaybeNetType =
+        case ersip_parser_aux:check_token(NetType) of
+            false ->
+                {error, {invalid_net_type, NetType}};
+            true ->
+                {ok, ersip_bin:to_lower(NetType)}
+        end,
+    MaybeAddrType =
+        case ersip_parser_aux:check_token(AddrType) of
+            false ->
+                {error, {invalid_addr_type, AddrType}};
+            true ->
+                {ok, ersip_bin:to_lower(AddrType)}
+        end,
+    case {MaybeNetType, MaybeAddrType} of
+        {{error,_} = E, _} -> E;
+        {_, {error, _} = E} -> E;
+        {{ok, NetT}, {ok, AddrT}} ->
+            R = do_parse(NetT, AddrT, Address),
+            case R of
+                {error, unknown_addr_type} ->
+                    UnknownAddr = {unknown_addr, NetType, AddrType, Address},
+                    {ok, UnknownAddr};
+                _ -> R
+            end
     end.
 
 %%%===================================================================
@@ -50,7 +88,7 @@ do_parse(<<"in">>, <<"ip4">>, AddrBin) ->
     %% For an address type of IP4, this is either the fully qualified
     %% domain name of the machine or the dotted-decimal
     %% representation of the IP version 4 address of the machine.
-    case inet:parse_ipv4_address(binary_to_list(AddrBin)) of
+    case inet:parse_ipv4strict_address(binary_to_list(AddrBin)) of
         {ok, IPv4} ->
             {ok, {ip4, IPv4}};
         {error, _} ->
@@ -65,7 +103,7 @@ do_parse(<<"in">>, <<"ip6">>, AddrBin) ->
     %% For an address type of IP6, this is either the fully qualified
     %% domain name of the machine or the compressed textual
     %% representation of the IP version 6 address of the machine.
-    case inet:parse_ipv6_address(binary_to_list(AddrBin)) of
+    case inet:parse_ipv6strict_address(binary_to_list(AddrBin)) of
         {ok, IPv6} ->
             {ok, {ip6, IPv6}};
         {error, _} ->

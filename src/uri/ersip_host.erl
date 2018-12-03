@@ -111,6 +111,7 @@ assemble({ipv6, IpAddr}) ->
 
 -spec make(Addr) -> host() when
       Addr :: inet:ip_address()
+            | host()
             | binary().
 make({_, _, _, _} = Addr) ->
     assure_host({ipv4, Addr});

@@ -51,7 +51,7 @@
 -type uri_part() :: scheme()
                   | {user, binary()}
                   | {host, ersip_host:host()}
-                  | {port, 0..65535}.
+                  | {port, inet:port_number() | undefined}.
 
 -type scheme() :: uri_scheme().
 

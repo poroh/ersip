@@ -23,7 +23,7 @@
           %%    RECOMMENDED whenever possible.
           host               :: ersip_host:host(),
           %% port: The port number where the request is to be sent.
-          port               :: undefined | 1..65535,
+          port               :: undefined | inet:port_number(),
           %% URI parameters: Parameters affecting a request constructed from
           %% the URI.
           params = #{}       :: uri_params(),

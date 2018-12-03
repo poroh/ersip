@@ -15,7 +15,7 @@
 %%%===================================================================
 
 -type target() :: {ersip_host:host(),
-                   inet:port_number(),
+                   ersip_transport:port_number(),
                    ersip_transport:transport(),
                    Options :: map()
                   }.
@@ -91,7 +91,7 @@ make_target_from_received(Via) ->
     {Host, select_port(Via), Transport, #{}}.
 
 
--spec select_port(ersip_hdr_via:via()) -> inet:port_number().
+-spec select_port(ersip_hdr_via:via()) -> ersip_transport:port_number().
 select_port(Via) ->
     {sent_by, _, SentByPort} = ersip_hdr_via:sent_by(Via),
     SentByPort.

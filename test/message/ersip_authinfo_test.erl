@@ -28,6 +28,7 @@ parse_error_test() ->
     parse_error(<<"">>),
     parse_error(<<"Digest">>),
     parse_error(<<"Digest ">>),
+    parse_error(<<"Digest x">>),
     parse_error(<<"Digest $=1">>),
     parse_error(<<"Digest x=y a=b">>),
     ok.

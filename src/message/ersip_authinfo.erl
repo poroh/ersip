@@ -77,5 +77,24 @@ assemble_bin(#authinfo{} = A) ->
 
 -spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
 parse_params(Binary) ->
-    ersip_parser_aux:parse_params($,, Binary).
+    case ersip_parser_aux:parse_params($,, Binary) of
+        {ok, Params, _} = Ok ->
+            case validate_params(Params) of
+                ok ->
+                    Ok;
+                {error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
+    end.
+
+-spec validate_params(ersip_parser_aux:gen_param_list()) -> ok | {error, term()}.
+validate_params([]) ->
+    ok;
+validate_params([{Key, <<>>} | _]) ->
+    {error, {missing_value, Key}};
+validate_params([{_, _} | Rest]) ->
+    validate_params(Rest).
+
 

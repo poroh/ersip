@@ -16,19 +16,21 @@
 
 parse_test() ->
     WordChars =
-        << "-"  "."  "!"  "%"  "*" 
-           "_"  "+"  "`"  "'"  "~" 
-           "("  ")"  "<"  ">" 
-           ":"  "\\"  "\"" 
-           "/"  "["  "]"  "?" 
+        << "-"  "."  "!"  "%"  "*"
+           "_"  "+"  "`"  "'"  "~"
+           "("  ")"  "<"  ">"
+           ":"  "\\"  "\""
+           "/"  "["  "]"  "?"
            "{"  "}"
         >>,
-    AlphaNum = iolist_to_binary(lists:seq($A, $Z) 
+    AlphaNum = iolist_to_binary(lists:seq($A, $Z)
                                 ++ lists:seq($a, $z)
                                 ++ lists:seq($0, $9)),
     parse_success(<<"a@b">>),
-    parse_success(<<WordChars/binary, AlphaNum/binary, "@", 
+    parse_success(<<WordChars/binary, AlphaNum/binary, "@",
                     AlphaNum/binary, WordChars/binary>>),
+    parse_success(<<WordChars/binary, AlphaNum/binary, "@",
+                    AlphaNum/binary, "@", WordChars/binary>>),
     parse_success(<<AlphaNum/binary, WordChars/binary>>),
     parse_fail(<<",">>),
     parse_fail(<<>>),

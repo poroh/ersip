@@ -87,7 +87,7 @@ assemble({callid, CallIdBin}) ->
               | {error, Error},
       Error  :: {invalid_callid, binary()}.
 parse_callid(Binary) ->
-    Words = binary:split(Binary, <<"@">>),
+    Words = binary:split(Binary, <<"@">>, [global]),
     case lists:all(fun is_word/1, Words) of
         true ->
             {ok, {callid, Binary}};

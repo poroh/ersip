@@ -11,6 +11,7 @@
 -export([make/1,
          make_by_uri/1,
          tcp/0, tls/0, udp/0,
+         is_known_transport/1,
          is_datagram/1,
          is_tls/1,
          is_reliable/1,
@@ -87,6 +88,12 @@ parse(V) when V =:= tcp; V =:= udp; V =:= tls; V =:= wss; V =:= ws ->
     {ok, {transport, V}};
 parse(V) when is_atom(V) ->
     {error, {bad_transport_atom, V}}.
+
+-spec is_known_transport(transport()) -> boolean().
+is_known_transport({transport, _}) ->
+    true;
+is_known_transport({other_transport, _}) ->
+    false.
 
 -spec is_datagram(known_transport()) -> boolean().
 is_datagram({transport, udp}) ->

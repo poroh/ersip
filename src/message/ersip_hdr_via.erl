@@ -95,7 +95,17 @@ topmost_via(Header) ->
         [] ->
             {error, no_via};
         [TopVia | _]  ->
-            parse_via(iolist_to_binary(TopVia))
+            case parse_via(iolist_to_binary(TopVia)) of
+                {error, _} = Error ->
+                    Error;
+                {ok, Via} = Ok ->
+                    case validate_topmost_via(Via) of
+                        ok ->
+                            Ok;
+                        {error, _} = Error ->
+                            Error
+                    end
+            end
     end.
 
 -spec sent_protocol(via()) -> sent_protocol().
@@ -496,3 +506,18 @@ assemble_param_value(maddr, Value) ->
     iolist_to_binary(ersip_host:assemble(Value));
 assemble_param_value(branch, Value) ->
     ersip_branch:assemble(Value).
+
+
+-spec validate_topmost_via(via()) -> ok | {error, term()}.
+validate_topmost_via(#via{sent_protocol = SentProtocol}) ->
+    case SentProtocol of
+        {sent_protocol, <<"SIP">>, <<"2.0">>, T} ->
+            case ersip_transport:is_known_transport(T) of
+                true ->
+                    ok;
+                false ->
+                    {error, {unknown_transport, T}}
+            end;
+        {sent_protocol, Proto, Version, _} ->
+            {error, {unknown_protocol, Proto, Version}}
+    end.

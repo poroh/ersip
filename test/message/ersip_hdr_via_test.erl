@@ -138,6 +138,7 @@ topmost_via_negative_test() ->
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=-0">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=65536">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
+    bad_topmost_via(<<"SIP/3.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
     ok.
 
 via_branch_test() ->
@@ -174,8 +175,6 @@ via_compare_test() ->
 
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
                   <<"SIP/2.0/TCP bigbox3.site3.atlanta.com">>),
-    via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>,
-                  <<"SIP/3.0/UDP bigbox3.site3.atlanta.com">>),
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=2">>,
                   <<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=1">>),
     via_not_equal(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=2">>,

@@ -296,18 +296,18 @@ parse(RawMsg, all_required) ->
 parse(RawMsg, Headers) ->
     MaybeMsg0 = create_from_raw(RawMsg),
     MaybeMsg1 = lists:foldl(fun maybe_parse_header/2, MaybeMsg0, Headers),
-    lists:foldl(fun({ValFun, ErrorType}, {ok, SipMsg} = MaybeMsg) ->
+    lists:foldl(fun(ValFun, {ok, SipMsg} = MaybeMsg) ->
                         case ValFun(SipMsg) of
-                            true ->
+                            ok ->
                                 MaybeMsg;
-                            false ->
-                                {error, {ErrorType, SipMsg}}
+                            {error, _} = Error ->
+                                Error
                         end;
                    (_, {error, _} = Error) ->
                         Error
                 end,
                 MaybeMsg1,
-                [{fun parse_validate_cseq/1, invalid_cseq}]).
+                [fun parse_validate_cseq/1]).
 
 
 -spec serialize(sipmsg()) -> iolist().
@@ -464,7 +464,7 @@ parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
             NewHeaders = Headers#{HdrAtom => Value},
             {ok, set_headers(NewHeaders, Msg)};
         {error, Reason} ->
-            {error, {header_error, {HdrAtom, Reason}}}
+            header_error(HdrAtom, Reason)
     end.
 
 -spec method_from_raw(ersip_msg:message()) -> MaybeMethod when
@@ -599,15 +599,20 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
             set(to, NewTo, RSipMsg)
     end.
 
--spec parse_validate_cseq(sipmsg()) -> boolean().
+-spec parse_validate_cseq(sipmsg()) -> ok | {error, term()}.
 parse_validate_cseq(#sipmsg{headers = #{cseq := CSeq}} = SipMsg) ->
     ReqMethod  = ersip_sipmsg:method(SipMsg),
     CSeqMethod = ersip_hdr_cseq:method(CSeq),
     %% TODO maybe we may pass this check for unknown method:
     %% ReqMethod == CSeqMethod orelse not ersip_method:is_known(ReqMethod);
-    ReqMethod == CSeqMethod;
+    case ReqMethod of
+        CSeqMethod ->
+            ok;
+        _ ->
+            header_error(cseq, {method_mismatch, ReqMethod, CSeqMethod})
+    end;
 parse_validate_cseq(#sipmsg{}) ->
-    true.
+    ok.
 
 -spec set_source(ersip_source:source() | undefined, sipmsg()) -> sipmsg().
 set_source(Src, SipMsg) ->
@@ -619,3 +624,6 @@ set_source(Src, SipMsg) ->
 required_headers(request) -> [from, to, callid, cseq, topmost_via];
 required_headers(response) -> [from, to, callid, cseq].
 
+-spec header_error(known_header(), term()) -> {error, {header_error, {known_header(), term()}}}.
+header_error(HeaderAtom, Reason) ->
+    {error, {header_error, {HeaderAtom, Reason}}}.

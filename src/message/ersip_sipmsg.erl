@@ -307,7 +307,8 @@ parse(RawMsg, Headers) ->
                         Error
                 end,
                 MaybeMsg1,
-                [fun parse_validate_cseq/1]).
+                [fun parse_validate_cseq/1,
+                 fun parse_validate_contact/1]).
 
 
 -spec serialize(sipmsg()) -> iolist().
@@ -612,6 +613,33 @@ parse_validate_cseq(#sipmsg{headers = #{cseq := CSeq}} = SipMsg) ->
             header_error(cseq, {method_mismatch, ReqMethod, CSeqMethod})
     end;
 parse_validate_cseq(#sipmsg{}) ->
+    ok.
+
+-spec parse_validate_contact(sipmsg()) -> ok | {error, term()}.
+parse_validate_contact(#sipmsg{headers = #{contact := star}} = SipMsg) ->
+    REGISTER = ersip_method:register(),
+    case ersip_sipmsg:method(SipMsg) of
+        REGISTER -> ok;
+        Method ->
+            header_error(contact, {star_contact_for_method, Method})
+    end;
+parse_validate_contact(#sipmsg{headers = #{contact := [_]}}) ->
+    ok;
+parse_validate_contact(#sipmsg{headers = #{contact := [_|_]}} = SipMsg) ->
+    %% The Contact header field MUST be present and contain exactly
+    %% one SIP or SIPS URI in any request that can result in the
+    %% establishment of a dialog.
+    INVITE = ersip_method:invite(),
+    NOTIFY = ersip_method:notify(),
+    case ersip_sipmsg:method(SipMsg) of
+        INVITE ->
+            header_error(contact, {multiple_contacts, INVITE});
+        NOTIFY ->
+            header_error(contact, {multiple_contacts, NOTIFY});
+        _ ->
+            ok
+    end;
+parse_validate_contact(#sipmsg{}) ->
     ok.
 
 -spec set_source(ersip_source:source() | undefined, sipmsg()) -> sipmsg().

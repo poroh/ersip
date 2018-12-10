@@ -278,25 +278,6 @@ parse_on_demand_parse_error_test() ->
     ?assertError({error, _}, ersip_sipmsg:get(content_type, SipMsg)),
     ok.
 
-parse_two_max_forwards_error_test() ->
-    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
-    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
-            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
-            ?crlf "Max-Forwards: 70"
-            ?crlf "Max-Forwards: 78"
-            ?crlf "To: Bob <sip:bob@biloxi.com>"
-            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: ", CallId/binary,
-            ?crlf "CSeq: 314159 INVITE"
-            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
-            ?crlf "Content-Length: 4"
-            ?crlf ?crlf "Test"
-          >>,
-    ParseResult = ersip_sipmsg:parse(Msg, [maxforwards]),
-    ?debugVal(ParseResult),
-    ?assertMatch({ok, _}, ParseResult),
-    ok.
-
 reply_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"

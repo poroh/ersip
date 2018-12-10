@@ -11,7 +11,6 @@
 -export([make_key/1,
          new/1,
          is_empty/1,
-         validate_values/1,
          add_value/2,
          add_values/2,
          raw_values/1,
@@ -76,13 +75,6 @@ is_empty(#header{values = []}) ->
     true;
 is_empty(#header{}) ->
     false.
-
--spec validate_values(header()) -> ok | {error, term()}.
-validate_values(#header{values = [_, _ | _], multiple_values = false}) ->
-    {error, cannot_hold_multiple_values};
-validate_values(#header{}) ->
-    ok.
-
 
 %% @doc Append value to list of values.
 -spec add_value(value(), header()) -> header().

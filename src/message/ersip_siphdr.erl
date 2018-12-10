@@ -211,12 +211,7 @@ get_header(HdrAtom, #descr{} = D, SipMsg) ->
                     {ok, no_header}
             end;
         false ->
-            case ersip_hdr:validate_values(Hdr) of
-                ok ->
-                    {ok, Hdr};
-                {error, _} = Error ->
-                    Error
-            end
+            {ok, Hdr}
     end.
 
 -spec is_required(ersip_sipmsg:sipmsg() | required_essentials(), header_required()) -> boolean().

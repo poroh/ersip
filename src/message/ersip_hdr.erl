@@ -30,7 +30,7 @@
 
 -record(header, {name        :: binary(),
                  key         :: header_key(),
-                 multiple_values :: boolean(),
+                 use_comma_split :: boolean(),
                  values = [] :: [value()]
                 }).
 -type value() :: iolist() | binary().
@@ -57,17 +57,17 @@ new(Name) when is_binary(Name) ->
     Key = make_key(Name),
     #header{name = Name,
             key  = make_key(Name),
-            multiple_values = may_have_multiple_values(Key)
+            use_comma_split = use_comma_split(Key)
            };
 new(KnownHeader) when is_atom(KnownHeader)  ->
     Key = ersip_hnames:make_key(KnownHeader),
     #header{name = ersip_hnames:print_form(KnownHeader),
             key  = Key,
-            multiple_values = may_have_multiple_values(Key)};
+            use_comma_split = use_comma_split(Key)};
 new({hdr_key, _} = HdrKey)  ->
     #header{name = ersip_hnames:print_form(HdrKey),
             key  = HdrKey,
-            multiple_values = may_have_multiple_values(HdrKey)
+            use_comma_split = use_comma_split(HdrKey)
            }.
 
 -spec is_empty(header()) -> boolean().
@@ -78,11 +78,11 @@ is_empty(#header{}) ->
 
 %% @doc Append value to list of values.
 -spec add_value(value(), header()) -> header().
-add_value([Value], #header{values = V, multiple_values = false} = Hdr) when is_binary(Value) ->
+add_value([Value], #header{values = V, use_comma_split = false} = Hdr) when is_binary(Value) ->
     Hdr#header{values = V ++ [ersip_bin:trim_lws(Value)]};
-add_value(Value, #header{values = V, multiple_values = false} = Hdr) ->
+add_value(Value, #header{values = V, use_comma_split = false} = Hdr) ->
     Hdr#header{values = V ++ [ersip_iolist:trim_lws(Value)]};
-add_value(Value, #header{values = V, key = Key, multiple_values = true} = Hdr) ->
+add_value(Value, #header{values = V, key = Key, use_comma_split = true} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = V ++ Values}.
 
@@ -99,7 +99,7 @@ raw_values(#header{values = Vs}) ->
     Vs.
 
 -spec add_topmost(value(), header()) -> header().
-add_topmost(_Value, #header{multiple_values = false} = Hdr) ->
+add_topmost(_Value, #header{use_comma_split = false} = Hdr) ->
     error({api_error, {<<"cannot use add_topmost for singleton value">>, Hdr}});
 add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
     Values = comma_split(Key, Value),
@@ -220,50 +220,50 @@ use_comma({hdr_key, <<"m">>}) -> %% Contact
 use_comma(_) ->
     true.
 
--spec may_have_multiple_values(header_key()) -> boolean().
-may_have_multiple_values({hdr_key, <<"f">>}) -> %% From
+-spec use_comma_split(header_key()) -> boolean().
+use_comma_split({hdr_key, <<"f">>}) -> %% From
     false;
-may_have_multiple_values({hdr_key, <<"t">>}) -> %% To
+use_comma_split({hdr_key, <<"t">>}) -> %% To
     false;
-may_have_multiple_values({hdr_key, <<"i">>}) -> %% Call-Id
+use_comma_split({hdr_key, <<"i">>}) -> %% Call-Id
     false;
-may_have_multiple_values({hdr_key, <<"max-forwards">>}) ->
+use_comma_split({hdr_key, <<"max-forwards">>}) ->
     false;
-may_have_multiple_values({hdr_key, <<"expires">>}) ->
+use_comma_split({hdr_key, <<"expires">>}) ->
     false;
-may_have_multiple_values({hdr_key, <<"cseq">>}) ->
+use_comma_split({hdr_key, <<"cseq">>}) ->
     false;
-may_have_multiple_values({hdr_key, <<"v">>}) -> %% Via
+use_comma_split({hdr_key, <<"v">>}) -> %% Via
     true;
-may_have_multiple_values({hdr_key, <<"m">>}) -> %% Contact
+use_comma_split({hdr_key, <<"m">>}) -> %% Contact
     false;
-may_have_multiple_values({hdr_key, <<"k">>}) -> %% Supported
+use_comma_split({hdr_key, <<"k">>}) -> %% Supported
     true;
-may_have_multiple_values({hdr_key, <<"unsupported">>}) ->
+use_comma_split({hdr_key, <<"unsupported">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"allow">>}) ->
+use_comma_split({hdr_key, <<"allow">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"route">>}) ->
+use_comma_split({hdr_key, <<"route">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"record-route">>}) ->
+use_comma_split({hdr_key, <<"record-route">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"require">>}) ->
+use_comma_split({hdr_key, <<"require">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"proxy-require">>}) ->
+use_comma_split({hdr_key, <<"proxy-require">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"accept">>}) ->
+use_comma_split({hdr_key, <<"accept">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"accept-encoding">>}) ->
+use_comma_split({hdr_key, <<"accept-encoding">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"accept-language">>}) ->
+use_comma_split({hdr_key, <<"accept-language">>}) ->
     true;
-may_have_multiple_values({hdr_key, <<"www-authenticate">>}) ->
+use_comma_split({hdr_key, <<"www-authenticate">>}) ->
     true; %% WWW-Authenticate may have multiple values but they cannot be comma seprated.
-may_have_multiple_values({hdr_key, <<"authorization">>}) ->
+use_comma_split({hdr_key, <<"authorization">>}) ->
     true; %% Authorization may have multiple values but they cannot be comma seprated...
-may_have_multiple_values({hdr_key, <<"proxy-authenticate">>}) ->
+use_comma_split({hdr_key, <<"proxy-authenticate">>}) ->
     true; %% Proxy-Authenticate may have multiple values but they cannot be comma seprated.
-may_have_multiple_values({hdr_key, <<"proxy-authorization">>}) ->
+use_comma_split({hdr_key, <<"proxy-authorization">>}) ->
     true; %% Proxy-Authorization may have multiple values but they cannot be comma seprated.
-may_have_multiple_values(_) ->
+use_comma_split(_) ->
     false.

@@ -24,6 +24,7 @@
 
 
 -record(descr, {required     :: header_required(),
+                may_appear   :: once | multiple,
                 parse_fun    :: parse_fun_type(),
                 assemble_fun :: undefined | assemble_fun_type()
                }).
@@ -197,7 +198,8 @@ parse_header_by_descr(#descr{parse_fun = F}, Hdr) ->
 -spec get_header(known_header(), descr(), ersip_sipmsg:sipmsg()) -> Result when
       Result :: {ok, ersip_hdr:header()}
               | {ok, no_header}
-              | {error, {no_required_header, binary()}}.
+              | {error, {no_required_header, binary()}}
+              | {error, {duplicated_header, binary()}}.
 get_header(HdrAtom, #descr{} = D, SipMsg) ->
     HdrKey = ersip_hnames:make_key(HdrAtom),
     Hdr = ersip_msg:get(HdrKey, ersip_sipmsg:raw_message(SipMsg)),
@@ -211,7 +213,17 @@ get_header(HdrAtom, #descr{} = D, SipMsg) ->
                     {ok, no_header}
             end;
         false ->
-            {ok, Hdr}
+            case D#descr.may_appear of
+                multiple ->
+                    {ok, Hdr};
+                once ->
+                    case ersip_hdr:raw_values(Hdr) of
+                        [_] ->
+                            {ok, Hdr};
+                        [_| _] ->
+                            {error, {duplicated_header, ersip_hnames:print_form(HdrKey)}}
+                    end
+            end
     end.
 
 -spec is_required(ersip_sipmsg:sipmsg() | required_essentials(), header_required()) -> boolean().
@@ -257,26 +269,31 @@ copy_raw_header(Header, SrcSipMsg, DstSipMsg) ->
 -spec header_descr(known_header()) -> #descr{}.
 header_descr(from) ->
     #descr{required     = all,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_fromto:parse/1,
            assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(to) ->
     #descr{required     = all,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_fromto:parse/1,
            assemble_fun = fun ersip_hdr_fromto:build/2
           };
 header_descr(cseq) ->
     #descr{required     = all,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_cseq:parse/1,
            assemble_fun = fun ersip_hdr_cseq:build/2
           };
 header_descr(callid) ->
     #descr{required     = all,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_callid:parse/1,
            assemble_fun = fun ersip_hdr_callid:build/2
           };
 header_descr(maxforwards) ->
     #descr{required     = optional, %% It was optional in RFC2543
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_maxforwards:parse/1,
            assemble_fun = fun ersip_hdr_maxforwards:build/2
           };
@@ -284,86 +301,103 @@ header_descr(topmost_via) ->
     %% Note We trim Via header on connection receive so responses on
     %% UA does not contain Via.
     #descr{required     = requests,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_via:topmost_via/1,
            assemble_fun = undefined
           };
 header_descr(content_type) ->
     #descr{required     = with_body,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_content_type:parse/1,
            assemble_fun = fun ersip_hdr_content_type:build/2
           };
 header_descr(route) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_route:parse/1,
            assemble_fun = fun ersip_hdr_route:build/2
           };
 header_descr(record_route) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_route:parse/1,
            assemble_fun = fun ersip_hdr_route:build/2
           };
 header_descr(allow) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_allow:parse/1,
            assemble_fun = fun ersip_hdr_allow:build/2
           };
 header_descr(supported) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(unsupported) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(require) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(proxy_require) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_opttag_list:parse/1,
            assemble_fun = fun ersip_hdr_opttag_list:build/2
           };
 header_descr(contact) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_contact_list:parse/1,
            assemble_fun = fun ersip_hdr_contact_list:build/2
           };
 header_descr(expires) ->
     #descr{required     = optional,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
           };
 header_descr(minexpires) ->
     #descr{required     = optional,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_expires:parse/1,
            assemble_fun = fun ersip_hdr_expires:build/2
           };
 header_descr(date) ->
     #descr{required     = optional,
+           may_appear   = once,
            parse_fun    = fun ersip_hdr_date:parse/1,
            assemble_fun = fun ersip_hdr_date:build/2
           };
 header_descr(www_authenticate) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_auth:parse/1,
            assemble_fun = fun ersip_hdr_auth:build/2
           };
 header_descr(authorization) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_auth:parse/1,
            assemble_fun = fun ersip_hdr_auth:build/2
           };
 header_descr(proxy_authenticate) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_auth:parse/1,
            assemble_fun = fun ersip_hdr_auth:build/2
           };
 header_descr(proxy_authorization) ->
     #descr{required     = optional,
+           may_appear   = multiple,
            parse_fun    = fun ersip_hdr_auth:parse/1,
            assemble_fun = fun ersip_hdr_auth:build/2
           }.

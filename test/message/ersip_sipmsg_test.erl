@@ -217,6 +217,31 @@ parse_request_with_invalid_ruri_test() ->
     ?assertMatch({error,{invalid_ruri, _}}, ersip_sipmsg:parse(Msg, all)),
     ok.
 
+parse_request_with_multiple_values_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "Max-Forwards: 78"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "CSeq: 314160 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    ?assertMatch({ok, _}, ersip_sipmsg:parse(Msg, [])),
+    ?assertMatch({error, {header_error, _}}, ersip_sipmsg:parse(Msg, [maxforwards])),
+    ?assertMatch({error, {header_error, _}}, ersip_sipmsg:parse(Msg, [cseq])),
+    ?assertMatch({error, {header_error, _}}, ersip_sipmsg:parse(Msg, [callid])),
+    ?assertMatch({error, {header_error, _}}, ersip_sipmsg:parse(Msg, [from])),
+    ?assertMatch({error, {header_error, _}}, ersip_sipmsg:parse(Msg, [to])),
+    ok.
+
 parse_on_demand_test() ->
     CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"

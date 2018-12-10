@@ -267,18 +267,15 @@ set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
 parse(#sipmsg{} = SipMsg, all) ->
     AlreadyParsed = maps:keys(headers(SipMsg)),
     HeadersToParse = ersip_siphdr:all_known_headers() -- AlreadyParsed,
-    MaybeMsg = {ok, SipMsg},
-    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+    parse_more_headers(HeadersToParse, SipMsg);
 parse(#sipmsg{} = SipMsg, all_required) ->
     AlreadyParsed = maps:keys(headers(SipMsg)),
     HeadersToParse = required_headers(type(SipMsg)) -- AlreadyParsed,
-    MaybeMsg = {ok, SipMsg},
-    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+    parse_more_headers(HeadersToParse, SipMsg);
 parse(#sipmsg{} = SipMsg, Headers) ->
     AlreadyParsed = maps:keys(headers(SipMsg)),
     HeadersToParse = Headers -- AlreadyParsed,
-    MaybeMsg = {ok, SipMsg},
-    lists:foldl(fun maybe_parse_header/2, MaybeMsg, HeadersToParse);
+    parse_more_headers(HeadersToParse, SipMsg);
 parse(SipMsgBin, What) when is_binary(SipMsgBin) ->
     P  = ersip_parser:new_dgram(SipMsgBin),
     case ersip_parser:parse(P) of
@@ -294,22 +291,12 @@ parse(RawMsg, all) ->
 parse(RawMsg, all_required) ->
     parse(RawMsg, required_headers(ersip_msg:get(type, RawMsg)));
 parse(RawMsg, Headers) ->
-    MaybeMsg0 = create_from_raw(RawMsg),
-    MaybeMsg1 = lists:foldl(fun maybe_parse_header/2, MaybeMsg0, Headers),
-    lists:foldl(fun(ValFun, {ok, SipMsg} = MaybeMsg) ->
-                        case ValFun(SipMsg) of
-                            ok ->
-                                MaybeMsg;
-                            {error, _} = Error ->
-                                Error
-                        end;
-                   (_, {error, _} = Error) ->
-                        Error
-                end,
-                MaybeMsg1,
-                [fun parse_validate_cseq/1,
-                 fun parse_validate_contact/1]).
-
+    case create_from_raw(RawMsg) of
+        {error, _} = Error ->
+            Error;
+        {ok, SipMsg} ->
+            parse_more_headers(Headers, SipMsg)
+    end.
 
 -spec serialize(sipmsg()) -> iolist().
 serialize(#sipmsg{} = SipMsg) ->
@@ -448,12 +435,6 @@ create_from_raw(RawMsg) ->
 
 -type maybe_sipmsg() :: {ok, sipmsg()}
                       | {error, term()}.
-
--spec maybe_parse_header(known_header(), maybe_sipmsg()) -> maybe_sipmsg().
-maybe_parse_header(_, {error, _} = Err) ->
-    Err;
-maybe_parse_header(Hdr, {ok, Msg}) ->
-    parse_header(Hdr, Msg).
 
 -spec parse_header(known_header(), sipmsg()) ->  maybe_sipmsg().
 parse_header(HdrAtom, Msg) when is_atom(HdrAtom) ->
@@ -642,6 +623,7 @@ parse_validate_contact(#sipmsg{headers = #{contact := [_|_]}} = SipMsg) ->
 parse_validate_contact(#sipmsg{}) ->
     ok.
 
+
 -spec set_source(ersip_source:source() | undefined, sipmsg()) -> sipmsg().
 set_source(Src, SipMsg) ->
     RawMsg0 = raw_message(SipMsg),
@@ -655,3 +637,27 @@ required_headers(response) -> [from, to, callid, cseq].
 -spec header_error(known_header(), term()) -> {error, {header_error, {known_header(), term()}}}.
 header_error(HeaderAtom, Reason) ->
     {error, {header_error, {HeaderAtom, Reason}}}.
+
+-spec parse_more_headers([known_header()], sipmsg()) -> {ok, sipmsg()} | {error, term()}.
+parse_more_headers(HeadersToParse, SipMsg0) ->
+    MaybeMsg0 = {ok, SipMsg0},
+    MaybeMsg1 = lists:foldl(fun maybe_parse_header/2, MaybeMsg0, HeadersToParse),
+    lists:foldl(fun(ValFun, {ok, SipMsg} = MaybeMsg) ->
+                        case ValFun(SipMsg) of
+                            ok ->
+                                MaybeMsg;
+                            {error, _} = Error ->
+                                Error
+                        end;
+                   (_, {error, _} = Error) ->
+                        Error
+                end,
+                MaybeMsg1,
+                [fun parse_validate_cseq/1,
+                 fun parse_validate_contact/1]).
+
+-spec maybe_parse_header(known_header(), maybe_sipmsg()) -> maybe_sipmsg().
+maybe_parse_header(_, {error, _} = Err) ->
+    Err;
+maybe_parse_header(Hdr, {ok, Msg}) ->
+    parse_header(Hdr, Msg).

@@ -38,6 +38,7 @@ contact_parse_errors_test() ->
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"sip:a@b, *">>))),
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create([<<"sip:a@b">>, <<"*">>, <<"sip:c@d">>]))),
     ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<<"a@b, sip:c@d">>))),
+    ?assertMatch({error, _}, ersip_hdr_contact_list:parse(create(<< "sip:a@b;expires=600", 20>>))),
     ok.
 
 rebuild_test() ->

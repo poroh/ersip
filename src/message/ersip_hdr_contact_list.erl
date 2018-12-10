@@ -103,7 +103,9 @@ add_to_maybe_contact_list(Bin, {ok, ContactList}) when is_list(ContactList) ->
                     {ok, [Contact | ContactList]};
                 <<",", Rest1/binary>> ->
                     Rest2 = ersip_bin:trim_head_lws(Rest1),
-                    add_to_maybe_contact_list(Rest2, {ok, [Contact | ContactList]})
+                    add_to_maybe_contact_list(Rest2, {ok, [Contact | ContactList]});
+                <<C, _/binary>> ->
+                    {error, {unexpected_separator, C}}
             end;
         {error, _} = Error ->
             Error

@@ -176,7 +176,30 @@ correct_datetime({Date, Time} = DateTime, Weekday) ->
         _: {badmatch, {t, _}} -> {error, incorrect_time}
     end.
 
-str_impl({date, DateTime}) ->
-    list_to_binary(httpd_util:rfc1123_date(calendar:universal_time_to_local_time(DateTime))).
+str_impl({date, { {Y, M, D} = Date, {H, Min, S} }}) ->
+    Month = case M of
+                1  ->  "Jan";
+                2  ->  "Feb";
+                3  ->  "Mar";
+                4  ->  "Apr";
+                5  ->  "May";
+                6  ->  "Jun";
+                7  ->  "Jul";
+                8  ->  "Aug";
+                9  ->  "Sep";
+                10 -> "Oct";
+                11 -> "Nov";
+                12 -> "Dec"
+            end,
+    Weekday = case calendar:day_of_the_week(Date) of
+                  1 -> "Mon";
+                  2 -> "Tue";
+                  3 -> "Wed";
+                  4 -> "Thu";
+                  5 -> "Fri";
+                  6 -> "Sat";
+                  7 -> "Sun"
+              end,
+    iolist_to_binary(io_lib:format("~s, ~b ~s ~b ~2..0b:~2..0b:~2..0b GMT",[Weekday, D, Month, Y, H, Min, S])).
 
 is_correct_time({H, M, S}) -> ?RANGE(S, 0, 59) andalso ?RANGE(H, 0, 23) andalso ?RANGE(M, 0, 59).

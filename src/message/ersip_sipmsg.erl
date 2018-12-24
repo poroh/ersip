@@ -95,7 +95,8 @@
                           callid       => ersip_hdr_callid:callid(),
                           cseq         => ersip_hdr_cseq:cseq(),
                           maxforwards  => ersip_hdr_maxforwards:maxforwards(),
-                          topmost_via  => ersip_hdr_via:via()
+                          topmost_via  => ersip_hdr_via:via(),
+                          contact      => ersip_hdr_contact_list:contact_list()
                          }.
 
 %%%===================================================================
@@ -231,7 +232,7 @@ has_body(#sipmsg{} = Msg) ->
 body(#sipmsg{} = Msg) ->
     ersip_msg:get(body, raw_message(Msg)).
 
--spec body_bin(sipmsg()) -> iolist() | binary().
+-spec body_bin(sipmsg()) -> binary().
 body_bin(#sipmsg{} = SipMsg) ->
     iolist_to_binary(body(SipMsg)).
 

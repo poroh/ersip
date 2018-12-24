@@ -51,7 +51,7 @@
 origin(#sdp{origin = Origin}) ->
     Origin.
 
--spec session_name(sdp()) -> ersip_sdp_origin:origin().
+-spec session_name(sdp()) -> binary().
 session_name(#sdp{session_name = SessName}) ->
     SessName.
 

@@ -42,7 +42,7 @@ make(Bin) ->
             error({parse_error, Reason})
     end.
 
--spec parse(binary()) -> ersip_parser_aux:parse_result(authinfo()).
+-spec parse(binary()) -> {ok, authinfo()} | {error, term()}.
 parse(Bin) ->
     Parsers = [fun ersip_parser_aux:parse_token/1,
                fun ersip_parser_aux:trim_lws/1,
@@ -77,7 +77,7 @@ assemble_bin(#authinfo{} = A) ->
 
 -spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
 parse_params(Binary) ->
-    case ersip_parser_aux:parse_params($,, Binary) of
+    case ersip_parser_aux:parse_params($, , Binary) of
         {ok, Params, _} = Ok ->
             case validate_params(Params) of
                 ok ->

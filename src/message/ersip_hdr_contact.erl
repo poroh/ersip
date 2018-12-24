@@ -207,8 +207,7 @@ do_parse_contact_params(Bin) ->
 
 
 -spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
-      Value :: {expires, integer()}
-             | {q, ersip_qvalue:qvalue()},
+      Value :: integer()| ersip_qvalue:qvalue(),
       Err   :: {invalid_expires, binary()}
              | {invalid_qvalue, binary()}.
 parse_param(expires, Value) ->

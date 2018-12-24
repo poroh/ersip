@@ -121,7 +121,7 @@ add_to_maybe_route_set(Bin, {ok, RouteSet}) ->
             Error
     end.
 
--spec parse_route(binary()) -> parse_result().
+-spec parse_route(binary()) -> {ok, route()} | {error, term()}.
 parse_route(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
                fun ersip_parser_aux:trim_lws/1,

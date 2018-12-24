@@ -64,6 +64,9 @@ branch(SipMsg) ->
 %% MUST NOT remove any other header field values.  If the address does
 %% not match the proxy, the message MUST be silently discarded.
 
+-dialyzer({no_match, [check_via_branch/1, process_response/2]}).
+%% TODO remove this dialyzer settings when fix check_via_branch func
+
 -spec process_response(PrevVia, RawMsg) -> process_response_result() when
       PrevVia :: ersip_hdr_via:via(),
       RawMsg  :: ersip_msg:message().

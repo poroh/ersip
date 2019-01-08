@@ -24,6 +24,6 @@ parse_test() ->
 
 parse_error_test() ->
     ?assertMatch({error, {invalid_attr, _}}, ersip_sdp_attr:parse(<<"a=sendrecv">>)),
-    ?assertMatch({error, {invalid_attr, _}}, ersip_sdp_attr:parse(<<"a=@:x">>)),
+    ?assertMatch({error, {invalid_attr, _}}, ersip_sdp_attr:parse(<<"a=@:x" ?crlf>>)),
     ok.
 

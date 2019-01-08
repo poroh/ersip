@@ -56,7 +56,11 @@ parse_info(Bin) ->
 %% key-field =           [%x6b "=" key-type CRLF]
 -spec parse_key(binary()) -> parse_result(maybe_binary()).
 parse_key(<<"k=", Rest/binary>>) ->
-    ersip_sdp_aux:binary_to_eol(key, Rest);
+    case ersip_sdp_aux:binary_to_eol(key, Rest) of
+        {ok, _, _} = Ok -> Ok;
+        {error, Reason} ->
+            {error, {invalid_key, Reason}}
+    end;
 parse_key(Bin) ->
     {ok, undefined, Bin}.
 

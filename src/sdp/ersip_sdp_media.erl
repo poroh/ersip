@@ -8,7 +8,12 @@
 
 -module(ersip_sdp_media).
 
--export([parse/1]).
+-export([type/1,
+         port/1,
+         port_num/1,
+         protocol/1,
+         formats/1,
+         parse/1]).
 
 -export_type([media/0]).
 
@@ -36,6 +41,26 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec type(media()) -> binary().
+type(#media{type = T}) ->
+    T.
+
+-spec port(media()) -> inet:port_number().
+port(#media{port = P}) ->
+    P.
+
+-spec port_num(media()) -> non_neg_integer() | undefined.
+port_num(#media{port_num = PN}) ->
+    PN.
+
+-spec protocol(media()) -> nonempty_list(binary()).
+protocol(#media{protocol = P}) ->
+    P.
+
+-spec formats(media()) -> [binary()].
+formats(#media{fmts = FMTS}) ->
+    FMTS.
 
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->

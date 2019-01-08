@@ -1,9 +1,9 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% SDP address
+%% SDP connection test (c=)
 %%
 
 -module(ersip_sdp_conn_test).

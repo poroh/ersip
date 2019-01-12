@@ -65,4 +65,5 @@ reason_impl(420) -> <<"Bad Extension">>;
 reason_impl(423) -> <<"Interval Too Brief">>;
 reason_impl(481) -> <<"Call/Transaction Does Not Exist">>;
 reason_impl(483) -> <<"Too many hops">>;
+reason_impl(503) -> <<"Service Unavailable">>;
 reason_impl(_)   -> <<"Unknown Status">>.

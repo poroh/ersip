@@ -265,5 +265,7 @@ use_comma_split({hdr_key, <<"proxy-authenticate">>}) ->
     true; %% Proxy-Authenticate may have multiple values but they cannot be comma seprated.
 use_comma_split({hdr_key, <<"proxy-authorization">>}) ->
     true; %% Proxy-Authorization may have multiple values but they cannot be comma seprated.
+use_comma_split({hdr_key, <<"subscription-state">>}) ->
+    false;
 use_comma_split(_) ->
     false.

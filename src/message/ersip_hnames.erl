@@ -99,7 +99,8 @@ all_known_headers() ->
      www_authenticate,
      authorization,
      proxy_authenticate,
-     proxy_authorization
+     proxy_authorization,
+     subscription_state
     ].
 
 %%%===================================================================
@@ -152,6 +153,7 @@ print_form_map({hdr_key, <<"www-authenticate">>})    -> <<"WWW-Authenticate">>;
 print_form_map({hdr_key, <<"authorization">>})       -> <<"Authorization">>;
 print_form_map({hdr_key, <<"proxy-authenticate">>})  -> <<"Proxy-Authenticate">>;
 print_form_map({hdr_key, <<"proxy-authorization">>}) -> <<"Proxy-Authorization">>;
+print_form_map({hdr_key, <<"subscription-state">>})  -> <<"Subscription-State">>;
 print_form_map({hdr_key, Name}) ->
     Name.
 
@@ -177,7 +179,8 @@ known_header_key_map(topmost_via   ) -> {hdr_key, <<"v">>};
 known_header_key_map(www_authenticate   ) -> {hdr_key, <<"www-authenticate">>};
 known_header_key_map(authorization      ) -> {hdr_key, <<"authorization">>};
 known_header_key_map(proxy_authenticate ) -> {hdr_key, <<"proxy-authenticate">>};
-known_header_key_map(proxy_authorization) -> {hdr_key, <<"proxy-authorization">>}.
+known_header_key_map(proxy_authorization) -> {hdr_key, <<"proxy-authorization">>};
+known_header_key_map(subscription_state ) -> {hdr_key, <<"subscription-state">>}.
 
 -spec known_header_form_map(header_key()) -> {ok, known_header()} | not_found.
 known_header_form_map({hdr_key, <<"f">>})             -> {ok, from          };
@@ -201,4 +204,5 @@ known_header_form_map({hdr_key, <<"www-authenticate">>})    -> {ok, www_authenti
 known_header_form_map({hdr_key, <<"authorization">>})       -> {ok, authorization};
 known_header_form_map({hdr_key, <<"proxy-authenticate">>})  -> {ok, proxy_authenticate};
 known_header_form_map({hdr_key, <<"proxy-authorization">>}) -> {ok, proxy_authorization};
+known_header_form_map({hdr_key, <<"subscription-state">>})  -> {ok, subscription_state};
 known_header_form_map({hdr_key, _Name}) when is_binary(_Name) -> not_found.

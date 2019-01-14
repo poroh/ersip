@@ -400,6 +400,12 @@ header_descr(proxy_authorization) ->
            may_appear   = multiple,
            parse_fun    = fun ersip_hdr_auth:parse/1,
            assemble_fun = fun ersip_hdr_auth:build/2
+          };
+header_descr(subscription_state) ->
+    #descr{required     = optional,
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_subscription_state:parse/1,
+           assemble_fun = fun ersip_hdr_subscription_state:build/2
           }.
 
 

@@ -406,7 +406,10 @@ header_descr(subscription_state) ->
            may_appear   = once,
            parse_fun    = fun ersip_hdr_subscription_state:parse/1,
            assemble_fun = fun ersip_hdr_subscription_state:build/2
+          };
+header_descr(event) ->
+    #descr{required     = optional,
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_event:parse/1,
+           assemble_fun = fun ersip_hdr_event:build/2
           }.
-
-
-

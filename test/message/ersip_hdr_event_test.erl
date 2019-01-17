@@ -14,6 +14,8 @@
 %% Cases
 %%===================================================================
 
+-define(crlf, "\r\n").
+
 rebuild_test() ->
     rebuild(<<"dialog">>),
     rebuild(<<"Dialog">>),
@@ -90,6 +92,82 @@ build_test() ->
 assemble_bin_test() ->
     Event = ersip_hdr_event:make(<<"dialog;id=1">>),
     ?assertEqual(<<"dialog;id=1">>, ersip_hdr_event:assemble_bin(Event)),
+    ok.
+
+required_in_subscribe_test() ->
+    Subscribe =
+        <<"SUBSCRIBE sip:joe@example.com SIP/2.0" ?crlf
+          "Via: SIP/2.0/UDP app.example.com;branch=z9hG4bKnashds7" ?crlf
+          "From: sip:app.example.com;tag=123aa9" ?crlf
+          "To: sip:joe@example.com" ?crlf
+          "Call-ID: 9987@app.example.com" ?crlf
+          "CSeq: 9887 SUBSCRIBE" ?crlf
+          "Contact: sip:app.example.com" ?crlf
+          "Event: reg" ?crlf
+          "Max-Forwards: 70" ?crlf
+          "Accept: application/reginfo+xml" ?crlf
+          "" ?crlf>>,
+    {ok, SipMsgWEvent} = ersip_sipmsg:parse(Subscribe, [event]),
+    Event = ersip_sipmsg:get(event, SipMsgWEvent),
+    ?assertEqual(<<"reg">>, ersip_hdr_event:type_bin(Event)),
+
+    BadSubscribe =
+        <<"SUBSCRIBE sip:joe@example.com SIP/2.0" ?crlf
+          "Via: SIP/2.0/UDP app.example.com;branch=z9hG4bKnashds7" ?crlf
+          "From: sip:app.example.com;tag=123aa9" ?crlf
+          "To: sip:joe@example.com" ?crlf
+          "Call-ID: 9987@app.example.com" ?crlf
+          "CSeq: 9887 SUBSCRIBE" ?crlf
+          "Contact: sip:app.example.com" ?crlf
+          "Max-Forwards: 70" ?crlf
+          "Accept: application/reginfo+xml" ?crlf
+          "" ?crlf>>,
+    ?assertMatch({error, {header_error, {event, _}}}, ersip_sipmsg:parse(BadSubscribe, [event])),
+    ok.
+
+required_in_notify_test() ->
+    Notify =
+        << "NOTIFY sip:app.example.com SIP/2.0" ?crlf
+           "Via: SIP/2.0/UDP server19.example.com;branch=z9hG4bKnasaii" ?crlf
+           "From: sip:joe@example.com;tag=xyzygg" ?crlf
+           "To: sip:app.example.com;tag=123aa9" ?crlf
+           "Call-ID: 9987@app.example.com" ?crlf
+           "CSeq: 1288 NOTIFY" ?crlf
+           "Contact: sip:server19.example.com" ?crlf
+           "Event: reg" ?crlf
+           "Subscription-State: active;expires=3600" ?crlf
+           "Max-Forwards: 70" ?crlf
+           "Content-Type: application/reginfo+xml" ?crlf
+           "" ?crlf
+           "<?xml version=\"1.0\"?>" ?crlf
+           "<reginfo xmlns=\"urn:ietf:params:xml:ns:reginfo\"" ?crlf
+           "version=\"0\" state=\"full\">" ?crlf
+           "<registration aor=\"sip:joe@example.com\" id=\"a7\" state=\"init\"/>" ?crlf
+           "</reginfo>" ?crlf
+           "">>,
+    {ok, SipMsgWEvent} = ersip_sipmsg:parse(Notify, [event]),
+    Event = ersip_sipmsg:get(event, SipMsgWEvent),
+    ?assertEqual(<<"reg">>, ersip_hdr_event:type_bin(Event)),
+
+    BadNotify =
+        << "NOTIFY sip:app.example.com SIP/2.0" ?crlf
+           "Via: SIP/2.0/UDP server19.example.com;branch=z9hG4bKnasaii" ?crlf
+           "From: sip:joe@example.com;tag=xyzygg" ?crlf
+           "To: sip:app.example.com;tag=123aa9" ?crlf
+           "Call-ID: 9987@app.example.com" ?crlf
+           "CSeq: 1288 NOTIFY" ?crlf
+           "Contact: sip:server19.example.com" ?crlf
+           "Max-Forwards: 70" ?crlf
+           "Subscription-State: active;expires=3600" ?crlf
+           "Content-Type: application/reginfo+xml" ?crlf
+           "" ?crlf
+           "<?xml version=\"1.0\"?>" ?crlf
+           "<reginfo xmlns=\"urn:ietf:params:xml:ns:reginfo\"" ?crlf
+           "version=\"0\" state=\"full\">" ?crlf
+           "<registration aor=\"sip:joe@example.com\" id=\"a7\" state=\"init\"/>" ?crlf
+           "</reginfo>" ?crlf
+           "">>,
+    ?assertMatch({error, {header_error, {event, _}}}, ersip_sipmsg:parse(BadNotify, [event])),
     ok.
 
 %%===================================================================

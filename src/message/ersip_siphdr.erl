@@ -233,6 +233,8 @@ is_required(_, optional) ->
     false;
 is_required(#required_essentials{type = request}, requests) ->
     true;
+is_required(#required_essentials{type = request, method = M}, {requests, Methods}) ->
+    lists:member(M, Methods);
 is_required(#required_essentials{has_body = true}, with_body) ->
     true;
 is_required(#required_essentials{}, _) ->
@@ -402,13 +404,13 @@ header_descr(proxy_authorization) ->
            assemble_fun = fun ersip_hdr_auth:build/2
           };
 header_descr(subscription_state) ->
-    #descr{required     = optional,
+    #descr{required     = {requests, [ersip_method:notify()]},
            may_appear   = once,
            parse_fun    = fun ersip_hdr_subscription_state:parse/1,
            assemble_fun = fun ersip_hdr_subscription_state:build/2
           };
 header_descr(event) ->
-    #descr{required     = optional,
+    #descr{required     = {requests, [ersip_method:notify(), ersip_method:subscribe()]},
            may_appear   = once,
            parse_fun    = fun ersip_hdr_event:parse/1,
            assemble_fun = fun ersip_hdr_event:build/2

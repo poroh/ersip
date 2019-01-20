@@ -56,7 +56,7 @@ scheme_validation_fail_test() ->
     ok.
 
 scheme_validation_success_test() ->
-    Options = #{check_scheme => fun(S) -> S == {scheme, <<"tel">>} end
+    Options = #{check_scheme => fun(S) -> S == <<"tel">> end
                },
     REGISTERSipMsgTEL = register_request_tel_uri(make_default_source()),
     ProcessResultTEL = ersip_uas:process_request(REGISTERSipMsgTEL, allowed_methods(), Options),

@@ -22,7 +22,7 @@
 -type uas() :: #uas{}.
 -type options() :: #{supported    => ersip_hdr_opttag_list:option_tag_list(),
                      to_tag       => auto | ersip_hdr_fromto:tag(),
-                     check_scheme => fun((ersip_uri:scheme()) -> boolean())
+                     check_scheme => fun((binary()) -> boolean())
                     }.
 
 -type process_result() :: {reply, ersip_sipmsg:sipmsg()}
@@ -35,7 +35,7 @@
 %%% API
 %%%===================================================================
 
--spec process_request(ersip_msg:message(), ersip_method_set:set(), options()) -> result().
+-spec process_request(ersip_msg:message() | ersip_sipmsg:sipmsg(), ersip_method_set:set(), options()) -> result().
 process_request(Message, AllowedMethods, Options) ->
     case ersip_sipmsg:parse(Message, []) of
         {ok, SipMsg} ->
@@ -144,12 +144,12 @@ header_inspection(SipMsg, #uas{options = Options} = UAS) ->
 check_ruri(SipMsg, #uas{options = Options}) ->
     SchemeCheckF = maps:get(check_scheme, Options),
     RURI = ersip_sipmsg:ruri(SipMsg),
-    Scheme = ersip_uri:scheme(RURI),
-    case SchemeCheckF(Scheme) of
+    SchemeBin = ersip_uri:scheme_bin(RURI),
+    case SchemeCheckF(SchemeBin) of
         true ->
             continue;
         false ->
-            Reply = make_unsupported_scheme(SipMsg, Options, Scheme),
+            Reply = make_unsupported_scheme(SipMsg, Options, ersip_uri:scheme(RURI)),
             {reply, Reply}
     end.
 
@@ -225,9 +225,9 @@ check_supported(Required, Supported) ->
     end.
 
 -spec check_sip_scheme(ersip_uri:scheme()) -> boolean().
-check_sip_scheme({scheme, sip}) ->
+check_sip_scheme(<<"sip">>) ->
     true;
-check_sip_scheme({scheme, sips}) ->
+check_sip_scheme(<<"sips">>) ->
     true;
 check_sip_scheme(_) ->
     false.

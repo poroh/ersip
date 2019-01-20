@@ -9,6 +9,7 @@
 -module(ersip_uri).
 
 -export([scheme/1,
+         scheme_bin/1,
          user/1,
          set_user/2,
          host/1,
@@ -62,6 +63,14 @@
 -spec scheme(uri()) -> scheme().
 scheme(#uri{scheme = S}) ->
     S.
+
+-spec scheme_bin(uri()) -> binary().
+scheme_bin(#uri{scheme = {scheme, sip}}) ->
+    <<"sip">>;
+scheme_bin(#uri{scheme = {scheme, sips}}) ->
+    <<"sips">>;
+scheme_bin(#uri{scheme = {scheme, Bin}}) when is_binary(Bin) ->
+    ersip_bin:to_lower(Bin).
 
 -spec user(ersip_uri:uri()) -> binary() | undefined.
 user(#uri{data = #sip_uri_data{user = undefined}}) ->

@@ -82,7 +82,7 @@ make(Bin) when is_binary(Bin) ->
             error(Reason)
     end.
 
--spec parse(binary() | ersip_hdr:header()) -> ersip_parser_aux:parse_result(event()).
+-spec parse(binary() | ersip_hdr:header()) -> {ok, event()} | {error, term()}.
 parse(Bin) when is_binary(Bin) ->
     Parsers = [fun ersip_parser_aux:parse_token/1,
                fun ersip_parser_aux:trim_lws/1,
@@ -201,9 +201,8 @@ param_name_to_atom(X) when is_binary(X) ->
     end.
 
 -spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
-      Value :: integer()| ersip_qvalue:qvalue(),
-      Err   :: {invalid_event_reason, binary()}
-             | {invalid_qvalue, binary()}.
+      Value :: binary(),
+      Err   :: {invalid_event_id, term()}.
 parse_param(id, Value) ->
     %% "id" EQUAL token
     case ersip_parser_aux:parse_token(Value) of

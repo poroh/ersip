@@ -70,7 +70,7 @@
 %%    5. Proxy-Require
 %%    6. Proxy-Authorization
 %%
--spec request_validation(ersip_msg:message(), options()) -> validate_result().
+-spec request_validation(ersip_msg:message() | ersip_sipmsg:sipmsg(), options()) -> validate_result().
 request_validation(RawMessage, ValOptions) ->
     lists:foldl(fun(ValFun, {ok, Message}) ->
                         ValFun(Message, ValOptions);
@@ -133,7 +133,7 @@ forward_request(Target, SipMsg, ProxyParams) ->
 %% 1. Reasonable syntax check
 %% Function also converts raw message to SIP message with "reasonable
 %% parsing".
--spec val_reasonable_syntax(ersip_msg:message(), options()) -> validate_result().
+-spec val_reasonable_syntax(ersip_msg:message() | ersip_sipmsg:sipmsg(), options()) -> validate_result().
 val_reasonable_syntax(RawMessage, Options) ->
     case ersip_sipmsg:parse(RawMessage, [maxforwards, proxy_require, record_route, route]) of
         {ok, _SipMsg} = R ->

@@ -105,7 +105,7 @@ make(Bin) when is_binary(Bin) ->
             error(Reason)
     end.
 
--spec parse(binary() | ersip_hdr:header()) -> ersip_parser_aux:parse_result(subs_state()).
+-spec parse(binary() | ersip_hdr:header()) -> {ok, subs_state()} | {error, term()}.
 parse(Bin) when is_binary(Bin) ->
     Parsers = [fun ersip_parser_aux:parse_token/1,
                fun ersip_parser_aux:trim_lws/1,

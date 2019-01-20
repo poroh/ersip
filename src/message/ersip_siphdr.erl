@@ -180,7 +180,8 @@ remove_header({hdr_key, _} = HKey, SipMsg) ->
 -type header_required() :: all        %% Header required for all requests/responses
                          | optional   %% Header is optional for all requests/responses
                          | with_body  %% Header required if body is not empty
-                         | requests.  %% Header is required in requests
+                         | requests   %% Header is required in requests
+                         | {requests, [ersip_method:method()]}. %% Header is required for defined method(s)
 
 -record(required_essentials, {type     :: ersip_msg:type(),
                               method   :: ersip_method:method(),

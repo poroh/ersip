@@ -379,13 +379,13 @@ parse_and_add_param(Param, SIPData) ->
     Pair =
         case binary:split(Param, <<"=">>) of
             [Name] ->
-                {ersip_bin:to_lower(Name), <<>>};
+                {ersip_bin:to_lower(Name), Name, <<>>};
             [Name, Value] ->
-                {ersip_bin:to_lower(Name), Value}
+                {ersip_bin:to_lower(Name), Name, Value}
         end,
 
     case Pair of
-        {<<"transport">>, V} ->
+        {<<"transport">>, _, V} ->
             %% transport-param   =  "transport="
             %%                      ( "udp" / "tcp" / "sctp" / "tls"
             %%                      / other-transport)
@@ -398,7 +398,7 @@ parse_and_add_param(Param, SIPData) ->
                     set_param(transport, T, SIPData)
             end;
 
-        {<<"maddr">>, A} ->
+        {<<"maddr">>, _, A} ->
             %% maddr-param       =  "maddr=" host
             case ersip_host:parse(A) of
                 {ok, Host, <<>>} ->
@@ -407,7 +407,7 @@ parse_and_add_param(Param, SIPData) ->
                     {error, {invalid_maddr, A}}
             end;
 
-        {<<"user">>, U} ->
+        {<<"user">>, _, U} ->
             %%  user-param        =  "user=" ( "phone" / "ip" / other-user)
             case ersip_bin:to_lower(U) of
                 <<"phone">> ->
@@ -423,10 +423,10 @@ parse_and_add_param(Param, SIPData) ->
                     end
             end;
 
-        {<<"lr">>, _} ->
+        {<<"lr">>, _, _} ->
             set_param(lr, true, SIPData);
 
-        {<<"ttl">>, TTLBin} ->
+        {<<"ttl">>, _, TTLBin} ->
             case catch binary_to_integer(TTLBin) of
                 TTL when is_integer(TTL) andalso TTL >= 0 andalso TTL =< 255 ->
                     set_param(ttl, TTL, SIPData);
@@ -434,9 +434,13 @@ parse_and_add_param(Param, SIPData) ->
                     {error, {einval, ttl}}
             end;
 
-        {Other, OtherVal} ->
-            %% TODO check Other & OtherVal for compliance.
-            set_param(Other, OtherVal, SIPData)
+        {Other, OrigName, OtherVal} ->
+            case is_pname(OrigName) andalso is_pvalue(OtherVal) of
+                true ->
+                    set_param(Other, OtherVal, SIPData);
+                false ->
+                    {error, {invalid_parameter, Other}}
+            end
     end.
 
 %% userinfo         =  ( user / telephone-subscriber ) [":" password] "@"
@@ -662,4 +666,36 @@ assemble_param({Name, <<>>}) when is_binary(Name) ->
     <<";", Name/binary >>;
 assemble_param({Name, Value}) ->
     <<";", Name/binary, "=", Value/binary>>.
+
+-spec is_pname(binary()) -> boolean().
+is_pname(<<>>) ->
+    false;
+is_pname(Val) ->
+    is_paramchar_string(Val).
+
+-spec is_pvalue(binary()) -> boolean().
+is_pvalue(<<>>) ->
+    true;
+is_pvalue(Val) ->
+    is_paramchar_string(Val).
+
+%% paramchar         =  param-unreserved / unreserved / escaped
+%% param-unreserved  =  "[" / "]" / "/" / ":" / "&" / "+" / "$"
+-define(is_param_unreserved(X),  (X == $[ orelse X == $]
+                          orelse X == $/ orelse X == $:
+                          orelse X == $& orelse X == $+
+                          orelse X == $$)).
+
+
+-spec is_paramchar_string(binary()) -> boolean().
+is_paramchar_string(<<>>) ->
+    true;
+is_paramchar_string(<<C:8, Rest/binary>>) when ?is_unreserved(C)
+                                        orelse ?is_param_unreserved(C) ->
+    is_paramchar_string(Rest);
+is_paramchar_string(<<$%, H1:8, H2:8, Rest/binary>>) when ?is_HEXDIG(H1) andalso ?is_HEXDIG(H2) ->
+    %% escaped     =  "%" HEXDIG HEXDIG
+    is_paramchar_string(Rest);
+is_paramchar_string(_) ->
+    false.
 

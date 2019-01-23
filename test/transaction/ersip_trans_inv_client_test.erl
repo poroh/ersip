@@ -198,6 +198,27 @@ unreliable_transport_flow_test() ->
     ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event({received, ringing()}, AcceptedTrans)),
     ok.
 
+final_response_in_accepted_state_test() ->
+    InviteReq = invite_req(),
+    {CallingTrans, _} = ersip_trans_inv_client:new(reliable, InviteReq, #{}),
+    Ok200 = ok200(),
+    {AcceptedTrans, AcceptedSE1} = ersip_trans_inv_client:event({received, ok200()}, CallingTrans),
+    ?assertEqual({tu_result, Ok200}, se_event(tu_result, AcceptedSE1)),
+    {AcceptedTrans, AcceptedSE2} = ersip_trans_inv_client:event({received, ok200()}, AcceptedTrans),
+    %% RFC6026:
+    %% 2xx response received while in the "Accepted" state MUST be
+    %% passed to the TU and the machine remains in the "Accepted"
+    %% state.
+    ?assertEqual({tu_result, Ok200}, se_event(tu_result, AcceptedSE2)),
+    %% The client transaction MUST NOT generate an ACK to any 2xx
+    %% response on its own.  The TU responsible for the transaction
+    %% will generate the ACK.
+    ?assertEqual(not_found, se_event(send_request, AcceptedSE2)),
+    %% Do not pass 4xx to TU
+    {AcceptedTrans, AcceptedSE3} = ersip_trans_inv_client:event({received, notfound404()}, AcceptedTrans),
+    ?assertEqual(not_found, se_event(tu_result, AcceptedSE3)),
+    ok.
+
 
 error_handling_test() ->
     %% Invite transaction must be intialized with request.

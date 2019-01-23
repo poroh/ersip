@@ -198,7 +198,12 @@ new_impl(TransportType, Request, Options) ->
     %% state.  The client transaction MUST NOT generate an ACK to any
     %% 2xx response on its own.  The TU responsible for the
     %% transaction will generate the ACK.
-    {Trans, [ersip_trans_se:tu_result(SipMsg)]};
+    case ersip_sipmsg:status(SipMsg) of
+        Code when Code >= 200 andalso Code =< 299 ->
+            {Trans, [ersip_trans_se:tu_result(SipMsg)]};
+        _ ->
+            {Trans, []}
+    end;
 'Accepted'({resp, _, _}, #trans_inv_client{} = Trans) ->
     %% Ignore unexpected provisional response
     {Trans, []};

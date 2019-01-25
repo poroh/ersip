@@ -125,6 +125,11 @@ parse_first_line(#data{buf = Buf} = Data) ->
 -spec parse_first_line(binary(), data()) -> {result(), data()}.
 parse_first_line(<<"SIP/", _/binary>> = StatusLine, Data) ->
     parse_status_line(StatusLine, Data);
+parse_first_line(<<>>, Data) ->
+    %% Implementations processing SIP messages over stream-oriented
+    %% transports MUST ignore any CRLF appearing before the start-line
+    %% [H4.1].
+    parse(Data);
 parse_first_line(RequestLine, Data) ->
     parse_request_line(RequestLine, Data).
 

@@ -218,6 +218,45 @@ conn_stream_no_content_len_test() ->
     CallId1H = ersip_msg:get(<<"call-id">>, NewMsg1),
     ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallId1H)).
 
+conn_stream_ignore_leading_crlf_test() ->
+    %% Implementations processing SIP messages over stream-oriented
+    %% transports MUST ignore any CRLF appearing before the start-line
+    %% [H4.1].
+    RemoteIP = {127, 0, 0, 1},
+    Conn = create_stream_conn(RemoteIP, 5090),
+    %% 1. received added if domain name:
+    Msgs =
+        <<"INVITE sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: deadbeef",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test"
+          ?crlf ?crlf ?crlf
+          "INVITE sip:bob@biloxi.com SIP/2.0"
+          ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+          ?crlf "Max-Forwards: 70"
+          ?crlf "To: Bob <sip:bob@biloxi.com>"
+          ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+          ?crlf "Call-ID: deadbeef1",
+          ?crlf "CSeq: 314159 INVITE"
+          ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+          ?crlf "Content-Type: application/sdp"
+          ?crlf "Content-Length: 4"
+          ?crlf ?crlf "Test" ?crlf ?crlf
+        >>,
+    {_, [{new_request, NewMsg1}, {new_request, NewMsg2}]} = ersip_conn:conn_data(Msgs, Conn),
+    CallId1H = ersip_msg:get(<<"call-id">>, NewMsg1),
+    ?assertEqual(ersip_hdr_callid:make(<<"deadbeef">>), ersip_hdr_callid:make(CallId1H)),
+    CallId2H = ersip_msg:get(<<"call-id">>, NewMsg2),
+    ?assertEqual(ersip_hdr_callid:make(<<"deadbeef1">>), ersip_hdr_callid:make(CallId2H)),
+    ok.
+
 conn_datagram_truncated_message_test() ->
     RemoteIP = {127, 0, 0, 1},
     Conn = create_conn(RemoteIP, 5090),

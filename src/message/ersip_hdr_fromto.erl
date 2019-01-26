@@ -11,6 +11,7 @@
 -export([new/0,
          make/1,
          display_name/1,
+         set_display_name/2,
          uri/1,
          set_uri/2,
          tag/1,
@@ -67,6 +68,10 @@ make(Bin) ->
 -spec display_name(fromto()) -> ersip_nameaddr:display_name().
 display_name(#fromto{display_name = DN}) ->
     DN.
+
+-spec set_display_name(ersip_nameaddr:display_name(), fromto()) -> fromto().
+set_display_name(DN, #fromto{} = FromTo) ->
+    FromTo#fromto{display_name = DN}.
 
 -spec uri(fromto()) -> ersip_uri:uri().
 uri(#fromto{uri = URI}) ->

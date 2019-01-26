@@ -10,6 +10,7 @@
 
 -export([new/1,
          has/2,
+         intersection/2,
          to_list/1,
          invite_set/0
         ]).
@@ -32,6 +33,10 @@ new(MethodList) ->
 -spec has(ersip_method:method(), set()) -> boolean().
 has({method, _} = Method, {method_set, Set}) ->
     gb_sets:is_element(Method, Set).
+
+-spec intersection(set(), set()) -> set().
+intersection({method_set, M1}, {method_set, M2}) ->
+    {method_set, gb_sets:intersection(M1, M2)}.
 
 -spec to_list(set()) -> [ersip_method:method()].
 to_list({method_set, Set}) ->

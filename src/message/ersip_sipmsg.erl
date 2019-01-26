@@ -35,6 +35,7 @@
          set/3,
          copy/3,
          remove/2,
+         remove_list/2,
          filter_out_parsed/2,
 
          %% Body manipulation:
@@ -218,6 +219,12 @@ copy(HdrNameForm, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
 -spec remove(ersip_hnames:name_forms(), sipmsg()) -> sipmsg().
 remove(HdrName, SipMsg) ->
     ersip_siphdr:remove_header(HdrName, SipMsg).
+
+-spec remove_list([ersip_hnames:name_forms()], ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+remove_list([], SipMsg) ->
+    SipMsg;
+remove_list([First | Rest], SipMsg) ->
+    remove_list(Rest, remove(First, SipMsg)).
 
 -spec filter_out_parsed(sipmsg(), [known_header()]) -> [known_header()].
 filter_out_parsed(#sipmsg{headers = H}, HdrNames) ->

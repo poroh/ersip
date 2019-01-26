@@ -673,6 +673,28 @@ remove_header_test() ->
                    <<"c">>]),
     ok.
 
+remove_header_list_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf ?crlf
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    ?assertMatch({ok, _}, ersip_sipmsg:find(maxforwards, SipMsg)),
+    ?assertMatch({ok, _}, ersip_sipmsg:find(contact, SipMsg)),
+    SipMsg1 = ersip_sipmsg:remove_list([maxforwards, <<"contact">>], SipMsg),
+    {ok, SipMsg2} = ersip_sipmsg:parse(ersip_sipmsg:serialize_bin(SipMsg1), all),
+    ?assertEqual(not_found, ersip_sipmsg:find(maxforwards, SipMsg2)),
+    ?assertEqual(not_found, ersip_sipmsg:find(contact, SipMsg2)),
+    ok.
+
 remove_custom_header_test() ->
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"

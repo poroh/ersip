@@ -11,6 +11,7 @@
 -export([from_list/1,
          to_list/1,
          from_method_set/1,
+         to_method_set/1,
          parse/1,
          build/2,
          assemble/1
@@ -38,6 +39,10 @@ to_list({allow, MethodSet}) ->
 -spec from_method_set(ersip_method_set:set()) -> allow().
 from_method_set({method_set, _} = MethodSet) ->
     {allow, MethodSet}.
+
+-spec to_method_set(allow()) -> ersip_method_set:set().
+to_method_set({allow, MethodSet}) ->
+    MethodSet.
 
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: {ok, allow()}

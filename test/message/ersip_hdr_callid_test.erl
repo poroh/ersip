@@ -29,11 +29,14 @@ parse_test() ->
     parse_success(<<"a@b">>),
     parse_success(<<WordChars/binary, AlphaNum/binary, "@",
                     AlphaNum/binary, WordChars/binary>>),
-    parse_success(<<WordChars/binary, AlphaNum/binary, "@",
-                    AlphaNum/binary, "@", WordChars/binary>>),
+%    parse_success(<<WordChars/binary, AlphaNum/binary, "@",
+%                    AlphaNum/binary, "@", WordChars/binary>>),
     parse_success(<<AlphaNum/binary, WordChars/binary>>),
     parse_fail(<<",">>),
     parse_fail(<<>>),
+    parse_fail(<<"@alfa">>),
+    parse_fail(<<"alfa@">>),
+    parse_fail(<<"alfa@beta@gamma">>),
     parse_fail(<<"a@@b">>),
     parse_fail(<<"a@b,c@d">>).
 

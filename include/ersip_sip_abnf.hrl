@@ -57,3 +57,37 @@
                           )).
 
 -define(is_LWS_char(X), (X =:= 32 orelse X =:= $\t)).
+
+
+%% word     =  1*(alphanum / "-" / "." / "!" / "%" / "*" /
+%%             "_" / "+" / "`" / "'" / "~" /
+%%             "(" / ")" / "<" / ">" /
+%%             ":" / "\" / DQUOTE /
+%%             "/" / "[" / "]" / "?" /
+%%             "{" / "}" )
+
+-define(is_word_char(C), ?is_alphanum(C)
+        orelse C =:= $-
+        orelse C =:= $.
+        orelse C =:= $!
+        orelse C =:= $%
+        orelse C =:= $*
+        orelse C =:= $_
+        orelse C =:= $+
+        orelse C =:= $`
+        orelse C =:= $'
+        orelse C =:= $~
+        orelse C =:= $(
+        orelse C =:= $)
+        orelse C =:= $<
+        orelse C =:= $>
+        orelse C =:= $:
+        orelse C =:= $\\
+        orelse C =:= $"
+        orelse C =:= $/
+        orelse C =:= $[
+        orelse C =:= $]
+        orelse C =:= $?
+        orelse C =:= ${
+        orelse C =:= $}).
+

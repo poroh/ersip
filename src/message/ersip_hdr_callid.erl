@@ -86,63 +86,25 @@ assemble({callid, CallIdBin}) ->
       Result :: {ok, callid()}
               | {error, Error},
       Error  :: {invalid_callid, binary()}.
+
 parse_callid(Binary) ->
-    Words = binary:split(Binary, <<"@">>, [global]),
-    case lists:all(fun is_word/1, Words) of
-        true ->
-            {ok, {callid, Binary}};
-        false ->
-            {error, {invalid_callid, Binary}}
-    end.
+   case start(Binary) of
+       true -> {ok, {callid, Binary}};
+       false -> {error, {invalid_callid, Binary}}
+   end.
 
-%% word     =  1*(alphanum / "-" / "." / "!" / "%" / "*" /
-%%             "_" / "+" / "`" / "'" / "~" /
-%%             "(" / ")" / "<" / ">" /
-%%             ":" / "\" / DQUOTE /
-%%             "/" / "[" / "]" / "?" /
-%%             "{" / "}" )
--spec is_word(binary()) -> boolean().
-is_word(<<>>) ->
-    false;
-is_word(<<C/utf8>>) ->
-    is_wordc(C);
-is_word(<<C/utf8, Rest/binary>>) ->
-    case is_wordc(C) of
-        false ->
-            false;
-        true ->
-            is_word(Rest)
-    end.
+start(<<U, Rest/binary>>) when ?is_word_char(U) -> first_part(Rest);
+start(_) -> false.
 
--spec is_wordc(char()) -> boolean().
-is_wordc(C) when ?is_alphanum(C) -> true;
+first_part(<< $@, Rest/binary>>) -> start_second_part(Rest);
+first_part(<<U, Rest/binary>>)  when ?is_word_char(U) -> first_part(Rest);
+first_part(<<>>) -> true;
+first_part(_) -> false.
 
-is_wordc($-) -> true;
-is_wordc($.) -> true;
-is_wordc($!) -> true;
-is_wordc($%) -> true;
-is_wordc($*) -> true;
+start_second_part(<<U, Rest/binary>>) when ?is_word_char(U) -> second_part(Rest);
+start_second_part(_) -> false.
 
-is_wordc($_) -> true;
-is_wordc($+) -> true;
-is_wordc($`) -> true;
-is_wordc($') -> true;
-is_wordc($~) -> true;
+second_part(<<U, Rest/binary>>) when ?is_word_char(U) -> second_part(Rest);
+second_part(<<>>) -> true;
+second_part(_) -> false.
 
-is_wordc($() -> true;
-is_wordc($)) -> true;
-is_wordc($<) -> true;
-is_wordc($>) -> true;
-
-is_wordc($:) -> true;
-is_wordc($\\) -> true;
-is_wordc($") -> true;
-
-is_wordc($/) -> true;
-is_wordc($[) -> true;
-is_wordc($]) -> true;
-is_wordc($?) -> true;
-is_wordc(${) -> true;
-is_wordc($}) -> true;
-
-is_wordc(_) -> false.

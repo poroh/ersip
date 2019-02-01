@@ -177,6 +177,24 @@ uri_test() ->
                            params = #{ttl => 1}}}},
        ersip_uri:parse(<<"sip:b;ttl=1">>)),
 
+    ?assertEqual(
+       {ok, #uri{data = #sip_uri_data{
+                           host = {hostname, <<"b">>},
+                           params = #{ttl => 1}}}},
+       ersip_uri:parse(<<"sip:b;tt%6C=1">>)),
+
+    ?assertEqual(
+       {ok, #uri{data = #sip_uri_data{
+                           host = {hostname, <<"b">>},
+                           params = #{ttl => 1}}}},
+       ersip_uri:parse(<<"sip:b;t%74%6C=1">>)),
+
+    ?assertEqual(
+       {ok, #uri{data = #sip_uri_data{
+                           host = {hostname, <<"b">>},
+                           params = #{ttl => 1}}}},
+       ersip_uri:parse(<<"sip:b;t%74l=1">>)),
+
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=a">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=-1">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=256">>)),

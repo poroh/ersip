@@ -746,6 +746,37 @@ raw_parse_error_test() ->
                                       "Content-Length: 100" ?crlf ?crlf>>, all)),
     ok.
 
+header_keys_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "CSeq: 314159 INVITE"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "MyCustomHeader: Value"
+            ?crlf ?crlf
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, all),
+    Keys = ersip_sipmsg:header_keys(SipMsg),
+    KeySet = gb_sets:from_list(Keys),
+    [begin
+         HdrKey = ersip_hnames:make_key(V),
+         ?assertEqual(true, gb_sets:is_element(HdrKey, KeySet))
+     end || V <- [<<"Via">>,
+                  <<"Max-Forwards">>,
+                  <<"to">>, %% intentional lower cased
+                  <<"From">>,
+                  <<"Call-ID">>,
+                  <<"CSeq">>,
+                  <<"Contact">>,
+                  <<"Content-Type">>,
+                  <<"MycustomHeader">>,
+                  <<"MyCustomHeader">>]],
+    ok.
 
 %%%===================================================================
 %%% Helpers

@@ -15,6 +15,7 @@
          del_header/2,
          add/3,
          get/2,
+         header_keys/1,
          get_headers/1,
          clear_headers/1,
          source/1,
@@ -78,6 +79,10 @@ get(body,   #message{body = X                 }) -> X;
 get(HeaderName, #message{headers = H}) ->
     Key = ersip_hnames:make_key(HeaderName),
     maps:get(Key, H, ersip_hdr:new(HeaderName)).
+
+-spec header_keys(message()) -> [ersip_hnames:header_key()].
+header_keys(#message{headers = H}) ->
+    maps:keys(H).
 
 -spec get_headers(message()) -> [ersip_hdr:header()].
 get_headers(#message{headers = H}) ->

@@ -32,6 +32,7 @@
          %% Headers manipulation:
          find/2,
          get/2,
+         header_keys/1,
          set/3,
          copy/3,
          remove/2,
@@ -206,6 +207,10 @@ get(HdrAtom, #sipmsg{} = Msg) ->
         {error, _} = Error ->
             error(Error)
     end.
+
+-spec header_keys(ersip_sipmsg:sipmsg()) -> [ersip_hnames:header_key()].
+header_keys(#sipmsg{} = SipMsg) ->
+    ersip_msg:header_keys(raw_message(SipMsg)).
 
 -spec set(known_header(), Value :: term(), sipmsg()) -> Value when
       Value :: term().

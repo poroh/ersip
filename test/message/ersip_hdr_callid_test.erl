@@ -57,6 +57,10 @@ reassemble_test() ->
     reassemble(<<"a">>),
     reassemble(<<"abcdef">>).
 
+assemble_bin_test() ->
+    ?assertEqual(<<"a@b">>, ersip_hdr_callid:assemble_bin(ersip_hdr_callid:make(<<"a@b">>))),
+    ok.
+
 build_test() ->
     CallIdH = create_header(<<"a@b">>),
     {ok, CallId} = ersip_hdr_callid:parse(CallIdH),

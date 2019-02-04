@@ -14,7 +14,8 @@
          make_random/1,
          parse/1,
          build/2,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 
 -export_type([callid/0]).
@@ -75,6 +76,10 @@ build(HdrName, {callid, _} = CallId) ->
 
 -spec assemble(callid()) ->  binary().
 assemble({callid, CallIdBin}) ->
+    CallIdBin.
+
+-spec assemble_bin(callid()) ->  binary().
+assemble_bin({callid, CallIdBin}) ->
     CallIdBin.
 
 %%%===================================================================

@@ -14,6 +14,7 @@
 -export([%% First line manipulation:
          type/1,
          method/1,
+         method_bin/1,
          ruri/1,
          set_ruri/2,
          status/1,
@@ -112,6 +113,10 @@ type(#sipmsg{} = Msg) ->
 -spec method(ersip_sipmsg:sipmsg()) -> ersip_method:method().
 method(#sipmsg{method = Method}) ->
     Method.
+
+-spec method_bin(ersip_sipmsg:sipmsg()) -> binary().
+method_bin(#sipmsg{} = SipMsg) ->
+    ersip_method:to_binary(method(SipMsg)).
 
 -spec ruri(ersip_sipmsg:sipmsg()) -> ersip_uri:uri().
 ruri(#sipmsg{ruri = RURI}) ->

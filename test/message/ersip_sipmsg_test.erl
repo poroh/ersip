@@ -578,6 +578,7 @@ get_parts_test() ->
     ?assertEqual(undefined, ersip_sipmsg:status(SipMsg)),
     ?assertEqual(undefined, ersip_sipmsg:reason(SipMsg)),
     ?assertEqual({method, <<"INVITE">>}, ersip_sipmsg:method(SipMsg)),
+    ?assertEqual(<<"INVITE">>, ersip_sipmsg:method_bin(SipMsg)),
     ok.
 
 

@@ -34,6 +34,10 @@ reassemble_test() ->
     reassemble(<<"1 REGISTER">>),
     reassemble(<<"99 MYMETHOD">>).
 
+assemble_bin_test() ->
+    ?assertEqual(<<"314159 INVITE">>, ersip_hdr_cseq:assemble_bin(make(<<"314159 INVITE">>))),
+    ok.
+
 build_test() ->
     CSeqH = create(<<"314159 INVITE">>),
     CSeqHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(CSeqH)],

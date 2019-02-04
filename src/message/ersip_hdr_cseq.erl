@@ -18,7 +18,8 @@
          set_method/2,
          parse/1,
          build/2,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 -export_type([cseq/0,
               cseq_num/0
@@ -106,6 +107,10 @@ assemble(#cseq{method = Method, number = Num}) ->
      <<" ">>,
      ersip_method:to_binary(Method)
     ].
+
+-spec assemble_bin(cseq()) -> binary().
+assemble_bin(#cseq{} = CSeq) ->
+    iolist_to_binary(assemble(CSeq)).
 
 %%%===================================================================
 %%% Internal implementation

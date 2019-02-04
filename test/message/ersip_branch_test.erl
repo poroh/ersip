@@ -49,6 +49,13 @@ assemle_test() ->
     check_reassemble(<<"_">>),
     check_reassemble(<<"z">>).
 
+assemle_bin_test() ->
+    check_reassemble_bin(<<"z9hg4bk776asdhds">>),
+    check_reassemble_bin(<<"z9hg4bk">>),
+    check_reassemble_bin(<<"_z9hG4bK">>),
+    check_reassemble_bin(<<"_">>),
+    check_reassemble_bin(<<"z">>).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -85,4 +92,8 @@ make_key(Bin) ->
 check_reassemble(Binary) ->
     Branch = ersip_branch:make(Binary),
     ?assertEqual(Binary, iolist_to_binary(ersip_branch:assemble(Branch))).
+
+check_reassemble_bin(Binary) ->
+    Branch = ersip_branch:make(Binary),
+    ?assertEqual(Binary, ersip_branch:assemble_bin(Branch)).
 

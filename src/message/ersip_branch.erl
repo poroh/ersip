@@ -13,6 +13,7 @@
          make_random/1,
          make_key/1,
          assemble/1,
+         assemble_bin/1,
          is_rfc3261/1
         ]).
 
@@ -56,6 +57,10 @@ make_key({branch_key, _} = Key) ->
 
 -spec assemble(branch()) -> binary().
 assemble({branch, Bin}) ->
+    Bin.
+
+-spec assemble_bin(branch()) -> binary().
+assemble_bin({branch, Bin}) ->
     Bin.
 
 -spec is_rfc3261(branch() | branch_key()) -> boolean().

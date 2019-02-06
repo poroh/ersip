@@ -12,7 +12,9 @@
          session_id/1,
          session_version/1,
          address/1,
-         parse/1]).
+         parse/1,
+         assemble/1
+        ]).
 
 -export_type([origin/0]).
 
@@ -71,6 +73,16 @@ parse(<<"o=", Rest/binary>>) ->
                     {error, {invalid_origin, OriginBin}}
             end
     end.
+
+-spec assemble(origin()) -> iolist().
+assemble(#origin{} = Origin) ->
+    #origin{username     = UserName,
+            sess_id      = SessId,
+            sess_version = SessVersion,
+            address      = Addr} = Origin,
+    [<<"o=">>, UserName, <<" ">>, integer_to_binary(SessId),
+     <<" ">>, integer_to_binary(SessVersion), <<" ">>,
+     ersip_sdp_addr:assemble(Addr), <<"\r\n">>].
 
 %%%===================================================================
 %%% Internal implementation

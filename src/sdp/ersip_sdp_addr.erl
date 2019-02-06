@@ -10,7 +10,9 @@
 
 -export([make/1,
          parse/1,
-         parse/3]).
+         parse/3,
+         assemble/1
+        ]).
 
 -export_type([addr/0]).
 
@@ -90,6 +92,18 @@ parse(NetType, AddrType, Address) ->
                 _ -> R
             end
     end.
+
+-spec assemble(addr()) -> iolist().
+assemble({ip4, IP4}) ->
+    [<<"IN IP4 ">>, inet:ntoa(IP4)];
+assemble({ip4_host, FQDN}) ->
+    [<<"IN IP4 ">>, FQDN];
+assemble({ip6, IP6}) ->
+    [<<"IN IP6 ">>, inet:ntoa(IP6)];
+assemble({ip6_host, FQDN}) ->
+    [<<"IN IP6 ">>, FQDN];
+assemble({unknown_addr, NetType, AddrType, Address}) ->
+    [NetType, " ", AddrType, " ", Address].
 
 %%%===================================================================
 %%% Internal implementation

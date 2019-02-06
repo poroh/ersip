@@ -10,7 +10,9 @@
 
 -export([start/1,
          stop/1,
-         parse/1]).
+         parse/1,
+         assemble/1
+        ]).
 
 -export_type([timings/0]).
 
@@ -59,6 +61,10 @@ parse(Bin) ->
             Error
     end.
 
+-spec assemble(timings()) -> iolist().
+assemble(#timings{items = Items, zone  = Zone}) ->
+    [assemble_items(Items), assemble_zone(Zone)].
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
@@ -68,6 +74,16 @@ parse(Bin) ->
 -spec parse_items(binary()) -> parse_result(nonempty_list(sess_item())).
 parse_items(Bin) ->
     do_parse_items(Bin, []).
+
+-spec assemble_items([sess_item()]) -> iolist().
+assemble_items(Items) ->
+    [[<<"t=">>, integer_to_binary(Start), <<" ">>, integer_to_binary(Stop), ?crlf,
+      assemble_repeats(Repeat)]
+     || #sess_item{start = Start, stop = Stop, repeat = Repeat} <- Items].
+
+-spec assemble_repeats([binary()]) -> iolist().
+assemble_repeats(Repeats) ->
+    [[<<"r=">>, Repeat, ?crlf] || Repeat <- Repeats].
 
 %% %x7a "=" time SP ["-"] typed-time *(SP time SP ["-"] typed-time) CRLF
 -spec parse_zone(binary()) -> parse_result(binary() | undefined).
@@ -80,6 +96,12 @@ parse_zone(<<"z=", Rest/binary>>) ->
     end;
 parse_zone(Other) ->
     {ok, undefined, Other}.
+
+-spec assemble_zone(binary() | undefined) -> iolist().
+assemble_zone(undefined) ->
+    [];
+assemble_zone(Zone) ->
+    [<<"z=">>, Zone, ?crlf].
 
 %% 1*( %x74 "=" start-time SP stop-time
 %%                *(CRLF repeat-fields) CRLF)

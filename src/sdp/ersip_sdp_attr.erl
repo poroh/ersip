@@ -8,7 +8,9 @@
 
 -module(ersip_sdp_attr).
 
--export([parse/1]).
+-export([parse/1,
+         assemble/1
+        ]).
 
 -export_type([attr_list/0]).
 
@@ -30,6 +32,18 @@
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_parse_attrs(Bin, []).
+
+-spec assemble(attr_list()) -> iolist().
+assemble(AttrList) ->
+    [[<<"a=">>,
+      case Attr of
+          {AttrName, AttrValue} ->
+              [AttrName, <<":">>, AttrValue];
+          AttrName ->
+              AttrName
+      end,
+      <<"\r\n">>]
+     || Attr <- AttrList].
 
 %%%===================================================================
 %%% Internal Implementation

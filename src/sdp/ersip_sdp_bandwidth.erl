@@ -12,7 +12,9 @@
          ct/1,
          as/1,
          experimental/2,
-         parse/1]).
+         parse/1,
+         assemble/1
+        ]).
 
 -export_type([bandwidth/0]).
 
@@ -58,6 +60,11 @@ experimental(Name, {bandwidth, BWList}) ->
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_bw_parse(Bin, {bandwidth, []}).
+
+-spec assemble(bandwidth()) -> iolist().
+assemble({bandwidth, BWList}) ->
+    [[<<"b=">>, bw_type_to_binary(BWType), <<":">>, integer_to_binary(BWValue), <<"\r\n">>]
+     || {BWType, BWValue} <- BWList].
 
 %%%===================================================================
 %%% Internal Implementation
@@ -111,4 +118,15 @@ convert_bw_type(BWType) ->
         <<"tias">> -> tias; %% RFC 3890
         _ -> {bw_type, BWType}
     end.
+
+-spec bw_type_to_binary(bw_type()) -> binary().
+bw_type_to_binary(ct) ->
+    <<"CT">>;
+bw_type_to_binary(as) ->
+    <<"AS">>;
+bw_type_to_binary(tias) ->
+    <<"TIAS">>;
+bw_type_to_binary({bw_type, T}) ->
+    T.
+
 

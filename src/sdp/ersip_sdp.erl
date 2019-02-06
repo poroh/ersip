@@ -18,9 +18,15 @@
          conn/1,
          bandwidth/1,
          time/1,
-         parse/1]).
+         medias/1,
+         parse/1,
+         assemble/1,
+         assemble_bin/1
+        ]).
 
 -export_type([sdp/0]).
+
+-define(crlf, "\r\n").
 
 %%%===================================================================
 %%% Types
@@ -83,6 +89,10 @@ bandwidth(#sdp{bandwidth = Band}) ->
 time(#sdp{timings = Time}) ->
     Time.
 
+-spec medias(sdp()) -> [ersip_sdp_media:media()].
+medias(#sdp{medias = M}) ->
+    M.
+
 %% session-description = proto-version
 %%                       origin-field
 %%                       session-name-field
@@ -137,10 +147,42 @@ parse(Bin) ->
             {error, {invalid_sdp, Reason}}
     end.
 
+-spec assemble(sdp()) -> iolist().
+assemble(#sdp{} = SDP) ->
+    #sdp{origin       = Origin,
+         session_name = SessionName,
+         info         = Info,
+         uri          = URI,
+         emails       = Emails,
+         phones       = Phones,
+         conn         = Conn,
+         bandwidth    = Band,
+         timings      = Time,
+         key          = Key,
+         attrs        = Attrs,
+         medias       = Medias
+        } = SDP,
+    [<<"v=0", ?crlf>>,
+     ersip_sdp_origin:assemble(Origin),
+     <<"s=">>, SessionName, ?crlf,
+     ersip_sdp_aux:assemble_info(Info),
+     assemble_uri(URI),
+     assemble_emails(Emails),
+     assemble_phones(Phones),
+     ersip_sdp_conn:assemble(Conn),
+     ersip_sdp_bandwidth:assemble(Band),
+     ersip_sdp_time:assemble(Time),
+     ersip_sdp_aux:assemble_key(Key),
+     ersip_sdp_attr:assemble(Attrs),
+     ersip_sdp_media:assemble(Medias)].
+
+-spec assemble_bin(sdp()) -> binary().
+assemble_bin(#sdp{} = SDP) ->
+    iolist_to_binary(assemble(SDP)).
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
--define(crlf, "\r\n").
 
 %% proto-version =       %x76 "=" 1*DIGIT CRLF
 %%                       ;this memo describes version 0
@@ -166,15 +208,29 @@ parse_uri(<<"u=", Rest/binary>>) ->
 parse_uri(Bin) ->
     {ok, undefined, Bin}.
 
+-spec assemble_uri(maybe_binary()) -> iolist().
+assemble_uri(undefined) ->
+    [];
+assemble_uri(URI) ->
+    [<<"u=">>, URI, ?crlf].
+
 %% email-fields =        *(%x65 "=" email-address CRLF)
 -spec parse_emails(binary()) -> parse_result([binary()]).
 parse_emails(Bin) ->
     do_parse_emails(Bin, []).
 
+-spec assemble_emails([binary()]) -> iolist().
+assemble_emails(Emails) ->
+    [[<<"e=">>, E, ?crlf] || E <- Emails].
+
 %% phone-fields =        *(%x70 "=" phone-number CRLF)
 -spec parse_phones(binary()) -> parse_result([binary()]).
 parse_phones(Bin) ->
     do_parse_phones(Bin, []).
+
+-spec assemble_phones([binary()]) -> iolist().
+assemble_phones(Phones) ->
+    [[<<"p=">>, P, ?crlf] || P <- Phones].
 
 -spec unexpected_attribute_error(atom(), binary()) -> {error, term()}.
 unexpected_attribute_error(Expected, Bin) ->

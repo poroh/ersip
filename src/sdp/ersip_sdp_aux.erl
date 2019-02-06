@@ -11,7 +11,9 @@
 -export([check_token/1,
          parse_token/1,
          parse_info/1,
+         assemble_info/1,
          parse_key/1,
+         assemble_key/1,
          parse_crlf/1,
          binary_to_eol/2]).
 
@@ -53,6 +55,12 @@ parse_info(<<"i=", Rest/binary>>) ->
 parse_info(Bin) ->
     {ok, undefined, Bin}.
 
+-spec assemble_info(maybe_binary()) -> iolist().
+assemble_info(undefined) ->
+    [];
+assemble_info(Info) ->
+    [<<"i=">>, Info, <<"\r\n">>].
+
 %% key-field =           [%x6b "=" key-type CRLF]
 -spec parse_key(binary()) -> parse_result(maybe_binary()).
 parse_key(<<"k=", Rest/binary>>) ->
@@ -63,6 +71,12 @@ parse_key(<<"k=", Rest/binary>>) ->
     end;
 parse_key(Bin) ->
     {ok, undefined, Bin}.
+
+-spec assemble_key(maybe_binary()) -> iolist().
+assemble_key(undefined) ->
+    [];
+assemble_key(Key) ->
+    [<<"k=">>, Key, <<"\r\n">>].
 
 -spec parse_crlf(binary()) -> parse_result(true).
 parse_crlf(<<"\r\n", Rest/binary>>) ->

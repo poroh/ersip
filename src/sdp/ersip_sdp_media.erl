@@ -13,7 +13,10 @@
          port_num/1,
          protocol/1,
          formats/1,
-         parse/1]).
+         conn/1,
+         parse/1,
+         assemble/1
+        ]).
 
 -export_type([media/0]).
 
@@ -62,9 +65,17 @@ protocol(#media{protocol = P}) ->
 formats(#media{fmts = FMTS}) ->
     FMTS.
 
+-spec conn(media()) -> ersip_sdp_conn:conn() | undefined.
+conn(#media{conn = Conn}) ->
+    Conn.
+
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_parse_medias(Bin, []).
+
+-spec assemble([media()]) -> iolist().
+assemble(Medias) ->
+    [assemble_media(M) || M <- Medias].
 
 %%%===================================================================
 %%% Internal implementation
@@ -112,6 +123,33 @@ do_parse_medias(<<"m=", Rest/binary>>, Acc) ->
     end;
 do_parse_medias(Rest, Acc) ->
     {ok, lists:reverse(Acc), Rest}.
+
+-spec assemble_media(media()) -> iolist().
+assemble_media(#media{} = Media) ->
+ #media{type      = MediaType,
+        port      = Port,
+        port_num  = NumPorts,
+        protocol  = Protocol,
+        fmts      = Formats,
+        title     = Title,
+        conn      = Conn,
+        bandwidth = Bandwidth,
+        key       = Key,
+        attrs     = Attrs} = Media,
+    [<<"m=">>, MediaType, <<" ">>, integer_to_binary(Port),
+     case NumPorts of
+         1 -> [];
+         _ -> [<<"/">>, integer_to_binary(NumPorts)]
+     end,
+     <<" ">>, ersip_iolist:join(<<"/">>, Protocol),
+     [[<<" ">>, Fmt] || Fmt <- Formats],
+     <<"\r\n">>,
+     ersip_sdp_aux:assemble_info(Title),
+     ersip_sdp_conn:assemble(Conn),
+     ersip_sdp_bandwidth:assemble(Bandwidth),
+     ersip_sdp_aux:assemble_key(Key),
+     ersip_sdp_attr:assemble(Attrs)
+    ].
 
 %% ["/" integer]
 -spec parse_num_ports(binary()) -> parse_result(non_neg_integer()).

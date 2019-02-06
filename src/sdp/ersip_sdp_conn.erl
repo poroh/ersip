@@ -11,7 +11,9 @@
 -export([addr/1,
          ttl/1,
          num_addrs/1,
-         parse/1]).
+         parse/1,
+         assemble/1
+        ]).
 
 -export_type([conn/0]).
 
@@ -58,6 +60,23 @@ parse(<<"c=", Rest/binary>>) ->
     end;
 parse(Other) ->
     {ok, undefined, Other}.
+
+-spec assemble(undefined | conn()) -> iolist().
+assemble(undefined) ->
+    [];
+assemble(#conn{addr = Addr, ttl = TTL, num_addrs = NumAddrs}) ->
+    [<<"c=">>,
+     ersip_sdp_addr:assemble(Addr),
+     case TTL of
+         undefined -> [];
+         _ ->         [<<"/">>, integer_to_binary(TTL)]
+     end,
+     case NumAddrs of
+         1 -> [];
+         _ -> [<<"/">>, integer_to_binary(NumAddrs)]
+     end,
+     <<"\r\n">>
+    ].
 
 %%%===================================================================
 %%% Internal Implementation

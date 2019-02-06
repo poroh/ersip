@@ -16,6 +16,7 @@
          emails/1,
          phones/1,
          conn/1,
+         set_conn/2,
          bandwidth/1,
          time/1,
          medias/1,
@@ -80,6 +81,10 @@ phones(#sdp{phones = Phones}) ->
 -spec conn(sdp()) -> ersip_sdp_conn:conn() | undefined.
 conn(#sdp{conn = Conn}) ->
     Conn.
+
+-spec set_conn(ersip_sdp_conn:conn(), sdp()) -> sdp().
+set_conn(Conn, #sdp{} = SDP) ->
+    SDP#sdp{conn = Conn}.
 
 -spec bandwidth(sdp()) -> ersip_sdp_bandwidth:bandwidth().
 bandwidth(#sdp{bandwidth = Band}) ->

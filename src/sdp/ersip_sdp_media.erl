@@ -14,6 +14,7 @@
          protocol/1,
          formats/1,
          conn/1,
+         set_conn/2,
          parse/1,
          assemble/1
         ]).
@@ -68,6 +69,10 @@ formats(#media{fmts = FMTS}) ->
 -spec conn(media()) -> ersip_sdp_conn:conn() | undefined.
 conn(#media{conn = Conn}) ->
     Conn.
+
+-spec set_conn(ersip_sdp_conn:conn(), media()) -> media().
+set_conn(Conn, #media{} = Media) ->
+    Media#media{conn = Conn}.
 
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->

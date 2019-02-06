@@ -100,7 +100,15 @@ parse_error_test() ->
     ?assertMatch({error, {invalid_conn, {invalid_addr, _}}}, parse(<<"c=@">>)),
     ok.
 
-
+edit_conn_test() ->
+    Conn = make(<<"c=IN IP4 224.2.1.1/127/3">>),
+    ?assertEqual(make(<<"c=IN IP4 224.2.1.2/127/3">>),
+                 ersip_sdp_conn:set_addr(make_ip4_addr(<<"224.2.1.2">>), Conn)),
+    ?assertEqual(make(<<"c=IN IP4 224.2.1.1/22/3">>),
+                 ersip_sdp_conn:set_ttl(22, Conn)),
+    ?assertEqual(make(<<"c=IN IP4 224.2.1.1/127/5">>),
+                 ersip_sdp_conn:set_num_addrs(5, Conn)),
+    ok.
 
 %%%===================================================================
 %%% Helpers
@@ -114,3 +122,10 @@ parse(Bin) ->
             Error
     end.
 
+make(Bin) ->
+    {ok, Conn} = parse(Bin),
+    Conn.
+
+make_ip4_addr(AddrBin) ->
+    {ok, Addr} = ersip_sdp_addr:parse(<<"in">>, <<"ip4">>, AddrBin),
+    Addr.

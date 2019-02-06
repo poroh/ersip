@@ -112,6 +112,32 @@ rebuild_test() ->
     ?assertEqual(SDPBin2, reassemble(SDPBin2)),
     ok.
 
+set_conn_test() ->
+    SDPBin
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5" ?crlf
+            "s=SDP Seminar" ?crlf
+            "t=0 0" ?crlf
+            "m=audio 49170 RTP/AVP 0" ?crlf
+            "">>,
+    Result = ersip_sdp:parse(SDPBin),
+    ?assertMatch({ok, _}, Result),
+    {ok, SDP} = Result,
+    ?assertEqual(undefined, ersip_sdp:conn(SDP)),
+    {ok, Conn, <<>>} = ersip_sdp_conn:parse(<<"c=IN IP4 224.2.17.12/127/2" ?crlf>>),
+    SDP1 = ersip_sdp:set_conn(Conn, SDP),
+    ExpectedSDP
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5" ?crlf
+            "s=SDP Seminar" ?crlf
+            "c=IN IP4 224.2.17.12/127/2" ?crlf
+            "t=0 0" ?crlf
+            "m=audio 49170 RTP/AVP 0" ?crlf
+            "">>,
+    ?assertEqual(ExpectedSDP, ersip_sdp:assemble_bin(SDP1)),
+    ?assertEqual(Conn, ersip_sdp:conn(SDP1)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

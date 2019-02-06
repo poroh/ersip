@@ -9,8 +9,11 @@
 -module(ersip_sdp_conn).
 
 -export([addr/1,
+         set_addr/2,
          ttl/1,
+         set_ttl/2,
          num_addrs/1,
+         set_num_addrs/2,
          parse/1,
          assemble/1
         ]).
@@ -34,13 +37,25 @@
 addr(#conn{addr = Addr}) ->
     Addr.
 
+-spec set_addr(ersip_sdp_addr:addr(), conn()) -> conn().
+set_addr(Addr, #conn{} = Conn) ->
+    Conn#conn{addr = Addr}.
+
 -spec ttl(conn()) -> non_neg_integer() | undefined.
 ttl(#conn{ttl = TTL}) ->
     TTL.
 
+-spec set_ttl(non_neg_integer() | undefined, conn()) -> conn().
+set_ttl(TTL, #conn{} = Conn) ->
+    Conn#conn{ttl = TTL}.
+
 -spec num_addrs(conn()) -> non_neg_integer().
 num_addrs(#conn{num_addrs = NumAddrs}) ->
     NumAddrs.
+
+-spec set_num_addrs(non_neg_integer(), conn()) -> conn().
+set_num_addrs(NumAddrs, #conn{} = Conn) ->
+    Conn#conn{num_addrs = NumAddrs}.
 
 -spec parse(binary()) -> ersip_parser_aux:parse_result(conn() | undefined).
 parse(<<"c=", Rest/binary>>) ->

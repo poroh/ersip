@@ -16,8 +16,10 @@
 
 parse_ip4_address_test() ->
     ?assertEqual({ok, {ip4, {127, 0, 0, 1}}},  parse_in_ip4(<<"127.0.0.1">>)),
+    ?assertEqual({<<"IN">>, <<"IP4">>, <<"127.0.0.1">>},  ersip_sdp_addr:raw(make_in_ip4(<<"127.0.0.1">>))),
     ?assertEqual({ok, {ip4, {10, 47, 16, 5}}}, parse_in_ip4(<<"10.47.16.5">>)),
     ?assertEqual({ok, {ip4_host, <<"pc33.atlanta.com">>}}, parse_in_ip4(<<"pc33.atlanta.com">>)),
+    ?assertEqual({<<"IN">>, <<"IP4">>, <<"pc33.atlanta.com">>},  ersip_sdp_addr:raw(make_in_ip4(<<"pc33.atlanta.com">>))),
     ok.
 
 parse_ip6_address_test() ->
@@ -27,7 +29,9 @@ parse_ip6_address_test() ->
     IP6  = {16#2001, 16#2345, 16#6789, 16#ABCD,
             16#EF01, 16#2345, 16#6789, 16#ABCD},
     ?assertEqual({ok, {ip6, IP6}},  parse_in_ip6(Bin1)),
+    ?assertEqual({<<"IN">>, <<"IP6">>, ersip_bin:to_lower(Bin1)}, ersip_sdp_addr:raw(make_in_ip6(Bin1))),
     ?assertEqual({ok, {ip6_host, <<"pc33.atlanta.com">>}}, parse_in_ip6(<<"pc33.atlanta.com">>)),
+    ?assertEqual({<<"IN">>, <<"IP6">>, <<"pc33.atlanta.com">>}, ersip_sdp_addr:raw(make_in_ip6(<<"pc33.atlanta.com">>))),
     ok.
 
 parse_error_ip4_test() ->
@@ -48,6 +52,10 @@ parse_unknown_addr_type_test() ->
     ?assertEqual({ok, {unknown_addr, <<"ATM">>,
                        <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>}},
                  ersip_sdp_addr:parse(<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>)),
+
+    {ok, Addr} = ersip_sdp_addr:parse(<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>),
+    ?assertEqual({<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>},
+                 ersip_sdp_addr:raw(Addr)),
     ok.
 
 parse_invalid_addr_type_test() ->
@@ -67,3 +75,11 @@ parse_in_ip4(Bin) ->
 
 parse_in_ip6(Bin) ->
     ersip_sdp_addr:parse(<<"in">>, <<"ip6">>, Bin).
+
+make_in_ip4(Bin) ->
+    {ok, Addr} = ersip_sdp_addr:parse(<<"in">>, <<"ip4">>, Bin),
+    Addr.
+
+make_in_ip6(Bin) ->
+    {ok, Addr} = ersip_sdp_addr:parse(<<"in">>, <<"ip6">>, Bin),
+    Addr.

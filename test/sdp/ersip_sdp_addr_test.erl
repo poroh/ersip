@@ -29,7 +29,8 @@ parse_ip6_address_test() ->
     IP6  = {16#2001, 16#2345, 16#6789, 16#ABCD,
             16#EF01, 16#2345, 16#6789, 16#ABCD},
     ?assertEqual({ok, {ip6, IP6}},  parse_in_ip6(Bin1)),
-    ?assertEqual({<<"IN">>, <<"IP6">>, ersip_bin:to_lower(Bin1)}, ersip_sdp_addr:raw(make_in_ip6(Bin1))),
+    {<<"IN">>, <<"IP6">>, IP6AddrBin} = ersip_sdp_addr:raw(make_in_ip6(Bin1)),
+    ?assertEqual(ersip_bin:to_lower(Bin1), ersip_bin:to_lower(IP6AddrBin)),
     ?assertEqual({ok, {ip6_host, <<"pc33.atlanta.com">>}}, parse_in_ip6(<<"pc33.atlanta.com">>)),
     ?assertEqual({<<"IN">>, <<"IP6">>, <<"pc33.atlanta.com">>}, ersip_sdp_addr:raw(make_in_ip6(<<"pc33.atlanta.com">>))),
     ok.

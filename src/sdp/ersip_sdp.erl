@@ -20,6 +20,7 @@
          bandwidth/1,
          time/1,
          medias/1,
+         set_medias/2,
          parse/1,
          assemble/1,
          assemble_bin/1
@@ -97,6 +98,10 @@ time(#sdp{timings = Time}) ->
 -spec medias(sdp()) -> [ersip_sdp_media:media()].
 medias(#sdp{medias = M}) ->
     M.
+
+-spec set_medias([ersip_sdp_media:media()], sdp()) -> sdp().
+set_medias(Medias, #sdp{} = SDP) ->
+    SDP#sdp{medias = Medias}.
 
 %% session-description = proto-version
 %%                       origin-field

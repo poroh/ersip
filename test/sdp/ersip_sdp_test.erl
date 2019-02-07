@@ -138,6 +138,29 @@ set_conn_test() ->
     ?assertEqual(Conn, ersip_sdp:conn(SDP1)),
     ok.
 
+set_media_test() ->
+    SDPBin
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5" ?crlf
+            "s=SDP Seminar" ?crlf
+            "t=0 0" ?crlf
+            "m=audio 49170 RTP/AVP 0" ?crlf
+            "">>,
+    SDP = make(SDPBin),
+    {ok, NewMedias, <<>>} = ersip_sdp_media:parse(<<"m=video 49172 RTP/AVP 0" ?crlf>>),
+    NewSDP = ersip_sdp:set_medias(NewMedias, SDP),
+    NewSDPBin = ersip_sdp:assemble_bin(NewSDP),
+    ExpectedSDP
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5" ?crlf
+            "s=SDP Seminar" ?crlf
+            "t=0 0" ?crlf
+            "m=video 49172 RTP/AVP 0" ?crlf
+            "">>,
+    io:format("~n~p~n~p", [ExpectedSDP, NewSDPBin]),
+    ?assertEqual(ExpectedSDP, NewSDPBin),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -149,3 +172,9 @@ reassemble(SDPBin) ->
     {ok, SDP1} = ersip_sdp:parse(SDPBin1),
     ?assertEqual(SDP1, SDP0),
     SDPBin1.
+
+make(SDPBin) ->
+    Result = ersip_sdp:parse(SDPBin),
+    ?assertMatch({ok, _}, Result),
+    {ok, SDP} = Result,
+    SDP.

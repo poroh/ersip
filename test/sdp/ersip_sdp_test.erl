@@ -157,7 +157,6 @@ set_media_test() ->
             "t=0 0" ?crlf
             "m=video 49172 RTP/AVP 0" ?crlf
             "">>,
-    io:format("~n~p~n~p", [ExpectedSDP, NewSDPBin]),
     ?assertEqual(ExpectedSDP, NewSDPBin),
     ok.
 

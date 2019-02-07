@@ -9,6 +9,7 @@
 -module(ersip_sdp_addr).
 
 -export([raw/1,
+         from_raw/1,
          make/1,
          parse/1,
          parse/3,
@@ -30,12 +31,13 @@
 -type fqdn() :: binary().
 -type parse_result() :: {ok, addr()}
                       | {error, term()}.
+-type raw_addr() :: {binary(), binary(), binary()}.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec raw(addr()) -> {binary(), binary(), binary()}.
+-spec raw(addr()) -> raw_addr().
 raw({ip4, IP4}) ->
     {<<"IN">>, <<"IP4">>, list_to_binary(inet:ntoa(IP4))};
 raw({ip4_host, FQDN}) ->
@@ -46,6 +48,12 @@ raw({ip6_host, FQDN}) ->
     {<<"IN">>, <<"IP6">>, FQDN};
 raw({unknown_addr, NetType, AddrType, Address}) ->
     {NetType, AddrType, Address}.
+
+-spec from_raw(raw_addr()) -> parse_result().
+from_raw({NetType, AddrType, Addr}) when is_binary(NetType),
+                                         is_binary(AddrType),
+                                         is_binary(Addr) ->
+    parse(NetType, AddrType, Addr).
 
 -spec make(binary()) -> addr().
 make(Bin) when is_binary(Bin) ->

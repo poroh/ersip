@@ -19,7 +19,9 @@ parse_ip4_address_test() ->
     ?assertEqual({<<"IN">>, <<"IP4">>, <<"127.0.0.1">>},  ersip_sdp_addr:raw(make_in_ip4(<<"127.0.0.1">>))),
     ?assertEqual({ok, {ip4, {10, 47, 16, 5}}}, parse_in_ip4(<<"10.47.16.5">>)),
     ?assertEqual({ok, {ip4_host, <<"pc33.atlanta.com">>}}, parse_in_ip4(<<"pc33.atlanta.com">>)),
-    ?assertEqual({<<"IN">>, <<"IP4">>, <<"pc33.atlanta.com">>},  ersip_sdp_addr:raw(make_in_ip4(<<"pc33.atlanta.com">>))),
+    IP4FQDN = make_in_ip4(<<"pc33.atlanta.com">>),
+    ?assertEqual({<<"IN">>, <<"IP4">>, <<"pc33.atlanta.com">>},  ersip_sdp_addr:raw(IP4FQDN)),
+    ?assertEqual({ok, IP4FQDN}, ersip_sdp_addr:from_raw(ersip_sdp_addr:raw(IP4FQDN))),
     ok.
 
 parse_ip6_address_test() ->
@@ -32,7 +34,10 @@ parse_ip6_address_test() ->
     {<<"IN">>, <<"IP6">>, IP6AddrBin} = ersip_sdp_addr:raw(make_in_ip6(Bin1)),
     ?assertEqual(ersip_bin:to_lower(Bin1), ersip_bin:to_lower(IP6AddrBin)),
     ?assertEqual({ok, {ip6_host, <<"pc33.atlanta.com">>}}, parse_in_ip6(<<"pc33.atlanta.com">>)),
-    ?assertEqual({<<"IN">>, <<"IP6">>, <<"pc33.atlanta.com">>}, ersip_sdp_addr:raw(make_in_ip6(<<"pc33.atlanta.com">>))),
+    {ok, IP6FQDN} = parse_in_ip6(<<"pc33.atlanta.com">>),
+    RawAddr = ersip_sdp_addr:raw(IP6FQDN),
+    ?assertEqual({<<"IN">>, <<"IP6">>, <<"pc33.atlanta.com">>}, RawAddr),
+    ?assertEqual({ok, IP6FQDN}, ersip_sdp_addr:from_raw(RawAddr)),
     ok.
 
 parse_error_ip4_test() ->
@@ -55,8 +60,9 @@ parse_unknown_addr_type_test() ->
                  ersip_sdp_addr:parse(<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>)),
 
     {ok, Addr} = ersip_sdp_addr:parse(<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>),
-    ?assertEqual({<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>},
-                 ersip_sdp_addr:raw(Addr)),
+    RawAddr = ersip_sdp_addr:raw(Addr),
+    ?assertEqual({<<"ATM">>, <<"NSAP">>, <<"47.0091.8100.0000.0060.3E64.FD01.0060.3E64.FD01.00">>}, RawAddr),
+    ?assertEqual({ok, Addr}, ersip_sdp_addr:from_raw(RawAddr)),
     ok.
 
 parse_invalid_addr_type_test() ->

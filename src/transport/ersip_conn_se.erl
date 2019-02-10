@@ -25,7 +25,7 @@
                      | new_request()
                      | new_response()
                      | disconnect().
--type bad_message()  :: {bad_message, Reason :: term(), binary() | ersip_msg:message()}.
+-type bad_message()  :: {bad_message, binary() | ersip_msg:message(), Reason :: term()}.
 -type new_request()  :: {new_request, ersip_msg:message()}.
 -type new_response() :: {new_response, ersip_hdr_via:via(), ersip_msg:message()}.
 -type disconnect()   :: {disconnect, {error, term()}}.

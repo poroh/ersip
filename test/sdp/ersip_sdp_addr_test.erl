@@ -38,6 +38,13 @@ parse_ip6_address_test() ->
     RawAddr = ersip_sdp_addr:raw(IP6FQDN),
     ?assertEqual({<<"IN">>, <<"IP6">>, <<"pc33.atlanta.com">>}, RawAddr),
     ?assertEqual({ok, IP6FQDN}, ersip_sdp_addr:from_raw(RawAddr)),
+    %% IP6-address =         hexpart [ ":" IP4-address ]
+    %% hexpart =             hexseq / hexseq "::" [ hexseq ] /
+    %%                       "::" [ hexseq ]
+    ?assertEqual({ok, {ip6, {0, 0, 0, 0, 0, 0, 0, 1}}}, parse_in_ip6(<<"::1">>)),
+    ?assertEqual({ok, {ip6, {256, 0, 0, 0, 0, 0, 0, 0}}}, parse_in_ip6(<<"100::">>)),
+    ?assertEqual({ok, {ip6, {256, 0, 0, 0, 0, 0, 0, 0}}}, parse_in_ip6(<<"100::0">>)),
+    ?assertEqual({ok, {ip6, {256, 0, 0, 0, 0, 0, 1, 1}}}, parse_in_ip6(<<"100::1:1">>)),
     ok.
 
 parse_error_ip4_test() ->

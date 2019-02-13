@@ -24,6 +24,7 @@
          assemble_bin/1,
          params/1,
          raw_params/1,
+         raw_headers/1,
          clear_params/1,
          set_param/3,
          clear_not_allowed_parts/2,
@@ -167,6 +168,10 @@ params(#uri{data = #sip_uri_data{params = Params}}) ->
 -spec raw_params(uri()) -> [{binary(), binary()} | binary()].
 raw_params(#uri{data = #sip_uri_data{params = Params}}) ->
     lists:map(fun raw_param/1, maps:to_list(Params)).
+
+-spec raw_headers(uri()) -> [{binary(), binary()}].
+raw_headers(#uri{data = #sip_uri_data{headers = Headers}}) ->
+    maps:to_list(Headers).
 
 -spec clear_params(uri()) -> uri().
 clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->

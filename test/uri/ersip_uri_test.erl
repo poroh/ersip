@@ -371,6 +371,16 @@ raw_params_test() ->
     ?assertEqual(ExpectedParams, RawParams),
     ok.
 
+raw_headers_test() ->
+    Uri = ersip_uri:make(<<"sip:carol@chicago.com?a=b&c=d&e=f">>),
+    RawHeaders = lists:sort(ersip_uri:raw_headers(Uri)),
+    ExpectedHeaders = lists:sort([{<<"a">>, <<"b">>},
+                                  {<<"c">>, <<"d">>},
+                                  {<<"e">>, <<"f">>}]),
+    ?assertEqual(ExpectedHeaders, RawHeaders),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

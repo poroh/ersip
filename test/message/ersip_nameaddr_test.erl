@@ -85,3 +85,10 @@ nameaddr_neg_parse_test() ->
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"1.2.3.4">>)),
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"?:1.2.3.4">>)),
     ?assertMatch({error, _}, ersip_nameaddr:parse(<<"1.2.3.4;tag=a6c85cf">>)).
+
+nameaddr_assemble_display_name_test() ->
+    {ok, {DNBob,  _}, _} = ersip_nameaddr:parse(<<"Bob Smith <sip:bob-smith@biloxi.com>;tag=a6c85cf">>),
+    {ok, {DNBell, _}, _} = ersip_nameaddr:parse(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com> ;tag=a48s">>),
+    ?assertEqual(<<"Bob Smith">>, ersip_nameaddr:assemble_display_name_bin(DNBob)),
+    ?assertEqual(<<"\"A. G. Bell\"">>, ersip_nameaddr:assemble_display_name_bin(DNBell)),
+    ok.

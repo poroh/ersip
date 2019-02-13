@@ -9,7 +9,9 @@
 -module(ersip_nameaddr).
 
 -export([parse/1,
-         assemble/2
+         assemble/2,
+         assemble_display_name/1,
+         assemble_display_name_bin/1
         ]).
 -export_type([display_name/0]).
 
@@ -87,6 +89,17 @@ assemble(DisplayName, URI) ->
      $<, ersip_uri:assemble(URI), $>
     ].
 
+-spec assemble_display_name(display_name()) -> iolist().
+assemble_display_name({display_name, L}) when is_list(L) ->
+    ersip_iolist:join(<<" ">>, L);
+assemble_display_name({display_name, V}) when is_binary(V) ->
+    V.
+
+-spec assemble_display_name_bin(display_name()) -> binary().
+assemble_display_name_bin({display_name, _} = DN) ->
+    iolist_to_binary(assemble_display_name(DN)).
+
+
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
@@ -121,7 +134,3 @@ parse_display_name(<<"<", _/binary>> = Addr) ->
 parse_display_name(_) ->
     error.
 
-assemble_display_name({display_name, L}) when is_list(L) ->
-    ersip_iolist:join(<<" ">>, L);
-assemble_display_name({display_name, V}) when is_binary(V) ->
-    V.

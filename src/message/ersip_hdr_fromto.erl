@@ -18,6 +18,7 @@
          set_tag/2,
          tag_key/1,
          params/1,
+         raw_params/1,
          parse/1,
          build/2,
          assemble/1,
@@ -84,6 +85,10 @@ set_uri(URI, #fromto{} = FromTo) ->
 -spec params(fromto()) -> fromto_params().
 params(#fromto{params = P}) ->
     P.
+
+-spec raw_params(fromto()) -> [{binary(), binary()} | binary()].
+raw_params(#fromto{params = Params}) ->
+    lists:map(fun raw_param/1, maps:to_list(Params)).
 
 -spec tag(fromto()) -> undefined | tag().
 tag(#fromto{} = FT) ->
@@ -217,13 +222,15 @@ assemble_params(Params) ->
     lists:map(fun assemble_param/1,
               maps:to_list(Params)).
 
--spec assemble_param({Name, Value}) -> iolist() when
-      Name :: known_fromto_params()
-            | binary(),
-      Value :: term().
-assemble_param({tag, {tag, Value}}) ->
-    [<<";tag=">>, Value];
-assemble_param({Name, novalue}) ->
-    <<";", Name/binary>>;
-assemble_param({Name, Value}) ->
-    <<";", Name/binary, "=", Value/binary>>.
+
+-spec raw_param({known_fromto_params() | binary(), term()}) -> {binary(), binary()} | binary().
+raw_param({tag, {tag, Value}}) -> {<<"tag">>, Value};
+raw_param({Name, novalue}) -> Name;
+raw_param({Name, Value})   -> {Name, Value}.
+
+-spec assemble_param({known_fromto_params() | binary(), term()}) -> iolist().
+assemble_param({_, _} = Pair) ->
+    case raw_param(Pair) of
+        {Name, Val} -> [<<";">>, Name, <<"=">>, Val];
+        Name -> [<<";">>, Name]
+    end.

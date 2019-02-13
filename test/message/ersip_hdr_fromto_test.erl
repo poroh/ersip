@@ -104,6 +104,16 @@ rfc4475_crazy_example_test() ->
     reassemble_check(CrazyExampleBin),
     ok.
 
+raw_params_test() ->
+    Uri = success_parse_fromto(<<"Alice <sip:a@b>;tag=1abc;my=1;other;other1">>),
+    RawParams = lists:sort(ersip_hdr_fromto:raw_params(Uri)),
+    ExpectedParams = lists:sort([{<<"tag">>, <<"1abc">>},
+                                 <<"other">>, <<"other1">>,
+                                 {<<"my">>, <<"1">>}]),
+    ?assertEqual(ExpectedParams, RawParams),
+
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

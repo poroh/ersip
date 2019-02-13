@@ -19,7 +19,8 @@
          parse_port_number/1,
          default_port/1,
          assemble_upper/1,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 
 -export_type([transport/0,
@@ -175,17 +176,21 @@ assemble_upper({other_transport, Binary}) ->
     ersip_bin:to_upper(Binary).
 
 -spec assemble(transport()) -> binary().
-assemble({transport, udp}) ->
+assemble(T) ->
+    assemble_bin(T).
+
+-spec assemble_bin(transport()) -> binary().
+assemble_bin({transport, udp}) ->
     <<"udp">>;
-assemble({transport, tcp}) ->
+assemble_bin({transport, tcp}) ->
     <<"tcp">>;
-assemble({transport, tls}) ->
+assemble_bin({transport, tls}) ->
     <<"tls">>;
-assemble({transport, ws}) ->
+assemble_bin({transport, ws}) ->
     <<"ws">>;
-assemble({transport, wss}) ->
+assemble_bin({transport, wss}) ->
     <<"wss">>;
-assemble({other_transport, Binary}) ->
+assemble_bin({other_transport, Binary}) ->
     Binary.
 
 %%%===================================================================

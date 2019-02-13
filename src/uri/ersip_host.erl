@@ -14,7 +14,8 @@
          parse/1,
          make/1,
          make_key/1,
-         assemble/1
+         assemble/1,
+         assemble_bin/1
         ]).
 -export_type([host/0]).
 
@@ -108,6 +109,10 @@ assemble({ipv4, IpAddr}) ->
     inet:ntoa(IpAddr);
 assemble({ipv6, IpAddr}) ->
     [$[, inet:ntoa(IpAddr), $]].
+
+-spec assemble_bin(host()) -> binary().
+assemble_bin(Host) ->
+    iolist_to_binary(assemble(Host)).
 
 -spec make(Addr) -> host() when
       Addr :: inet:ip_address()

@@ -354,11 +354,22 @@ port_manip_test() ->
     ok.
 
 parse_three_params_test() ->
-  Uri = ersip_uri:make(<<"sip:carol@chicago.com;param1=value1;param2=value2;param3=value3">>),
-  Params = #{<<"param1">> => <<"value1">>,
-             <<"param2">> => <<"value2">>,
-             <<"param3">> => <<"value3">>},
-  ?assertEqual(Params, ersip_uri:params(Uri)).
+    Uri = ersip_uri:make(<<"sip:carol@chicago.com;param1=value1;param2=value2;param3=value3">>),
+    Params = #{<<"param1">> => <<"value1">>,
+               <<"param2">> => <<"value2">>,
+               <<"param3">> => <<"value3">>},
+    ?assertEqual(Params, ersip_uri:params(Uri)).
+
+raw_params_test() ->
+    Uri = ersip_uri:make(<<"sip:carol@chicago.com;ttl=1;lr;c;param2=value2;param3=value3;maddr=1.1.1.1">>),
+    RawParams = lists:sort(ersip_uri:raw_params(Uri)),
+    ExpectedParams = lists:sort([{<<"ttl">>, <<"1">>},
+                                 <<"lr">>, <<"c">>,
+                                 {<<"param2">>, <<"value2">>},
+                                 {<<"maddr">>, <<"1.1.1.1">>},
+                                 {<<"param3">>, <<"value3">>}]),
+    ?assertEqual(ExpectedParams, RawParams),
+    ok.
 
 %%%===================================================================
 %%% Helpers

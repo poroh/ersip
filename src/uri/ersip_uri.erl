@@ -23,6 +23,7 @@
          assemble/1,
          assemble_bin/1,
          params/1,
+         raw_params/1,
          clear_params/1,
          set_param/3,
          clear_not_allowed_parts/2,
@@ -162,6 +163,10 @@ assemble_bin(#uri{} = U) ->
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
     Params.
+
+-spec raw_params(uri()) -> [{binary(), binary()} | binary()].
+raw_params(#uri{data = #sip_uri_data{params = Params}}) ->
+    lists:map(fun raw_param/1, maps:to_list(Params)).
 
 -spec clear_params(uri()) -> uri().
 clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->
@@ -645,27 +650,27 @@ assemble_params(Params) ->
     lists:map(fun assemble_param/1,
               maps:to_list(Params)).
 
+-spec raw_param({uri_param_name(), term()}) -> {binary(), binary()} | binary().
+raw_param({transport, Value}) -> {<<"transport">>, ersip_transport:assemble_bin(Value)};
+raw_param({maddr, Host})      -> {<<"maddr">>,    ersip_host:assemble_bin(Host)};
+raw_param({lr, _})            -> <<"lr">>;
+raw_param({user, ip})         -> {<<"user">>, <<"ip">>};
+raw_param({user, phone})      -> {<<"user">>, <<"phone">>};
+raw_param({user, Bin})
+  when is_binary(Bin)         -> {<<"user">>, Bin};
+raw_param({ttl, TTL})         -> {<<"ttl">>, integer_to_binary(TTL)};
+raw_param({Name, <<>>})
+  when is_binary(Name)        -> Name;
+raw_param({Name, Value})      -> {Name, Value}.
+
 -spec assemble_param({Name, Value}) -> iolist() when
       Name :: uri_param_name(),
       Value :: term().
-assemble_param({transport, Value}) ->
-    [<<";transport=">>, ersip_transport:assemble(Value)];
-assemble_param({maddr, Host}) ->
-    [<<";maddr=">>, ersip_host:assemble(Host)];
-assemble_param({lr, _}) ->
-    <<";lr">>;
-assemble_param({user, ip}) ->
-    <<";user=ip">>;
-assemble_param({user, phone}) ->
-    <<";user=phone">>;
-assemble_param({user, Bin}) when is_binary(Bin) ->
-    [<<";user=">>, Bin];
-assemble_param({ttl, TTL}) ->
-    [<<";ttl=">>, integer_to_binary(TTL)];
-assemble_param({Name, <<>>}) when is_binary(Name) ->
-    <<";", Name/binary >>;
-assemble_param({Name, Value}) ->
-    <<";", Name/binary, "=", Value/binary>>.
+assemble_param(Pair) ->
+    case raw_param(Pair) of
+        {Name, Val} -> [<<";">>, Name, <<"=">>, Val];
+        Name -> [<<";">>, Name]
+    end.
 
 -spec is_pname(binary()) -> boolean().
 is_pname(<<>>) ->

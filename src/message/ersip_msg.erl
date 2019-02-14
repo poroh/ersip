@@ -77,8 +77,9 @@ get(method, #message{type = {request,  X, _}}) -> X;
 get(ruri,   #message{type = {request,  _, X}}) -> X;
 get(body,   #message{body = X                 }) -> X;
 get(HeaderName, #message{headers = H}) ->
-    Key = ersip_hnames:make_key(HeaderName),
-    maps:get(Key, H, ersip_hdr:new(HeaderName)).
+    NewHdr = ersip_hdr:new(HeaderName),
+    Key    = ersip_hdr:make_key(HeaderName),
+    maps:get(Key, H, NewHdr).
 
 -spec header_keys(message()) -> [ersip_hnames:header_key()].
 header_keys(#message{headers = H}) ->
@@ -122,16 +123,17 @@ set(method, Method, #message{type = {request,  _, X}} = Message) ->
 set(ruri,   RURI,   #message{type = {request,  X, _}} = Message) -> Message#message{type = {request,       X,    RURI}};
 set(body,   Body,   Message) -> Message#message{body = Body};
 set(HeaderName, {mval, Values},  #message{headers = H} = Message) ->
-    Key = ersip_hdr:make_key(HeaderName),
-    Message1 = Message#message{headers = H#{Key => ersip_hdr:new(HeaderName)}},
+    Hdr = ersip_hdr:new(HeaderName),
+    Key = ersip_hdr:make_key(Hdr),
+    Message1 = Message#message{headers = H#{Key => Hdr}},
     lists:foldl(fun(Value, Msg) ->
                         add(HeaderName, Value, Msg)
                 end,
                 Message1,
                 Values);
 set(HeaderName, Value,  #message{headers = H} = Message) ->
-    Key = ersip_hdr:make_key(HeaderName),
     Header0 = ersip_hdr:new(HeaderName),
+    Key = ersip_hdr:make_key(Header0),
     Header1 = ersip_hdr:add_value(Value, Header0),
     Message#message{headers = H#{Key => Header1}}.
 

@@ -10,6 +10,7 @@
 
 -export([scheme/1,
          scheme_bin/1,
+         data/1,
          user/1,
          set_user/2,
          host/1,
@@ -73,6 +74,10 @@ scheme_bin(#uri{scheme = {scheme, sips}}) ->
     <<"sips">>;
 scheme_bin(#uri{scheme = {scheme, Bin}}) when is_binary(Bin) ->
     ersip_bin:to_lower(Bin).
+
+-spec data(uri()) -> binary().
+data(#uri{data = Data}) ->
+    iolist_to_binary(assemble_data(Data)).
 
 -spec user(ersip_uri:uri()) -> binary() | undefined.
 user(#uri{data = #sip_uri_data{user = undefined}}) ->
@@ -641,7 +646,8 @@ assemble_data(#sip_uri_data{} = SIPData) ->
          Port ->
              [$:, integer_to_binary(Port)]
      end,
-     assemble_params(SIPData#sip_uri_data.params)
+     assemble_params(SIPData#sip_uri_data.params),
+     assemble_headers(SIPData#sip_uri_data.headers)
     ];
 assemble_data(#absolute_uri_data{opaque = Data}) ->
     Data.
@@ -654,6 +660,22 @@ assemble_user({user, UserBin}) ->
 assemble_params(Params) ->
     lists:map(fun assemble_param/1,
               maps:to_list(Params)).
+
+-spec assemble_headers(uri_headers()) -> [iolist()].
+assemble_headers(Headers) ->
+    case Headers == #{} of
+        true ->
+            [];
+        false ->
+            [$?,
+             ersip_iolist:join(
+               <<"&">>,
+               lists:map(fun ({Name, Value}) ->
+                                 [Name, $=, Value]
+                         end,
+                         maps:to_list(Headers)))
+            ]
+    end.
 
 -spec raw_param({uri_param_name(), term()}) -> {binary(), binary()} | binary().
 raw_param({transport, Value}) -> {<<"transport">>, ersip_transport:assemble_bin(Value)};

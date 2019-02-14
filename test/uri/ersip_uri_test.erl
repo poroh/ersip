@@ -380,6 +380,11 @@ raw_headers_test() ->
     ?assertEqual(ExpectedHeaders, RawHeaders),
     ok.
 
+data_test() ->
+    ?assertEqual(<<"carol@chicago.com?a=b">>,    ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com?a=b">>))),
+    ?assertEqual(<<"carol@chicago.com;newparam=5">>, ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com;newparam=5">>))),
+    ?assertEqual(<<"12345">>, ersip_uri:data(ersip_uri:make(<<"tel:12345">>))),
+    ok.
 
 %%%===================================================================
 %%% Helpers

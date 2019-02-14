@@ -153,8 +153,9 @@ add(HeaderName, Value, #message{headers = H} = Message) ->
         [] ->
             Message;
         V ->
-            Key = ersip_hdr:make_key(HeaderName),
-            Current = maps:get(Key, H, ersip_hdr:new(HeaderName)),
+            NewHdr = ersip_hdr:new(HeaderName),
+            Key    = ersip_hdr:make_key(NewHdr),
+            Current = maps:get(Key, H, NewHdr),
             Updated = ersip_hdr:add_value(V, Current),
             Message#message{headers = H#{Key => Updated}}
     end.

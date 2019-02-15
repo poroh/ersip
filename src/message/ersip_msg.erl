@@ -78,7 +78,7 @@ get(ruri,   #message{type = {request,  _, X}}) -> X;
 get(body,   #message{body = X                 }) -> X;
 get(HeaderName, #message{headers = H}) ->
     NewHdr = ersip_hdr:new(HeaderName),
-    Key    = ersip_hdr:make_key(HeaderName),
+    Key    = ersip_hdr:make_key(NewHdr),
     maps:get(Key, H, NewHdr).
 
 -spec header_keys(message()) -> [ersip_hnames:header_key()].

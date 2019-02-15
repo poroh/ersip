@@ -34,14 +34,15 @@
                queuelen = 0            :: non_neg_integer(),
                eof      = false        :: boolean(),
                %% Current position in the buffer (beginning of acc).
-               pos      = 0            :: non_neg_integer()
+               pos      = 0            :: non_neg_integer(),
+               crlf     = binary:compile_pattern(<<"\r\n">>)
               }).
 
 -type state() :: #state{}.
 
--define(crlf, <<$\r,$\n>>).
 -define(queue(State), State#state.queue).
 -define(queuelen(State), State#state.queuelen).
+-define(CRLF_LEN, 2).
 
 %%%===================================================================
 %%% API
@@ -95,8 +96,8 @@ stream_postion(#state{pos = Pos}) ->
 -spec read_till_crlf(state()) -> Result when
       Result :: {ok, binary(), state()}
               | {more_data, state()}.
-read_till_crlf(#state{acc = A} = State) ->
-    read_till(?crlf, byte_size(A)-1, State).
+read_till_crlf(#state{acc = A, crlf = CRLF} = State) ->
+    do_read_till_crlf(CRLF, byte_size(A)-1, State).
 
 %% @doc Read number of bytes from the buffer.
 -spec read(Len :: pos_integer(), state()) -> Result when
@@ -114,14 +115,14 @@ read(Len, #state{acclen = AccLen} = State) when Len >= AccLen->
 %% concatenation.
 %%
 %% @private
--spec read_till(Pattern, Position, state()) -> Result when
-      Pattern  :: binary(),
+-spec do_read_till_crlf(Pattern, Position, state()) -> Result when
+      Pattern  :: binary() | binary:cp(),
       Position :: integer(),
       Result :: {ok, binary(), state()}
               | {more_data, state()}.
-read_till(Pattern, Pos, State) when Pos < 0 ->
-    read_till(Pattern, 0, State);
-read_till(Pattern, Pos, #state{acc = A} = State) ->
+do_read_till_crlf(Pattern, Pos, State) when Pos < 0 ->
+    do_read_till_crlf(Pattern, 0, State);
+do_read_till_crlf(Pattern, Pos, #state{acc = A} = State) ->
     Queue = ?queue(State),
     QueueLen = ?queuelen(State),
     case binary:match(A, Pattern, [{scope, {Pos, byte_size(A) - Pos}}]) of
@@ -133,13 +134,13 @@ read_till(Pattern, Pos, #state{acc = A} = State) ->
                     {{value, Item}, Q} = queue:out(Queue),
                     QLen = QueueLen - byte_size(Item),
                     Acc_ = <<A/binary, Item/binary>>,
-                    Pos_ = byte_size(A) - byte_size(Pattern) + 1,
+                    Pos_ = byte_size(A) - ?CRLF_LEN + 1,
                     State_ = State#state{queue    = Q,
                                          queuelen = QLen,
                                          acc      = Acc_,
                                          acclen   = byte_size(Acc_)
                                         },
-                    read_till(Pattern, Pos_, State_)
+                    do_read_till_crlf(Pattern, Pos_, State_)
             end;
         {Start, Len} ->
             RestPos = Start + Len,

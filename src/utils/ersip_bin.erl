@@ -22,16 +22,20 @@
 %%% API
 %%%===================================================================
 
--spec to_lower( binary() ) -> binary().
+-spec to_lower_utf8(binary()) -> binary().
 to_lower_utf8(Binary) when is_binary(Binary) ->
     << <<(unicode_to_lower(C))/utf8>> || <<C/utf8>> <= Binary >>;
 to_lower_utf8(Binary) -> erlang:error(badarg, [Binary]).
 
+-spec to_lower( binary() ) -> binary().
 to_lower(Binary) when is_binary(Binary) ->
-    << <<(if
-              C >= $A andalso C =< $Z -> C - $A + $a;
-              true -> C
-          end)>> || <<C>> <= Binary >>;
+    L = binary_to_list(Binary),
+    Lower =
+        [if
+             C >= $A andalso C =< $Z -> C - $A + $a;
+             true -> C
+         end || C <- L],
+    list_to_binary(Lower);
 to_lower(V) -> erlang:error(badarg, [V]).
 
 -spec to_upper( binary() ) -> binary().

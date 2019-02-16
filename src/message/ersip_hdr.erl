@@ -80,9 +80,9 @@ is_empty(#header{}) ->
 %% @doc Append value to list of values.
 -spec add_value(value(), header()) -> header().
 add_value([Value], #header{values = V, use_comma_split = false} = Hdr) when is_binary(Value) ->
-    Hdr#header{values = V ++ [ersip_bin:trim_lws(Value)]};
+    Hdr#header{values = V ++ [Value]};
 add_value(Value, #header{values = V, use_comma_split = false} = Hdr) ->
-    Hdr#header{values = V ++ [ersip_iolist:trim_lws(Value)]};
+    Hdr#header{values = V ++ [Value]};
 add_value(Value, #header{values = V, key = Key, use_comma_split = true} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = V ++ Values}.
@@ -100,8 +100,8 @@ raw_values(#header{values = Vs}) ->
     Vs.
 
 -spec add_topmost(value(), header()) -> header().
-add_topmost(_Value, #header{use_comma_split = false} = Hdr) ->
-    error({api_error, {<<"cannot use add_topmost for singleton value">>, Hdr}});
+add_topmost(Value, #header{values = V, use_comma_split = false} = Hdr) ->
+    Hdr#header{values = [Value | V]};
 add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
     Values = comma_split(Key, Value),
     Hdr#header{values = Values ++ V}.
@@ -220,7 +220,6 @@ use_comma(_) ->
     true.
 
 -spec use_comma_split(header_key()) -> boolean().
-use_comma_split(?ERSIPH_VIA)           -> true;
 use_comma_split(?ERSIPH_SUPPORTED)     -> true;
 use_comma_split(?ERSIPH_UNSUPPORTED)   -> true;
 use_comma_split(?ERSIPH_ALLOW)         -> true;

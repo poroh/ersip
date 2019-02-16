@@ -20,6 +20,8 @@
 
 -export_type([route/0]).
 
+-include("ersip_headers.hrl").
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
@@ -60,7 +62,7 @@ set_param(Key, Value, #route{params = Params} = Route)
 
 -spec make(iolist()) -> route_set().
 make(Binary) ->
-    H0 = ersip_hdr:new(<<"Route">>),
+    H0 = ersip_hdr:new(?ERSIPH_ROUTE),
     H1 = ersip_hdr:add_value(Binary, H0),
     case parse(H1) of
         {ok, RouteSet} ->

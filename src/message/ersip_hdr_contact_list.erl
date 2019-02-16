@@ -16,6 +16,8 @@
 
 -export_type([contact_list/0]).
 
+-include("ersip_headers.hrl").
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
@@ -36,7 +38,7 @@
 
 -spec make(iolist() | binary()) -> contact_list().
 make(Binary) ->
-    H0 = ersip_hdr:new(<<"Contact">>),
+    H0 = ersip_hdr:new(?ERSIPH_CONTACT),
     H1 = ersip_hdr:add_value(Binary, H0),
     case parse(H1) of
         {ok, ContactList} ->

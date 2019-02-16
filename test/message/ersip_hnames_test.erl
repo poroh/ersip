@@ -47,7 +47,7 @@ compact_form_test() ->
           HeadersL),
     lists:foreach(
       fun({FieldName, CompactForm}) ->
-              ?assertEqual(CompactForm, ersip_hnames:compact_form(FieldName))
+              ?assertEqual(ersip_hnames:make_key(CompactForm), ersip_hnames:make_key(FieldName))
       end,
       HeadersF).
 

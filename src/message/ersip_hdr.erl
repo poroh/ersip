@@ -23,6 +23,7 @@
         ]).
 -export_type([header/0,
               header_key/0]).
+-include("ersip_headers.hrl").
 
 %%%===================================================================
 %%% Types
@@ -199,13 +200,13 @@ rev_comma_sep_values([Val | Rest], Acc) ->
 %% to this rule are the WWW-Authenticate, Authorization, Proxy-
 %% Authenticate, and Proxy-Authorization header fields.
 -spec comma_split(header_key(), value()) -> [value()].
-comma_split({hdr_key, <<"www-authenticate">>}, V) ->
+comma_split(?ERSIPH_WWW_AUTHENTICATE, V) ->
     [ersip_iolist:trim_lws(V)];
-comma_split({hdr_key, <<"authorization">>}, V) ->
+comma_split(?ERSIPH_AUTHORIZATION, V) ->
     [ersip_iolist:trim_lws(V)];
-comma_split({hdr_key, <<"proxy-authenticate">>}, V) ->
+comma_split(?ERSIPH_PROXY_AUTHENTICATE, V) ->
     [ersip_iolist:trim_lws(V)];
-comma_split({hdr_key, <<"proxy-authorization">>}, V) ->
+comma_split(?ERSIPH_PROXY_AUTHORIZATION, V) ->
     [ersip_iolist:trim_lws(V)];
 comma_split(_, V) ->
     Bin = iolist_to_binary(V),
@@ -213,61 +214,19 @@ comma_split(_, V) ->
               binary:split(Bin, <<",">>, [global])).
 
 -spec use_comma(header_key()) -> boolean().
-use_comma({hdr_key, <<"v">>}) -> %% Via
-    false;
-use_comma({hdr_key, <<"m">>}) -> %% Contact
-    false;
+use_comma(?ERSIPH_VIA) ->     false;
+use_comma(?ERSIPH_CONTACT) -> false;
 use_comma(_) ->
     true.
 
 -spec use_comma_split(header_key()) -> boolean().
-use_comma_split({hdr_key, <<"f">>}) -> %% From
-    false;
-use_comma_split({hdr_key, <<"t">>}) -> %% To
-    false;
-use_comma_split({hdr_key, <<"i">>}) -> %% Call-Id
-    false;
-use_comma_split({hdr_key, <<"max-forwards">>}) ->
-    false;
-use_comma_split({hdr_key, <<"expires">>}) ->
-    false;
-use_comma_split({hdr_key, <<"cseq">>}) ->
-    false;
-use_comma_split({hdr_key, <<"v">>}) -> %% Via
-    true;
-use_comma_split({hdr_key, <<"m">>}) -> %% Contact
-    false;
-use_comma_split({hdr_key, <<"k">>}) -> %% Supported
-    true;
-use_comma_split({hdr_key, <<"unsupported">>}) ->
-    true;
-use_comma_split({hdr_key, <<"allow">>}) ->
-    true;
-use_comma_split({hdr_key, <<"route">>}) ->
-    true;
-use_comma_split({hdr_key, <<"record-route">>}) ->
-    true;
-use_comma_split({hdr_key, <<"require">>}) ->
-    true;
-use_comma_split({hdr_key, <<"proxy-require">>}) ->
-    true;
-use_comma_split({hdr_key, <<"accept">>}) ->
-    true;
-use_comma_split({hdr_key, <<"accept-encoding">>}) ->
-    true;
-use_comma_split({hdr_key, <<"accept-language">>}) ->
-    true;
-use_comma_split({hdr_key, <<"www-authenticate">>}) ->
-    true; %% WWW-Authenticate may have multiple values but they cannot be comma seprated.
-use_comma_split({hdr_key, <<"authorization">>}) ->
-    true; %% Authorization may have multiple values but they cannot be comma seprated...
-use_comma_split({hdr_key, <<"proxy-authenticate">>}) ->
-    true; %% Proxy-Authenticate may have multiple values but they cannot be comma seprated.
-use_comma_split({hdr_key, <<"proxy-authorization">>}) ->
-    true; %% Proxy-Authorization may have multiple values but they cannot be comma seprated.
-use_comma_split({hdr_key, <<"subscription-state">>}) ->
-    false;
-use_comma_split({hdr_key, <<"o">>}) -> %% Event
-    false;
+use_comma_split(?ERSIPH_VIA)           -> true;
+use_comma_split(?ERSIPH_SUPPORTED)     -> true;
+use_comma_split(?ERSIPH_UNSUPPORTED)   -> true;
+use_comma_split(?ERSIPH_ALLOW)         -> true;
+use_comma_split(?ERSIPH_ROUTE)         -> true;
+use_comma_split(?ERSIPH_RECORD_ROUTE)  -> true;
+use_comma_split(?ERSIPH_REQUIRE)       -> true;
+use_comma_split(?ERSIPH_PROXY_REQUIRE) -> true;
 use_comma_split(_) ->
     false.

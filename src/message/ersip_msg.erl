@@ -28,6 +28,7 @@
               type/0
              ]).
 
+-include("ersip_headers.hrl").
 
 %%%===================================================================
 %%% Types
@@ -201,7 +202,7 @@ serialize_first_line(#message{type={response, StatusCode, Reason}}, Acc) ->
 -spec serialize_headers(message(), iolist()) -> iolist().
 serialize_headers(#message{headers = Headers}, Acc) ->
     Ordered    = header_keys_order(),
-    NotOrdered = maps:keys(maps:without([{hdr_key, <<"l">>} | Ordered], Headers)),
+    NotOrdered = maps:keys(maps:without([?ERSIPH_CONTENT_LENGTH | Ordered], Headers)),
     Acc1 = serialize_headers_in_order(Ordered, Headers, Acc),
     serialize_headers_in_order(NotOrdered, Headers, Acc1).
 

@@ -9,7 +9,6 @@
 -module(ersip_hnames).
 
 -export([make_key/1,
-         compact_form/1,
          print_form/1,
          known_header_form/1,
          all_known_headers/0
@@ -19,11 +18,13 @@
               known_header/0,
               name_forms/0]).
 
+-include("ersip_headers.hrl").
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
--type header_key() :: {hdr_key, binary()}.
+-type header_key() :: {hdr_key, atom() | binary()}.
 -type known_header() :: from
                       | to
                       | callid
@@ -54,18 +55,18 @@
 make_key({hdr_key, _} = Key) ->
     Key;
 make_key(HeaderName) when is_binary(HeaderName) ->
-    {hdr_key, ersip_hnames:compact_form(HeaderName)};
+    case key_shortcut(HeaderName) of
+        {ok, Key} -> Key;
+        not_found ->
+            case compact_header_key_map(HeaderName) of
+                {ok, Key} -> Key;
+                not_found ->
+                    header_key_map(ersip_bin:to_lower(HeaderName))
+            end
+    end;
 make_key(KnownHeader) when is_atom(KnownHeader) ->
     known_header_key_map(KnownHeader).
 
-%% @doc transform header to its compact form
--spec compact_form(HeaderName) -> binary() when
-      HeaderName :: {lower, binary()}
-                  | binary().
-compact_form({lower, HeaderName}) when is_binary(HeaderName) ->
-    compact_form_map(HeaderName);
-compact_form(HeaderName) when is_binary(HeaderName) ->
-    compact_form({lower, ersip_bin:to_lower(HeaderName)}).
 
 -spec print_form(name_forms()) -> binary().
 print_form(HeaderForm) ->
@@ -110,103 +111,192 @@ all_known_headers() ->
 
 %% @doc compact header forms
 %% (see https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml#sip-parameters-2).
--spec compact_form_map(binary()) -> binary().
-compact_form_map(<<"accept-contact">>     ) -> <<"a">>;
-compact_form_map(<<"allow-events">>       ) -> <<"u">>;
-compact_form_map(<<"call-id">>            ) -> <<"i">>;
-compact_form_map(<<"contact">>            ) -> <<"m">>;
-compact_form_map(<<"content-encoding">>   ) -> <<"e">>;
-compact_form_map(<<"content-length">>     ) -> <<"l">>;
-compact_form_map(<<"content-type">>       ) -> <<"c">>;
-compact_form_map(<<"event">>              ) -> <<"o">>;
-compact_form_map(<<"from">>               ) -> <<"f">>;
-compact_form_map(<<"identity">>           ) -> <<"y">>;
-compact_form_map(<<"refer-to">>           ) -> <<"r">>;
-compact_form_map(<<"referred-by">>        ) -> <<"b">>;
-compact_form_map(<<"reject-contact">>     ) -> <<"j">>;
-compact_form_map(<<"request-disposition">>) -> <<"d">>;
-compact_form_map(<<"session-expires">>    ) -> <<"x">>;
-compact_form_map(<<"subject">>            ) -> <<"s">>;
-compact_form_map(<<"supported">>          ) -> <<"k">>;
-compact_form_map(<<"to">>                 ) -> <<"t">>;
-compact_form_map(<<"via">>                ) -> <<"v">>;
-compact_form_map(Other) -> Other.
+-spec compact_header_key_map(binary()) -> {ok, known_header()} | not_found.
+%% Compact forms:
+compact_header_key_map(<<"a">>) -> {ok, ?ERSIPH_ACCEPT_CONTACT};
+compact_header_key_map(<<"u">>) -> {ok, ?ERSIPH_ALLOW_EVENTS};
+compact_header_key_map(<<"i">>) -> {ok, ?ERSIPH_CALL_ID};
+compact_header_key_map(<<"m">>) -> {ok, ?ERSIPH_CONTACT};
+compact_header_key_map(<<"e">>) -> {ok, ?ERSIPH_CONTENT_ENCODING};
+compact_header_key_map(<<"l">>) -> {ok, ?ERSIPH_CONTENT_LENGTH};
+compact_header_key_map(<<"c">>) -> {ok, ?ERSIPH_CONTENT_TYPE};
+compact_header_key_map(<<"o">>) -> {ok, ?ERSIPH_EVENT};
+compact_header_key_map(<<"f">>) -> {ok, ?ERSIPH_FROM};
+compact_header_key_map(<<"y">>) -> {ok, ?ERSIPH_IDENTITY};
+compact_header_key_map(<<"r">>) -> {ok, ?ERSIPH_REFER_TO};
+compact_header_key_map(<<"b">>) -> {ok, ?ERSIPH_REFERRED_BY};
+compact_header_key_map(<<"j">>) -> {ok, ?ERSIPH_REJECT_CONTACT};
+compact_header_key_map(<<"d">>) -> {ok, ?ERSIPH_REQUEST_DISPOSITION};
+compact_header_key_map(<<"x">>) -> {ok, ?ERSIPH_SESSION_EXPIRES};
+compact_header_key_map(<<"s">>) -> {ok, ?ERSIPH_SUBJECT};
+compact_header_key_map(<<"k">>) -> {ok, ?ERSIPH_SUPPORTED};
+compact_header_key_map(<<"t">>) -> {ok, ?ERSIPH_TO};
+compact_header_key_map(<<"v">>) -> {ok, ?ERSIPH_VIA};
+compact_header_key_map(_)       -> not_found.
+
+-spec header_key_map(binary()) -> header_key().
+header_key_map(<<"accept">>)              -> ?ERSIPH_ACCEPT;
+header_key_map(<<"accept-contact">>)      -> ?ERSIPH_ACCEPT_CONTACT;
+header_key_map(<<"allow">>)               -> ?ERSIPH_ALLOW;
+header_key_map(<<"allow-events">>)        -> ?ERSIPH_ALLOW_EVENTS;
+header_key_map(<<"authorization">>)       -> ?ERSIPH_AUTHORIZATION;
+header_key_map(<<"call-id">>)             -> ?ERSIPH_CALL_ID;
+header_key_map(<<"contact">>)             -> ?ERSIPH_CONTACT;
+header_key_map(<<"content-encoding">>)    -> ?ERSIPH_CONTENT_ENCODING;
+header_key_map(<<"content-type">>)        -> ?ERSIPH_CONTENT_TYPE;
+header_key_map(<<"content-length">>)      -> ?ERSIPH_CONTENT_LENGTH;
+header_key_map(<<"cseq">>)                -> ?ERSIPH_CSEQ;
+header_key_map(<<"date">>)                -> ?ERSIPH_DATE;
+header_key_map(<<"event">>)               -> ?ERSIPH_EVENT;
+header_key_map(<<"expires">>)             -> ?ERSIPH_EXPIRES;
+header_key_map(<<"from">>)                -> ?ERSIPH_FROM;
+header_key_map(<<"identity">>)            -> ?ERSIPH_IDENTITY;
+header_key_map(<<"max-forwards">>)        -> ?ERSIPH_MAX_FORWARDS;
+header_key_map(<<"min-expires">>)         -> ?ERSIPH_MIN_EXPIRES;
+header_key_map(<<"proxy-authenticate">>)  -> ?ERSIPH_PROXY_AUTHENTICATE;
+header_key_map(<<"proxy-authorization">>) -> ?ERSIPH_PROXY_AUTHORIZATION;
+header_key_map(<<"proxy-require">>)       -> ?ERSIPH_PROXY_REQUIRE;
+header_key_map(<<"record-route">>)        -> ?ERSIPH_RECORD_ROUTE;
+header_key_map(<<"refer-to">>)            -> ?ERSIPH_REFER_TO;
+header_key_map(<<"referred-by">>)         -> ?ERSIPH_REFERRED_BY;
+header_key_map(<<"reject-contact">>)      -> ?ERSIPH_REJECT_CONTACT;
+header_key_map(<<"require">>)             -> ?ERSIPH_REQUIRE;
+header_key_map(<<"request-disposition">>) -> ?ERSIPH_REQUEST_DISPOSITION;
+header_key_map(<<"route">>)               -> ?ERSIPH_ROUTE;
+header_key_map(<<"session-expires">>)     -> ?ERSIPH_SESSION_EXPIRES;
+header_key_map(<<"subject">>)             -> ?ERSIPH_SUBJECT;
+header_key_map(<<"subscription-state">>)  -> ?ERSIPH_SUBSCRIPTION_STATE;
+header_key_map(<<"supported">>)           -> ?ERSIPH_SUPPORTED;
+header_key_map(<<"to">>)                  -> ?ERSIPH_TO;
+header_key_map(<<"unsupported">>)         -> ?ERSIPH_UNSUPPORTED;
+header_key_map(<<"via">>)                 -> ?ERSIPH_VIA;
+header_key_map(<<"www-authenticate">>)    -> ?ERSIPH_WWW_AUTHENTICATE;
+header_key_map(Name) when is_binary(Name) ->
+    case compact_header_key_map(Name) of
+        {ok, HdrKey} -> HdrKey;
+        not_found -> {hdr_key, Name}
+    end.
+
 
 -spec print_form_map(header_key()) -> binary().
-print_form_map({hdr_key, <<"f">>})             -> <<"From">>;
-print_form_map({hdr_key, <<"t">>})             -> <<"To">>;
-print_form_map({hdr_key, <<"cseq">>})          -> <<"CSeq">>;
-print_form_map({hdr_key, <<"i">>})             -> <<"Call-Id">>;
-print_form_map({hdr_key, <<"v">>})             -> <<"Via">>;
-print_form_map({hdr_key, <<"max-forwards">>})  -> <<"Max-Forwards">>;
-print_form_map({hdr_key, <<"c">>})             -> <<"Content-Type">>;
-print_form_map({hdr_key, <<"route">>})         -> <<"Route">>;
-print_form_map({hdr_key, <<"record-route">>})  -> <<"Record-Route">>;
-print_form_map({hdr_key, <<"allow">>})         -> <<"Allow">>;
-print_form_map({hdr_key, <<"k">>})             -> <<"Supported">>;
-print_form_map({hdr_key, <<"unsupported">>})   -> <<"Unsupported">>;
-print_form_map({hdr_key, <<"require">>})       -> <<"Require">>;
-print_form_map({hdr_key, <<"proxy-require">>}) -> <<"Proxy-Require">>;
-print_form_map({hdr_key, <<"m">>})             -> <<"Contact">>;
-print_form_map({hdr_key, <<"expires">>})       -> <<"Expires">>;
-print_form_map({hdr_key, <<"min-expires">>})   -> <<"Min-Expires">>;
-print_form_map({hdr_key, <<"www-authenticate">>})    -> <<"WWW-Authenticate">>;
-print_form_map({hdr_key, <<"authorization">>})       -> <<"Authorization">>;
-print_form_map({hdr_key, <<"proxy-authenticate">>})  -> <<"Proxy-Authenticate">>;
-print_form_map({hdr_key, <<"proxy-authorization">>}) -> <<"Proxy-Authorization">>;
-print_form_map({hdr_key, <<"subscription-state">>})  -> <<"Subscription-State">>;
-print_form_map({hdr_key, <<"o">>})                   -> <<"Event">>;
-print_form_map({hdr_key, Name}) ->
+print_form_map(?ERSIPH_ACCEPT)               -> <<"Accept">>;
+print_form_map(?ERSIPH_ACCEPT_CONTACT)       -> <<"Accept-Contact">>;
+print_form_map(?ERSIPH_ALLOW)                -> <<"Allow">>;
+print_form_map(?ERSIPH_ALLOW_EVENTS)         -> <<"Allow-Events">>;
+print_form_map(?ERSIPH_AUTHORIZATION)        -> <<"Authorization">>;
+print_form_map(?ERSIPH_CALL_ID)              -> <<"Call-Id">>;
+print_form_map(?ERSIPH_CONTACT)              -> <<"Contact">>;
+print_form_map(?ERSIPH_CONTENT_ENCODING)     -> <<"Content-Encoding">>;
+print_form_map(?ERSIPH_CONTENT_TYPE)         -> <<"Content-Type">>;
+print_form_map(?ERSIPH_CONTENT_LENGTH)       -> <<"Content-Length">>;
+print_form_map(?ERSIPH_CSEQ)                 -> <<"CSeq">>;
+print_form_map(?ERSIPH_DATE)                 -> <<"Date">>;
+print_form_map(?ERSIPH_EVENT)                -> <<"Event">>;
+print_form_map(?ERSIPH_EXPIRES)              -> <<"Expires">>;
+print_form_map(?ERSIPH_FROM)                 -> <<"From">>;
+print_form_map(?ERSIPH_IDENTITY)             -> <<"Identity">>;
+print_form_map(?ERSIPH_MAX_FORWARDS)         -> <<"Max-Forwards">>;
+print_form_map(?ERSIPH_MIN_EXPIRES)          -> <<"Min-Expires">>;
+print_form_map(?ERSIPH_PROXY_AUTHENTICATE)   -> <<"Proxy-Authenticate">>;
+print_form_map(?ERSIPH_PROXY_AUTHORIZATION)  -> <<"Proxy-Authorization">>;
+print_form_map(?ERSIPH_PROXY_REQUIRE)        -> <<"Proxy-Require">>;
+print_form_map(?ERSIPH_RECORD_ROUTE)         -> <<"Record-Route">>;
+print_form_map(?ERSIPH_REFER_TO)             -> <<"Refer-To">>;
+print_form_map(?ERSIPH_REFERRED_BY)          -> <<"Referred-By">>;
+print_form_map(?ERSIPH_REJECT_CONTACT)       -> <<"Reject-Contact">>;
+print_form_map(?ERSIPH_REQUIRE)              -> <<"Require">>;
+print_form_map(?ERSIPH_REQUEST_DISPOSITION)  -> <<"Request-Disposition">>;
+print_form_map(?ERSIPH_ROUTE)                -> <<"Route">>;
+print_form_map(?ERSIPH_SESSION_EXPIRES)      -> <<"Session-Expires">>;
+print_form_map(?ERSIPH_SUBJECT)              -> <<"Subject">>;
+print_form_map(?ERSIPH_SUBSCRIPTION_STATE)   -> <<"Subscription-State">>;
+print_form_map(?ERSIPH_SUPPORTED)            -> <<"Supported">>;
+print_form_map(?ERSIPH_TO)                   -> <<"To">>;
+print_form_map(?ERSIPH_UNSUPPORTED)          -> <<"Unsupported">>;
+print_form_map(?ERSIPH_VIA)                  -> <<"Via">>;
+print_form_map(?ERSIPH_WWW_AUTHENTICATE)     -> <<"WWW-Authenticate">>;
+print_form_map({hdr_key, Name}) when is_binary(Name) ->
     Name.
 
 -spec known_header_key_map(known_header()) -> header_key().
-known_header_key_map(from          ) -> {hdr_key, <<"f">>}             ;
-known_header_key_map(to            ) -> {hdr_key, <<"t">>}             ;
-known_header_key_map(cseq          ) -> {hdr_key, <<"cseq">>}          ;
-known_header_key_map(callid        ) -> {hdr_key, <<"i">>}             ;
-known_header_key_map(maxforwards   ) -> {hdr_key, <<"max-forwards">>}  ;
-known_header_key_map(content_type  ) -> {hdr_key, <<"c">>}             ;
-known_header_key_map(route         ) -> {hdr_key, <<"route">>}         ;
-known_header_key_map(record_route  ) -> {hdr_key, <<"record-route">>}  ;
-known_header_key_map(allow         ) -> {hdr_key, <<"allow">>}         ;
-known_header_key_map(supported     ) -> {hdr_key, <<"k">>}             ;
-known_header_key_map(unsupported   ) -> {hdr_key, <<"unsupported">>}   ;
-known_header_key_map(require       ) -> {hdr_key, <<"require">>}       ;
-known_header_key_map(proxy_require ) -> {hdr_key, <<"proxy-require">>} ;
-known_header_key_map(contact       ) -> {hdr_key, <<"m">>}             ;
-known_header_key_map(expires       ) -> {hdr_key, <<"expires">>}       ;
-known_header_key_map(minexpires    ) -> {hdr_key, <<"min-expires">>}   ;
-known_header_key_map(date          ) -> {hdr_key, <<"date">>}          ;
-known_header_key_map(topmost_via   ) -> {hdr_key, <<"v">>};
-known_header_key_map(www_authenticate   ) -> {hdr_key, <<"www-authenticate">>};
-known_header_key_map(authorization      ) -> {hdr_key, <<"authorization">>};
-known_header_key_map(proxy_authenticate ) -> {hdr_key, <<"proxy-authenticate">>};
-known_header_key_map(proxy_authorization) -> {hdr_key, <<"proxy-authorization">>};
-known_header_key_map(subscription_state ) -> {hdr_key, <<"subscription-state">>};
-known_header_key_map(event              ) -> {hdr_key, <<"o">>}.
+known_header_key_map(from               ) -> ?ERSIPH_FROM;
+known_header_key_map(to                 ) -> ?ERSIPH_TO;
+known_header_key_map(cseq               ) -> ?ERSIPH_CSEQ;
+known_header_key_map(callid             ) -> ?ERSIPH_CALL_ID;
+known_header_key_map(maxforwards        ) -> ?ERSIPH_MAX_FORWARDS;
+known_header_key_map(content_type       ) -> ?ERSIPH_CONTENT_TYPE;
+known_header_key_map(route              ) -> ?ERSIPH_ROUTE;
+known_header_key_map(record_route       ) -> ?ERSIPH_RECORD_ROUTE;
+known_header_key_map(allow              ) -> ?ERSIPH_ALLOW;
+known_header_key_map(supported          ) -> ?ERSIPH_SUPPORTED;
+known_header_key_map(unsupported        ) -> ?ERSIPH_UNSUPPORTED;
+known_header_key_map(require            ) -> ?ERSIPH_REQUIRE;
+known_header_key_map(proxy_require      ) -> ?ERSIPH_PROXY_REQUIRE;
+known_header_key_map(contact            ) -> ?ERSIPH_CONTACT;
+known_header_key_map(expires            ) -> ?ERSIPH_EXPIRES;
+known_header_key_map(minexpires         ) -> ?ERSIPH_MIN_EXPIRES;
+known_header_key_map(date               ) -> ?ERSIPH_DATE;
+known_header_key_map(topmost_via        ) -> ?ERSIPH_VIA;
+known_header_key_map(www_authenticate   ) -> ?ERSIPH_WWW_AUTHENTICATE;
+known_header_key_map(authorization      ) -> ?ERSIPH_AUTHORIZATION;
+known_header_key_map(proxy_authenticate ) -> ?ERSIPH_PROXY_AUTHENTICATE;
+known_header_key_map(proxy_authorization) -> ?ERSIPH_PROXY_AUTHORIZATION;
+known_header_key_map(subscription_state ) -> ?ERSIPH_SUBSCRIPTION_STATE;
+known_header_key_map(event              ) -> ?ERSIPH_EVENT.
 
 -spec known_header_form_map(header_key()) -> {ok, known_header()} | not_found.
-known_header_form_map({hdr_key, <<"f">>})             -> {ok, from          };
-known_header_form_map({hdr_key, <<"t">>})             -> {ok, to            };
-known_header_form_map({hdr_key, <<"cseq">>})          -> {ok, cseq          };
-known_header_form_map({hdr_key, <<"i">>})             -> {ok, callid        };
-known_header_form_map({hdr_key, <<"max-forwards">>})  -> {ok, maxforwards   };
-known_header_form_map({hdr_key, <<"c">>})             -> {ok, content_type  };
-known_header_form_map({hdr_key, <<"route">>})         -> {ok, route         };
-known_header_form_map({hdr_key, <<"record-route">>})  -> {ok, record_route  };
-known_header_form_map({hdr_key, <<"allow">>})         -> {ok, allow         };
-known_header_form_map({hdr_key, <<"k">>})             -> {ok, supported     };
-known_header_form_map({hdr_key, <<"unsupported">>})   -> {ok, unsupported   };
-known_header_form_map({hdr_key, <<"require">>})       -> {ok, require       };
-known_header_form_map({hdr_key, <<"proxy-require">>}) -> {ok, proxy_require };
-known_header_form_map({hdr_key, <<"m">>})             -> {ok, contact       };
-known_header_form_map({hdr_key, <<"expires">>})       -> {ok, expires       };
-known_header_form_map({hdr_key, <<"min-expires">>})   -> {ok, minexpires    };
-known_header_form_map({hdr_key, <<"date">>})          -> {ok, date          };
-known_header_form_map({hdr_key, <<"www-authenticate">>})    -> {ok, www_authenticate};
-known_header_form_map({hdr_key, <<"authorization">>})       -> {ok, authorization};
-known_header_form_map({hdr_key, <<"proxy-authenticate">>})  -> {ok, proxy_authenticate};
-known_header_form_map({hdr_key, <<"proxy-authorization">>}) -> {ok, proxy_authorization};
-known_header_form_map({hdr_key, <<"subscription-state">>})  -> {ok, subscription_state};
-known_header_form_map({hdr_key, <<"o">>})                   -> {ok, event};
-known_header_form_map({hdr_key, _Name}) when is_binary(_Name) -> not_found.
+known_header_form_map(?ERSIPH_FROM)                -> {ok, from          };
+known_header_form_map(?ERSIPH_TO)                  -> {ok, to            };
+known_header_form_map(?ERSIPH_CSEQ)                -> {ok, cseq          };
+known_header_form_map(?ERSIPH_CALL_ID)             -> {ok, callid        };
+known_header_form_map(?ERSIPH_MAX_FORWARDS)        -> {ok, maxforwards   };
+known_header_form_map(?ERSIPH_CONTENT_TYPE)        -> {ok, content_type  };
+known_header_form_map(?ERSIPH_ROUTE)               -> {ok, route         };
+known_header_form_map(?ERSIPH_RECORD_ROUTE)        -> {ok, record_route  };
+known_header_form_map(?ERSIPH_ALLOW)               -> {ok, allow         };
+known_header_form_map(?ERSIPH_SUPPORTED)           -> {ok, supported     };
+known_header_form_map(?ERSIPH_UNSUPPORTED)         -> {ok, unsupported   };
+known_header_form_map(?ERSIPH_REQUIRE)             -> {ok, require       };
+known_header_form_map(?ERSIPH_PROXY_REQUIRE)       -> {ok, proxy_require };
+known_header_form_map(?ERSIPH_CONTACT)             -> {ok, contact       };
+known_header_form_map(?ERSIPH_EXPIRES)             -> {ok, expires       };
+known_header_form_map(?ERSIPH_MIN_EXPIRES)         -> {ok, minexpires    };
+known_header_form_map(?ERSIPH_DATE)                -> {ok, date          };
+known_header_form_map(?ERSIPH_WWW_AUTHENTICATE)    -> {ok, www_authenticate};
+known_header_form_map(?ERSIPH_AUTHORIZATION)       -> {ok, authorization};
+known_header_form_map(?ERSIPH_PROXY_AUTHENTICATE)  -> {ok, proxy_authenticate};
+known_header_form_map(?ERSIPH_PROXY_AUTHORIZATION) -> {ok, proxy_authorization};
+known_header_form_map(?ERSIPH_SUBSCRIPTION_STATE)  -> {ok, subscription_state};
+known_header_form_map(?ERSIPH_EVENT)               -> {ok, event};
+known_header_form_map({hdr_key, _}) -> not_found.
+
+%% Most common names mapping to keys. This improves performance in
+%% most common cases.
+-spec key_shortcut(binary()) -> {ok, binary()} | not_found.
+key_shortcut(<<"Via">>)                 -> {ok, ?ERSIPH_VIA};
+key_shortcut(<<"From">>)                -> {ok, ?ERSIPH_FROM};
+key_shortcut(<<"To">>)                  -> {ok, ?ERSIPH_TO};
+key_shortcut(<<"CSeq">>)                -> {ok, ?ERSIPH_CSEQ};
+key_shortcut(<<"Cseq">>)                -> {ok, ?ERSIPH_CSEQ};
+key_shortcut(<<"Call-ID">>)             -> {ok, ?ERSIPH_CALL_ID};
+key_shortcut(<<"Call-Id">>)             -> {ok, ?ERSIPH_CALL_ID};
+key_shortcut(<<"Max-Forwards">>)        -> {ok, ?ERSIPH_MAX_FORWARDS};
+key_shortcut(<<"Contact">>)             -> {ok, ?ERSIPH_CONTACT};
+key_shortcut(<<"Expires">>)             -> {ok, ?ERSIPH_EXPIRES};
+key_shortcut(<<"Allow">>)               -> {ok, ?ERSIPH_ALLOW};
+key_shortcut(<<"Route">>)               -> {ok, ?ERSIPH_ROUTE};
+key_shortcut(<<"Record-Route">>)        -> {ok, ?ERSIPH_RECORD_ROUTE};
+key_shortcut(<<"Event">>       )        -> {ok, ?ERSIPH_EVENT};
+key_shortcut(<<"Content-Type">>)        -> {ok, ?ERSIPH_CONTENT_TYPE};
+key_shortcut(<<"Content-Length">>)      -> {ok, ?ERSIPH_CONTENT_LENGTH};
+key_shortcut(<<"Supported">>)           -> {ok, ?ERSIPH_SUPPORTED};
+key_shortcut(<<"Require">>)             -> {ok, ?ERSIPH_REQUIRE};
+key_shortcut(<<"Proxy-Require">>)       -> {ok, ?ERSIPH_PROXY_REQUIRE};
+key_shortcut(<<"WWW-Authenticate">>)    -> {ok, ?ERSIPH_WWW_AUTHENTICATE};
+key_shortcut(<<"Authorization">>)       -> {ok, ?ERSIPH_AUTHORIZATION};
+key_shortcut(<<"Proxy-Authenticate">>)  -> {ok, ?ERSIPH_PROXY_AUTHENTICATE};
+key_shortcut(<<"Proxy-Authorization">>) -> {ok, ?ERSIPH_PROXY_AUTHORIZATION};
+key_shortcut(<<"Subscription-State">>)  -> {ok, ?ERSIPH_SUBSCRIPTION_STATE};
+key_shortcut(<<"P-Asserted-Identity">>) -> {ok, {hdr_key, <<"p-asserted-identity">>}};
+key_shortcut(_) -> not_found.
+

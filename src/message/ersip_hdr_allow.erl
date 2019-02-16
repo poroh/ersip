@@ -57,10 +57,9 @@ parse(Header) ->
             try
                 L = lists:map(fun(Val) ->
                                       case ersip_method:parse(iolist_to_binary(Val)) of
-                                          {ok, Method}->
-                                              Method;
-                                          {error, _} = Error ->
-                                              throw(Error)
+                                          {ok, Method, <<>>} -> Method;
+                                          {ok, _, _}         -> throw({error, {invalid_method, Val}});
+                                          {error, _} = Error -> throw(Error)
                                       end
                               end,
                               Allows),

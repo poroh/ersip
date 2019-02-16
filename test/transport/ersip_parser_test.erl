@@ -262,7 +262,7 @@ negative_cases_test_() ->
     [?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/2.0 700 OK", ?crlf>>)),
      ?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/2.0 2000 OK", ?crlf>>)),
      ?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/3.0 200 OK", ?crlf>>)),
-     ?_assertMatch({error, {bad_request_line,_}}, parse_fail_reason(<<"REGISTER", ?crlf>>)),
+     ?_assertMatch({error, {bad_message, {bad_request_line,_}}}, parse_fail_reason(<<"REGISTER", ?crlf>>)),
      ?_assertMatch({error, {bad_header, _}}, parse_fail_reason(
                                                <<"REGISTER alice@example.com SIP/2.0" ?crlf,
                                                  "No real header here" ?crlf

@@ -165,29 +165,30 @@ parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = S
 parse_status_line(StatusLine, Data) ->
     make_error({bad_status_line, StatusLine}, Data).
 
--spec parse_request_line(binary() | [binary()], data()) -> int_parse_ret().
+-spec parse_request_line(binary(), data()) -> int_parse_ret().
 parse_request_line(RequestLine, #data{} =Data) when is_binary(RequestLine) ->
-    Splitted = binary:split(RequestLine, <<" ">>, [global]),
-    parse_request_line(Splitted, Data);
-parse_request_line([MethodBin, RURI, <<"SIP/2.0">>], #data{} = Data) when is_binary(MethodBin) ->
-    case ersip_method:parse(MethodBin) of
-        {ok, Method} ->
-            parse_request_line([Method, RURI, <<"SIP/2.0">>], Data);
+    Parsers = [fun ersip_method:parse/1,
+               fun parse_sp/1,
+               fun parse_ruri/1,
+               fun parse_sp/1,
+               fun parse_sip20/1],
+    case ersip_parser_aux:parse_all(RequestLine, Parsers) of
+        {ok, [Method, _, RURI, _, sip20], <<>>} ->
+            Message  = ?message(Data),
+            Message_ = ersip_msg:set([{type,   request},
+                                      {method, Method },
+                                      {ruri,   RURI   }],
+                                     Message),
+            Data_ = update([{message, Message_},
+                            {state,   headers }],
+                           Data),
+            {continue, Data_};
+        {ok, _, _} ->
+            make_error({bad_message, {bad_request_line, RequestLine}}, Data);
         {error, Reason} ->
-            make_error({bad_message, Reason}, Data)
-    end;
-parse_request_line([Method, RURI, <<"SIP/2.0">>], #data{} = Data) ->
-    Message  = ?message(Data),
-    Message_ = ersip_msg:set([{type,   request},
-                              {method, Method },
-                              {ruri,   RURI   }],
-                             Message),
-    Data_ = update([{message, Message_},
-                    {state,   headers }],
-                   Data),
-    {continue, Data_};
-parse_request_line(ReqLine, Data) ->
-    make_error({bad_request_line, ReqLine}, Data).
+            make_error({bad_message, {bad_request_line, Reason}}, Data)
+    end.
+
 
 -spec parse_headers(data()) -> int_parse_ret().
 parse_headers(#data{acc = [], buf = Buf} = Data) ->
@@ -345,3 +346,30 @@ find_field_name_end(_, Pos) ->
     Pos.
 
 
+-spec parse_sp(binary()) -> ersip_parser_aux:parse_result(sp).
+parse_sp(<<" ", Rest/binary>>) ->
+    {ok, sp, Rest};
+parse_sp(Bin) ->
+    {error, {invalid_separator, Bin}}.
+
+-spec parse_ruri(binary()) -> ersip_parser_aux:parse_result(ersip_method:method()).
+parse_ruri(Bin) ->
+    case find_ruri_end(Bin) of
+        0 -> {error, {invalid_ruri, Bin}};
+        Pos ->
+            <<RURI:Pos/binary, Rest/binary>> = Bin,
+            {ok, RURI, Rest}
+    end.
+
+-spec parse_sip20(binary()) -> ersip_parser_aux:parse_result(sip20).
+parse_sip20(<<"SIP/2.0", Rest/binary>>) ->
+    {ok, sip20, Rest};
+parse_sip20(Bin) ->
+    {error, {invalid_version, Bin}}.
+
+-spec find_ruri_end(binary()) -> non_neg_integer().
+find_ruri_end(Bin) ->
+    case binary:match(Bin, <<" ">>) of
+        {Pos, 1} -> Pos;
+        nomatch -> byte_size(Bin)
+    end.

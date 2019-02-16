@@ -71,15 +71,13 @@ notify() ->
 refer() ->
     ?REFER.
 
--spec parse(binary()) ->  {ok, method()}
-                              | {error, Error} when
-      Error :: {invalid_method, binary()}.
+-spec parse(binary()) -> ersip_parser_aux:parse_result(method()).
 parse(Bin) ->
-    case ersip_parser_aux:check_token(Bin) of
-        true ->
-            {ok, {method, Bin}};
-        false ->
-            {error, {invalid_method, Bin}}
+    case ersip_parser_aux:parse_token(Bin) of
+        {ok, Token, Rest} ->
+            {ok, {method, Token}, Rest};
+        {error, Reason} ->
+            {error, {invalid_method, Reason}}
     end.
 
 -spec to_binary(method()) -> binary().
@@ -89,8 +87,10 @@ to_binary({method, Bin}) ->
 -spec make(binary()) -> method().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
-        {ok, M} ->
+        {ok, M, <<>>} ->
             M;
+        {ok, _, _} ->
+            error({error, {invalid_method, Bin}});
         {error, _} = Error ->
             error(Error)
     end.

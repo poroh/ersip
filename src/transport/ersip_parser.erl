@@ -18,6 +18,8 @@
 
 -export_type([data/0]).
 
+-include("ersip_headers.hrl").
+
 %%%===================================================================
 %%% Types
 %%%===================================================================
@@ -40,6 +42,10 @@
 -type result()  :: more_data
                  | {error, term()}
                  | {ok, ersip:message()}.
+-type int_parse_ret() :: {more_data, data()}
+                       | {continue, data()}
+                       | {{error, term()}, data()}
+                       | {{ok, ersip_msg:message()}, data()}.
 
 %%%===================================================================
 %%% API
@@ -65,12 +71,19 @@ add_binary(Binary, #data{buf=Buf} = Data) ->
     update(buf, ersip_buf:add(Binary, Buf), Data).
 
 %% -spec parse(data()) -> {result(), data()}.
-parse(#data{state = first_line} = Data) ->
-    parse_first_line(Data);
-parse(#data{state = headers} = Data) ->
-    parse_headers(Data);
-parse(#data{state = body} = Data) ->
-    parse_body(Data).
+parse(#data{state = State} = Data) ->
+    Result =
+        case State of
+            first_line -> parse_first_line(Data);
+            headers    -> parse_headers(Data);
+            body       -> parse_body(Data)
+        end,
+    case Result of
+        {continue, Data1} -> parse(Data1);
+        {more_data, _} = Ret -> Ret;
+        {{error, _}, _} = Error -> Error;
+        {{ok, _}, _}  = Ok -> Ok
+    end.
 
 %%%===================================================================
 %%% internal implementation
@@ -111,7 +124,7 @@ update(content_len, Len,     #data{} = Data) -> Data#data{content_len = Len};
 update(message,     Message, #data{} = Data) -> Data#data{message     = Message};
 update(start_pos,   Pos,     #data{} = Data) -> Data#data{start_pos   = Pos}.
 
--spec parse_first_line(data()) -> {result(), data()}.
+-spec parse_first_line(data()) -> int_parse_ret().
 parse_first_line(#data{buf = Buf} = Data) ->
     case ersip_buf:read_till_crlf(Buf) of
         {ok, Line, Buf_} ->
@@ -122,18 +135,18 @@ parse_first_line(#data{buf = Buf} = Data) ->
             more_data_required(Data_)
     end.
 
--spec parse_first_line(binary(), data()) -> {result(), data()}.
+-spec parse_first_line(binary(), data()) -> int_parse_ret().
 parse_first_line(<<"SIP/", _/binary>> = StatusLine, Data) ->
     parse_status_line(StatusLine, Data);
 parse_first_line(<<>>, Data) ->
     %% Implementations processing SIP messages over stream-oriented
     %% transports MUST ignore any CRLF appearing before the start-line
     %% [H4.1].
-    parse(Data);
+    {continue, Data};
 parse_first_line(RequestLine, Data) ->
     parse_request_line(RequestLine, Data).
 
--spec parse_status_line(binary(), data()) -> {result(), data()}.
+-spec parse_status_line(binary(), data()) -> int_parse_ret().
 parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = StatusLine, Data) ->
     case catch binary_to_integer(CodeBin) of
         Code when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
@@ -145,16 +158,14 @@ parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = S
             Data_ = update([{message, Message_},
                             {state,   headers }],
                            Data),
-            parse(Data_);
+            {continue, Data_};
         _ ->
             make_error({bad_status_line, StatusLine}, Data)
     end;
 parse_status_line(StatusLine, Data) ->
     make_error({bad_status_line, StatusLine}, Data).
 
--spec parse_request_line(Arg, data()) -> {result(), data()} when
-      Arg :: binary()
-           | list(binary()).
+-spec parse_request_line(binary() | [binary()], data()) -> int_parse_ret().
 parse_request_line(RequestLine, #data{} =Data) when is_binary(RequestLine) ->
     Splitted = binary:split(RequestLine, <<" ">>, [global]),
     parse_request_line(Splitted, Data);
@@ -174,11 +185,11 @@ parse_request_line([Method, RURI, <<"SIP/2.0">>], #data{} = Data) ->
     Data_ = update([{message, Message_},
                     {state,   headers }],
                    Data),
-    parse(Data_);
+    {continue, Data_};
 parse_request_line(ReqLine, Data) ->
     make_error({bad_request_line, ReqLine}, Data).
 
--spec parse_headers(data()) -> {result(), data()}.
+-spec parse_headers(data()) -> int_parse_ret().
 parse_headers(#data{acc = [], buf = Buf} = Data) ->
     case ersip_buf:read_till_crlf(Buf) of
         {more_data, Buf_} ->
@@ -210,7 +221,7 @@ parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
                                     {buf,   Buf_},
                                     {acc,   []  }
                                    ], Data_),
-                    parse(DataA);
+                    {continue, DataA};
                 {error, Reason} ->
                     Data_ = update(buf, Buf_, Data),
                     make_error(Reason, Data_)
@@ -229,17 +240,21 @@ parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
 
 -spec add_header(iolist(), data()) -> {ok, data()} | {error, term()}.
 add_header([H|Rest], #data{} = Data) ->
-    case binary:split(H, <<":">>) of
-        [HName, V] ->
-            Message_ = ersip_msg:add(ersip_bin:trim_lws(HName), [V | Rest], ?message(Data)),
+    Parsers = [fun parse_field_name/1,
+               fun ersip_parser_aux:trim_lws/1,
+               fun(Bin) -> ersip_parser_aux:parse_sep($:, Bin) end,
+               fun ersip_parser_aux:trim_lws/1],
+    case ersip_parser_aux:parse_all(H, Parsers) of
+        {ok, [HName, _, _, _], V} ->
+            Message_ = ersip_msg:add(HName, [V | Rest], ?message(Data)),
             {ok, update(message, Message_, Data)};
         _ ->
             {error, {bad_header,H}}
     end.
 
--spec parse_body(data()) -> {result(), data()}.
+-spec parse_body(data()) -> int_parse_ret().
 parse_body(#data{buf = Buf, message = Msg, content_len = undefined} = Data ) ->
-    Hdr = ersip_msg:get(<<"content-length">>, Msg),
+    Hdr = ersip_msg:get(?ERSIPH_CONTENT_LENGTH, Msg),
     case ersip_hdr:as_integer(Hdr) of
         {ok, Value} when Value >= 0 ->
             parse_body(Data#data{content_len = Value});
@@ -304,4 +319,29 @@ message_parsed(_Message, MessageLen, #data{options = #{max_message_len := MaxLen
     make_error(message_too_long, Data);
 message_parsed(Message, _MessageLen, #data{} = Data) ->
     {{ok, Message}, Data}.
+
+
+%% field-name      =       1*ftext
+%%
+%% ftext           =       %d33-57 /               ; Any character except
+%%                         %d59-126                ;  controls, SP, and
+%%                                                 ;  ":".
+-spec parse_field_name(binary()) -> ersip_parser_aux:parse_result(binary()).
+parse_field_name(Bin) ->
+    Pos = find_field_name_end(Bin, 0),
+    case Pos of
+        0 -> {error, {invalid_header_name, Bin}};
+        _ ->
+            <<FieldName:Pos/binary, Rest/binary>> = Bin,
+           {ok, FieldName, Rest}
+    end.
+
+-spec find_field_name_end(binary(), non_neg_integer()) -> non_neg_integer().
+find_field_name_end(<<C:8, Rest/binary>>, Pos)
+  when (C >= 33 andalso C =< 57)
+       orelse (C >= 59 andalso C =< 126) ->
+    find_field_name_end(Rest, Pos+1);
+find_field_name_end(_, Pos) ->
+    Pos.
+
 

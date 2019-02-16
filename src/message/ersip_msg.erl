@@ -77,6 +77,12 @@ get(reason, #message{type = {response, _, X}}) -> X;
 get(method, #message{type = {request,  X, _}}) -> X;
 get(ruri,   #message{type = {request,  _, X}}) -> X;
 get(body,   #message{body = X                 }) -> X;
+get({hdr_key, _} = Key, #message{headers = H}) ->
+    case H of
+        #{Key := Hdr} -> Hdr;
+        _ ->
+            ersip_hdr:new(Key)
+    end;
 get(HeaderName, #message{headers = H}) ->
     NewHdr = ersip_hdr:new(HeaderName),
     Key    = ersip_hdr:make_key(NewHdr),

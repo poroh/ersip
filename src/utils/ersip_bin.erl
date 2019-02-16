@@ -22,7 +22,7 @@
 %%% API
 %%%===================================================================
 
--spec to_lower_utf8(binary()) -> binary().
+-spec to_lower_utf8( binary() ) -> binary().
 to_lower_utf8(Binary) when is_binary(Binary) ->
     << <<(unicode_to_lower(C))/utf8>> || <<C/utf8>> <= Binary >>;
 to_lower_utf8(Binary) -> erlang:error(badarg, [Binary]).

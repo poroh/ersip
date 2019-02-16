@@ -233,7 +233,7 @@ parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
                     DataA = update([{acc, [NewLine]},
                                     {buf, Buf_}
                                    ], Data_),
-                    parse_headers(DataA);
+                    {continue, DataA};
                 {error, Reason} ->
                     make_error(Reason, Data)
             end

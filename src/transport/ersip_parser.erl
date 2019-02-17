@@ -39,9 +39,6 @@
 -type options() :: #{buffer => ersip_buf:options(),
                      max_message_len => unlimited | pos_integer()
                     }.
--type result()  :: more_data
-                 | {error, term()}
-                 | {ok, ersip:message()}.
 -type int_parse_ret() :: {more_data, data()}
                        | {continue, data()}
                        | {{error, term()}, data()}
@@ -65,108 +62,154 @@ new(Options) ->
 new_dgram(DatagramBinary) when is_binary(DatagramBinary) ->
     #data{buf = ersip_buf:new_dgram(DatagramBinary), options = #{max_message_len => unlimited}}.
 
-
 -spec add_binary(binary(), data()) -> data().
 add_binary(Binary, #data{buf=Buf} = Data) ->
-    update(buf, ersip_buf:add(Binary, Buf), Data).
+    Data#data{buf = ersip_buf:add(Binary, Buf)}.
 
 %% -spec parse(data()) -> {result(), data()}.
-parse(#data{state = State} = Data) ->
-    Result =
-        case State of
-            first_line -> parse_first_line(Data);
-            headers    -> parse_headers(Data);
-            body       -> parse_body(Data)
-        end,
-    case Result of
-        {continue, Data1} -> parse(Data1);
-        {more_data, _} = Ret -> Ret;
-        {{error, _}, _} = Error -> Error;
-        {{ok, _}, _}  = Ok -> Ok
+parse(#data{state = first_line, buf = Buf} = Data) ->
+    case ersip_buf:read_till_crlf(Buf) of
+        {ok, Line, Buf1} ->
+            Data1 = Data#data{buf = Buf1},
+            case parse_first_line(Line) of
+                again -> parse(Data1);
+                {ok, Message} ->
+                    Data2 = Data1#data{message = Message,
+                                       state = headers},
+                    parse(Data2);
+                {error, _} = Error ->
+                    {Error, Data1}
+            end;
+        {more_data, Buf1} ->
+            Data1 = Data#data{buf = Buf1},
+            more_data_required(Data1)
+    end;
+parse(#data{state = headers, buf = Buf, acc = []} = Data) ->
+    %% This is the first header of the message.
+    case ersip_buf:read_till_crlf(Buf) of
+        {ok, <<>>, Buf1} ->
+            %% If acc is empty then no headers are specified in
+            %% message
+            Error = {error, {bad_message, no_headers}},
+            Data1 = Data#data{buf = Buf1},
+            {Error, Data1};
+        {ok, Line, Buf1} ->
+            %% Just remember header in acc and process input:
+            Data1 = Data#data{buf = Buf1, acc = [Line]},
+            parse(Data1);
+        {more_data, Buf1} ->
+            Data1 = Data#data{buf = Buf1},
+            more_data_required(Data1)
+    end;
+parse(#data{state = headers, buf = Buf, acc = Acc, message = Msg} = Data) ->
+    case ersip_buf:read_till_crlf(Buf) of
+        {ok, <<>>, Buf1} ->
+            %% Add accumulated header and go to body parsing
+            Data1 = Data#data{buf = Buf1},
+            case add_header(lists:reverse(Acc), Msg) of
+                {ok, Msg1} ->
+                    Data2 = Data1#data{acc = []},
+                    case calc_content_length(Msg1, Buf1) of
+                        {ok, Len} ->
+                            Data3 = Data2#data{state = body,
+                                               message = Msg1,
+                                               content_len = Len},
+                            parse(Data3);
+                        {error, _} = Error ->
+                            {Error, Data2}
+                    end;
+                {error, _} = Error ->
+                    {Error, Data1}
+            end;
+        {ok, <<$ , _/binary>> = Cont, Buf1} ->
+            %% Line beginning with LWS is continuation of headers,
+            %% just add to accumulator
+            Data1 = Data#data{buf = Buf1, acc = [Cont | Acc]},
+            parse(Data1);
+        {ok, <<$\t, _/binary>> = Cont, Buf1} ->
+            Data1 = Data#data{buf = Buf1, acc = [Cont | Acc]},
+            parse(Data1);
+        {ok, Line, Buf1} ->
+            %% Start of the new header - add previous to message and
+            %% start accumulating new one
+            Data1 = Data#data{buf = Buf1},
+            case add_header(lists:reverse(Acc), Msg) of
+                {ok, Msg1} ->
+                    Data2 = Data1#data{acc = [Line], message = Msg1},
+                    parse(Data2);
+                {error, _} = Error ->
+                    {Error, Data1}
+            end;
+        {more_data, Buf1} ->
+            Data1 = Data#data{buf = Buf1},
+            more_data_required(Data1)
+    end;
+parse(#data{state = body, content_len = Len, buf = Buf} = Data) ->
+    case ersip_buf:read(Len, Buf) of
+        {more_data, Buf1} ->
+            case ersip_buf:has_eof(Buf) of
+                true ->
+                    make_error({bad_message, <<"Truncated message">>}, Data);
+                false ->
+                    Data1 = Data#data{buf = Buf1},
+                    more_data_required(Data1)
+            end;
+        {ok, Body, Buf1} ->
+            Msg       = Data#data.message,
+            Msg1      = ersip_msg:set(body, Body, Msg),
+
+            StartPos  = Data#data.start_pos,
+            StreamPos = ersip_buf:stream_postion(Buf1),
+            MsgLen = StreamPos - StartPos,
+
+            %% Prepare state for next message
+            Data1 = Data#data{message      = ersip_msg:new(),
+                              content_len  = undefined,
+                              state        = first_line,
+                              buf          = Buf1,
+                              start_pos     = StreamPos},
+            message_parsed(Msg1, MsgLen, Data1)
     end.
+
 
 %%%===================================================================
 %%% internal implementation
 %%%===================================================================
-
--define(message(Data), Data#data.message).
 
 default_options() ->
     #{buffer => #{},
       max_message_len => 8192
      }.
 
--spec update(list({Item, Value}), data()) -> data() when
-      Item :: buf
-            | acc
-            | state
-            | content_len
-            | message
-            | start_pos,
-      Value :: term().
-update(List, Data) ->
-    lists:foldl(fun({Item, Value}, Acc) ->
-                        update(Item, Value, Acc)
-                end,
-                Data,
-                List).
-
--spec update(buf,          ersip_buf:state(),     data()) -> data();
-            (acc,          [binary()],            data()) -> data();
-            (state,        state(),               data()) -> data();
-            (content_len,  integer() | undefined, data()) -> data();
-            (message,      ersip_msg:message(),   data()) -> data();
-            (start_pos,    non_neg_integer(),     data()) -> data().
-update(buf,         Buffer,  #data{} = Data) -> Data#data{buf         = Buffer};
-update(acc,         Acc,     #data{} = Data) -> Data#data{acc         = Acc};
-update(state,       State,   #data{} = Data) -> Data#data{state       = State};
-update(content_len, Len,     #data{} = Data) -> Data#data{content_len = Len};
-update(message,     Message, #data{} = Data) -> Data#data{message     = Message};
-update(start_pos,   Pos,     #data{} = Data) -> Data#data{start_pos   = Pos}.
-
--spec parse_first_line(data()) -> int_parse_ret().
-parse_first_line(#data{buf = Buf} = Data) ->
-    case ersip_buf:read_till_crlf(Buf) of
-        {ok, Line, Buf_} ->
-            Data_ = update(buf, Buf_, Data),
-            parse_first_line(Line, Data_);
-        {more_data, Buf_} ->
-            Data_ = update(buf, Buf_, Data),
-            more_data_required(Data_)
-    end.
-
--spec parse_first_line(binary(), data()) -> int_parse_ret().
-parse_first_line(<<"SIP/", _/binary>> = StatusLine, Data) ->
-    parse_status_line(StatusLine, Data);
-parse_first_line(<<>>, Data) ->
+-spec parse_first_line(binary()) -> {ok, ersip_msg:message()} | {error, term()} | again.
+parse_first_line(<<"SIP/", _/binary>> = StatusLine) ->
+    parse_status_line(StatusLine);
+parse_first_line(<<>>) ->
     %% Implementations processing SIP messages over stream-oriented
     %% transports MUST ignore any CRLF appearing before the start-line
     %% [H4.1].
-    {continue, Data};
-parse_first_line(RequestLine, Data) ->
-    parse_request_line(RequestLine, Data).
+    again;
+parse_first_line(RequestLine) ->
+    parse_request_line(RequestLine).
 
--spec parse_status_line(binary(), data()) -> int_parse_ret().
-parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = StatusLine, Data) ->
+-spec parse_status_line(binary()) -> int_parse_ret().
+parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = StatusLine) ->
     case catch binary_to_integer(CodeBin) of
         Code when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
-            Message  = ?message(Data),
-            Message_ = ersip_msg:set([{type,   response    },
-                                      {status, Code        },
-                                      {reason, ReasonPhrase}],
-                                     Message),
-            Data_ = update([{message, Message_},
-                            {state,   headers }],
-                           Data),
-            {continue, Data_};
+            Message0  = ersip_msg:new(),
+            Message = ersip_msg:set([{type,   response    },
+                                     {status, Code        },
+                                     {reason, ReasonPhrase}],
+                                    Message0),
+            {ok, Message};
         _ ->
-            make_error({bad_status_line, StatusLine}, Data)
+            {error, {bad_status_line, StatusLine}}
     end;
-parse_status_line(StatusLine, Data) ->
-    make_error({bad_status_line, StatusLine}, Data).
+parse_status_line(StatusLine) ->
+    {error, {bad_status_line, StatusLine}}.
 
--spec parse_request_line(binary(), data()) -> int_parse_ret().
-parse_request_line(RequestLine, #data{} =Data) when is_binary(RequestLine) ->
+-spec parse_request_line(binary()) -> int_parse_ret().
+parse_request_line(RequestLine) when is_binary(RequestLine) ->
     Parsers = [fun ersip_method:parse/1,
                fun parse_sp/1,
                fun parse_ruri/1,
@@ -174,91 +217,38 @@ parse_request_line(RequestLine, #data{} =Data) when is_binary(RequestLine) ->
                fun parse_sip20/1],
     case ersip_parser_aux:parse_all(RequestLine, Parsers) of
         {ok, [Method, _, RURI, _, sip20], <<>>} ->
-            Message  = ?message(Data),
-            Message_ = ersip_msg:set([{type,   request},
+            Message0 = ersip_msg:new(),
+            Message  = ersip_msg:set([{type,   request},
                                       {method, Method },
                                       {ruri,   RURI   }],
-                                     Message),
-            Data_ = update([{message, Message_},
-                            {state,   headers }],
-                           Data),
-            {continue, Data_};
+                                     Message0),
+            {ok, Message};
         {ok, _, _} ->
-            make_error({bad_message, {bad_request_line, RequestLine}}, Data);
+            {error, {bad_message, {bad_request_line, RequestLine}}};
         {error, Reason} ->
-            make_error({bad_message, {bad_request_line, Reason}}, Data)
+            {error, {bad_message, {bad_request_line, Reason}}}
     end.
 
-
--spec parse_headers(data()) -> int_parse_ret().
-parse_headers(#data{acc = [], buf = Buf} = Data) ->
-    case ersip_buf:read_till_crlf(Buf) of
-        {more_data, Buf_} ->
-            Data_ = update(buf, Buf_, Data),
-            more_data_required(Data_);
-        {ok, <<>>, Buf_} ->
-            make_error({bad_message, no_headers}, update(buf, Buf_, Data));
-        {ok, Line, Buf_} ->
-            Data_ = update([{buf, Buf_},
-                            {acc, [Line]}
-                           ], Data),
-            parse_headers(Data_)
-    end;
-parse_headers(#data{buf = Buf, acc = Acc} = Data) ->
-    case ersip_buf:read_till_crlf(Buf) of
-        {more_data, Buf_} ->
-            Data_ = update(buf, Buf_, Data),
-            more_data_required(Data_);
-        {ok, <<FirstChar, _/binary>> = Cont, Buf_} when FirstChar == $  % LWS
-                                                        orelse FirstChar == $\t ->
-            Data_ = update([{buf, Buf_},
-                            {acc, [Cont | Acc]}
-                           ], Data),
-            parse_headers(Data_);
-        {ok, <<>>, Buf_} ->
-            case add_header(lists:reverse(Acc), Data) of
-                {ok, Data_}  ->
-                    DataA = update([{state, body},
-                                    {buf,   Buf_},
-                                    {acc,   []  }
-                                   ], Data_),
-                    {continue, DataA};
-                {error, Reason} ->
-                    Data_ = update(buf, Buf_, Data),
-                    make_error(Reason, Data_)
-            end;
-        {ok, NewLine, Buf_} ->
-            case add_header(lists:reverse(Acc), Data) of
-                {ok, Data_} ->
-                    DataA = update([{acc, [NewLine]},
-                                    {buf, Buf_}
-                                   ], Data_),
-                    {continue, DataA};
-                {error, Reason} ->
-                    make_error(Reason, Data)
-            end
-    end.
-
--spec add_header(iolist(), data()) -> {ok, data()} | {error, term()}.
-add_header([H|Rest], #data{} = Data) ->
+-spec add_header(iolist(), ersip_msg:message()) -> {ok, ersip_msg:message()} | {error, term()}.
+add_header([H|Rest], Msg) ->
     Parsers = [fun parse_field_name/1,
                fun ersip_parser_aux:trim_lws/1,
                fun(Bin) -> ersip_parser_aux:parse_sep($:, Bin) end,
                fun ersip_parser_aux:trim_lws/1],
     case ersip_parser_aux:parse_all(H, Parsers) of
         {ok, [HName, _, _, _], V} ->
-            Message_ = ersip_msg:add(HName, [V | Rest], ?message(Data)),
-            {ok, update(message, Message_, Data)};
+            Msg1 = ersip_msg:add(HName, [V | Rest], Msg),
+            {ok, Msg1};
         _ ->
             {error, {bad_header,H}}
     end.
 
--spec parse_body(data()) -> int_parse_ret().
-parse_body(#data{buf = Buf, message = Msg, content_len = undefined} = Data ) ->
+-spec calc_content_length(ersip_msg:message(), ersip_buf:state()) -> {ok, non_neg_integer()} | {error, term()}.
+calc_content_length(Msg, Buf) ->
     Hdr = ersip_msg:get(?ERSIPH_CONTENT_LENGTH, Msg),
     case ersip_hdr:as_integer(Hdr) of
         {ok, Value} when Value >= 0 ->
-            parse_body(Data#data{content_len = Value});
+            {ok, Value};
         _ ->
             %% Applications SHOULD use this field to indicate the size of the
             %% message-body to be transferred, regardless of the media type of the
@@ -266,32 +256,10 @@ parse_body(#data{buf = Buf, message = Msg, content_len = undefined} = Data ) ->
             %% transport, the header field MUST be used.
             case ersip_buf:has_eof(Buf) of
                 true ->
-                    parse_body(Data#data{content_len = ersip_buf:length(Buf)});
+                    {ok, ersip_buf:length(Buf)};
                 false ->
-                    make_error({bad_message, {invalid_content_length, ersip_hdr:raw_values(Hdr)}}, Data)
+                    {error, {bad_message, {invalid_content_length, ersip_hdr:raw_values(Hdr)}}}
             end
-    end;
-parse_body(#data{buf = Buf, content_len = Len, start_pos = StartPos} = Data) ->
-    case ersip_buf:read(Len, Buf) of
-        {more_data, Buf_} ->
-            case ersip_buf:has_eof(Buf) of
-                true ->
-                    make_error({bad_message, <<"Truncated message">>}, Data);
-                false ->
-                    Data_ = update(buf, Buf_, Data),
-                    more_data_required(Data_)
-            end;
-        {ok, Body, Buf_} ->
-            StreamPos = ersip_buf:stream_postion(Buf_),
-            Message = ersip_msg:set(body, Body, ?message(Data)),
-            MessageLen = StreamPos - StartPos,
-            Data_ = update([{message, ersip_msg:new()},
-                            {content_len, undefined  },
-                            {state, first_line},
-                            {buf, Buf_},
-                            {start_pos, StreamPos}
-                           ], Data),
-            message_parsed(Message, MessageLen, Data_)
     end.
 
 -spec make_error(term(), data()) -> {{error, term()}, data()}.
@@ -320,7 +288,6 @@ message_parsed(_Message, MessageLen, #data{options = #{max_message_len := MaxLen
     make_error(message_too_long, Data);
 message_parsed(Message, _MessageLen, #data{} = Data) ->
     {{ok, Message}, Data}.
-
 
 %% field-name      =       1*ftext
 %%

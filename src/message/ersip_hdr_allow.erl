@@ -53,8 +53,11 @@ parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
             {error, no_allow};
-        Allows ->
+        HeaderList ->
             try
+                MethodList0 = [binary:split(H, <<",">>, [global]) || H <- HeaderList],
+                MethodList1 = lists:flatten(MethodList0),
+                MethodList = [ersip_bin:trim_lws(Tag) || Tag <- MethodList1],
                 L = lists:map(fun(Val) ->
                                       case ersip_method:parse(iolist_to_binary(Val)) of
                                           {ok, Method, <<>>} -> Method;
@@ -62,7 +65,7 @@ parse(Header) ->
                                           {error, _} = Error -> throw(Error)
                                       end
                               end,
-                              Allows),
+                              MethodList),
                 {ok, from_list(L)}
             catch
                 throw:{error, _} = Error ->

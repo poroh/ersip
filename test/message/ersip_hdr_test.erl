@@ -43,26 +43,6 @@ serialize_headers_test() ->
                    "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>,
                  serialize_to_bin(Via1)).
 
-comma_split_test() ->
-    H0 = ersip_hdr:new(<<"route">>),
-    H1 = ersip_hdr:add_values(
-           [<<"<sip:alice@atlanta.com>">>,
-            <<"<sip:bob@biloxi.com>">>,
-            <<"<sip:carol@chicago.com>">>
-           ],
-           H0),
-    H2 = ersip_hdr:add_values(
-           [<<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>">>,
-            <<"<sip:carol@chicago.com>">>
-           ],
-           H0),
-    H3 = ersip_hdr:add_values(
-           [<<"<sip:alice@atlanta.com>, <sip:bob@biloxi.com>, <sip:carol@chicago.com>">>
-           ],
-           H0),
-    ?assertEqual(H1, H2),
-    ?assertEqual(H1, H3).
-
 allow_compact_test() ->
     H0 = ersip_hdr:new(<<"Allow">>),
     H1 = ersip_hdr:add_values(

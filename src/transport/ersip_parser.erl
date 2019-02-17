@@ -192,7 +192,7 @@ parse_first_line(<<>>) ->
 parse_first_line(RequestLine) ->
     parse_request_line(RequestLine).
 
--spec parse_status_line(binary()) -> int_parse_ret().
+-spec parse_status_line(binary()) -> {ok, ersip_msg:message()} | {error, term()}.
 parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = StatusLine) ->
     case catch binary_to_integer(CodeBin) of
         Code when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->
@@ -208,7 +208,7 @@ parse_status_line(<<"SIP/2.0 ", CodeBin:3/binary, " ", ReasonPhrase/binary>> = S
 parse_status_line(StatusLine) ->
     {error, {bad_status_line, StatusLine}}.
 
--spec parse_request_line(binary()) -> int_parse_ret().
+-spec parse_request_line(binary()) -> {ok, ersip_msg:message()} | {error, term()}.
 parse_request_line(RequestLine) when is_binary(RequestLine) ->
     Parsers = [fun ersip_method:parse/1,
                fun parse_sp/1,
@@ -230,14 +230,32 @@ parse_request_line(RequestLine) when is_binary(RequestLine) ->
     end.
 
 -spec add_header(iolist(), ersip_msg:message()) -> {ok, ersip_msg:message()} | {error, term()}.
+add_header([H], Msg) ->
+    Parsers = [fun parse_field_name/1,
+               fun ersip_parser_aux:trim_lws/1,
+               fun(Bin) -> ersip_parser_aux:parse_sep($:, Bin) end,
+               fun ersip_parser_aux:trim_lws/1],
+    case ersip_parser_aux:parse_all(H, Parsers) of
+        {ok, [_, _, _, _], <<>>} ->
+            {ok, Msg};
+        {ok, [HName, _, _, _], V} ->
+            Msg1 = ersip_msg:add(HName, V, Msg),
+            {ok, Msg1};
+        _ ->
+            {error, {bad_header,H}}
+    end;
 add_header([H|Rest], Msg) ->
     Parsers = [fun parse_field_name/1,
                fun ersip_parser_aux:trim_lws/1,
                fun(Bin) -> ersip_parser_aux:parse_sep($:, Bin) end,
                fun ersip_parser_aux:trim_lws/1],
     case ersip_parser_aux:parse_all(H, Parsers) of
+        {ok, [HName, _, _, _], <<>>} ->
+            Bin = ersip_bin:trim_head_lws(iolist_to_binary(Rest)),
+            Msg1 = ersip_msg:add(HName, Bin, Msg),
+            {ok, Msg1};
         {ok, [HName, _, _, _], V} ->
-            Msg1 = ersip_msg:add(HName, [V | Rest], Msg),
+            Msg1 = ersip_msg:add(HName, iolist_to_binary([V | Rest]), Msg),
             {ok, Msg1};
         _ ->
             {error, {bad_header,H}}

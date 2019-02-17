@@ -55,10 +55,6 @@ message_get_header_test() ->
                  lists:map(fun iolist_to_binary/1,
                            ersip_hdr:raw_values(Hdr) )).
 
-message_empty_header_test() ->
-    M0 = ersip_msg:new(),
-    ?assertEqual(M0,  ersip_msg:add(<<"Some-Header">>,  ["   \t"], M0)).
-
 message_serialize_req_test() ->
     M0 = ersip_msg:new(),
     M1 = ersip_msg:set([{type,   request},

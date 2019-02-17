@@ -105,7 +105,7 @@ parse_token(Bin) ->
     End = find_token_end(Bin, 0),
     RestLen = byte_size(Bin) - End,
     case End =:= 0 of
-        true -> {error, not_a_token};
+        true -> {error, {not_a_token, Bin}};
         false ->
             Result = binary:part(Bin, 0, End),
             Rest = binary:part(Bin, End, RestLen),

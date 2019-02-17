@@ -154,19 +154,17 @@ del_header(HeaderName, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(HeaderName),
     Message#message{headers = maps:remove(Key, H)}.
 
--spec add(Name, Value, message()) -> message() when
-      Name  :: binary(),
-      Value :: iolist().
+-spec add(Name :: binary(), Value :: binary(), message()) -> message().
 add(HeaderName, Value, #message{headers = H} = Message) ->
-    case ersip_iolist:trim_head_lws(Value) of
-        [] ->
-            Message;
-        V ->
-            NewHdr = ersip_hdr:new(HeaderName),
-            Key    = ersip_hdr:make_key(NewHdr),
-            Current = maps:get(Key, H, NewHdr),
-            Updated = ersip_hdr:add_value(V, Current),
-            Message#message{headers = H#{Key => Updated}}
+    Key = ersip_hnames:make_key(HeaderName),
+    case H of
+        #{Key := Hdr} ->
+            Updated = ersip_hdr:add_value(Value, Hdr),
+            Message#message{headers = H#{Key => Updated}};
+        #{} ->
+            Hdr0 = ersip_hdr:new(HeaderName, Key),
+            Hdr = ersip_hdr:add_value(Value, Hdr0),
+            Message#message{headers = H#{Key => Hdr}}
     end.
 
 -spec source(message()) -> undefined | ersip_source:source().

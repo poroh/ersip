@@ -47,6 +47,7 @@ rebuild_test() ->
     rebuild(<<"sip:a@b;expires=30, mail:a@b">>),
     rebuild(<<"Joe Doe <sip:joe@example.com>, mail:a@b">>),
     rebuild(<<"<sip:12098580021@192.168.59.76:5061;transport=tcp>;methods=\"INVITE, ACK, BYE, CANCEL, OPTIONS, INFO, MESSAGE, SUBSCRIBE, NOTIFY, PRACK, UPDATE, REFER\", sip:a@b">>),
+    rebuild(<<"<sip:12098580021@192.168.59.76:5061;transport=tcp>;a=b, sip:a@b">>),
     ok.
 
 make_error_test() ->

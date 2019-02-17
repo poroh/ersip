@@ -132,7 +132,7 @@ compact_header_key_map(<<"s">>) -> {ok, ?ERSIPH_SUBJECT};
 compact_header_key_map(<<"k">>) -> {ok, ?ERSIPH_SUPPORTED};
 compact_header_key_map(<<"t">>) -> {ok, ?ERSIPH_TO};
 compact_header_key_map(<<"v">>) -> {ok, ?ERSIPH_VIA};
-compact_header_key_map(_)       -> not_found.
+compact_header_key_map(X) when is_binary(X) -> not_found.
 
 -spec header_key_map(binary()) -> header_key().
 header_key_map(<<"accept">>)              -> ?ERSIPH_ACCEPT;

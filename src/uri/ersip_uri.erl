@@ -58,6 +58,7 @@
                   | {port, inet:port_number() | undefined}.
 
 -type scheme() :: uri_scheme().
+-type binary_part() :: {Start :: non_neg_integer(), Length :: integer()}.
 
 %%%===================================================================
 %%% API
@@ -736,7 +737,7 @@ is_paramchar_string(_) ->
 unquote_hex(Bin) ->
     do_unquote_hex(Bin, Bin, {0, 0}, []).
 
--spec do_unquote_hex(binary(), binary(), binary:part(), iolist()) -> binary().
+-spec do_unquote_hex(binary(), binary(), binary_part(), iolist()) -> binary().
 do_unquote_hex(<<>>, Orig, {_, Len}, []) when Len == byte_size(Orig) ->
     Orig;
 do_unquote_hex(<<>>, _, {_, 0}, Acc) ->

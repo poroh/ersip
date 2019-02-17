@@ -54,8 +54,11 @@ parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
             {error, no_option_tag_list};
-        OptionTagList ->
+        HeaderList ->
             try
+                OptionList0 = [binary:split(H, <<",">>, [global]) || H <- HeaderList],
+                OptionList1 = lists:flatten(OptionList0),
+                OptionTagList = [ersip_bin:trim_lws(Tag) || Tag <- OptionList1],
                 L = lists:map(fun(Val) ->
                                       OptionTagBin = iolist_to_binary(Val),
                                       case ersip_option_tag:parse(OptionTagBin) of

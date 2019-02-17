@@ -82,8 +82,8 @@ parse(Header) ->
     case MaybeRevRouteSet of
         {ok, RevRouteSet} ->
             {ok, ersip_route_set:reverse(RevRouteSet)};
-        Error ->
-            Error
+        {error, Reason} ->
+            {error, {invalid_route, Reason}}
     end.
 
 
@@ -100,8 +100,10 @@ build(HdrName, {route_set, _} = RouteSet) ->
 -spec make_route(binary() | ersip_uri:uri()) -> route().
 make_route(Bin) when is_binary(Bin) ->
     case parse_route(Bin) of
-        {ok, Route} ->
+        {ok, Route, <<>>} ->
             Route;
+        {ok, _, Rest} ->
+            error({garbage_at_end, Rest});
         {error, _} = Error ->
             error(Error)
     end;
@@ -117,8 +119,13 @@ add_to_maybe_route_set(_, {error, _} = Error) ->
     Error;
 add_to_maybe_route_set(Bin, {ok, RouteSet}) ->
     case parse_route(Bin) of
-        {ok, Route} ->
+        {ok, Route, <<>>} ->
             {ok, ersip_route_set:add_first(Route, RouteSet)};
+        {ok, Route, <<$,, Rest/binary>>} ->
+            MaybeRoute = {ok, ersip_route_set:add_first(Route, RouteSet)},
+            add_to_maybe_route_set(ersip_bin:trim_head_lws(Rest), MaybeRoute);
+        {ok, _, Rest} ->
+            {error, {garbage_at_end, Rest}};
         {error, _} = Error ->
             Error
     end.
@@ -127,15 +134,17 @@ add_to_maybe_route_set(Bin, {ok, RouteSet}) ->
 parse_route(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
                fun ersip_parser_aux:trim_lws/1,
-               fun parse_route_params/1
+               fun parse_route_params/1,
+               fun ersip_parser_aux:trim_lws/1
               ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of
-        {ok, [{DisplayName, URI}, _, ParamsList], <<>>} ->
+        {ok, [{DisplayName, URI}, _, ParamsList, _], Rest} ->
             {ok,
              #route{display_name = DisplayName,
                     uri          = URI,
                     params       = ParamsList
-                   }
+                   },
+             Rest
             };
         {error, _} = Error ->
             Error
@@ -159,21 +168,23 @@ assemble_route(#route{} = Route) ->
 
 -spec parse_route_params(binary()) -> ersip_parser_aux:parse_result([route_param()]).
 parse_route_params(<<$;, Bin/binary>>) ->
-    parse_route_params(Bin);
-parse_route_params(<<>>) ->
-    {ok, [], <<>>};
-parse_route_params(Bin) ->
+    do_parse_route_params(Bin);
+parse_route_params(Rest) ->
+    {ok, [], Rest}.
+
+-spec do_parse_route_params(binary()) -> ersip_parser_aux:parse_result([route_param()]).
+do_parse_route_params(Bin) ->
     case ersip_parser_aux:parse_params($;, Bin) of
-        {ok, Params, <<>>} ->
-            do_parse_params(Params, []);
-        _ ->
-            {error, {invalid_parameters, Bin}}
+        {ok, Params, Rest} ->
+            {ok, do_parse_params(Params, []), Rest};
+        {error, Reason} ->
+            {error, {invalid_parameters, Reason}}
     end.
 
 -spec do_parse_params(ersip_parser_aux:gen_param_list(), ersip_parser_aux:gen_param_list()) ->
                              ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
 do_parse_params([], Acc) ->
-    {ok, lists:reverse(Acc), <<>>};
+    lists:reverse(Acc);
 do_parse_params([{Key, <<>>} | Rest], Acc) ->
     Acc1 = [{Key, novalue} | Acc],
     do_parse_params(Rest, Acc1);

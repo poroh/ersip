@@ -10,6 +10,7 @@
 
 -export([make_key/1,
          new/1,
+         new/2,
          is_empty/1,
          add_value/2,
          add_values/2,
@@ -23,6 +24,7 @@
         ]).
 -export_type([header/0,
               header_key/0]).
+
 -include("ersip_headers.hrl").
 
 %%%===================================================================
@@ -31,7 +33,6 @@
 
 -record(header, {name        :: binary(),
                  key         :: header_key(),
-                 use_comma_split :: boolean(),
                  values = [] :: [value()]
                 }).
 -type value() :: iolist() | binary().
@@ -57,18 +58,22 @@ make_key(HeaderName) ->
 new(Name) when is_binary(Name) ->
     Key = make_key(Name),
     #header{name = Name,
-            key  = make_key(Name),
-            use_comma_split = use_comma_split(Key)
+            key  = Key
            };
 new(KnownHeader) when is_atom(KnownHeader)  ->
     Key = ersip_hnames:make_key(KnownHeader),
     #header{name = ersip_hnames:print_form(KnownHeader),
-            key  = Key,
-            use_comma_split = use_comma_split(Key)};
+            key  = Key
+           };
 new({hdr_key, _} = HdrKey)  ->
     #header{name = ersip_hnames:print_form(HdrKey),
-            key  = HdrKey,
-            use_comma_split = use_comma_split(HdrKey)
+            key  = HdrKey
+           }.
+
+-spec new(binary(), header_key()) -> header().
+new(Name, Key) ->
+    #header{name = Name,
+            key  = Key
            }.
 
 -spec is_empty(header()) -> boolean().
@@ -79,13 +84,8 @@ is_empty(#header{}) ->
 
 %% @doc Append value to list of values.
 -spec add_value(value(), header()) -> header().
-add_value([Value], #header{values = V, use_comma_split = false} = Hdr) when is_binary(Value) ->
-    Hdr#header{values = V ++ [Value]};
-add_value(Value, #header{values = V, use_comma_split = false} = Hdr) ->
-    Hdr#header{values = V ++ [Value]};
-add_value(Value, #header{values = V, key = Key, use_comma_split = true} = Hdr) ->
-    Values = comma_split(Key, Value),
-    Hdr#header{values = V ++ Values}.
+add_value(Value, #header{values = V} = Hdr) ->
+    Hdr#header{values = V ++ [Value]}.
 
 %% @doc Append list of values to headr's list of values.
 -spec add_values(Value :: value(), header()) -> header().
@@ -100,11 +100,8 @@ raw_values(#header{values = Vs}) ->
     Vs.
 
 -spec add_topmost(value(), header()) -> header().
-add_topmost(Value, #header{values = V, use_comma_split = false} = Hdr) ->
-    Hdr#header{values = [Value | V]};
-add_topmost(Value, #header{values = V, key = Key} = Hdr) ->
-    Values = comma_split(Key, Value),
-    Hdr#header{values = Values ++ V}.
+add_topmost(Value, #header{values = V} = Hdr) ->
+    Hdr#header{values = [Value | V]}.
 
 -spec replace_topmost(value(), header()) -> header().
 replace_topmost(Value, #header{values = [_|Rest]} = H) ->
@@ -190,42 +187,8 @@ rev_comma_sep_values([LastVal], Acc) ->
 rev_comma_sep_values([Val | Rest], Acc) ->
     rev_comma_sep_values(Rest, [<<", ">>, Val | Acc]).
 
-%% @private
-%% @doc split headers with comma:
-%% RFC 3261 7.3.1 Header Field Format
-%% It MUST be possible to combine the multiple
-%% header field rows into one "field-name: field-value" pair, without
-%% changing the semantics of the message, by appending each subsequent
-%% field-value to the first, each separated by a comma.  The exceptions
-%% to this rule are the WWW-Authenticate, Authorization, Proxy-
-%% Authenticate, and Proxy-Authorization header fields.
--spec comma_split(header_key(), value()) -> [value()].
-comma_split(?ERSIPH_WWW_AUTHENTICATE, V) ->
-    [ersip_iolist:trim_lws(V)];
-comma_split(?ERSIPH_AUTHORIZATION, V) ->
-    [ersip_iolist:trim_lws(V)];
-comma_split(?ERSIPH_PROXY_AUTHENTICATE, V) ->
-    [ersip_iolist:trim_lws(V)];
-comma_split(?ERSIPH_PROXY_AUTHORIZATION, V) ->
-    [ersip_iolist:trim_lws(V)];
-comma_split(_, V) ->
-    Bin = iolist_to_binary(V),
-    lists:map(fun ersip_bin:trim_lws/1,
-              binary:split(Bin, <<",">>, [global])).
-
 -spec use_comma(header_key()) -> boolean().
 use_comma(?ERSIPH_VIA) ->     false;
 use_comma(?ERSIPH_CONTACT) -> false;
 use_comma(_) ->
     true.
-
--spec use_comma_split(header_key()) -> boolean().
-use_comma_split(?ERSIPH_SUPPORTED)     -> true;
-use_comma_split(?ERSIPH_UNSUPPORTED)   -> true;
-use_comma_split(?ERSIPH_ALLOW)         -> true;
-use_comma_split(?ERSIPH_ROUTE)         -> true;
-use_comma_split(?ERSIPH_RECORD_ROUTE)  -> true;
-use_comma_split(?ERSIPH_REQUIRE)       -> true;
-use_comma_split(?ERSIPH_PROXY_REQUIRE) -> true;
-use_comma_split(_) ->
-    false.

@@ -122,6 +122,20 @@ read(Len, #state{acclen = AccLen} = State) when Len >= AccLen->
               | {more_data, state()}.
 do_read_till_crlf(Pattern, Pos, State) when Pos < 0 ->
     do_read_till_crlf(Pattern, 0, State);
+do_read_till_crlf(Pattern, _, #state{acc = <<>>, queue = Q0, queuelen = QLen0} = State) ->
+    case queue:is_empty(Q0) of
+        true ->
+            {more_data, State};
+        false ->
+            {{value, Item}, Q} = queue:out(Q0),
+            QLen = QLen0 - byte_size(Item),
+            State_ = State#state{queue    = Q,
+                                 queuelen = QLen,
+                                 acc      = Item,
+                                 acclen   = byte_size(Item)
+                                },
+            do_read_till_crlf(Pattern, 0, State_)
+    end;
 do_read_till_crlf(Pattern, Pos, #state{acc = A} = State) ->
     Queue = ?queue(State),
     QueueLen = ?queuelen(State),
@@ -143,24 +157,21 @@ do_read_till_crlf(Pattern, Pos, #state{acc = A} = State) ->
                     do_read_till_crlf(Pattern, Pos_, State_)
             end;
         {Start, Len} ->
-            RestPos = Start + Len,
-            RestLen = byte_size(A) - RestPos,
+            <<Result:Start/binary, _Sep:Len/binary, Rest/binary>> = A,
             Q =
-                case RestLen of
-                    0 ->
-                        Queue;
-                    _ ->
-                        queue:in_r(binary:part(A, RestPos, RestLen), Queue)
+                case Rest of
+                    <<>> -> Queue;
+                    _ -> queue:in_r(Rest, Queue)
                 end,
-            QLen = QueueLen + RestLen,
-            NewBufPos = State#state.pos + RestPos,
+            QLen = QueueLen + byte_size(Rest),
+            NewBufPos = State#state.pos + Start + Len,
             State_ = State#state{queue    = Q,
                                  queuelen = QLen,
                                  acc      = <<>>,
                                  acclen   = 0,
                                  pos      = NewBufPos
                                 },
-            {ok, binary:part(A, 0, Start), State_}
+            {ok, Result, State_}
     end.
 
 -spec read_more_to_acc(Len :: non_neg_integer(), state()) -> Result when

@@ -202,11 +202,11 @@ parse_header_by_descr(#descr{parse_fun = F}, Hdr) ->
               | {error, {no_required_header, binary()}}
               | {error, {duplicated_header, binary()}}.
 get_header(HdrAtom, #descr{} = D, SipMsg) ->
-    HdrKey = ersip_hnames:make_key(HdrAtom),
+    HdrKey = ersip_hnames:make_known_key(HdrAtom),
     Hdr = ersip_msg:get(HdrKey, ersip_sipmsg:raw_message(SipMsg)),
-    Required = is_required(SipMsg, D#descr.required),
     case ersip_hdr:is_empty(Hdr) of
         true ->
+            Required = is_required(SipMsg, D#descr.required),
             case Required of
                 true ->
                     {error, {no_required_header, ersip_hnames:print_form(HdrKey)}};

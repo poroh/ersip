@@ -9,6 +9,7 @@
 -module(ersip_hnames).
 
 -export([make_key/1,
+         make_known_key/1,
          print_form/1,
          known_header_form/1,
          all_known_headers/0
@@ -67,6 +68,9 @@ make_key(HeaderName) when is_binary(HeaderName) ->
 make_key(KnownHeader) when is_atom(KnownHeader) ->
     known_header_key_map(KnownHeader).
 
+-spec make_known_key(atom()) -> header_key() | not_found.
+make_known_key(KnownHeader) ->
+    known_header_key_map(KnownHeader).
 
 -spec print_form(name_forms()) -> binary().
 print_form(HeaderForm) ->

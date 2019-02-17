@@ -153,6 +153,18 @@ parse(Binary) ->
     case split_scheme(Binary) of
         {<<>>, _} ->
             {error, {einval, invalid_scheme}};
+        {<<"sip">>, R} ->
+            case parse_sipdata(R) of
+                {ok, SipData} ->
+                    {ok, #uri{scheme = {scheme, sip}, data = SipData}};
+                {error, _} = Error -> Error
+            end;
+        {<<"sips">>, R} ->
+            case parse_sipdata(R) of
+                {ok, SipData} ->
+                    {ok, #uri{scheme = {scheme, sips}, data = SipData}};
+                {error, _} = Error -> Error
+            end;
         {S, R} ->
             parse_uri(ersip_bin:to_lower(S), S, R)
     end.

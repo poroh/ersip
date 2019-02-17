@@ -38,7 +38,14 @@
                crlf     = binary:compile_pattern(<<"\r\n">>)
               }).
 
--type state() :: #state{}.
+-record(one_binary, {options = #{},
+                     rest  = <<>>         :: binary(),
+                     eof   = false        :: boolean(),
+                     pos   = 0            :: non_neg_integer(),
+                     crlf  = binary:compile_pattern(<<"\r\n">>)
+                    }).
+
+-type state() :: #state{} | #one_binary{}.
 
 -define(queue(State), State#state.queue).
 -define(queuelen(State), State#state.queuelen).
@@ -52,7 +59,7 @@
 %% Note options are reserved in API for future use.
 -spec new(options()) -> state().
 new(Options) ->
-    #state{options = Options}.
+    #one_binary{options = Options}.
 
 %% @doc New buffer with datagram.
 -spec new_dgram(binary()) -> state().
@@ -63,6 +70,19 @@ new_dgram(Binary) ->
 
 %% @doc Put raw binary to the buffer.
 -spec add(binary(), state()) -> state().
+add(Binary, #one_binary{rest = <<>>} = State) when is_binary(Binary) ->
+    State#one_binary{rest = Binary};
+add(_, #one_binary{eof = true}) ->
+    error({api_error, <<"add binary after eof">>});
+add(Binary, #one_binary{rest = Rest, options = Opts, crlf = CRLF, pos = Pos}) when is_binary(Binary) ->
+    Q0 = queue:in(Rest, queue:new()),
+    Q1 = queue:in(Binary, Q0),
+    QLen = byte_size(Rest) + byte_size(Binary),
+    #state{options = Opts,
+           queue   = Q1,
+           pos     = Pos,
+           queuelen = QLen,
+           crlf     = CRLF};
 add(Binary, #state{eof = false, queuelen = Len} = State) when is_binary(Binary) ->
     Q =    queue:in(Binary, ?queue(State)),
     QLen = Len + byte_size(Binary),
@@ -72,22 +92,30 @@ add(Binary, #state{eof = false, queuelen = Len} = State) when is_binary(Binary) 
 
 %% @doc Add eof to the buffer
 -spec set_eof(state()) -> state().
-set_eof(State) ->
-    State#state{eof=true}.
+set_eof(#state{} = State) ->
+    State#state{eof=true};
+set_eof(#one_binary{} = State) ->
+    State#one_binary{eof=true}.
 
 %% @doc Buffer has EOF
 -spec has_eof(state()) -> boolean().
+has_eof(#one_binary{eof=EOF}) ->
+    EOF;
 has_eof(#state{eof=EOF}) ->
     EOF.
 
 %% @doc number of bytes accumulated inside the buffer.
 -spec length(state()) -> non_neg_integer().
+length(#one_binary{rest = Rest}) ->
+    byte_size(Rest);
 length(#state{acclen = AccLen, queuelen = QLen}) ->
     QLen + AccLen.
 
 %% @doc Current position in the stream (number of stream bytes read
 %% out from this buffer).
 -spec stream_postion(state()) -> non_neg_integer().
+stream_postion(#one_binary{pos = Pos}) ->
+    Pos;
 stream_postion(#state{pos = Pos}) ->
     Pos.
 
@@ -96,13 +124,31 @@ stream_postion(#state{pos = Pos}) ->
 -spec read_till_crlf(state()) -> Result when
       Result :: {ok, binary(), state()}
               | {more_data, state()}.
+read_till_crlf(#one_binary{rest = Rest0, crlf = CRLF} = State) ->
+    case binary:match(Rest0, CRLF) of
+        nomatch ->
+            {more_data, State};
+        {Start, Len} ->
+            <<Result:Start/binary, _Sep:Len/binary, Rest/binary>> = Rest0,
+            State_ = State#one_binary{rest = Rest,
+                                      pos  = State#one_binary.pos + Start + Len
+                                     },
+            {ok, Result, State_}
+    end;
 read_till_crlf(#state{acc = A, crlf = CRLF} = State) ->
     do_read_till_crlf(CRLF, byte_size(A)-1, State).
 
 %% @doc Read number of bytes from the buffer.
 -spec read(Len :: pos_integer(), state()) -> Result when
-      Result :: {ok, iolist(), state()}
+      Result :: {ok, iolist() | binary(), state()}
               | {more_data, state()}.
+read(Len, #one_binary{rest = Rest} = State) when Len > byte_size(Rest) ->
+    {more_data, State};
+read(Len, #one_binary{rest = Rest0} = State0) when Len =< byte_size(Rest0) ->
+    <<Result:Len/binary, Rest/binary>> = Rest0,
+    State = State0#one_binary{rest = Rest,
+                              pos  = State0#one_binary.pos + Len},
+    {ok, [Result], State};
 read(Len, #state{acclen = AccLen} = State) when Len >= AccLen->
     read_more_to_acc(Len-AccLen, State).
 

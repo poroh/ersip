@@ -597,8 +597,8 @@ split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
             %% No port specified
             {ok, {IPv6RefPort, <<>>}};
         {Pos, 1} ->
-            Host = binary:part(IPv6RefPort, {0, Pos+1}),
-            Rest = binary:part(IPv6RefPort, {Pos+1, byte_size(IPv6RefPort)-Pos-1}),
+            Size = Pos+1,
+            <<Host:Size/binary, Rest/binary>> = IPv6RefPort,
             case Rest of
                 <<$:, Port/binary>> when Port =/= <<>> ->
                     {ok, {Host, Port}};

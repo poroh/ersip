@@ -250,8 +250,7 @@ read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
                                         },
                     read_more_to_acc(Len-Sz, State1);
                 Sz when Sz > Len ->
-                    HPart = binary:part(V, 0, Len),
-                    RPart = binary:part(V, Len, Sz-Len),
+                    <<HPart:Len/binary, RPart/binary>> = V,
                     Q1    = queue:in_r(RPart, Q),
                     Q1Len = QLen + byte_size(RPart),
                     State1 = State#state{acc = lists:reverse([HPart | Acc]),

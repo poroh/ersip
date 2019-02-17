@@ -75,7 +75,8 @@ check_hostname(Bin) when is_binary(Bin) ->
 %% @doc Generate host specification from binary.
 -spec parse(binary()) -> ersip_parser_aux:parse_result(host()).
 parse(Binary) ->
-    {MaybeHost, Rest} = split_host(Binary),
+    Pos = find_host_end(Binary, 0),
+    <<MaybeHost:Pos/binary, Rest/binary>> = Binary,
     case do_parse(MaybeHost) of
         {ok, Host} ->
             {ok, Host, Rest};
@@ -160,12 +161,6 @@ do_parse(<<Char/utf8, _/binary>> = R) when ?is_HEXDIG(Char) ->
     end;
 do_parse(Bin) when is_binary(Bin) ->
     assume_its_hostname(Bin).
-
--spec split_host(binary()) -> {MaybeHost :: binary(), Rest :: binary()}.
-split_host(Binary) ->
-    Pos = find_host_end(Binary, 0),
-    <<Host:Pos/binary, Rest/binary>> = Binary,
-    {Host, Rest}.
 
 -spec find_host_end(binary(), non_neg_integer()) -> non_neg_integer().
 find_host_end(<<Char, Rest/binary>>, Pos) when ?VALID_HOST_CHAR(Char) ->

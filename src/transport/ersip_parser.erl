@@ -39,10 +39,6 @@
 -type options() :: #{buffer => ersip_buf:options(),
                      max_message_len => unlimited | pos_integer()
                     }.
--type int_parse_ret() :: {more_data, data()}
-                       | {continue, data()}
-                       | {{error, term()}, data()}
-                       | {{ok, ersip_msg:message()}, data()}.
 
 %%%===================================================================
 %%% API

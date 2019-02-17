@@ -42,11 +42,10 @@ parse(NameAddrBin) ->
         {DisplayName, <<"<", R/binary>>} ->
             case binary:match(R, <<">">>) of
                 {Pos, 1} ->
-                    Addr = binary:part(R, 0, Pos),
-                    RestLen = byte_size(R) - byte_size(Addr) - 1,
+                    <<Addr:Pos/binary, $>, Rest/binary>> = R,
                     case ersip_uri:parse(Addr) of
                         {ok, URI} ->
-                            {ok, {DisplayName, URI}, binary:part(R, Pos+1, RestLen)};
+                            {ok, {DisplayName, URI}, Rest};
                         Error ->
                             Error
                     end;
@@ -56,11 +55,10 @@ parse(NameAddrBin) ->
         {{display_name, []} = DN, <<R/binary>>} ->
             case binary:match(R, [<<",">>, <<";">>, <<" ">>, <<"\t">>]) of
                 {Pos, 1} ->
-                    Addr = binary:part(R, 0, Pos),
+                    <<Addr:Pos/binary, Rest/binary>> = R,
                     case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of
                         {ok, URI} ->
-                            RestLen = byte_size(R) - byte_size(Addr),
-                            {ok, {DN, URI}, binary:part(R, Pos, RestLen)};
+                            {ok, {DN, URI}, Rest};
                         Error ->
                             Error
                     end;

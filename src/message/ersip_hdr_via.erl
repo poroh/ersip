@@ -311,8 +311,7 @@ parse_sent_protocol(Binary) ->
 parse_sent_by(Binary) ->
     case binary:match(Binary, <<";">>) of
         {Pos, 1} ->
-            HostPort = binary:part(Binary, {0, Pos}),
-            Rest = binary:part(Binary, Pos, byte_size(Binary) - Pos),
+            <<HostPort:Pos/binary, Rest/binary>> = Binary,
             parse_sent_by_host_port(ersip_bin:trim_lws(HostPort), host, #{rest => Rest});
         nomatch ->
             parse_sent_by_host_port(ersip_bin:trim_lws(Binary), host, #{rest => <<>>})
@@ -323,8 +322,8 @@ parse_sent_by_host_port(<<$[, _/binary>> = IPv6RefPort, host, Acc) ->
         nomatch ->
             {error, {invalid_ipv6_reference, IPv6RefPort}};
         {Pos, 1} ->
-            HostBin = binary:part(IPv6RefPort, {0, Pos+1}),
-            Rest = binary:part(IPv6RefPort, {Pos+1, byte_size(IPv6RefPort)-Pos-1}),
+            Size = Pos+1,
+            <<HostBin:Size/binary, Rest/binary>> = IPv6RefPort,
             case ersip_host:parse(HostBin) of
                 {ok, Host, <<>>} ->
                     parse_sent_by_host_port(Rest, port, Acc#{host => Host});

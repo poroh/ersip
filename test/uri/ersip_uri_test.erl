@@ -313,6 +313,9 @@ uri_assemeble_test() ->
     reassemble_check(<<"sip:b;myparam=Param">>),
     reassemble_check(<<"sip:b;myparam">>),
     reassemble_check(<<"tel:b;myparam">>),
+    reassemble_check(<<"sip:b?a=b">>),
+    reassemble_check(<<"sip:b;a=b?a=b">>),
+    reassemble_check(<<"sip:b;a?a">>),
     ok.
 
 get_parts_test() ->

@@ -683,7 +683,9 @@ assemble_headers(Headers) ->
             [$?,
              ersip_iolist:join(
                <<"&">>,
-               lists:map(fun ({Name, Value}) ->
+               lists:map(fun ({Name, novalue}) ->
+                                 [Name];
+                             ({Name, Value}) ->
                                  [Name, $=, Value]
                          end,
                          maps:to_list(Headers)))

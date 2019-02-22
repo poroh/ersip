@@ -25,7 +25,7 @@ prop_is_assemble_parse_equal() ->
 %%%%%%%%%%%%%%%
 with_headers(Msg) ->
     ?LET({Headers1, Headers2, Via},
-         {required_headers(ersip_sipmsg:method(Msg)), optional_headers(), hdr_via()},
+         {required_headers(ersip_sipmsg:method(Msg)), optional_headers(ersip_sipmsg:method(Msg)), hdr_via()},
          begin
              SipMsg0 = lists:foldl(fun({Key, Val}, Acc) ->
                                            ersip_sipmsg:set(Key, Val, Acc)
@@ -76,28 +76,22 @@ required_headers(Method) ->
              Common ++ Specific
          end).
 
-optional_headers() ->
-    list(optional_header()).
+optional_headers(Method) ->
+    list(optional_header(Method)).
 
-optional_header() ->
-    oneof([hdr_maxforwards(), hdr_date(), hdr_allow(), hdr_expires()]).     %TODO: add all headers
-
-fromto_hd() ->
-    ?LET({DN, URI, Tag},
-         {display_name(), uri(), token()},
-         begin
-             FromTo1 = ersip_hdr_fromto:set_display_name(DN, ersip_hdr_fromto:new()),
-             FromTo2 = ersip_hdr_fromto:set_uri(URI, FromTo1),
-             ersip_hdr_fromto:set_tag({tag, Tag}, FromTo2)
-         end).
-
+optional_header(Method) ->
+    oneof([hdr_maxforwards(),
+           hdr_date(),
+           hdr_allow(),
+           hdr_expires(),
+           hdr_contact_list(Method)]).     %TODO: add all headers
 
 hdr_from() ->
     ?LET(From, fromto_hd(), {from, From}).
 hdr_to() ->
     ?LET(To, fromto_hd(), {to, To}).
 hdr_callid() ->
-    {callid, ersip_hdr_callid:make_random(10)}.
+    ?LET(ID, word(), {callid, ersip_hdr_callid:make(ID)}).
 hdr_via() ->
     ?LET({Host,   Port,   Transp},
          {host(), port(), transport()},
@@ -124,8 +118,44 @@ hdr_allow() ->
 hdr_expires() ->
     ?LET(N, range(0, 4294967295),
          {expires, ersip_hdr_expires:make(N)}).
+hdr_contact_list(Method) ->
+    Invite = ersip_method:invite(),
+    Notify = ersip_method:notify(),
+    case Method of
+        Invite -> {contact, [hdr_contact()]};
+        Notify -> {contact, [hdr_contact()]};
+        _      -> {contact, list(hdr_contact())}
+    end.
+
+
+%% it's dummy headers
+hdr_contact() ->
+    ?LET({URI, Exp, QVal, Params}, {uri(), non_neg_integer(), qval(), list(gen_param())},
+         begin
+             C1 = ersip_hdr_contact:new(URI),
+             C2 = ersip_hdr_contact:set_expires(Exp, C1),
+             C3 = ersip_hdr_contact:set_qvalue(QVal, C2),
+             lists:foldl(fun({PKey, PVal}, Acc) ->
+                                 ersip_hdr_contact:set_param(PKey, PVal, Acc)
+                         end, C3, [] %% Params %%TODO: unstable
+                        )
+         end).
+fromto_hd() ->
+    ?LET({DN, URI, Tag},
+         {display_name(), uri(), token()},
+         begin
+             FromTo1 = ersip_hdr_fromto:set_display_name(DN, ersip_hdr_fromto:new()),
+             FromTo2 = ersip_hdr_fromto:set_uri(URI, FromTo1),
+             ersip_hdr_fromto:set_tag({tag, Tag}, FromTo2)
+         end).
 
 %% ------- Complex data Gen -----------------
+gen_param() ->
+    {token(), token()}.
+
+qval() ->
+    %% ?LET(QVal, range(0, 1000), {qvalue, integer_to_binary(QVal)}).
+    {qvalue, range(0, 1000)}.
 
 uri() ->
     ?LET({Scheme,       Data      },
@@ -209,6 +239,12 @@ alpha() ->
     ?LET(A, non_empty(list(alpha_char())), iolist_to_binary(A)).
 alpha_char() ->
     ?SUCHTHAT(C, byte(), ?is_ALPHA(C)).
+
+word() ->
+    ?LET(W, non_empty(list(word_char())), iolist_to_binary(W)).
+
+word_char() ->
+    oneof([alphanum_char(),<<$->>,<<$.>>,<<$!>>,<<$%>>,<<$*>>,<<$_>>,<<$+>>,<<$`>>,<<$'>>,<<$~>>,<<$(>>,<<$)>>,<<$<>>,<<$>>>,<<$:>>,<<$\\>>,<<$">>,<<$/>>,<<$[>>,<<$]>>,<<$?>>,<<${>>,<<$}>>]).
 
 maybe(Gen) ->
     oneof([undefined, Gen]).

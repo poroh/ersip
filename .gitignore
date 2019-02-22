@@ -14,3 +14,4 @@ tags
 .rebar3
 ebin
 .DS_Store
+*~

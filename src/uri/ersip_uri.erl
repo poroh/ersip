@@ -694,7 +694,9 @@ assemble_headers(Headers) ->
 
 -spec raw_param({uri_param_name(), term()}) -> {binary(), binary()} | binary().
 raw_param({transport, Value}) -> {<<"transport">>, ersip_transport:assemble_bin(Value)};
-raw_param({maddr, Host})      -> {<<"maddr">>,    ersip_host:assemble_bin(Host)};
+raw_param({method, Value})
+  when is_binary(Value)       -> {<<"method">>, Value};
+raw_param({maddr, Host})      -> {<<"maddr">>, ersip_host:assemble_bin(Host)};
 raw_param({lr, _})            -> <<"lr">>;
 raw_param({user, ip})         -> {<<"user">>, <<"ip">>};
 raw_param({user, phone})      -> {<<"user">>, <<"phone">>};

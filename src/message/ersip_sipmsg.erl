@@ -61,6 +61,7 @@
 
          %% SIP-specific
          new_request/2,
+         new_reply/3,
          reply/2,
          dialog_id/2,
 

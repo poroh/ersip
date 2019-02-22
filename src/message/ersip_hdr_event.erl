@@ -9,7 +9,9 @@
 
 -module(ersip_hdr_event).
 
--export([type/1,
+-export([new/1,
+         new/2,
+         type/1,
          type_bin/1,
          id/2,
          param/2,
@@ -40,6 +42,17 @@
 %%===================================================================
 %% API
 %%===================================================================
+
+-spec new(binary()) -> event().
+-spec new(binary(), id()) -> event().
+new(TypeBin) ->
+    #event{type     = decode_type(TypeBin),
+           typebin  = TypeBin,
+           hparams  = ersip_hparams:new()}.
+new(TypeBin, Id) ->
+    #event{type     = decode_type(TypeBin),
+           typebin  = TypeBin,
+           hparams  = ersip_hparams:set(id, Id, <<"id">>, Id, ersip_hparams:new())}.
 
 -spec type(event()) -> type().
 type(#event{type = T}) ->

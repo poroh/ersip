@@ -212,7 +212,12 @@ do_parse_contact_params(Bin) ->
              | {invalid_qvalue, binary()}.
 parse_param(expires, Value) ->
     try
-        {ok, binary_to_integer(Value)}
+        case binary_to_integer(Value) of
+            V when V >= 0 ->
+                {ok, V};
+            _ ->
+                {error, {invalid_expires, Value}}
+        end
     catch
         error:badarg ->
             {error, {invalid_expires, Value}}

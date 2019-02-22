@@ -36,6 +36,7 @@ parse_error_test() ->
     parse_error(<<"<sip:a@b>;q=a">>),
     parse_error(<<"<sip:a@b>;q=2">>),
     parse_error(<<"<sip:a@b>;expires=a">>),
+    parse_error(<<"C <sip:a@b>;expires=-1">>),
     parse_error(<<"A <sip:a@b>;q=a">>),
     parse_error(<<"B <sip:a@b>;q=2">>),
     parse_error(<<"C <sip:a@b>;expires=a">>),

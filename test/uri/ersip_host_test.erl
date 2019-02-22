@@ -41,8 +41,8 @@ hostname_parse_test() ->
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"-example.com">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example-.com">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"--example.com">>)),
-    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example--.com">>))
-        .
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example--.com">>)),
+    ok.
 
 host_assemble_test() ->
     check_reassemble(<<"127.0.0.1">>),
@@ -50,6 +50,10 @@ host_assemble_test() ->
     check_reassemble(<<"example.com">>),
     check_reassemble(<<"example.com.">>),
     check_reassemble(<<"x.com">>),
+    check_reassemble(<<"[FF02:1:EDF5:1241:F919:AFF1:97C:97D2]">>),
+    check_reassemble(<<"[::AAAA]">>),
+    check_reassemble(<<"[AAAA::AAAA]">>),
+    check_reassemble(<<"[AAAA::1:0:AAAA]">>),
     ok.
 
 hostname_is_host_test() ->

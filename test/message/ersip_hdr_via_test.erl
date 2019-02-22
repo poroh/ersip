@@ -210,6 +210,7 @@ assemle_test() ->
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;some">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com:5060">>),
     check_reassemble(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+    check_reassemble(<<"SIP/2.0/WS [FF02:0:EDF5:1241:F919:AFF1:97C:97D2]:12207">>),
     ok.
 
 set_param_received_ipv4_binary_test() ->

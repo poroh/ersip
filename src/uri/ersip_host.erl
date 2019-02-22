@@ -109,7 +109,7 @@ assemble({hostname, Bin}) ->
 assemble({ipv4, IpAddr}) ->
     inet:ntoa(IpAddr);
 assemble({ipv6, IpAddr}) ->
-    [$[, inet:ntoa(IpAddr), $]].
+    [$[, assemble_ip6(IpAddr), $]].
 
 -spec assemble_bin(host()) -> binary().
 assemble_bin(Host) ->
@@ -287,3 +287,28 @@ assume_its_hostname(Bin) ->
             {error, {invalid_host, Bin}}
     end.
 
+-spec assemble_ip6(inet:ip6_address()) -> iolist().
+assemble_ip6({A0, A1, A2, A3, A4, A5, A6, A7}) ->
+    {Head, Tail, State} = split_ip6([A0, A1, A2, A3, A4, A5, A6, A7], {[], [], head}),
+    case State of
+        head ->
+            ersip_iolist:join($:, [assemble_ip6_hexpart(X) || X <- Head]);
+        _ ->
+            [ersip_iolist:join($:, [assemble_ip6_hexpart(X) || X <- Head]),
+             "::", ersip_iolist:join($:, [assemble_ip6_hexpart(X) || X <- Tail])]
+    end.
+
+-spec split_ip6([0..65535], Acc) -> Acc when
+      Acc :: {[0..65535],[0..65535], head | mid0 | tail}.
+split_ip6([], {H, T, State}) ->
+    {lists:reverse(H), lists:reverse(T), State};
+split_ip6([0 | Rest], {H, [], head}) -> split_ip6(Rest, {H,       [], mid0});
+split_ip6([X | Rest], {H, [], head}) -> split_ip6(Rest, {[X | H], [], head});
+split_ip6([0 | Rest], {H, [], mid0}) -> split_ip6(Rest, {H,       [], mid0});
+split_ip6([X | Rest], {H, [], mid0}) -> split_ip6(Rest, {H,      [X], tail});
+split_ip6([X | Rest], {H,  T, tail}) -> split_ip6(Rest, {H,  [X | T], tail}).
+
+
+-spec assemble_ip6_hexpart(0..65536) -> string().
+assemble_ip6_hexpart(X) ->
+    io_lib:format("~.16.0B", [X]).

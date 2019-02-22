@@ -415,4 +415,10 @@ header_descr(event) ->
            may_appear   = once,
            parse_fun    = fun ersip_hdr_event:parse/1,
            assemble_fun = fun ersip_hdr_event:build/2
+          };
+header_descr(refer_to) ->
+    #descr{required     = {requests, [ersip_method:refer()]},
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_refer_to:parse/1,
+           assemble_fun = fun ersip_hdr_refer_to:build/2
           }.

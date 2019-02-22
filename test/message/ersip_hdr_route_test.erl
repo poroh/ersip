@@ -3,7 +3,7 @@
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
-%% iolist tests
+%% Route header test
 %%
 
 -module(ersip_hdr_route_test).

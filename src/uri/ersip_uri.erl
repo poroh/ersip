@@ -633,7 +633,7 @@ split_params(Bin) ->
 
 -spec uri_header_validator(binary(), binary()) -> {ok, {binary(), binary()}}.
 uri_header_validator(Key, Value) ->
-    {ok, {ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Key)), Value}}.
+    {ok, {Key, Value}}.
 
 
 assemble_scheme({scheme, sip}) ->

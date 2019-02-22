@@ -207,8 +207,8 @@ uri_test() ->
     ?assertEqual(
        {ok, #uri{data = #sip_uri_data{
                host = {hostname, <<"b">>},
-               headers = #{<<"some">> => <<"1">>,
-                           <<"another">> => <<"2">>}}}},
+               headers = #{<<"Some">> => <<"1">>,
+                           <<"Another">> => <<"2">>}}}},
        ersip_uri:parse(<<"sip:b?Some=1&Another=2">>)),
 
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"a@b">>)),

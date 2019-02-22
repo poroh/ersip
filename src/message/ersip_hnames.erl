@@ -106,7 +106,8 @@ all_known_headers() ->
      proxy_authenticate,
      proxy_authorization,
      subscription_state,
-     event
+     event,
+     refer_to
     ].
 
 %%%===================================================================
@@ -246,6 +247,7 @@ known_header_key_map(authorization      ) -> ?ERSIPH_AUTHORIZATION;
 known_header_key_map(proxy_authenticate ) -> ?ERSIPH_PROXY_AUTHENTICATE;
 known_header_key_map(proxy_authorization) -> ?ERSIPH_PROXY_AUTHORIZATION;
 known_header_key_map(subscription_state ) -> ?ERSIPH_SUBSCRIPTION_STATE;
+known_header_key_map(refer_to           ) -> ?ERSIPH_REFER_TO;
 known_header_key_map(event              ) -> ?ERSIPH_EVENT.
 
 -spec known_header_form_map(header_key()) -> {ok, known_header()} | not_found.
@@ -272,6 +274,7 @@ known_header_form_map(?ERSIPH_PROXY_AUTHENTICATE)  -> {ok, proxy_authenticate};
 known_header_form_map(?ERSIPH_PROXY_AUTHORIZATION) -> {ok, proxy_authorization};
 known_header_form_map(?ERSIPH_SUBSCRIPTION_STATE)  -> {ok, subscription_state};
 known_header_form_map(?ERSIPH_EVENT)               -> {ok, event};
+known_header_form_map(?ERSIPH_REFER_TO)            -> {ok, refer_to};
 known_header_form_map({hdr_key, _}) -> not_found.
 
 %% Most common names mapping to keys. This improves performance in

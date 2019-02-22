@@ -80,7 +80,7 @@ optional_headers() ->
     list(optional_header()).
 
 optional_header() ->
-    oneof([hdr_maxforwards(), hdr_date(), hdr_allow()]).     %TODO: add all headers
+    oneof([hdr_maxforwards(), hdr_date(), hdr_allow(), hdr_expires()]).     %TODO: add all headers
 
 fromto_hd() ->
     ?LET({DN, URI, Tag},
@@ -121,6 +121,9 @@ hdr_date() ->
 hdr_allow() ->
     ?LET(Methods, non_empty(list(method())),
          {allow, ersip_hdr_allow:from_list(Methods)}).
+hdr_expires() ->
+    ?LET(N, range(0, 4294967295),
+         {expires, ersip_hdr_expires:make(N)}).
 
 %% ------- Complex data Gen -----------------
 

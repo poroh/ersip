@@ -51,6 +51,7 @@ parse_error_test() ->
     parse_error(<<"-0">>),
     parse_error(<<"0.abc">>),
     parse_error(<<"1.001">>),
+    parse_error(<<"0.-1">>),
     ok.
 
 make_error_test() ->

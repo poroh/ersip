@@ -75,7 +75,12 @@ parse_impl(<<"1.", AllZeroes/binary>> = QVal) ->
 parse_impl(<<"0.", Rest/binary>> = QVal) when byte_size(Rest) =< 3 ->
     ValueBin = add_zeroes(Rest),
     try
-        {ok, {qvalue, binary_to_integer(ValueBin)}}
+        case binary_to_integer(ValueBin) of
+            V when V >= 0 ->
+                {ok, {qvalue, V}};
+            _ ->
+                {error, {invalid_qvalue, QVal}}
+        end
     catch
         error:badarg ->
             {error, {invalid_qvalue, QVal}}

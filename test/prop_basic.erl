@@ -3,7 +3,9 @@
 -include("ersip_sip_abnf.hrl").
 -include("ersip_uri.hrl").
 -include("ersip_headers.hrl").
--compile([export_all]).
+-compile([export_all,
+          {no_auto_import,[date/0, time/0]}]).
+
 
 %%%%%%%%%%%%%%%%%%
 %%% Properties %%%
@@ -78,7 +80,7 @@ optional_headers() ->
     list(optional_header()).
 
 optional_header() ->
-    oneof([hdr_maxforwards()]).     %TODO: add all headers
+    oneof([hdr_maxforwards(), hdr_date()]).     %TODO: add all headers
 
 fromto_hd() ->
     ?LET({DN, URI, Tag},
@@ -113,8 +115,12 @@ hdr_maxforwards() ->
 hdr_event() ->
     ?LET({Event, Id}, {alphanum(), alphanum()},
          {event, ersip_hdr_event:new(Event, Id)}).
+hdr_date() ->
+    ?LET({Date, Time}, {date(), time()},
+         {date, ersip_hdr_date:make(Date, Time)}).
 
 %% ------- Complex data Gen -----------------
+
 uri() ->
     ?LET({Scheme,       Data      },
          {uri_scheme(), uri_data()},
@@ -145,12 +151,6 @@ address() ->
 
 hostname() ->
     ?LET({Host, Domain}, {alpha(), alpha()}, {hostname, <<Host/binary, $., Domain/binary>>}).
-
-port() ->
-    range(1, 65535).
-
-maybe(Gen) ->
-    oneof([undefined, Gen]).
 
 ip4_address() ->
     {ipv4, {range(0,255), range(0,255), range(0,255), range(0,255)}}.
@@ -203,3 +203,17 @@ alpha() ->
     ?LET(A, non_empty(list(alpha_char())), iolist_to_binary(A)).
 alpha_char() ->
     ?SUCHTHAT(C, byte(), ?is_ALPHA(C)).
+
+maybe(Gen) ->
+    oneof([undefined, Gen]).
+
+port() ->
+    range(1, 65535).
+
+%% http://erlang.org/doc/man/calendar.html#type-date
+date() ->
+    ?SUCHTHAT(D, {non_neg_integer(), range(1,12), range(1,31)}, calendar:valid_date(D)).
+
+%% http://erlang.org/doc/man/calendar.html#type-time
+time() ->
+    {range(0,23), range(0,59), range(0,59)}.

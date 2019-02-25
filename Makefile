@@ -9,7 +9,7 @@
 SHELL=/bin/bash
 
 tests:
-	export ERL_FLAGS=$(ERL_FLAGS) ; rebar3 do eunit -v --cover, proper -n 10000 --constraint_tries 500 -c, cover | sed 's/^_build\/test\/lib\/ersip\///' ; exit "$${PIPESTATUS[0]}"
+	export ERL_FLAGS=$(ERL_FLAGS) ; rebar3 do eunit -v --cover, proper -n 5000 --constraint_tries 200 --max_size 15 -c, cover | sed 's/^_build\/test\/lib\/ersip\///' ; exit "$${PIPESTATUS[0]}"
 
 proper:
-	rebar3 do proper -n 100000 --constraint_tries 500
+	rebar3 do proper -n 10000 --constraint_tries 200

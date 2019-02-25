@@ -15,7 +15,8 @@
          make/1,
          parse/1,
          build/2,
-         make_route/1
+         make_route/1,
+         make_route/2
         ]).
 
 -export_type([route/0]).
@@ -108,7 +109,9 @@ make_route(Bin) when is_binary(Bin) ->
             error(Error)
     end;
 make_route(URI) ->
-    #route{display_name = {display_name, []}, uri = URI}.
+    make_route(URI, {display_name, []}).
+make_route(URI, DN) ->
+    #route{display_name = DN, uri = URI}.
 
 %%%===================================================================
 %%% Helpers

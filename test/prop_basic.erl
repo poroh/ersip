@@ -89,7 +89,8 @@ optional_header(Method) ->
            hdr_allow(),
            hdr_expires(),
            hdr_contact_list(Method),
-           hdr_content_type()]).
+           hdr_content_type(),
+           hdr_route_set()]).
 
 hdr_refer_to() ->
     ?LET({URI, DN, Params},
@@ -139,9 +140,19 @@ hdr_content_type() ->
     ?LET({Type, SubType, Params},
          {token(), token(), list(gen_param())},
          {content_type, ersip_hdr_content_type:new(ersip_hdr_content_type:make_mime_type(Type, SubType), Params)}).
+hdr_route_set() ->
+    ?LET(Routes, proper_types:resize(5, list(hdr_route())),
+         {route, ersip_route_set:from_list(Routes)}).
 
 
 %% it's dummy headers
+hdr_route() ->
+    ?LET({URI, DN, Params},
+         {uri(), display_name(), list(gen_param())},
+         lists:foldl(fun({Key, Value}, Acc) ->
+                             ersip_hdr_route:set_param(Key, Value, Acc)
+                     end, ersip_hdr_route:make_route(URI, DN), Params)).
+
 hdr_contact() ->
     ?LET({URI, Exp, QVal, Params},
          {uri(), non_neg_integer(), qval(), list(?SUCHTHAT({Key, _}, gen_param(), case Key of

@@ -9,6 +9,7 @@
 -module(ersip_route_set).
 
 -export([new/0,
+         from_list/1,
          is_empty/1,
          add_first/2,
          add_last/2,
@@ -36,6 +37,10 @@
 -spec new() -> route_set().
 new() ->
     {route_set, []}.
+
+-spec from_list(list(route())) -> route_set().
+from_list(Routes) when is_list(Routes) ->
+    {route_set, Routes}.
 
 -spec is_empty(route_set()) -> boolean().
 is_empty({route_set, []}) ->

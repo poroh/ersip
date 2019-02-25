@@ -88,7 +88,8 @@ optional_header(Method) ->
            hdr_date(),
            hdr_allow(),
            hdr_expires(),
-           hdr_contact_list(Method)]).     %TODO: add all headers
+           hdr_contact_list(Method),
+           hdr_content_type()]).
 
 hdr_refer_to() ->
     ?LET({URI, DN, Params},
@@ -134,6 +135,10 @@ hdr_contact_list(Method) ->
         Notify -> {contact, [hdr_contact()]};
         _      -> {contact, proper_types:resize(5, list(hdr_contact()))} %up to 5 Contact's
     end.
+hdr_content_type() ->
+    ?LET({Type, SubType, Params},
+         {token(), token(), list(gen_param())},
+         {content_type, ersip_hdr_content_type:new(ersip_hdr_content_type:make_mime_type(Type, SubType), Params)}).
 
 
 %% it's dummy headers

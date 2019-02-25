@@ -8,7 +8,10 @@
 
 -module(ersip_hdr_content_type).
 
--export([mime_type/1,
+-export([new/1,
+         new/2,
+         make_mime_type/2,
+         mime_type/1,
          params/1,
          make/1,
          parse/1,
@@ -17,7 +20,7 @@
         ]).
 
 -export_type([content_type/0,
-              mime_type/0 
+              mime_type/0
              ]).
 
 %%%===================================================================
@@ -36,13 +39,26 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+-spec new(mime_type()) -> content_type().
+new(MimeType) ->
+    new(MimeType, []).
+
+-spec new(mime_type(), params()) -> content_type().
+new(MimeType, Params) ->
+    #content_type{type = MimeType,
+                  params = Params}.
+
+
+-spec make_mime_type(binary(), binary()) -> mime_type().
+make_mime_type(Type, SubType) ->
+    {mime, Type, SubType}.
 
 -spec mime_type(content_type()) -> mime_type().
-mime_type(#content_type{type = T}) -> 
+mime_type(#content_type{type = T}) ->
     T.
 
 -spec params(content_type()) -> params().
-params(#content_type{params = P}) -> 
+params(#content_type{params = P}) ->
     P.
 
 -spec make(ersip_hdr:header() | binary()) -> content_type().

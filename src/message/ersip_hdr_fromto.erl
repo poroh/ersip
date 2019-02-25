@@ -9,6 +9,8 @@
 -module(ersip_hdr_fromto).
 
 -export([new/0,
+         new/1,
+         new/2,
          make/1,
          display_name/1,
          set_display_name/2,

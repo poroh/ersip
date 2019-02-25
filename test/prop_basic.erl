@@ -64,13 +64,17 @@ method() ->
 
 %% ---- HEADERS Gen ----
 required_headers(Method) ->
-    ?LET({From, To, CallId, CSeq, Event},
-         {hdr_from(), hdr_to(), hdr_callid(), hdr_cseq(Method), hdr_event()},
+    ?LET({From, To, CallId, CSeq, Event, ReferTo},
+         {hdr_from(), hdr_to(), hdr_callid(), hdr_cseq(Method), hdr_event(), hdr_refer_to()},
          begin
              Common = [From, To, CallId, CSeq],
-             Specific = case Method == ersip_method:subscribe() orelse
-                             Method == ersip_method:notify() of
-                            true -> [Event];
+             Subscribe = ersip_method:subscribe(),
+             Notify = ersip_method:notify(),
+             Refer = ersip_method:refer(),
+             Specific = case Method of
+                            Subscribe -> [Event];
+                            Notify -> [Event];
+                            Refer  -> [ReferTo];
                             _    -> []
                         end,
              Common ++ Specific
@@ -86,6 +90,10 @@ optional_header(Method) ->
            hdr_expires(),
            hdr_contact_list(Method)]).     %TODO: add all headers
 
+hdr_refer_to() ->
+    ?LET({URI, DN, Params},
+         {uri(), display_name(), hparams()},
+         {refer_to, ersip_hdr_refer_to:new(URI, DN, Params)}).
 hdr_from() ->
     ?LET(From, fromto_hd(), {from, From}).
 hdr_to() ->
@@ -150,15 +158,19 @@ hdr_contact() ->
 fromto_hd() ->
     ?LET({DN, URI, Tag},
          {display_name(), uri(), token()},
-         begin
-             FromTo1 = ersip_hdr_fromto:set_display_name(DN, ersip_hdr_fromto:new()),
-             FromTo2 = ersip_hdr_fromto:set_uri(URI, FromTo1),
-             ersip_hdr_fromto:set_tag({tag, Tag}, FromTo2)
-         end).
+         ersip_hdr_fromto:set_tag({tag, Tag}, ersip_hdr_fromto:new(URI, DN))).
 
 %% ------- Complex data Gen -----------------
 gen_param() ->
     {token(), token()}.
+
+hparams() ->
+    ?LET(Params,
+         list(gen_param()),
+         lists:foldl(fun({PKey, PVal}, Acc) ->
+                             ersip_hparams:set_raw(PKey, PVal, Acc)
+                     end, ersip_hparams:new(), Params)).
+
 
 qval() ->
     %% ?LET(QVal, range(0, 1000), {qvalue, integer_to_binary(QVal)}).

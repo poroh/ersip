@@ -11,6 +11,8 @@
 -module(ersip_hdr_refer_to).
 
 -export([new/1,
+         new/2,
+         new/3,
          uri/1,
          parse/1,
          make/1,
@@ -34,9 +36,13 @@
 
 -spec new(ersip_uri:uri()) -> refer_to().
 new(URI) ->
-    #refer_to{display_name = {display_name, []},
+    new(URI, {display_name, []}).
+new(URI, DN) ->
+    new(URI, DN, ersip_hparams:new()).
+new(URI, DN, HParams) ->
+    #refer_to{display_name = DN,
               uri = URI,
-              hparams = ersip_hparams:new()}.
+              hparams = HParams}.
 
 -spec uri(refer_to()) -> ersip_uri:uri().
 uri(#refer_to{uri = URI}) ->
@@ -128,4 +134,3 @@ do_parse_refer_to_params(Bin) ->
         {error, _} = Error ->
             Error
     end.
-

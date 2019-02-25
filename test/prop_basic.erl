@@ -77,7 +77,7 @@ required_headers(Method) ->
          end).
 
 optional_headers(Method) ->
-    list(optional_header(Method)).
+    proper_types:resize(10, list(optional_header(Method))).
 
 optional_header(Method) ->
     oneof([hdr_maxforwards(),
@@ -124,21 +124,28 @@ hdr_contact_list(Method) ->
     case Method of
         Invite -> {contact, [hdr_contact()]};
         Notify -> {contact, [hdr_contact()]};
-        _      -> {contact, list(hdr_contact())}
+        _      -> {contact, proper_types:resize(5, list(hdr_contact()))} %up to 5 Contact's
     end.
 
 
 %% it's dummy headers
 hdr_contact() ->
-    ?LET({URI, Exp, QVal, Params}, {uri(), non_neg_integer(), qval(), list(gen_param())},
+    ?LET({URI, Exp, QVal, Params},
+         {uri(), non_neg_integer(), qval(), list(?SUCHTHAT({Key, _}, gen_param(), case Key of
+                                                                                      <<"q">> -> false;
+                                                                                      <<"Q">> -> false;
+                                                                                      <<"Expires">> -> false;
+                                                                                      <<"expires">> -> false;
+                                                                                      <<"EXPIRES">> -> false;
+                                                                                      _ -> true
+                                                                                  end))},
          begin
              C1 = ersip_hdr_contact:new(URI),
              C2 = ersip_hdr_contact:set_expires(Exp, C1),
              C3 = ersip_hdr_contact:set_qvalue(QVal, C2),
              lists:foldl(fun({PKey, PVal}, Acc) ->
                                  ersip_hdr_contact:set_param(PKey, PVal, Acc)
-                         end, C3, [] %% Params %%TODO: unstable
-                        )
+                         end, C3, Params)
          end).
 fromto_hd() ->
     ?LET({DN, URI, Tag},

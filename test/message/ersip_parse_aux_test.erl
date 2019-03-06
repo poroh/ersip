@@ -44,6 +44,7 @@ quoted_string_test() ->
                    <<"\"", 16#f0, 16#90, 16#8d, "\"">>,
                    <<"\"", 16#f0, 16#90, "\"">>,
                    <<"\"", 16#f0, "\"">>,
+                   <<"\"\\", 16#f1, "\"">>,
                    <<"\"", 16#c2>>,
                    <<"\"", 16#e2, 16#82>>,
                    <<"\"", 16#e2>>,
@@ -52,6 +53,18 @@ quoted_string_test() ->
                    <<"\"", 16#f0>>
                   ]),
     qs_check_ok(<<"\"aaa\"">>, <<"bcd">>, <<"\"aaa\"bcd">>).
+
+unquoted_string_test() ->
+    ?assertEqual({ok, <<"aaa">>, <<>>},          ersip_parser_aux:unquoted_string(<<"\"aaa\"">>)),
+    ?assertEqual({ok, <<"aaa">>, <<"bcd">>},     ersip_parser_aux:unquoted_string(<<"\"aaa\"bcd">>)),
+    ?assertEqual({ok, <<"a\"a">>, <<"bcd">>},    ersip_parser_aux:unquoted_string(<<"\"a", "\\", "\"" "a\"bcd">>)),
+    ?assertEqual({ok, <<16#c2, 16#a2>>,  <<>>},  ersip_parser_aux:unquoted_string(<<"\"", 16#c2, 16#a2, "\"">>)),
+    ?assertMatch({error, {invalid_quoted_string, _}}, ersip_parser_aux:unquoted_string(<<"abcd">>)),
+    ?assertMatch({error, {invalid_quoted_string, _}}, ersip_parser_aux:unquoted_string(<<"">>)),
+    ?assertMatch({error, {invalid_quoted_string, _}}, ersip_parser_aux:unquoted_string(<<"\"", 16#f0>>)),
+    ?assertMatch({error, {invalid_quoted_string, _}}, ersip_parser_aux:unquoted_string(<<"\"", 16#f0, "\"">>)),
+    ?assertMatch({error, {invalid_quoted_string, _}}, ersip_parser_aux:unquoted_string(<<"\"\\", 16#f1, "\"">>)),
+    ok.
 
 token_list_test() ->
     ?assertEqual({ok, [<<"a">>, <<"b">>], <<>>}, ersip_parser_aux:token_list(<<"a b">>, lws)),

@@ -10,6 +10,7 @@
 -include("ersip_sip_abnf.hrl").
 
 -export([quoted_string/1,
+         unquoted_string/1,
          token_list/2,
          check_token/1,
          parse_all/2,
@@ -73,6 +74,11 @@ quoted_string(Quoted) ->
         error ->
             error
     end.
+
+-spec unquoted_string(binary()) -> parse_result(binary()).
+unquoted_string(Quoted) ->
+    Trimmed = ersip_bin:trim_head_lws(Quoted),
+    unquoted_string_impl(Trimmed, start, []).
 
 %% @doc Parse token list separated with SEP
 -spec token_list(binary(), SEP) -> {ok, [Token, ...], Rest} | error when
@@ -252,7 +258,34 @@ quoted_string_impl(B, raw) ->
             error
     end;
 quoted_string_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F ->
-    quoted_string_impl(R, raw).
+    quoted_string_impl(R, raw);
+quoted_string_impl(<<Byte:8, _/binary>>, escaped) ->
+    error.
+
+-spec unquoted_string_impl(binary(), start | raw | escaped, [binary()]) -> parse_result(binary()).
+unquoted_string_impl(<<>>, _, _) ->
+    {error, {invalid_quoted_string, unexpected_end}};
+unquoted_string_impl(<<"\"", R/binary>>, start, Acc) ->
+    unquoted_string_impl(R, raw, Acc);
+unquoted_string_impl(_, start, _) ->
+    {error, {invalid_quoted_string, no_quote}};
+unquoted_string_impl(<<"\"", R/binary>>, raw, Acc) ->
+    {ok, iolist_to_binary(lists:reverse(Acc)), R};
+unquoted_string_impl(<<"\\", R/binary>>, raw, Acc) ->
+    unquoted_string_impl(R, escaped, Acc);
+unquoted_string_impl(B, raw, Acc) ->
+    case utf8_len(B) of
+        {ok, Len} ->
+            <<Char:Len/binary, Rest/binary>> = B,
+            unquoted_string_impl(Rest, raw, [Char | Acc]);
+        error ->
+            <<Byte:8, _/binary>> = B,
+            {error, {invalid_quoted_string, {bad_char, Byte}}}
+    end;
+unquoted_string_impl(<<Byte:8, R/binary>>, escaped, Acc) when Byte =< 16#7F ->
+    unquoted_string_impl(R, raw, [Byte | Acc]);
+unquoted_string_impl(<<Byte:8, _/binary>>, escaped, _) ->
+    {error, {invalid_quoted_string, {bad_char, Byte}}}.
 
 %% @private
 %% @doc get length of the first UTF8 character in binary

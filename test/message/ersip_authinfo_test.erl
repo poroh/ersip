@@ -37,6 +37,15 @@ make_error_test() ->
     ?assertError({parse_error, _}, ersip_authinfo:make(<<"Digest">>)),
     ok.
 
+raw_param_test() ->
+    AuthInfo = ersip_authinfo:make(<<"Digest Realm=\"testrealm@host.com\", qop=\"auth,auth-int\",",
+                                     " nonce=\"dcd98b7102dd2f0e8b11d0f600bfb0c093\", opaque=\"5ccc069c403ebaf9f0171e9517f40e41\"">>),
+    ?assertEqual({ok, <<"\"testrealm@host.com\"">>}, ersip_authinfo:raw_param(<<"realm">>, AuthInfo)),
+    ?assertEqual({ok, <<"\"auth,auth-int\"">>}, ersip_authinfo:raw_param(<<"QOP">>, AuthInfo)),
+    ?assertEqual({ok, <<"\"5ccc069c403ebaf9f0171e9517f40e41\"">>}, ersip_authinfo:raw_param(<<"opaque">>, AuthInfo)),
+    ?assertEqual(undefined, ersip_authinfo:raw_param(<<"username">>, AuthInfo)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

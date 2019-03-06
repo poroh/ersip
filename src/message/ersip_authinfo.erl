@@ -10,6 +10,7 @@
 -module(ersip_authinfo).
 
 -export([type/1,
+         raw_param/2,
          make/1,
          parse/1,
          assemble/1,
@@ -33,6 +34,15 @@
 -spec type(authinfo()) -> binary().
 type(#authinfo{type = T}) ->
     ersip_bin:to_lower(T).
+
+-spec raw_param(binary(), authinfo()) -> {ok, binary()} | undefined.
+raw_param(Name, #authinfo{params = ParamList}) ->
+    LName = ersip_bin:to_lower(Name),
+    AllValues = [Value|| {Key, Value} <- ParamList, ersip_bin:to_lower(Key) == LName],
+    case AllValues of
+        [V | _] -> {ok, V};
+        [] -> undefined
+    end.
 
 -spec make(binary()) -> authinfo().
 make(Bin) ->

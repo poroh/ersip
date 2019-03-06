@@ -24,6 +24,7 @@
          ttl/1,
          set_ttl/2,
          raw_param/2,
+         all_raw_params/1,
          set_param/3,
          sent_by/1,
          sent_by_key/1,
@@ -115,6 +116,10 @@ sent_protocol(#via{sent_protocol = Sp}) ->
 -spec raw_param(ParamName :: binary(), via()) -> {ok, ParamValue :: binary()} | not_found.
 raw_param(ParamName, #via{hparams = HParams}) when is_binary(ParamName) ->
     ersip_hparams:find_raw(ParamName, HParams).
+
+-spec all_raw_params(via()) -> [{binary(), binary()} | binary()].
+all_raw_params(#via{hparams = HParams}) ->
+    ersip_hparams:to_raw_list(HParams).
 
 -spec set_param(ParamName, Value, via()) -> via() when
       ParamName :: known_via_params() | binary(),

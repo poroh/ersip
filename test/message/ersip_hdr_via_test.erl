@@ -310,6 +310,14 @@ set_branch_test() ->
     ?assertEqual({ok, ersip_branch:make(<<"branch_v2">>)}, ersip_hdr_via:branch(Via1)),
     ok.
 
+all_raw_params_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;Branch=branch_v;ttl=200;x;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    ?assertEqual([{<<"Branch">>, <<"branch_v">>},
+                  {<<"ttl">>, <<"200">>},
+                  <<"x">>,
+                  {<<"maddr">>, <<"x.com">>}], ersip_hdr_via:all_raw_params(Via)),
+    ok.
 
 %%%===================================================================
 %%% Implementation

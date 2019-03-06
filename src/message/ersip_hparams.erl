@@ -21,6 +21,7 @@
          assemble/1,
          assemble_bin/1,
          to_list/1,
+         to_raw_list/1,
          find/2,
          find_raw/2,
          set_raw/3,
@@ -115,6 +116,18 @@ to_list(#hparams{} = HParams) ->
              error ->
                  {_, Value} = maps:get(LowerKey, HParams#hparams.orig),
                  {LowerKey, Value}
+         end
+     end || LowerKey <- HParams#hparams.order].
+
+-spec to_raw_list(hparams()) -> [{binary(), binary()} | binary()].
+to_raw_list(#hparams{} = HParams) ->
+    [begin
+         {Key, Value} = maps:get(LowerKey, HParams#hparams.orig),
+         case Value of
+             <<>> ->
+                 Key;
+             _ ->
+                 {Key, Value}
          end
      end || LowerKey <- HParams#hparams.order].
 

@@ -81,6 +81,13 @@ uri_test() ->
     ?assertEqual(AliceURI, ersip_hdr_contact:uri(Alice)),
     ok.
 
+display_name_test() ->
+    Alice = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
+    ?assertEqual({display_name, [<<"Alice">>]}, ersip_hdr_contact:display_name(Alice)),
+    AliceQ = ersip_hdr_contact:make(<<"\"Alice and Bob\" <sip:alice_and_bob@atlanta.com>">>),
+    ?assertEqual({display_name, <<"\"Alice and Bob\"">>}, ersip_hdr_contact:display_name(AliceQ)),
+    ok.
+
 set_param_test() ->
     Alice = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
     AliceWExpires = ersip_hdr_contact:set_param(<<"expires">>, <<"30">>, Alice),

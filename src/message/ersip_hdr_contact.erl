@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -10,6 +10,7 @@
 
 -export([new/1,
          uri/1,
+         display_name/1,
          expires/2,
          set_expires/2,
          qvalue/2,
@@ -56,6 +57,10 @@ new(URI) ->
 -spec uri(contact()) -> ersip_uri:uri().
 uri(#contact{uri = URI}) ->
     URI.
+
+-spec display_name(contact()) -> undefined | ersip_nameaddr:display_name().
+display_name(#contact{display_name = DN}) ->
+    DN.
 
 -spec expires(contact(), Default :: non_neg_integer()) -> non_neg_integer().
 expires(#contact{hparams = HParams}, Default) ->

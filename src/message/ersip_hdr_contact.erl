@@ -17,6 +17,7 @@
          set_qvalue/2,
          param/2,
          set_param/3,
+         all_raw_params/1,
          make/1,
          parse/1,
          parse_hdr/1,
@@ -107,6 +108,10 @@ set_param(PName, PValue, #contact{hparams = HParams} = Contact)
         {error, Reason} ->
             error(Reason)
     end.
+
+-spec all_raw_params(contact()) -> [{binary(), binary()} | binary()].
+all_raw_params(#contact{hparams = HParams}) ->
+    ersip_hparams:to_raw_list(HParams).
 
 -spec make(binary()) -> contact().
 make(Bin) when is_binary(Bin) ->

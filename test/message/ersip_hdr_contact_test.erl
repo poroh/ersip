@@ -88,6 +88,15 @@ display_name_test() ->
     ?assertEqual({display_name, <<"\"Alice and Bob\"">>}, ersip_hdr_contact:display_name(AliceQ)),
     ok.
 
+all_raw_params_test() ->
+    ?assertEqual([{<<"expires">>, <<"0">>}],                     all_raw_params(<<"<sip:a@b>;expires=0">>)),
+    ?assertEqual([{<<"q">>, <<"1">>}, {<<"expires">>, <<"0">>}], all_raw_params(<<"<sip:a@b>;q=1;expires=0">>)),
+    ?assertEqual([{<<"Q">>, <<"1">>}, {<<"ExPiRes">>, <<"0">>}, {<<"a">>, <<"b">>}],
+                 all_raw_params(<<"<sip:a@b>;Q=1;ExPiRes=0;a=b">>)),
+    ?assertEqual([{<<"a">>, <<"b">>}], all_raw_params(<<"<sip:a@b>;a=b">>)),
+    ?assertEqual([<<"a">>], all_raw_params(<<"<sip:a@b>;a">>)),
+    ok.
+
 set_param_test() ->
     Alice = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
     AliceWExpires = ersip_hdr_contact:set_param(<<"expires">>, <<"30">>, Alice),
@@ -126,3 +135,7 @@ rebuild(Bin) ->
 
 parse_error(Bin) ->
     ?assertMatch({error, {invalid_contact, _}}, ersip_hdr_contact:parse(Bin)).
+
+all_raw_params(Bin) ->
+    Contact = ersip_hdr_contact:make(Bin),
+    ersip_hdr_contact:all_raw_params(Contact).

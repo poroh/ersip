@@ -93,9 +93,9 @@ optional_header(Method) ->
            hdr_route_set()]).
 
 hdr_refer_to() ->
-    ?LET({URI, DN, Params},
-         {uri(), display_name(), hparams()},
-         {refer_to, ersip_hdr_refer_to:new(URI, DN, Params)}).
+    ?LET({URI, DN},
+         {uri(), display_name()},
+         {refer_to, ersip_hdr_refer_to:new(URI, DN)}).
 hdr_from() ->
     ?LET(From, fromto_hd(), {from, From}).
 hdr_to() ->
@@ -118,7 +118,7 @@ hdr_maxforwards() ->
          {maxforwards, ersip_hdr_maxforwards:make(N)}).
 hdr_event() ->
     ?LET({Event, Id}, {alphanum(), alphanum()},
-         {event, ersip_hdr_event:new(Event, Id)}).
+         {event, ersip_hdr_event:make_with_type(Event, Id)}).
 hdr_date() ->
     ?LET({Date, Time}, {date(), time()},
          {date, ersip_hdr_date:make(Date, Time)}).
@@ -189,7 +189,6 @@ hparams() ->
 
 
 qval() ->
-    %% ?LET(QVal, range(0, 1000), {qvalue, integer_to_binary(QVal)}).
     {qvalue, range(0, 1000)}.
 
 uri() ->
@@ -246,7 +245,8 @@ uri_headers() ->
     ?LET(List, list({alphanum(), alphanum()}), maps:from_list(List)).
 
 transport() ->
-    oneof([known_transport()%% , other_transport()
+    oneof([known_transport()
+       %% ,other_transport() %% FIXME: 'An exception was raised: error:{badmatch,{error,{header_error,{topmost_via,{unknown_transport,{other_transport,<<97>>}}}}}}.'
           ]).
 
 known_transport() ->

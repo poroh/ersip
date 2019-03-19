@@ -9,15 +9,15 @@
 
 -module(ersip_hdr_event).
 
--export([new/1,
-         new/2,
-         type/1,
+-export([type/1,
          type_bin/1,
          id/2,
          param/2,
          set_param/3,
 
          make/1,
+         make_with_type/1,
+         make_with_type/2,
          parse/1,
          assemble/1,
          assemble_bin/1,
@@ -42,17 +42,6 @@
 %%===================================================================
 %% API
 %%===================================================================
-
--spec new(binary()) -> event().
--spec new(binary(), id()) -> event().
-new(TypeBin) ->
-    #event{type     = decode_type(TypeBin),
-           typebin  = TypeBin,
-           hparams  = ersip_hparams:new()}.
-new(TypeBin, Id) ->
-    #event{type     = decode_type(TypeBin),
-           typebin  = TypeBin,
-           hparams  = ersip_hparams:set(id, Id, <<"id">>, Id, ersip_hparams:new())}.
 
 -spec type(event()) -> type().
 type(#event{type = T}) ->
@@ -85,6 +74,17 @@ set_param(PName, PValue, #event{hparams = HParams} = Event)
         {error, Reason} ->
             error(Reason)
     end.
+
+-spec make_with_type(binary()) -> event().
+-spec make_with_type(binary(), id()) -> event().
+make_with_type(TypeBin) ->
+    #event{type     = decode_type(TypeBin),
+           typebin  = TypeBin,
+           hparams  = ersip_hparams:new()}.
+make_with_type(TypeBin, Id) ->
+    #event{type     = decode_type(TypeBin),
+           typebin  = TypeBin,
+           hparams  = ersip_hparams:set(id, Id, <<"id">>, Id, ersip_hparams:new())}.
 
 -spec make(binary()) -> event().
 make(Bin) when is_binary(Bin) ->

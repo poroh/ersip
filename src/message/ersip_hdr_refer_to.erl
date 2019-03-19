@@ -12,7 +12,6 @@
 
 -export([new/1,
          new/2,
-         new/3,
          uri/1,
          parse/1,
          make/1,
@@ -38,11 +37,10 @@
 new(URI) ->
     new(URI, {display_name, []}).
 new(URI, DN) ->
-    new(URI, DN, ersip_hparams:new()).
-new(URI, DN, HParams) ->
     #refer_to{display_name = DN,
               uri = URI,
-              hparams = HParams}.
+              hparams = ersip_hparams:new()}.
+
 
 -spec uri(refer_to()) -> ersip_uri:uri().
 uri(#refer_to{uri = URI}) ->

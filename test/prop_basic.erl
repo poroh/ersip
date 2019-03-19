@@ -11,20 +11,6 @@
 %%% Properties %%%
 %%%%%%%%%%%%%%%%%%
 
-%% prop_find_parsing_slowdown() ->
-prop_find_encoding_slowdown(opts) -> [noshrink].
-prop_find_encoding_slowdown() ->
-    ?FORALL_TARGETED(Msg, message(),
-        begin
-            T0 = erlang:monotonic_time(millisecond),
-            _ = ersip_sipmsg:assemble_bin(Msg),
-            T1 = erlang:monotonic_time(millisecond),
-            EncodeTime = T1-T0,
-            ?MAXIMIZE(EncodeTime),
-            io:format("EncodeTime: ~p~n", [EncodeTime]),
-            EncodeTime < 1000
-        end).
-
 prop_is_assemble_parse_equal() ->
     ?FORALL(Msg, message(),
         begin

@@ -63,6 +63,7 @@
 
          %% SIP-specific
          new_request/2,
+         new_response/2,
          reply/2,
          dialog_id/2,
 
@@ -367,6 +368,10 @@ new_request(Method, RURI) ->
             method = Method,
             ruri   = RURI
            }.
+
+-spec new_response(ersip_method:method(), ersip_status:code()) -> sipmsg().
+new_response(Method, Status) ->
+    new_reply(Status, ersip_status:reason_phrase(Status), Method).
 
 -spec reply(ersip_reply:options() | ersip_status:code(), sipmsg()) -> sipmsg().
 reply(Code, #sipmsg{} = SipMsg) when is_integer(Code) andalso Code >= 100 andalso Code =< 699 ->

@@ -820,12 +820,62 @@ copy_hdr_test() ->
     ?assertMatch(<<"Header Value">>, iolist_to_binary(HeaderValue)),
     ok.
 
+set_method_test() ->
+    MsgBin
+        = <<"OPTIONS sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=zzzz"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "CSeq: 314159 OPTIONS"
+            ?crlf "Call-ID: 1234",
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 0"
+            ?crlf ?crlf ""
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(MsgBin, []),
+    Reg = ersip_sipmsg:set_method(<<"REGISTER">>, SipMsg),
+    Reg2 = ersip_sipmsg:set_method(ersip_method:register(), SipMsg),
+    RegRebuild = rebuild_sipmsg(Reg),
+    RegRebuild2 = rebuild_sipmsg(Reg2),
+    ?assertEqual(<<"REGISTER">>, ersip_sipmsg:method_bin(RegRebuild)),
+    ?assertEqual(<<"REGISTER">>, ersip_sipmsg:method_bin(RegRebuild2)),
+    CSeq = ersip_sipmsg:get(cseq, RegRebuild),
+    CSeq = ersip_sipmsg:get(cseq, RegRebuild2),
+    %% CSeq also updated
+    ?assertEqual(ersip_method:register(), ersip_hdr_cseq:method(CSeq)),
+    ok.
+
+set_method_nocseq_test() ->
+    MsgBin
+        = <<"OPTIONS sip:bob@biloxi.com SIP/2.0"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=zzzz"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "Call-ID: 1234",
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 0"
+            ?crlf ?crlf ""
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(MsgBin, []),
+    Reg = ersip_sipmsg:set_method(<<"REGISTER">>, SipMsg),
+    Reg2 = ersip_sipmsg:set_method(ersip_method:register(), SipMsg),
+    RegRebuild = rebuild_sipmsg(Reg, []),
+    RegRebuild2 = rebuild_sipmsg(Reg2, []),
+    ?assertEqual(<<"REGISTER">>, ersip_sipmsg:method_bin(RegRebuild)),
+    ?assertEqual(<<"REGISTER">>, ersip_sipmsg:method_bin(RegRebuild2)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
 rebuild_sipmsg(SipMsg) ->
+    rebuild_sipmsg(SipMsg, all).
+
+rebuild_sipmsg(SipMsg, Headers) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
-    {ok, SipMsg1} = ersip_sipmsg:parse(SipMsgBin, all),
+    {ok, SipMsg1} = ersip_sipmsg:parse(SipMsgBin, Headers),
     SipMsg1.
 
 default_msg() ->

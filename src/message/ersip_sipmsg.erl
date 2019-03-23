@@ -15,6 +15,7 @@
          type/1,
          method/1,
          method_bin/1,
+         set_method/2,
          ruri/1,
          set_ruri/2,
          status/1,
@@ -118,6 +119,22 @@ method(#sipmsg{method = Method}) ->
 -spec method_bin(ersip_sipmsg:sipmsg()) -> binary().
 method_bin(#sipmsg{} = SipMsg) ->
     ersip_method:to_binary(method(SipMsg)).
+
+-spec set_method(ersip_method:method() | binary(), sipmsg()) -> sipmsg().
+set_method(MethodBin, #sipmsg{} = SipMsg) when is_binary(MethodBin) ->
+    Method = ersip_method:make(MethodBin),
+    set_method(Method, SipMsg);
+set_method(Method, #sipmsg{} = SipMsg0) ->
+    SipMsg1 = SipMsg0#sipmsg{method = Method},
+    RawMsg = ersip_msg:set(method, Method, raw_message(SipMsg1)),
+    SipMsg2 = set_raw_message(RawMsg, SipMsg1),
+    case find(cseq, SipMsg2) of
+        {ok, CSeq0} ->
+            CSeq = ersip_hdr_cseq:set_method(Method, CSeq0),
+            ersip_sipmsg:set(cseq, CSeq, SipMsg2);
+        _ ->
+            SipMsg2
+    end.
 
 -spec ruri(ersip_sipmsg:sipmsg()) -> ersip_uri:uri().
 ruri(#sipmsg{ruri = RURI}) ->

@@ -36,6 +36,7 @@
          header_keys/1,
          set/3,
          copy/3,
+         copy_list/3,
          remove/2,
          remove_list/2,
          filter_out_parsed/2,
@@ -225,6 +226,10 @@ set(HdrAtom, Value, #sipmsg{} = Msg) ->
 -spec copy(ersip_hnames:name_forms(), Src :: sipmsg(), Dst :: sipmsg()) -> sipmsg().
 copy(HdrNameForm, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
     ersip_siphdr:copy_header(HdrNameForm, SrcMsg, DstMsg).
+
+-spec copy_list([ersip_hnames:name_forms()], Src :: sipmsg(), Dst :: sipmsg()) -> ersip_sipmsg:sipmsg().
+copy_list(HeaderList, #sipmsg{} = SrcMsg, #sipmsg{} = DstMsg) ->
+    ersip_siphdr:copy_headers(HeaderList, SrcMsg, DstMsg).
 
 -spec remove(ersip_hnames:name_forms(), sipmsg()) -> sipmsg().
 remove(HdrName, SipMsg) ->

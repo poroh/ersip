@@ -21,6 +21,7 @@
          status/1,
          set_status/2,
          reason/1,
+         set_reason/2,
 
          %% Required headers. Function raise error if message does not
          %% contain corresponding header.
@@ -198,6 +199,12 @@ reason(#sipmsg{} = SipMsg) ->
         response ->
             ersip_msg:get(reason, raw_message(SipMsg))
     end.
+
+-spec set_reason(binary(), ersip_sipmsg:sipmsg()) -> sipmsg().
+set_reason(Reason, #sipmsg{} = SipMsg) ->
+    RawMsg0 = raw_message(SipMsg),
+    RawMsg  = ersip_msg:set(reason, Reason, RawMsg0),
+    set_raw_message(RawMsg, SipMsg).
 
 -spec find(known_header(), sipmsg()) -> Result when
       Result :: {ok, term()}

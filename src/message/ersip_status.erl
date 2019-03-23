@@ -56,6 +56,8 @@ unsupported_uri_scheme_reason(URIScheme) ->
 %%% Internal Implementation
 %%%===================================================================
 reason_impl(100) -> <<"Trying">>;
+reason_impl(180) -> <<"Ringing">>;
+reason_impl(183) -> <<"Session Progress">>;
 reason_impl(200) -> <<"OK">>;
 reason_impl(401) -> <<"Unauthorized">>;
 reason_impl(404) -> <<"Not Found">>;

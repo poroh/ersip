@@ -12,6 +12,8 @@
 
 -export([new/1,
          uri/1,
+         display_name/1,
+         all_raw_params/1,
          parse/1,
          make/1,
          assemble/1,
@@ -41,6 +43,14 @@ new(URI) ->
 -spec uri(refer_to()) -> ersip_uri:uri().
 uri(#refer_to{uri = URI}) ->
     URI.
+
+-spec display_name(refer_to()) -> ersip_nameaddr:display_name().
+display_name(#refer_to{display_name = DN}) ->
+    DN.
+
+-spec all_raw_params(refer_to()) -> [{binary(), binary()} | binary()].
+all_raw_params(#refer_to{hparams = HParams}) ->
+    ersip_hparams:to_raw_list(HParams).
 
 -spec parse(ersip_hdr:header() | binary()) -> parse_result().
 parse(Bin) when is_binary(Bin) ->

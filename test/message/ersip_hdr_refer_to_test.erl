@@ -57,6 +57,12 @@ new_test() ->
     ?assertEqual(URI, ersip_hdr_refer_to:uri(ReferTo)),
     ok.
 
+getters_test() ->
+    ReferTo = ersip_hdr_refer_to:make(<<"Alice <sip:alice@pc33.atlanta.com;uri-param=1>;header-param=1;header-param2">>),
+    ?assertEqual({display_name, [<<"Alice">>]}, ersip_hdr_refer_to:display_name(ReferTo)),
+    ?assertEqual(ersip_uri:make(<<"sip:alice@pc33.atlanta.com;uri-param=1">>), ersip_hdr_refer_to:uri(ReferTo)),
+    ?assertEqual([{<<"header-param">>, <<"1">>}, <<"header-param2">>], ersip_hdr_refer_to:all_raw_params(ReferTo)),
+    ok.
 
 %%===================================================================
 %% Helpers

@@ -29,7 +29,7 @@
 %%% API
 %%%===================================================================
 
--spec make(binary()) -> expires().
+-spec make(binary() | non_neg_integer()) -> expires().
 make(Bin) when is_binary(Bin) ->
     case parse_expires(Bin) of
         {ok, Expires} ->
@@ -37,7 +37,7 @@ make(Bin) when is_binary(Bin) ->
         {error, Reason} ->
             error(Reason)
     end;
-make(Val) when Val >= 0 ->
+make(Val) when is_integer(Val), Val >= 0 ->
     {expires, Val}.
 
 -spec parse(ersip_hdr:header()) -> parse_result(parse_errors()).

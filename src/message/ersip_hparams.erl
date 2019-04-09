@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -20,10 +20,12 @@
          parse_known/2,
          assemble/1,
          assemble_bin/1,
+         is_empty/1,
          to_list/1,
          to_raw_list/1,
          find/2,
          find_raw/2,
+         get/2,
          set_raw/3,
          set/5
         ]).
@@ -103,6 +105,12 @@ assemble(#hparams{} = HParams) ->
 assemble_bin(#hparams{} = HParams) ->
     iolist_to_binary(assemble(HParams)).
 
+-spec is_empty(hparams()) -> boolean().
+is_empty(#hparams{order = []}) ->
+    true;
+is_empty(#hparams{}) ->
+    false.
+
 -spec to_list(hparams()) -> Result when
       Result :: [Item],
       Item   :: {parsed_name(), parsed_value()}
@@ -144,6 +152,14 @@ find(Name, #hparams{parsed = P} = HP) when is_binary(Name) ->
         error -> not_found;
         {ok, ParsedName} when is_atom(ParsedName) ->
             find(ParsedName, HP)
+    end.
+
+-spec get(parsed_name() | binary(), hparams()) -> parsed_value().
+get(Name, #hparams{} =H) ->
+    case find(Name, H) of
+        not_found ->
+            error({no_param, Name});
+        {ok, V} -> V
     end.
 
 -spec set(parsed_name(), parsed_value(), orig_key(), orig_value(), hparams()) -> hparams().

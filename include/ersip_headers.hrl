@@ -42,6 +42,7 @@
 -define(ERSIPH_UNSUPPORTED,         {hdr_key, unsupported}).
 -define(ERSIPH_VIA,                 {hdr_key, via}).
 -define(ERSIPH_WWW_AUTHENTICATE,    {hdr_key, www_authenticate}).
+-define(ERSIPH_REPLACES,            {hdr_key, replaces}).
 
 
 

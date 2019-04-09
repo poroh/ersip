@@ -107,7 +107,8 @@ all_known_headers() ->
      proxy_authorization,
      subscription_state,
      event,
-     refer_to
+     refer_to,
+     replaces
     ].
 
 %%%===================================================================
@@ -165,6 +166,7 @@ header_key_map(<<"record-route">>)        -> ?ERSIPH_RECORD_ROUTE;
 header_key_map(<<"refer-to">>)            -> ?ERSIPH_REFER_TO;
 header_key_map(<<"referred-by">>)         -> ?ERSIPH_REFERRED_BY;
 header_key_map(<<"reject-contact">>)      -> ?ERSIPH_REJECT_CONTACT;
+header_key_map(<<"replaces">>)            -> ?ERSIPH_REPLACES;
 header_key_map(<<"require">>)             -> ?ERSIPH_REQUIRE;
 header_key_map(<<"request-disposition">>) -> ?ERSIPH_REQUEST_DISPOSITION;
 header_key_map(<<"route">>)               -> ?ERSIPH_ROUTE;
@@ -209,6 +211,7 @@ print_form_map(?ERSIPH_RECORD_ROUTE)         -> <<"Record-Route">>;
 print_form_map(?ERSIPH_REFER_TO)             -> <<"Refer-To">>;
 print_form_map(?ERSIPH_REFERRED_BY)          -> <<"Referred-By">>;
 print_form_map(?ERSIPH_REJECT_CONTACT)       -> <<"Reject-Contact">>;
+print_form_map(?ERSIPH_REPLACES)             -> <<"Replaces">>;
 print_form_map(?ERSIPH_REQUIRE)              -> <<"Require">>;
 print_form_map(?ERSIPH_REQUEST_DISPOSITION)  -> <<"Request-Disposition">>;
 print_form_map(?ERSIPH_ROUTE)                -> <<"Route">>;
@@ -248,7 +251,8 @@ known_header_key_map(proxy_authenticate ) -> ?ERSIPH_PROXY_AUTHENTICATE;
 known_header_key_map(proxy_authorization) -> ?ERSIPH_PROXY_AUTHORIZATION;
 known_header_key_map(subscription_state ) -> ?ERSIPH_SUBSCRIPTION_STATE;
 known_header_key_map(refer_to           ) -> ?ERSIPH_REFER_TO;
-known_header_key_map(event              ) -> ?ERSIPH_EVENT.
+known_header_key_map(event              ) -> ?ERSIPH_EVENT;
+known_header_key_map(replaces           ) -> ?ERSIPH_REPLACES.
 
 -spec known_header_form_map(header_key()) -> {ok, known_header()} | not_found.
 known_header_form_map(?ERSIPH_FROM)                -> {ok, from          };
@@ -275,6 +279,7 @@ known_header_form_map(?ERSIPH_PROXY_AUTHORIZATION) -> {ok, proxy_authorization};
 known_header_form_map(?ERSIPH_SUBSCRIPTION_STATE)  -> {ok, subscription_state};
 known_header_form_map(?ERSIPH_EVENT)               -> {ok, event};
 known_header_form_map(?ERSIPH_REFER_TO)            -> {ok, refer_to};
+known_header_form_map(?ERSIPH_REPLACES)            -> {ok, replaces};
 known_header_form_map({hdr_key, _}) -> not_found.
 
 %% Most common names mapping to keys. This improves performance in
@@ -298,6 +303,7 @@ key_shortcut(<<"Content-Type">>)        -> {ok, ?ERSIPH_CONTENT_TYPE};
 key_shortcut(<<"Content-Length">>)      -> {ok, ?ERSIPH_CONTENT_LENGTH};
 key_shortcut(<<"Supported">>)           -> {ok, ?ERSIPH_SUPPORTED};
 key_shortcut(<<"Require">>)             -> {ok, ?ERSIPH_REQUIRE};
+key_shortcut(<<"Replaces">>)            -> {ok, ?ERSIPH_REPLACES};
 key_shortcut(<<"Proxy-Require">>)       -> {ok, ?ERSIPH_PROXY_REQUIRE};
 key_shortcut(<<"WWW-Authenticate">>)    -> {ok, ?ERSIPH_WWW_AUTHENTICATE};
 key_shortcut(<<"Authorization">>)       -> {ok, ?ERSIPH_AUTHORIZATION};

@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -421,4 +421,11 @@ header_descr(refer_to) ->
            may_appear   = once,
            parse_fun    = fun ersip_hdr_refer_to:parse/1,
            assemble_fun = fun ersip_hdr_refer_to:build/2
+          };
+header_descr(replaces) ->
+    #descr{required     = optional,
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_replaces:parse/1,
+           assemble_fun = fun ersip_hdr_replaces:build/2
           }.
+

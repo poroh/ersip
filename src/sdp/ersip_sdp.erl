@@ -116,7 +116,7 @@ set_medias(Medias, #sdp{} = SDP) ->
 %%                       key-field
 %%                       attribute-fields
 %%                       media-descriptions
--spec parse(binary()) -> parse_result(sdp()).
+-spec parse(binary()) -> {ok, sdp()} | {error, term()}.
 parse(Bin) ->
     Parsers = [fun parse_proto/1,
                fun ersip_sdp_origin:parse/1,

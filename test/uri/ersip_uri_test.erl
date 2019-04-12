@@ -383,6 +383,21 @@ raw_headers_test() ->
     ?assertEqual(ExpectedHeaders, RawHeaders),
     ok.
 
+rebuild_headers_value_test() ->
+    Uri = ersip_uri:make(<<"sip:carol@chicago.com?Replaces=1234123@pc99.chicago.com%3Bfrom-tag=1%3Bto-tag=1">>),
+    RawHeaders = ersip_uri:raw_headers(Uri),
+    ExpectedHeaders = [{<<"Replaces">>, <<"1234123@pc99.chicago.com%3Bfrom-tag=1%3Bto-tag=1">>}],
+    ?assertEqual(ExpectedHeaders, RawHeaders),
+    UriBin = ersip_uri:assemble_bin(ersip_uri:rebuild_header_values(Uri)),
+    ?assertEqual(<<"sip:carol@chicago.com?Replaces=1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>,
+                 UriBin),
+
+    TelUri = ersip_uri:make(<<"tel:1234">>),
+    TelUriBin = ersip_uri:assemble_bin(ersip_uri:rebuild_header_values(TelUri)),
+    ?assertEqual(<<"tel:1234">>, TelUriBin),
+
+    ok.
+
 data_test() ->
     ?assertEqual(<<"carol@chicago.com?a=b">>,    ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com?a=b">>))),
     ?assertEqual(<<"carol@chicago.com;newparam=5">>, ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com;newparam=5">>))),

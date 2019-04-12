@@ -29,6 +29,7 @@
          clear_params/1,
          set_param/3,
          clear_not_allowed_parts/2,
+         rebuild_header_values/1,
          assemble_scheme/1
         ]).
 -export_type([uri/0, scheme/0]).
@@ -267,6 +268,14 @@ clear_not_allowed_parts(record_route, #uri{data = #sip_uri_data{params = P} = SI
 clear_not_allowed_parts(record_route, URI) ->
     %% For schemes other than sip/sips we do not clear anything
     URI.
+
+%% Unquote and quote again headers
+-spec rebuild_header_values(uri()) -> uri().
+rebuild_header_values(#uri{data = #sip_uri_data{headers = H} = D} = URI) ->
+    NewH = maps:map(fun(_, V) -> rebuild_header_value(V) end, H),
+    URI#uri{data = D#sip_uri_data{headers = NewH}};
+rebuild_header_values(#uri{} = U) ->
+    U.
 
 %%%===================================================================
 %%% Internal implementation
@@ -776,3 +785,20 @@ hex_char_to_num(X) when X >= $0 andalso X =< $9 ->
     X - $0;
 hex_char_to_num(X) when X >= $A andalso X =< $F ->
     X - $A + 10.
+
+-spec rebuild_header_value(binary()) -> binary().
+rebuild_header_value(Value) ->
+    Bytes = binary_to_list(unquote_hex(Value)),
+    Escaped = [escape_header_byte(B) || B <- Bytes],
+    iolist_to_binary(Escaped).
+
+
+%% hvalue          =  *( hnv-unreserved / unreserved / escaped )
+%% hnv-unreserved  =  "[" / "]" / "/" / "?" / ":" / "+" / "$"
+-spec escape_header_byte(char()) -> char() | string().
+escape_header_byte(V) when ?is_unreserved(V);
+                           ?is_hnv_unreserved(V) ->
+    V;
+escape_header_byte(V) ->
+    io_lib:format("%~2.16.0B", [V]).
+

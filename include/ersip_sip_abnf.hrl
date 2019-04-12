@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2017 Dmitry Poroh
+%% Copyright (c) 2017, 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -39,6 +39,17 @@
          orelse X =:= $;
          orelse X =:= $?
          orelse X =:= $/
+        )).
+
+%% hnv-unreserved  =  "[" / "]" / "/" / "?" / ":" / "+" / "$"
+-define(is_hnv_unreserved(X),
+        (X  =:= $[
+         orelse X =:= $]
+         orelse X =:= $/
+         orelse X =:= $?
+         orelse X =:= $:
+         orelse X =:= $+
+         orelse X =:= $$
         )).
 
 %% token       =  1*(alphanum / "-" / "." / "!" / "%" / "*"

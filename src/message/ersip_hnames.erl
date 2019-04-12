@@ -117,7 +117,7 @@ all_known_headers() ->
 
 %% @doc compact header forms
 %% (see https://www.iana.org/assignments/sip-parameters/sip-parameters.xhtml#sip-parameters-2).
--spec compact_header_key_map(binary()) -> {ok, known_header()} | not_found.
+-spec compact_header_key_map(binary()) -> {ok, header_key()} | not_found.
 %% Compact forms:
 compact_header_key_map(<<"a">>) -> {ok, ?ERSIPH_ACCEPT_CONTACT};
 compact_header_key_map(<<"u">>) -> {ok, ?ERSIPH_ALLOW_EVENTS};
@@ -284,7 +284,7 @@ known_header_form_map({hdr_key, _}) -> not_found.
 
 %% Most common names mapping to keys. This improves performance in
 %% most common cases.
--spec key_shortcut(binary()) -> {ok, binary()} | not_found.
+-spec key_shortcut(binary()) -> {ok, header_key()} | not_found.
 key_shortcut(<<"Via">>)                 -> {ok, ?ERSIPH_VIA};
 key_shortcut(<<"From">>)                -> {ok, ?ERSIPH_FROM};
 key_shortcut(<<"To">>)                  -> {ok, ?ERSIPH_TO};

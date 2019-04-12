@@ -114,7 +114,7 @@ parse_replaces(Binary) ->
             end
     end.
 
--spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
+-spec parse_params(binary()) -> {ok, ersip_hparams:hparams()} | {error, term()}.
 parse_params(Bin) ->
     case ersip_parser_aux:parse_params($;, Bin) of
         {error, _} = Error -> Error;

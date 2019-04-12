@@ -179,7 +179,7 @@ parse_proto(Bin) ->
 
 -spec do_parse_proto(binary(), nonempty_list(binary())) -> parse_result(nonempty_list(binary)).
 do_parse_proto(<<"/", Rest/binary>>, Acc) ->
-    case ersip_parser_aux:parse_token(Rest) of
+    case ersip_sdp_aux:parse_token(Rest) of
         {ok, Token, Rest1} ->
             do_parse_proto(Rest1, [Token | Acc]);
         {error, Reason} ->

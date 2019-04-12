@@ -130,7 +130,7 @@ add_to_maybe_route_set(Bin, {ok, RouteSet}) ->
             Error
     end.
 
--spec parse_route(binary()) -> {ok, route()} | {error, term()}.
+-spec parse_route(binary()) -> {ok, route(), binary()} | {error, term()}.
 parse_route(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
                fun ersip_parser_aux:trim_lws/1,
@@ -181,8 +181,8 @@ do_parse_route_params(Bin) ->
             {error, {invalid_parameters, Reason}}
     end.
 
--spec do_parse_params(ersip_parser_aux:gen_param_list(), ersip_parser_aux:gen_param_list()) ->
-                             ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
+-spec do_parse_params(ersip_parser_aux:gen_param_list(), [{binary(), binary() | novalue}]) ->
+                             [{binary(), binary() | novalue}].
 do_parse_params([], Acc) ->
     lists:reverse(Acc);
 do_parse_params([{Key, <<>>} | Rest], Acc) ->

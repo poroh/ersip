@@ -48,7 +48,7 @@
             -> {ok, {Key :: term(), Value :: term()}}
                    | {error, term()}
                    | skip).
--type gen_param()      :: {Key ::binary(), gen_param_value()}.
+-type gen_param()      :: {Key :: binary(), gen_param_value()}.
 -type gen_param_list() :: [gen_param()].
 -type gen_param_value() :: binary().
 
@@ -106,13 +106,14 @@ parse_all(Binary, Parsers) ->
     parse_all_impl(Binary, Parsers, []).
 
 %% @doc Parse SIP token
--spec parse_token(binary()) -> parse_result(binary(), not_a_token).
+-spec parse_token(binary()) -> parse_result(binary(), {not_a_token, binary()}).
 parse_token(Bin) ->
     End = find_token_end(Bin, 0),
-    <<Result:End/binary, Rest/binary>> = Bin,
     case End of
         0 -> {error, {not_a_token, Bin}};
-        _ -> {ok, Result, Rest}
+        _ ->
+            <<Result:End/binary, Rest/binary>> = Bin,
+            {ok, Result, Rest}
     end.
 
 -spec parse_lws(binary()) ->  parse_result({lws, pos_integer()}).
@@ -259,7 +260,7 @@ quoted_string_impl(B, raw) ->
     end;
 quoted_string_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F ->
     quoted_string_impl(R, raw);
-quoted_string_impl(<<Byte:8, _/binary>>, escaped) ->
+quoted_string_impl(<<_:8, _/binary>>, escaped) ->
     error.
 
 -spec unquoted_string_impl(binary(), start | raw | escaped, [binary()]) -> parse_result(binary()).

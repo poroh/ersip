@@ -64,6 +64,14 @@ getters_test() ->
     ?assertEqual([{<<"header-param">>, <<"1">>}, <<"header-param2">>], ersip_hdr_refer_to:all_raw_params(ReferTo)),
     ok.
 
+setters_test() ->
+    ReferTo = ersip_hdr_refer_to:make(<<"Alice <sip:alice@pc33.atlanta.com;uri-param=1>;header-param=1;header-param2">>),
+    ReferTo1 = ersip_hdr_refer_to:set_uri(ersip_uri:make(<<"sip:bob@biloxi.com">>), ReferTo),
+    ?assertEqual(<<"Alice <sip:bob@biloxi.com>;header-param=1;header-param2">>, ersip_hdr_refer_to:assemble_bin(ReferTo1)),
+    ReferTo2 = ersip_hdr_refer_to:set_display_name({display_name, [<<"Bob">>]}, ReferTo1),
+    ?assertEqual(<<"Bob <sip:bob@biloxi.com>;header-param=1;header-param2">>, ersip_hdr_refer_to:assemble_bin(ReferTo2)),
+    ok.
+
 %%===================================================================
 %% Helpers
 %%===================================================================

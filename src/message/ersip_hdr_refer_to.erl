@@ -12,7 +12,9 @@
 
 -export([new/1,
          uri/1,
+         set_uri/2,
          display_name/1,
+         set_display_name/2,
          all_raw_params/1,
          parse/1,
          make/1,
@@ -44,9 +46,17 @@ new(URI) ->
 uri(#refer_to{uri = URI}) ->
     URI.
 
+-spec set_uri(ersip_uri:uri(), refer_to()) -> refer_to().
+set_uri(URI, #refer_to{} = RT) ->
+    RT#refer_to{uri = URI}.
+
 -spec display_name(refer_to()) -> ersip_nameaddr:display_name().
 display_name(#refer_to{display_name = DN}) ->
     DN.
+
+-spec set_display_name(ersip_nameaddr:display_name(), refer_to()) -> refer_to().
+set_display_name({display_name, _} = DN, #refer_to{} = RT) ->
+    RT#refer_to{display_name = DN}.
 
 -spec all_raw_params(refer_to()) -> [{binary(), binary()} | binary()].
 all_raw_params(#refer_to{hparams = HParams}) ->

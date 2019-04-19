@@ -404,6 +404,13 @@ data_test() ->
     ?assertEqual(<<"12345">>, ersip_uri:data(ersip_uri:make(<<"tel:12345">>))),
     ok.
 
+clear_transport_test() ->
+    ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com">>),
+                 ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;transport=tcp">>))),
+    ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com">>),
+                 ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;TRANSPORT=tcp">>))),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

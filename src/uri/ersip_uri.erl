@@ -27,6 +27,7 @@
          raw_params/1,
          raw_headers/1,
          clear_params/1,
+         clear_transport/1,
          set_param/3,
          clear_not_allowed_parts/2,
          rebuild_header_values/1,
@@ -197,6 +198,11 @@ clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->
     URI#uri{data = SIPData#sip_uri_data{params = #{}}};
 clear_params(#uri{} = URI) ->
     URI.
+
+-spec clear_transport(uri()) -> uri().
+clear_transport(#uri{data = #sip_uri_data{params = P} = SIPData} = URI) ->
+    NewP = maps:remove(transport, P),
+    URI#uri{data = SIPData#sip_uri_data{params = NewP}}.
 
 %% @doc set paramter of the URI
 -spec set_param(uri_param_name(), term(), uri() | sip_uri_data()) -> uri() | sip_uri_data().

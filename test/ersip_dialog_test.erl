@@ -616,6 +616,17 @@ uas_create_dialog_no_contact_in_resp_test() ->
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
     ok.
 
+uas_negative_response_terminate_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180 = invite_reply(180, InvSipMsg),
+    InvResp487 = invite_reply(487, InvSipMsg),
+    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
+    {Dialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180),
+    ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvReq, InvResp487, Dialog)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

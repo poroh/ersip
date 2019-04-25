@@ -174,18 +174,21 @@ uas_create(Request, Response) ->
     end,
     do_uas_create(Request, Response).
 
--spec uas_pass_response(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg(), dialog()) -> uas_result().
+-spec uas_pass_response(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg(), dialog()) -> uas_result() | terminate_dialog.
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
     UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
     {Dialog, UpdatedResp};
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
-    State = state_by_response(RespSipMsg),
-    UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
-    case State of
-        early ->
-            {Dialog, UpdatedResp};
-        confirmed ->
-            {Dialog#dialog{state = confirmed}, UpdatedResp}
+    %% Independent of the method, if a request outside of a dialog generates
+    %% a non-2xx final response, any early dialogs created through
+    %% provisional responses to that request are terminated.
+    case ersip_sipmsg:status(RespSipMsg) of
+        Status when Status >= 300 ->
+            terminate_dialog;
+        _ ->
+            State = state_by_response(RespSipMsg),
+            UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
+            {Dialog#dialog{state = State}, UpdatedResp}
     end.
 
 %% @doc New dialog on UAC side.

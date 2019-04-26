@@ -330,11 +330,11 @@ parse_sipdata(Bin) ->
 parse_usesrinfo(Bin) ->
     case binary:split(Bin, <<"@">>) of
         [Userinfo, R] ->
-            case check_userinfo(Userinfo) of
-                true ->
-                    parse_hostport({user, Userinfo}, R);
-                _ ->
-                    {error, {einval, userinfo}}
+            case patch_userinfo(Userinfo) of
+                {ok, PatchedUserinfo} ->
+                    parse_hostport({user, PatchedUserinfo}, R);
+                {error, _} = Error ->
+                    Error
             end;
         [R] ->
             parse_hostport(undefined, R)
@@ -488,26 +488,34 @@ parse_and_add_param(Param, SIPData) ->
 
 %% userinfo         =  ( user / telephone-subscriber ) [":" password] "@"
 %% password         =  *( unreserved / escaped / "&" / "=" / "+" / "$" / "," )
--spec check_userinfo(binary()) -> boolean().
-check_userinfo(Bin) ->
+-spec patch_userinfo(binary()) -> {ok, binary()} | {error, term()}.
+patch_userinfo(Bin) ->
     case binary:split(Bin, <<":">>) of
         [User, Password] ->
-            check_user(User, start) andalso check_password(Password);
+            case check_password(Password) of
+                false -> {error, {bad_password, Password}};
+                true ->
+                    case patch_user(User, []) of
+                        {error, _} = Error -> Error;
+                        {ok, PUser} ->
+                            {ok, <<PUser/binary, ":", Password/binary>>}
+                    end
+            end;
         [User] ->
-            check_user(User, start)
+            patch_user(User, [])
     end.
 
 %% user             =  1*( unreserved / escaped / user-unreserved )
-check_user(<<>>, start) ->
-    false;
-check_user(<<>>, rest) ->
-    true;
-check_user(<<Char/utf8, R/binary>>, _) when ?is_unreserved(Char) orelse ?is_user_unreserved(Char) ->
-    check_user(R, rest);
-check_user(<<"%", A/utf8, B/utf8, R/binary>>, _) when ?is_HEXDIG(A) andalso ?is_HEXDIG(B) ->
-    check_user(R, rest);
-check_user(_, _) ->
-    false.
+patch_user(<<>>, []) ->
+    {error, empty_username};
+patch_user(<<>>, Acc) ->
+    {ok, iolist_to_binary(lists:reverse(Acc))};
+patch_user(<<Char, R/binary>>, Acc) when ?is_unreserved(Char) orelse ?is_user_unreserved(Char) ->
+    patch_user(R, [Char | Acc]);
+patch_user(<<"%", A, B, R/binary>>, Acc) when ?is_HEXDIG(A) andalso ?is_HEXDIG(B) ->
+    patch_user(R, [<<"%", A, B>> | Acc]);
+patch_user(<<C, R/binary>>,  Acc) ->
+    patch_user(R, [io_lib:format("%~2.16.0B", [C]) | Acc]).
 
 -define(is_password_unreserved(X), (X =:= $& orelse X =:= $= orelse X =:= $+ orelse X =:= $$ orelse X =:= $,)).
 %% password         =  *( unreserved / escaped / "&" / "=" / "+" / "$" / "," )

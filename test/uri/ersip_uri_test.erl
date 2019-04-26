@@ -75,12 +75,21 @@ uri_test() ->
                  data = #absolute_uri_data{opaque = <<"%20@b:5090">>}}},
        ersip_uri:parse(<<"TEL:%20@b:5090">>)),
 
+
+
+    ?assertEqual(
+       {ok, #uri{scheme = {scheme, sip},
+                 data = #sip_uri_data{
+                           user = {user, <<"%25">>},
+                           host = {hostname, <<"b">>},
+                           port = 5090}}},
+       ersip_uri:parse(<<"sip:%@b:5090">>)),
+
     ?assertMatch({error, {invalid_scheme, _}}, ersip_uri:parse(<<"?:a@b:5090">>)),
 
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:%@b:5090">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:@b:5090">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip::a@b:5090">>)),
-    ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
+    ?assertMatch({error, empty_username}, ersip_uri:parse(<<"sip:@b:5090">>)),
+    ?assertMatch({error, empty_username}, ersip_uri:parse(<<"sip::a@b:5090">>)),
+    ?assertMatch({error, {bad_password, _}}, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
 
     ?assertEqual(
        {ok, #uri{data = #sip_uri_data{

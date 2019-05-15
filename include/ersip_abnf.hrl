@@ -14,4 +14,6 @@
 -define(is_DIGIT(X), (X >= $0 andalso X =< $9)).
 
 %% HEXDIG         =  DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
--define(is_HEXDIG(X), (?is_DIGIT(X) orelse (X >= $A andalso X =< $F))).
+-define(is_HEXDIG(X), (?is_DIGIT(X)
+                       orelse (X >= $A andalso X =< $F)
+                       orelse (X >= $a andalso X =< $f))).

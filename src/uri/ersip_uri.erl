@@ -97,8 +97,10 @@ host(#uri{data = #sip_uri_data{host = H}}) ->
     H.
 
 -spec set_host(ersip_host:host(), ersip_uri:uri()) -> ersip_uri:uri().
+set_host(H, #uri{data = #sip_uri_data{host = H}} = U) ->
+    U;
 set_host(H, #uri{data = #sip_uri_data{} = D} = U) ->
-    U#uri{data = D#sip_uri_data{host = H}}.
+    U#uri{data = D#sip_uri_data{host = H, host_orig = undefined}}.
 
 -spec port(ersip_uri:uri()) -> undefined | inet:port_number().
 port(#uri{data = #sip_uri_data{port = P}}) ->
@@ -350,14 +352,14 @@ parse_hostport(User, R) ->
             {ok, {HostBin, <<>>}} ->
                 case ersip_host:parse(HostBin) of
                     {ok, Host, <<>>} ->
-                        {ok, #sip_uri_data{user = User, host = Host }};
+                        {ok, #sip_uri_data{user = User, host = Host, host_orig = HostBin}};
                     _ ->
                         {error, {invalid_hostport, HostPort}}
                 end;
             {ok, {HostBin, PortBin}} ->
                 case {ersip_host:parse(HostBin), parse_port(PortBin)} of
                     {{ok, Host, <<>>}, {ok, Port}} ->
-                        {ok, #sip_uri_data{user = User, host = Host, port = Port}};
+                        {ok, #sip_uri_data{user = User, host = Host, port = Port, host_orig = HostBin}};
                     _ ->
                         {error, {invalid_hostport, {HostBin, PortBin}}}
                 end;
@@ -553,6 +555,7 @@ make_sip_data_key(#sip_uri_data{} = URIData) ->
     %% components must match.
     #sip_uri_data{user  = userinfo_key(URIData#sip_uri_data.user),
                   host  = ersip_host:make_key(URIData#sip_uri_data.host),
+                  host_orig = undefined,
                   port  = URIData#sip_uri_data.port,
                   params = params_key(URIData#sip_uri_data.params),
                   headers = headers_key(URIData#sip_uri_data.headers)
@@ -675,7 +678,12 @@ assemble_data(#sip_uri_data{} = SIPData) ->
          User ->
              [assemble_user(User), $@]
      end,
-     ersip_host:assemble(SIPData#sip_uri_data.host),
+     case SIPData#sip_uri_data.host_orig of
+         undefined ->
+             ersip_host:assemble(SIPData#sip_uri_data.host);
+         Val when is_binary(Val) ->
+             Val
+     end,
      case SIPData#sip_uri_data.port of
          undefined ->
              [];

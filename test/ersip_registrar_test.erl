@@ -30,7 +30,7 @@ new_register_noath_basic_test() ->
     ?assertEqual(false, ersip_registrar:is_terminated(Request0)),
     ?assertMatch({find_bindings, _}, SE0),
     {find_bindings, AOR} = SE0,
-    ?assertEqual(ReqAOR, AOR),
+    ?assertEqual(ersip_uri:make_key(ReqAOR), ersip_uri:make_key(AOR)),
 
     %% Processing lookup result:
     {Request1, SE1} = ersip_registrar:lookup_result({ok, []}, Request0),
@@ -78,7 +78,8 @@ update_registration_noauth_basic_test() ->
     %% Creating update request:
     {Request0, _} = ersip_registrar:new_request(UpdateRegisterSipMsg, Config),
     {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    {update_bindings, AOR, UpdateDescr} = SE1,
+    {update_bindings, SeAOR, UpdateDescr} = SE1,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
     ?assertMatch({[], [_], []}, UpdateDescr),
     {_, [UpdatedBinding], _} = UpdateDescr,
 
@@ -112,7 +113,8 @@ delete_all_contacts_test() ->
 
     {Request0, _} = ersip_registrar:new_request(DelRegisterSipMsg, Config),
     {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    {update_bindings, AOR, UpdateDescr} = SE1,
+    {update_bindings, SeAOR, UpdateDescr} = SE1,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
     ?assertMatch({[], [], [_]}, UpdateDescr),
     {_, _, DelBindings} = UpdateDescr,
     %% Check that all bindings are removed
@@ -145,7 +147,8 @@ unregister_one_contact_test() ->
 
     {Request0, _} = ersip_registrar:new_request(DelRegisterSipMsg, Config),
     {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    {update_bindings, AOR, UpdateDescr} = SE1,
+    {update_bindings, SeAOR, UpdateDescr} = SE1,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
     ?assertMatch({[], [], [_]}, UpdateDescr),
     {_, _, [DelBinding]} = UpdateDescr,
     %% Check that second binding is removed
@@ -181,7 +184,9 @@ update_one_contact_test() ->
 
     {Request0, _} = ersip_registrar:new_request(UpdateRegisterSipMsg, Config),
     {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    {update_bindings, AOR, UpdateDescr} = SE1,
+    {update_bindings, SeAOR, UpdateDescr} = SE1,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
+
     ?assertMatch({[], [_], []}, UpdateDescr),
     {_, [UpdatedBinding], _} = UpdateDescr,
     %% Check that second binding is removed
@@ -217,7 +222,8 @@ add_one_more_contact_test() ->
 
     {Request0, _} = ersip_registrar:new_request(UpdateRegisterSipMsg, Config),
     {Request1, SE1} = ersip_registrar:lookup_result({ok, SavedBindings}, Request0),
-    {update_bindings, AOR, UpdateDescr} = SE1,
+    {update_bindings, SeAOR, UpdateDescr} = SE1,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
     ?assertMatch({[_], [], []}, UpdateDescr),
     {[NewBinding], _, _} = UpdateDescr,
 
@@ -319,7 +325,9 @@ auth_successful_test() ->
     {Request1, SE1} = ersip_registrar:authenticate_result({ok, {authorized, my_auth_info}}, Request0),
     ?assertMatch({authorize, my_auth_info, AOR}, SE1),
     {Request2, SE2} = ersip_registrar:authorize_result({ok, authorized}, Request1),
-    ?assertMatch({find_bindings, AOR}, SE2),
+    ?assertMatch({find_bindings, _}, SE2),
+    {find_bindings, SeAOR} = SE2,
+    ?assertEqual(ersip_uri:make_key(SeAOR), ersip_uri:make_key(AOR)),
 
     {Request3, SE3} = ersip_registrar:lookup_result({ok, []}, Request2),
     ?assertEqual(true, ersip_registrar:is_terminated(Request3)),

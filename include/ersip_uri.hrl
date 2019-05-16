@@ -22,6 +22,8 @@
           %%    address.  Using the fully-qualified domain name form is
           %%    RECOMMENDED whenever possible.
           host               :: ersip_host:host(),
+          %% original (binary) representation of host
+          host_orig          :: binary() | undefined,
           %% port: The port number where the request is to be sent.
           port               :: undefined | inet:port_number(),
           %% URI parameters: Parameters affecting a request constructed from

@@ -16,7 +16,7 @@
 %%%===================================================================
 
 uri_test() ->
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            user = {user, <<"a">>},
                            host = {hostname, <<"b">>},
@@ -24,21 +24,21 @@ uri_test() ->
        },
        ersip_uri:parse(<<"sip:a@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            user = {user, <<"a">>},
                            host = {ipv4, {1, 2, 3, 4}},
                            port = 5090}}},
        ersip_uri:parse(<<"sip:a@1.2.3.4:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            user = {user, <<"a">>},
                            host = {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}},
                            port = 5090}}},
         ersip_uri:parse(<<"sip:a@[::1]:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme = {scheme, sips},
                  data = #sip_uri_data{
                            user = {user, <<"a">>},
@@ -46,7 +46,7 @@ uri_test() ->
                            port = 5090}}},
        ersip_uri:parse(<<"sips:a@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme = {scheme, sips},
                  data = #sip_uri_data{
                            user = {user, <<"a:b">>},
@@ -54,7 +54,7 @@ uri_test() ->
                            port = 5090}}},
        ersip_uri:parse(<<"sips:a:b@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme = {scheme, sips},
                  data = #sip_uri_data{
                            user = {user, <<"a:%20">>},
@@ -62,7 +62,7 @@ uri_test() ->
                            port = 5090}}},
        ersip_uri:parse(<<"sips:a:%20@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme =  {scheme, sips},
                  data = #sip_uri_data{
                            user = {user, <<"%20">>},
@@ -70,14 +70,14 @@ uri_test() ->
                            port = 5090}}},
        ersip_uri:parse(<<"sips:%20@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme =  {scheme, <<"TEL">>},
                  data = #absolute_uri_data{opaque = <<"%20@b:5090">>}}},
        ersip_uri:parse(<<"TEL:%20@b:5090">>)),
 
 
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{scheme = {scheme, sip},
                  data = #sip_uri_data{
                            user = {user, <<"%25">>},
@@ -91,7 +91,7 @@ uri_test() ->
     ?assertMatch({error, empty_username}, ersip_uri:parse(<<"sip::a@b:5090">>)),
     ?assertMatch({error, {bad_password, _}}, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            user = undefined,
                            host = {hostname, <<"b">>},
@@ -99,7 +99,7 @@ uri_test() ->
        ersip_uri:parse(<<"sip:b:5090">>)),
 
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{host = {hostname, <<"b">>}}}},
        ersip_uri:parse(<<"sip:b">>)),
 
@@ -111,113 +111,113 @@ uri_test() ->
     ?assertMatch({error, {invalid_port, _}}, ersip_uri:parse(<<"sip:[::1]:">>)),
     ?assertMatch({error, {invalid_port, _}}, ersip_uri:parse(<<"sip:[::1]x">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {transport, tcp}}}}},
+                           params = #{transport := {transport, tcp}}}}},
        ersip_uri:parse(<<"sip:b;transport=tcp">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {transport, udp}}}}},
+                           params = #{transport := {transport, udp}}}}},
        ersip_uri:parse(<<"sip:b;transport=udp">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {transport, tls}}}}},
+                           params = #{transport := {transport, tls}}}}},
        ersip_uri:parse(<<"sip:b;transport=tls">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {transport, ws}}}}},
+                           params = #{transport := {transport, ws}}}}},
        ersip_uri:parse(<<"sip:b;transport=ws">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {transport, wss}}}}},
+                           params = #{transport := {transport, wss}}}}},
        ersip_uri:parse(<<"sip:b;transport=wss">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{transport => {other_transport, <<"wssnew">>}}}}},
+                           params = #{transport := {other_transport, <<"wssnew">>}}}}},
        ersip_uri:parse(<<"sip:b;transport=wssnew">>)),
 
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;transport=&">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;transport=&;user=phone">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{lr => true}}}},
+                           params = #{lr := true}}}},
        ersip_uri:parse(<<"sip:b;lr">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{maddr => {ipv4, {1,1,1,1}}}}}},
+                           params = #{maddr := {ipv4, {1,1,1,1}}}}}},
        ersip_uri:parse(<<"sip:b;maddr=1.1.1.1">>)),
 
     ?assertMatch({error, {invalid_maddr, _}}, ersip_uri:parse(<<"sip:b;maddr=&">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                host = {hostname, <<"b">>},
-               params = #{user => phone}}}},
+               params = #{user := phone}}}},
        ersip_uri:parse(<<"sip:b;user=phone">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{user => ip}}}},
+                           params = #{user := ip}}}},
        ersip_uri:parse(<<"sip:b;user=ip">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{user => <<"something">>}}}},
+                           params = #{user := <<"something">>}}}},
        ersip_uri:parse(<<"sip:b;user=something">>)),
 
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;user=&">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;user=">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{ttl => 1}}}},
+                           params = #{ttl := 1}}}},
        ersip_uri:parse(<<"sip:b;ttl=1">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{ttl => 1}}}},
+                           params = #{ttl := 1}}}},
        ersip_uri:parse(<<"sip:b;tt%6C=1">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{ttl => 1}}}},
+                           params = #{ttl := 1}}}},
        ersip_uri:parse(<<"sip:b;t%74%6C=1">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},
-                           params = #{ttl => 1}}}},
+                           params = #{ttl := 1}}}},
        ersip_uri:parse(<<"sip:b;t%74l=1">>)),
 
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=a">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=-1">>)),
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"sip:b;ttl=256">>)),
 
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                host = {hostname, <<"b">>},
-               params = #{<<"some">> => <<"1">>}}}},
+               params = #{<<"some">> := <<"1">>}}}},
        ersip_uri:parse(<<"sip:b;Some=1">>)),
-    ?assertEqual(
+    ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                host = {hostname, <<"b">>},
-               headers = #{<<"Some">> => <<"1">>,
-                           <<"Another">> => <<"2">>}}}},
+               headers = #{<<"Some">> := <<"1">>,
+                           <<"Another">> := <<"2">>}}}},
        ersip_uri:parse(<<"sip:b?Some=1&Another=2">>)),
 
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"a@b">>)),
@@ -225,13 +225,13 @@ uri_test() ->
 
 uri_make_test() ->
     {ok, ExpectedURI} = ersip_uri:parse(<<"sips:Alice@atlanta.com:8083">>),
-    ?assertEqual(ExpectedURI,
+    ?assertEqual(ersip_uri:make_key(ExpectedURI),
                  ersip_uri:make([{scheme, sips},
                                  {user, <<"Alice">>},
                                  {host, {hostname, <<"atlanta.com">>}},
                                  {port, 8083}])),
     {ok, ExpectedURI2} = ersip_uri:parse(<<"sip:Alice@atlanta.com:5061">>),
-    ?assertEqual(ExpectedURI2,
+    ?assertEqual(ersip_uri:make_key(ExpectedURI2),
                  ersip_uri:make([{scheme, sip},
                                  {user, <<"Alice">>},
                                  {host, {hostname, <<"atlanta.com">>}},
@@ -325,6 +325,16 @@ uri_assemeble_test() ->
     reassemble_check(<<"sip:b?a=b">>),
     reassemble_check(<<"sip:b;a=b?a=b">>),
     reassemble_check(<<"sip:b;a?a">>),
+    reassemble_check(<<"sip:B">>),
+    reassemble_check(<<"sip:[::1]">>),
+    reassemble_check(<<"sip:[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>),
+    reassemble_check(<<"sip:[fdfb:6E63:7442:92b6:CC1A:dbe6:D33B:de78]">>),
+    ok.
+
+uri_set_host_test() ->
+    URI0 = ersip_uri:make(<<"sip:[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>),
+    URI1 = ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>), URI0),
+    ?assertEqual(<<"sip:biloxi.com">>, ersip_uri:assemble_bin(URI1)),
     ok.
 
 get_parts_test() ->

@@ -11,9 +11,9 @@
 -include_lib("eunit/include/eunit.hrl").
 
 nameaddr_parse_test() ->
-    Ex1 = <<"\"A. G. Bell\" <sip:agb@bell-telephone.com> ;tag=a48s">>,
-    Ex1Host = ersip_host:make(<<"bell-telephone.com">>),
-    Ex1URI = ersip_uri:make([{user, <<"agb">>}, {host, Ex1Host}]),
+    Ex1HostBin = <<"bell-telephone.com">>,
+    Ex1 = <<"\"A. G. Bell\" <sip:agb@", Ex1HostBin/binary,"> ;tag=a48s">>,
+    Ex1URI = ersip_uri:make(<<"sip:agb@", Ex1HostBin/binary>>),
     {ok,
      {{display_name, <<"\"A. G. Bell\"">>},
       Ex1URI
@@ -21,9 +21,9 @@ nameaddr_parse_test() ->
      <<" ;tag=a48s">>
     } = ersip_nameaddr:parse(Ex1),
 
+    Ex2HostBin = <<"biloxi.com">>,
     Ex2 = <<"Bob <sip:bob@biloxi.com>;tag=a6c85cf">>,
-    Ex2Host = ersip_host:make(<<"biloxi.com">>),
-    Ex2URI = ersip_uri:make([{user, <<"bob">>}, {host, Ex2Host}]),
+    Ex2URI = ersip_uri:make(<<"sip:bob@", Ex2HostBin/binary>>),
     {ok,
      {{display_name, [<<"Bob">>]},
       Ex2URI
@@ -31,9 +31,9 @@ nameaddr_parse_test() ->
      <<";tag=a6c85cf">>
     } = ersip_nameaddr:parse(Ex2),
 
+    Ex3HostBin = <<"biloxi.com">>,
     Ex3 = <<"Bob Smith <sip:bob-smith@biloxi.com>;tag=a6c85cf">>,
-    Ex3Host = ersip_host:make(<<"biloxi.com">>),
-    Ex3URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex3Host}]),
+    Ex3URI = ersip_uri:make(<<"sip:bob-smith@", Ex3HostBin/binary>>),
     {ok,
      {{display_name, [<<"Bob">>, <<"Smith">>]},
       Ex3URI
@@ -41,9 +41,9 @@ nameaddr_parse_test() ->
      <<";tag=a6c85cf">>
     } = ersip_nameaddr:parse(Ex3),
 
+    Ex4HostBin = <<"biloxi.com">>,
     Ex4 = <<"<sip:bob-smith@biloxi.com>;tag=a6c85cf">>,
-    Ex4Host = ersip_host:make(<<"biloxi.com">>),
-    Ex4URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex4Host}]),
+    Ex4URI = ersip_uri:make(<<"sip:bob-smith@", Ex4HostBin/binary>>),
     {ok,
      {{display_name, []},
       Ex4URI
@@ -51,9 +51,9 @@ nameaddr_parse_test() ->
      <<";tag=a6c85cf">>
     } = ersip_nameaddr:parse(Ex4),
 
+    Ex5HostBin = <<"biloxi.com">>,
     Ex5 = <<"sip:bob-smith@biloxi.com;tag=a6c85cf">>,
-    Ex5Host = ersip_host:make(<<"biloxi.com">>),
-    Ex5URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex5Host}]),
+    Ex5URI = ersip_uri:make(<<"sip:bob-smith@", Ex5HostBin/binary>>),
     {ok,
      {{display_name, []},
       Ex5URI
@@ -61,9 +61,9 @@ nameaddr_parse_test() ->
      <<";tag=a6c85cf">>
     } = ersip_nameaddr:parse(Ex5),
 
+    Ex6HostBin = <<"biloxi.com">>,
     Ex6 = <<"sip:bob-smith@biloxi.com">>,
-    Ex6Host = ersip_host:make(<<"biloxi.com">>),
-    Ex6URI = ersip_uri:make([{user, <<"bob-smith">>}, {host, Ex6Host}]),
+    Ex6URI = ersip_uri:make(<<"sip:bob-smith@", Ex6HostBin/binary>>),
     {ok,
      {{display_name, []},
       Ex6URI

@@ -337,6 +337,13 @@ uri_set_host_test() ->
     ?assertEqual(<<"sip:biloxi.com">>, ersip_uri:assemble_bin(URI1)),
     ok.
 
+host_bin_test() ->
+    URI0 = ersip_uri:make(<<"sip:[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>),
+    URI1 = ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>), URI0),
+    ?assertEqual(<<"[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>, ersip_uri:host_bin(URI0)),
+    ?assertEqual(<<"biloxi.com">>, ersip_uri:host_bin(URI1)),
+    ok.
+
 get_parts_test() ->
     URI = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
     Scheme = {scheme, sip},

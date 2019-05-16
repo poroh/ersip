@@ -14,6 +14,7 @@
          user/1,
          set_user/2,
          host/1,
+         host_bin/1,
          set_host/2,
          port/1,
          set_port/2,
@@ -95,6 +96,12 @@ set_user(NewUser, #uri{data = #sip_uri_data{} = D} = U) ->
 -spec host(ersip_uri:uri()) -> ersip_host:host().
 host(#uri{data = #sip_uri_data{host = H}}) ->
     H.
+
+-spec host_bin(ersip_uri:uri()) -> binary().
+host_bin(#uri{data = #sip_uri_data{host_orig = undefined, host = H}}) ->
+    ersip_host:assemble_bin(H);
+host_bin(#uri{data = #sip_uri_data{host_orig = HostBin}}) when is_binary(HostBin) ->
+    HostBin.
 
 -spec set_host(ersip_host:host(), ersip_uri:uri()) -> ersip_uri:uri().
 set_host(H, #uri{data = #sip_uri_data{host = H}} = U) ->

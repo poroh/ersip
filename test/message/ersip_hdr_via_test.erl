@@ -79,6 +79,16 @@ topmost_via_via_params_ipv6_test() ->
     ?assertEqual({ok, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}}, ersip_hdr_via:maddr(Via)),
     ok.
 
+topmost_via_via_params_ipv6_no_bracket_test() ->
+    HVia@0 = ersip_hdr:new(<<"Via">>),
+    HVia@1 = ersip_hdr:add_values(
+               [<<"SIP/2.0/TCP 192.168.1.1:5090;ttl=200;received=64:ff9b::a3e:de6;branch=branch_v">>],
+               HVia@0),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    ?assertEqual({ok, {ipv6, {16#64, 16#ff9b, 0, 0, 0, 0, 16#a3e, 16#de6}}}, ersip_hdr_via:received(Via)),
+    ?assertEqual({ok, ersip_branch:make(<<"branch_v">>)}, ersip_hdr_via:branch(Via)),
+    ok.
+
 topmost_via_via_gen_params_test() ->
     HVia@0 = ersip_hdr:new(<<"Via">>),
     HVia@1 = ersip_hdr:add_values(
@@ -226,8 +236,8 @@ set_param_received_ipv6_binary_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
     Via1 = ersip_hdr_via:set_param(received, <<"[::1]">>, Via),
-    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=[::1];maddr=x.com">>,
-                  ersip_hdr_via:assemble_bin(Via1)),
+    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=::1;maddr=x.com">>,
+                 ersip_hdr_via:assemble_bin(Via1)),
     ?assertEqual({ok, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}}, ersip_hdr_via:received(Via1)),
     ok.
 
@@ -244,7 +254,7 @@ set_param_received_ipv6_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
     Via1 = ersip_hdr_via:set_param(received, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}, Via),
-    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=[::1];maddr=x.com">>,
+    ?assertEqual(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=::1;maddr=x.com">>,
                   ersip_hdr_via:assemble_bin(Via1)),
     ?assertEqual({ok, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}}, ersip_hdr_via:received(Via1)),
     ok.

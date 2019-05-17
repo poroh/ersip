@@ -15,7 +15,8 @@
          make/1,
          make_key/1,
          assemble/1,
-         assemble_bin/1
+         assemble_bin/1,
+         assemble_received/1
         ]).
 -export_type([host/0]).
 
@@ -114,6 +115,16 @@ assemble({ipv6, IpAddr}) ->
 -spec assemble_bin(host()) -> binary().
 assemble_bin(Host) ->
     iolist_to_binary(assemble(Host)).
+
+%% Assemble host as received parameter of via:
+%% via-received      =  "received" EQUAL (IPv4address / IPv6address)
+-spec assemble_received(host()) -> iolist().
+assemble_received({hostname, Bin}) ->
+    Bin;
+assemble_received({ipv4, IpAddr}) ->
+    inet:ntoa(IpAddr);
+assemble_received({ipv6, IpAddr}) ->
+    assemble_ip6(IpAddr).
 
 -spec make(Addr) -> host() when
       Addr :: inet:ip_address()

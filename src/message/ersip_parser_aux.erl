@@ -215,7 +215,7 @@ parse_gen_param_value(Bin) ->
         {ok, Val, Rest} ->
             {ok, Val, Rest};
         error ->
-            case parse_token(Bin) of
+            case parse_gen_param_val_token(Bin) of
                 {ok, _, _} = R ->
                     R;
                 _ ->
@@ -455,3 +455,24 @@ do_parse_params(Bin, Sep, Acc) ->
         {error, _} = Error ->
             Error
     end.
+
+%% @doc This is dirty hack to match dirty RFC3261 bug:
+%% via-received      =  "received" EQUAL (IPv4address / IPv6address)
+%%
+%% IPv6address is not match generic parameter value, but if we add ":"
+%% to token chars than it will.
+-spec parse_gen_param_val_token(binary()) -> parse_result(binary(), {not_a_token, binary()}).
+parse_gen_param_val_token(Bin) ->
+    End = find_gen_param_val_token_end(Bin, 0),
+    case End of
+        0 -> {error, {not_a_token, Bin}};
+        _ ->
+            <<Result:End/binary, Rest/binary>> = Bin,
+            {ok, Result, Rest}
+    end.
+
+-spec find_gen_param_val_token_end(binary(), non_neg_integer()) -> non_neg_integer().
+find_gen_param_val_token_end(<<Char/utf8, R/binary>>, Pos) when ?is_token_char(Char) orelse Char == $: ->
+    find_gen_param_val_token_end(R, Pos+byte_size(<<Char/utf8>>));
+find_gen_param_val_token_end(_, Pos) ->
+    Pos.

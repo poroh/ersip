@@ -426,7 +426,7 @@ parse_known(<<"received">>, Value) ->
             {error, {invalid_received, Value}}
     end;
 parse_known(<<"maddr">>, Value) ->
-    %% "received" EQUAL (IPv4address / IPv6address)
+    %% "maddr" EQUAL host
     case ersip_host:parse(Value) of
         {ok, Host, <<>>} ->
             {ok, {maddr, Host}};
@@ -499,7 +499,7 @@ assemble_params(HParams) ->
 
 -spec assemble_param_value(known_via_params(), term()) -> binary().
 assemble_param_value(received, Value) ->
-    iolist_to_binary(ersip_host:assemble(Value));
+    iolist_to_binary(ersip_host:assemble_received(Value));
 assemble_param_value(rport, true) ->
     <<>>;
 assemble_param_value(rport, Value) ->

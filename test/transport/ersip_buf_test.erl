@@ -54,6 +54,16 @@ read_test() ->
     {ok, [<<"345">>], Buf9}  = ersip_buf:read(3, Buf8),
     {ok, [<<"6789">>], _}    = ersip_buf:read(4, Buf9).
 
+double_add_test() ->
+    Buf  = ersip_buf:new(#{}),
+    Buf1 = ersip_buf:add(<<"a">>, Buf),
+    Buf2 = ersip_buf:add(<<"bcd">>, Buf1),
+    {ok, [<<"a">>, <<"b">>], Buf3}   = ersip_buf:read(2, Buf2),
+    Buf4 = ersip_buf:add(<<"ef">>, Buf3),
+    Buf5 = ersip_buf:add(<<"gh">>, Buf4),
+    {ok, [<<"cd">>, <<"ef">>, <<"gh">>], _Buf6}   = ersip_buf:read(6, Buf5),
+    ok.
+
 stream_postion_test() ->
     Buf = ersip_buf:new(#{}),
     ?assertEqual(0, ersip_buf:stream_postion(Buf)),

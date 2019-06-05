@@ -253,7 +253,7 @@ read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
                     <<HPart:Len/binary, RPart/binary>> = V,
                     Q1    = queue:in_r(RPart, Q),
                     Q1Len = QLen + byte_size(RPart),
-                    State1 = State#state{acc = lists:reverse([HPart | Acc]),
+                    State1 = State#state{acc = [HPart | Acc],
                                          acclen = AccLen + Len,
                                          queue = Q1,
                                          queuelen = Q1Len

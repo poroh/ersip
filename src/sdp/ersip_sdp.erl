@@ -21,6 +21,8 @@
          time/1,
          medias/1,
          set_medias/2,
+         attrs/1,
+         set_attrs/2,
          parse/1,
          assemble/1,
          assemble_bin/1
@@ -44,7 +46,7 @@
               bandwidth    :: ersip_sdp_bandwidth:bandwidth(),
               timings      :: ersip_sdp_time:timings(),
               key          :: maybe_binary(),
-              attrs        :: ersip_sdp_attr:attr_list(),
+              attrs = []   :: ersip_sdp_attr:attr_list(),
               medias       :: [ersip_sdp_media:media()]
              }).
 -type sdp() :: #sdp{}.
@@ -102,6 +104,14 @@ medias(#sdp{medias = M}) ->
 -spec set_medias([ersip_sdp_media:media()], sdp()) -> sdp().
 set_medias(Medias, #sdp{} = SDP) ->
     SDP#sdp{medias = Medias}.
+
+-spec attrs(sdp()) -> ersip_sdp_attr:attr_list().
+attrs(#sdp{attrs = A}) ->
+    A.
+
+-spec set_attrs(ersip_sdp_attr:attr_list(), sdp()) -> sdp().
+set_attrs(A, #sdp{} = SDP) ->
+    SDP#sdp{attrs = A}.
 
 %% session-description = proto-version
 %%                       origin-field
@@ -199,7 +209,7 @@ assemble_bin(#sdp{} = SDP) ->
 -spec parse_proto(binary()) -> parse_result(0).
 parse_proto(<<"v=0" ?crlf, Rest/binary>>) ->
     {ok, 0, Rest};
-parse_proto(<<"v=", C/utf8, ?crlf>>) ->
+parse_proto(<<"v=", C/utf8, ?crlf, _/binary>>) ->
     {error, {unsupported_version, <<C/utf8>>}};
 parse_proto(Bin) ->
     unexpected_attribute_error(version, Bin).
@@ -260,7 +270,7 @@ do_parse_emails(Bin, Acc) ->
 
 -spec do_parse_phones(binary(), [binary()]) -> parse_result([binary()]).
 do_parse_phones(<<"p=", Rest/binary>>, Acc) ->
-    case ersip_sdp_aux:binary_to_eol(email, Rest) of
+    case ersip_sdp_aux:binary_to_eol(phone, Rest) of
         {ok, V, Rest1} ->
             do_parse_phones(Rest1, [V | Acc]);
         {error, _} = Error ->

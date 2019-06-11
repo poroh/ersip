@@ -15,6 +15,8 @@
          formats/1,
          conn/1,
          set_conn/2,
+         attrs/1,
+         set_attrs/2,
          parse/1,
          assemble/1
         ]).
@@ -34,7 +36,7 @@
                 conn       :: ersip_sdp_conn:conn() | undefined, %% c=
                 bandwidth  :: ersip_sdp_bandwidth:bandwidth(),   %% b=
                 key        :: maybe_binary(),                    %% k=
-                attrs      :: ersip_sdp_attr:attr_list()
+                attrs = [] :: ersip_sdp_attr:attr_list()
                }).
 -type media() :: #media{}.
 -type media_type()   :: binary().
@@ -73,6 +75,14 @@ conn(#media{conn = Conn}) ->
 -spec set_conn(ersip_sdp_conn:conn(), media()) -> media().
 set_conn(Conn, #media{} = Media) ->
     Media#media{conn = Conn}.
+
+-spec attrs(media()) -> ersip_sdp_attr:attr_list().
+attrs(#media{attrs = A}) ->
+    A.
+
+-spec set_attrs(ersip_sdp_attr:attr_list(), media()) -> media().
+set_attrs(A, #media{} = Media) ->
+    Media#media{attrs = A}.
 
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->

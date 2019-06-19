@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -42,6 +42,24 @@ parse_test() ->
     ?assertEqual({tag, <<"100">>}, ersip_hdr_fromto:tag(To4)),
     ?assertEqual(URI, ersip_hdr_fromto:uri(To4)),
     ok.
+
+
+%% This format violates RFC 3261 cluase:
+%% | Even if the "display-name" is empty, the "name-addr" form MUST be
+%% | used if the "addr-spec" contains a comma, semicolon, or question
+%% | mark.
+%% But some not very compiant clients do this.
+comma_username_test() ->
+    URIBin = <<"sip:+111,,,2@atlanta.com">>,
+    {ok, URI} = ersip_uri:parse(URIBin),
+    To = success_parse_fromto(URIBin),
+    ?assertEqual(URI, ersip_hdr_fromto:uri(To)),
+
+    To2 = success_parse_fromto(<<URIBin/binary, ";tag=12345">>),
+    ?assertEqual(URI, ersip_hdr_fromto:uri(To2)),
+    ?assertEqual({tag, <<"12345">>}, ersip_hdr_fromto:tag(To2)),
+    ok.
+
 
 parse_fail_test() ->
     ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"a@b">>))),

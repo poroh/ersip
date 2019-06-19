@@ -9,6 +9,7 @@
 -module(ersip_nameaddr).
 
 -export([parse/1,
+         parse/2,
          assemble/2,
          assemble_display_name/1,
          assemble_display_name_bin/1
@@ -29,14 +30,12 @@
 
 %% [display-name] LAQUOT addr-spec RAQUOT
 %% display-name   =  *(token LWS)/ quoted-string
--spec parse(binary()) -> Result when
-      Result :: {ok, {display_name(),
-                      ersip_uri:uri()
-                     },
-                 Rest :: binary()
-                }
-              | {error, {einval, atom()}}.
+-spec parse(binary()) ->  ersip_parser_aux:parse_result({display_name(), ersip_uri:uri()}).
 parse(NameAddrBin) ->
+    parse(NameAddrBin, [<<",">>, <<";">>, <<" ">>, <<"\t">>]).
+
+-spec parse(binary(), [binary()]) ->  ersip_parser_aux:parse_result({display_name(), ersip_uri:uri()}).
+parse(NameAddrBin, AddrSpecSeps) ->
     NA = ersip_bin:trim_head_lws(NameAddrBin),
     case parse_display_name(NA) of
         {DisplayName, <<"<", R/binary>>} ->
@@ -53,7 +52,7 @@ parse(NameAddrBin) ->
                     {error, {einval, address}}
             end;
         {{display_name, []} = DN, <<R/binary>>} ->
-            case binary:match(R, [<<",">>, <<";">>, <<" ">>, <<"\t">>]) of
+            case binary:match(R, AddrSpecSeps) of
                 {Pos, 1} ->
                     <<Addr:Pos/binary, Rest/binary>> = R,
                     case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of

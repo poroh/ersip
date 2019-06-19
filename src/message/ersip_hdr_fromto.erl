@@ -169,7 +169,7 @@ set_params(Params, #fromto{} = FT) ->
                                     | {error, Error} when
       Error :: {einval, address}.
 parse_fromto(Bin) ->
-    Parsers = [fun ersip_nameaddr:parse/1,
+    Parsers = [fun(NameAddr) -> ersip_nameaddr:parse(NameAddr, [<<" ">>, <<";">>, <<"\t">>]) end,
                fun ersip_parser_aux:trim_lws/1,
                fun parse_params/1
               ],

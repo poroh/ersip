@@ -258,6 +258,14 @@ incremental_data_test() ->
     ?assertEqual([<<"01234">>, <<"56789">>], ersip_msg:get(body, PMsg)).
 
 
+a_lot_of_crlfs_test() ->
+    P0 = ersip_parser:new(#{max_message_len => 5}),
+    P1 = ersip_parser:add_binary(<<"\r\n">>, P0),
+    {more_data, P2} = ersip_parser:parse(P1),
+    P3 = ersip_parser:add_binary(<<"\r\n\r\n\r\n\r\n">>, P2),
+    {more_data, _} = ersip_parser:parse(P3),
+    ok.
+
 negative_cases_test_() ->
     [?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/2.0 700 OK", ?crlf>>)),
      ?_assertMatch({error, {bad_status_line,_}}, parse_fail_reason(<<"SIP/2.0 2000 OK", ?crlf>>)),

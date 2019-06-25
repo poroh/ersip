@@ -68,7 +68,9 @@ parse(#data{state = first_line, buf = Buf} = Data) ->
         {ok, Line, Buf1} ->
             Data1 = Data#data{buf = Buf1},
             case parse_first_line(Line) of
-                again -> parse(Data1);
+                again ->
+                    Data2 = Data1#data{start_pos = ersip_buf:stream_postion(Buf1)},
+                    parse(Data2);
                 {ok, Message} ->
                     Data2 = Data1#data{message = Message,
                                        state = headers},

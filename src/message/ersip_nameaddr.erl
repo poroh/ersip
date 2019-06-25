@@ -38,6 +38,8 @@ parse(NameAddrBin) ->
 parse(NameAddrBin, AddrSpecSeps) ->
     NA = ersip_bin:trim_head_lws(NameAddrBin),
     case parse_display_name(NA) of
+        {_, <<>>} ->
+            {error, {einval, no_uri}};
         {DisplayName, <<"<", R/binary>>} ->
             case binary:match(R, <<">">>) of
                 {Pos, 1} ->

@@ -15,7 +15,9 @@
          parse_key/1,
          assemble_key/1,
          parse_crlf/1,
-         binary_to_eol/2]).
+         binary_to_eol/2,
+         unexpected_attribute_error/2
+        ]).
 
 %%%===================================================================
 %%% Types
@@ -92,6 +94,11 @@ binary_to_eol(Type, Bin) ->
         [V] ->
             {error, {unexpected_end, {Type, V}}}
     end.
+
+-spec unexpected_attribute_error(atom(), binary()) -> {error, term()}.
+unexpected_attribute_error(Expected, Bin) ->
+    [V | _] = binary:split(Bin, <<"\r\n">>),
+    {error, {unexpected_attribute_error, {Expected, V}}}.
 
 %%%===================================================================
 %%% Internal implementation

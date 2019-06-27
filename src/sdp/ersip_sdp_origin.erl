@@ -72,7 +72,9 @@ parse(<<"o=", Rest/binary>>) ->
                 _ ->
                     {error, {invalid_origin, OriginBin}}
             end
-    end.
+    end;
+parse(V) ->
+    ersip_sdp_aux:unexpected_attribute_error(origin, V).
 
 -spec assemble(origin()) -> iolist().
 assemble(#origin{} = Origin) ->
@@ -123,3 +125,8 @@ build_origin(UserName, SessIdBin, SessVerBin,
                 end,
                 {ok, Origin},
                 Parsers).
+
+-spec unexpected_attribute_error(atom(), binary()) -> {error, term()}.
+unexpected_attribute_error(Expected, Bin) ->
+    [V | _] = binary:split(Bin, <<?crlf>>),
+    {error, {unexpected_attribute_error, {Expected, V}}}.

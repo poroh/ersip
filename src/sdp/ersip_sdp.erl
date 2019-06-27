@@ -254,8 +254,7 @@ assemble_phones(Phones) ->
 
 -spec unexpected_attribute_error(atom(), binary()) -> {error, term()}.
 unexpected_attribute_error(Expected, Bin) ->
-    [V | _] = binary:split(Bin, <<?crlf>>),
-    {error, {unexpected_attribute_error, {Expected, V}}}.
+    ersip_sdp_aux:unexpected_attribute_error(Expected, Bin).
 
 -spec do_parse_emails(binary(), [binary()]) -> parse_result([binary()]).
 do_parse_emails(<<"e=", Rest/binary>>, Acc) ->

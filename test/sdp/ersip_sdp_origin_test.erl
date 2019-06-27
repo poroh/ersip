@@ -43,6 +43,7 @@ parse_error_test() ->
     ?assertMatch({error, {invalid_origin, _}}, parse(<<"o=- 2890844526 1 a@b IP4 10.47.16.5">>)),
     ?assertMatch({error, {invalid_origin, _}}, parse(<<"o=- 2890844526 1 IN I@4 10.47.16.5">>)),
     ?assertMatch({error, {invalid_origin, _}}, parse(<<"o=- 2890844526 1 IN IP4 10">>)),
+    ?assertMatch({error, {unexpected_attribute_error, _}}, parse(<<" o=- 2890844526 1 IN IP4 10.47.16.5">>)),
     ok.
 
 

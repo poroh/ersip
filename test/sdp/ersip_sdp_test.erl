@@ -196,7 +196,20 @@ bad_test() ->
     ?assertMatch({error, {invalid_sdp, <<"c=IN IP4 192.0.2.156\r\n", _/binary>>}}, ersip_sdp:parse(bad2())),
     ?assertMatch({error, {invalid_sdp, {unsupported_version,<<"1">>}}}, ersip_sdp:parse(bad3())),
     ?assertMatch({error, {invalid_sdp, {unexpected_attribute_error, {session_name,<<"t=0 0">>}}}}, ersip_sdp:parse(bad4())),
-    ?assertMatch({error, {invalid_sdp, {unexpected_attribute_error, {version, <<"o=", _/binary>>}}}}, ersip_sdp:parse(bad5())).
+    ?assertMatch({error, {invalid_sdp, {unexpected_attribute_error, {version, <<"o=", _/binary>>}}}}, ersip_sdp:parse(bad5())),
+    ok.
+
+bad_line_start_test() ->
+    OrigLines = sdp_lines(),
+    NumLines = length(OrigLines),
+    Cases = [begin
+                 {Head, [X | Tail]} = lists:split(SplitPos, OrigLines),
+                 assemble_lines(Head ++ [[$% | X] | Tail])
+             end
+             || SplitPos <- lists:seq(0, NumLines-1)],
+    [?assertMatch({error, {invalid_sdp, _}},
+                  ersip_sdp:parse(L))
+     || L <- Cases].
 
 
 %%%===================================================================
@@ -218,51 +231,69 @@ make(SDPBin) ->
 
 
 bad1() -> %%  unknown f=
-    <<
-"v=0\r\n",
-"o=- 3710604898417546434 2 IN IP4 127.0.0.1\r\n",
-"s=-\r\n",
-"t=0 0\r\n",
-"m=audio 1 RTP/AVP 0\r\n",
-"c=IN IP4 0.0.0.0\r\n",
-"a=rtcp:1 IN IP7 X\r\n",
-"a=rtpmap:0 PCMU/8000\r\n",
-"a=goo:hithere\r\n",
-"f=invalid:yes\r\n">>.
+    <<"v=0\r\n",
+      "o=- 3710604898417546434 2 IN IP4 127.0.0.1\r\n",
+      "s=-\r\n",
+      "t=0 0\r\n",
+      "m=audio 1 RTP/AVP 0\r\n",
+      "c=IN IP4 0.0.0.0\r\n",
+      "a=rtcp:1 IN IP7 X\r\n",
+      "a=rtpmap:0 PCMU/8000\r\n",
+      "a=goo:hithere\r\n",
+      "f=invalid:yes\r\n">>.
 
- bad2() -> %% bad position of c=
-<<
-"v=0\r\n",
-"o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
-"s=Simulcast Enabled Client\r\n",
-"t=0 0\r\n",
-"c=IN IP4 192.0.2.156\r\n",
-"m=audio 49200 RTP/AVP 0\r\n",
-"a=rtpmap:0 PCMU/8000\r\n">>.
+bad2() -> %% bad position of c=
+    <<"v=0\r\n",
+      "o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "s=Simulcast Enabled Client\r\n",
+      "t=0 0\r\n",
+      "c=IN IP4 192.0.2.156\r\n",
+      "m=audio 49200 RTP/AVP 0\r\n",
+      "a=rtpmap:0 PCMU/8000\r\n">>.
 
- bad3() -> %% unsupported version
-<<
-"v=1\r\n",
-"o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
-"s=Simulcast Enabled Client\r\n",
-"t=0 0\r\n",
-"m=audio 49200 RTP/AVP 0\r\n",
-"a=rtpmap:0 PCMU/8000\r\n">>.
+bad3() -> %% unsupported version
+    <<"v=1\r\n",
+      "o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "s=Simulcast Enabled Client\r\n",
+      "t=0 0\r\n",
+      "m=audio 49200 RTP/AVP 0\r\n",
+      "a=rtpmap:0 PCMU/8000\r\n">>.
 
- bad4() -> %% no session
-<<
-"v=0\r\n",
-"o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
-"t=0 0\r\n",
-"m=audio 49200 RTP/AVP 0\r\n",
-"a=rtpmap:0 PCMU/8000\r\n">>.
+bad4() -> %% no session
+    <<"v=0\r\n",
+      "o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "t=0 0\r\n",
+      "m=audio 49200 RTP/AVP 0\r\n",
+      "a=rtpmap:0 PCMU/8000\r\n">>.
 
- bad5() -> %%  no version
-<<
-"o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
-"v=0\r\n",
-"s=Simulcast Enabled Client\r\n",
-"t=0 0\r\n",
-"m=audio 49200 RTP/AVP 0\r\n",
-"a=rtpmap:0 PCMU/8000\r\n">>.
+bad5() -> %%  no version
+    <<"o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "v=0\r\n",
+      "s=Simulcast Enabled Client\r\n",
+      "t=0 0\r\n",
+      "m=audio 49200 RTP/AVP 0\r\n",
+      "a=rtpmap:0 PCMU/8000\r\n">>.
 
+sdp_lines() ->
+    ["v=0",
+     "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5",
+     "s=SDP Seminar",
+     "i=A Seminar on the session description protocol",
+     "u=http://www.example.com/seminars/sdp.pdf",
+     "e=j.doe@example.com (Jane Doe)",
+     "p=+1 617 555-6011",
+     "c=IN IP4 224.2.17.12/127",
+     "b=TIAS:512",
+     "t=0 0",
+     "t=3034423619 3042462419",
+     "r=604800 3600 0 90000",
+     "r=7d 1h 0 25h",
+     "k=prompt",
+     "a=recvonly",
+     "m=audio 49170 RTP/AVP 0",
+     "m=video 51372 RTP/AVP 99",
+     "c=IN IP4 192.168.0.1",
+     "a=rtpmap:99 h263-1998/90000"].
+
+assemble_lines(Lines) ->
+    iolist_to_binary([[L, ?crlf] || L <- Lines]).

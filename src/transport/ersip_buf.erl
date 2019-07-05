@@ -133,7 +133,7 @@ read_till_crlf(#one_binary{rest = Rest0, crlf = CRLF} = State) ->
             State_ = State#one_binary{rest = Rest,
                                       pos  = State#one_binary.pos + Start + Len
                                      },
-            {ok, Result, State_}
+            {ok, binary:copy(Result), State_}
     end;
 read_till_crlf(#state{acc = A, crlf = CRLF} = State) ->
     do_read_till_crlf(CRLF, byte_size(A)-1, State).
@@ -148,7 +148,7 @@ read(Len, #one_binary{rest = Rest0} = State0) when Len =< byte_size(Rest0) ->
     <<Result:Len/binary, Rest/binary>> = Rest0,
     State = State0#one_binary{rest = Rest,
                               pos  = State0#one_binary.pos + Len},
-    {ok, [Result], State};
+    {ok, [binary:copy(Result)], State};
 read(Len, #state{acclen = AccLen} = State) when Len >= AccLen->
     read_more_to_acc(Len-AccLen, State).
 
@@ -217,7 +217,7 @@ do_read_till_crlf(Pattern, Pos, #state{acc = A} = State) ->
                                  acclen   = 0,
                                  pos      = NewBufPos
                                 },
-            {ok, Result, State_}
+            {ok, binary:copy(Result), State_}
     end.
 
 -spec read_more_to_acc(Len :: non_neg_integer(), state()) -> Result when
@@ -253,7 +253,7 @@ read_more_to_acc(Len, #state{acc = Acc, acclen = AccLen} = State) ->
                     <<HPart:Len/binary, RPart/binary>> = V,
                     Q1    = queue:in_r(RPart, Q),
                     Q1Len = QLen + byte_size(RPart),
-                    State1 = State#state{acc = [HPart | Acc],
+                    State1 = State#state{acc = [binary:copy(HPart) | Acc],
                                          acclen = AccLen + Len,
                                          queue = Q1,
                                          queuelen = Q1Len

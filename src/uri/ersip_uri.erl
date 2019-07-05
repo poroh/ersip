@@ -586,10 +586,10 @@ params_key(Params) ->
 %% @doc URI headers key
 -spec headers_key(uri_headers()) -> uri_headers().
 headers_key(Headers) ->
-    maps:map(fun(Key, Value) ->
-                     {Key,
-                      ersip_bin:unquote_rfc_2396(Value)
-                     }
+    maps:map(fun(Key, novalue) ->
+                     {Key, novalue};
+                (Key, Value) ->
+                     {Key, ersip_bin:unquote_rfc_2396(Value)}
              end,
              Headers).
 

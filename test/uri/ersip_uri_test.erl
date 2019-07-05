@@ -223,7 +223,7 @@ uri_test() ->
     ?assertMatch({error, {einval, _}}, ersip_uri:parse(<<"a@b">>)),
     ok.
 
-uri_make_test() ->
+uri_make_key_test() ->
     {ok, ExpectedURI} = ersip_uri:parse(<<"sips:Alice@atlanta.com:8083">>),
     ?assertEqual(ersip_uri:make_key(ExpectedURI),
                  ersip_uri:make([{scheme, sips},
@@ -307,7 +307,12 @@ uri_compare_test() ->
 
     %% sip:bob@phone21.boxesbybob.com   (even though that's what
     %% sip:bob@192.0.2.4                 phone21.boxesbybob.com resolves to)
+
+    ?assertEqual(make_key(<<"sip:biloxi.com;transport=tcp;method=REGISTER?to">>),
+                 make_key(<<"sip:biloxi.com;method=REGISTER;transport=tcp?to">>)),
     ok.
+
+
 
 uri_assemeble_test() ->
     reassemble_check(<<"sip:1.1.1.1;transport=tcp">>),

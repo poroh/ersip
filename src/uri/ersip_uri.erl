@@ -586,9 +586,7 @@ params_key(Params) ->
 %% @doc URI headers key
 -spec headers_key(uri_headers()) -> uri_headers().
 headers_key(Headers) ->
-    maps:map(fun(Key, novalue) ->
-                     {Key, novalue};
-                (Key, Value) ->
+    maps:map(fun(Key, Value) ->
                      {Key, ersip_bin:unquote_rfc_2396(Value)}
              end,
              Headers).
@@ -664,7 +662,9 @@ split_params(Bin) ->
             {Prefix, Headers}
     end.
 
--spec uri_header_validator(binary(), binary()) -> {ok, {binary(), binary()}}.
+-spec uri_header_validator(binary(), binary() | novalue) -> {ok, {binary(), binary()}}.
+uri_header_validator(Key, novalue) ->
+    {ok, {Key, <<>>}};
 uri_header_validator(Key, Value) ->
     {ok, {Key, Value}}.
 
@@ -721,9 +721,7 @@ assemble_headers(Headers) ->
             [$?,
              ersip_iolist:join(
                <<"&">>,
-               lists:map(fun ({Name, novalue}) ->
-                                 [Name];
-                             ({Name, Value}) ->
+               lists:map(fun ({Name, Value}) ->
                                  [Name, $=, Value]
                          end,
                          maps:to_list(Headers)))

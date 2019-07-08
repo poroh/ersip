@@ -125,8 +125,3 @@ build_origin(UserName, SessIdBin, SessVerBin,
                 end,
                 {ok, Origin},
                 Parsers).
-
--spec unexpected_attribute_error(atom(), binary()) -> {error, term()}.
-unexpected_attribute_error(Expected, Bin) ->
-    [V | _] = binary:split(Bin, <<?crlf>>),
-    {error, {unexpected_attribute_error, {Expected, V}}}.

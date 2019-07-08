@@ -329,7 +329,7 @@ uri_assemeble_test() ->
     reassemble_check(<<"tel:b;myparam">>),
     reassemble_check(<<"sip:b?a=b">>),
     reassemble_check(<<"sip:b;a=b?a=b">>),
-    reassemble_check(<<"sip:b;a?a">>),
+    reassemble_check(<<"sip:b;a?a=">>),
     reassemble_check(<<"sip:B">>),
     reassemble_check(<<"sip:[::1]">>),
     reassemble_check(<<"sip:[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>),
@@ -427,6 +427,9 @@ rebuild_headers_value_test() ->
     TelUriBin = ersip_uri:assemble_bin(ersip_uri:rebuild_header_values(TelUri)),
     ?assertEqual(<<"tel:1234">>, TelUriBin),
 
+    NoHdrUri = ersip_uri:make(<<"sip:carol@chicago.com?a">>),
+    NoHdrUriBin = ersip_uri:assemble_bin(ersip_uri:rebuild_header_values(NoHdrUri)),
+    ?assertEqual(<<"sip:carol@chicago.com?a=">>, NoHdrUriBin),
     ok.
 
 data_test() ->

@@ -26,6 +26,12 @@ rebuild_test() ->
     rebuild(<<"<sip:carol@cleveland.example.org;method=SUBSCRIBE>;x-some-param;x-some-param=1;X">>),
     ok.
 
+noncompiant_parse_test() ->
+    %% Note not compliant but widely used form:
+    ReferTo = ersip_hdr_refer_to:make(<<"sip:111@1.1.1.1;transport=tcp?Replaces=calllid;to-tag=a;from-tag=b">>),
+    ?assertEqual(<<"<sip:111@1.1.1.1;transport=tcp?Replaces=calllid;to-tag=a;from-tag=b>">>, ersip_hdr_refer_to:assemble_bin(ReferTo)),
+    ok.
+
 parse_error_test() ->
     parse_error(<<"">>),
     parse_error(<<"invalid_uri">>),

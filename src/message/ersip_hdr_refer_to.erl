@@ -113,7 +113,11 @@ build(HdrName, #refer_to{} = ReferTo) ->
 
 -spec parse_hdr(binary()) -> parse_result().
 parse_hdr(Bin) ->
-    Parsers = [fun ersip_nameaddr:parse/1,
+    %% Intentionally not good compiant parser - prefer to add
+    %% ;param=value to the URI instead of to headers parameters that
+    %% are not defined by RFC. A lot of bad implementations uses something like this:
+    %% Refer-To: sip:111@1.1.1.1;transport=tcp?Replaces=calllid;to-tag=a;from-tag=b
+    Parsers = [fun(NameAddr) -> ersip_nameaddr:parse(NameAddr, [<<" ">>, <<"\t">>]) end,
                fun ersip_parser_aux:trim_lws/1,
                fun parse_refer_to_params/1
               ],

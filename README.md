@@ -5,7 +5,7 @@
 
 ## Approach to design
 
-What you cannot find ersip:
+What you cannot find in ersip:
   + Supervisors
   + Servers
   + ETS

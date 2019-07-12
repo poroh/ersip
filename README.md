@@ -3,40 +3,22 @@
 
 # Erlang SIP and SDP library
 
-Some time ago I found that there are no opensource SIP library that
-does not force you to some software design. All libraries provides
-some framework that is required in your project if you want to use
-SIP. I believe that this is wrong way. Goal of this project is to
-provide high-level primitives that implements all SIP functions but
-leave to user how to organize these primitives in his/her software.
+## Approach to design
 
-## Roadmap
+What you cannot find ersip:
+  + Supervisors
+  + Servers
+  + ETS
+  + Dependencies
 
-  + Basic low-level parser (completed)
-  + Essential headers support (completed)
-  + High-level SIP message (completed)
-  + Stateless proxy support (completed)
-     - Request passing (completed)
-     - Response passing (completed)
-  + Transaction support (completed)
-     - Transaction idenification (completed)
-     - Non-INVITE transaction (completed)
-     - INVITE transaction (completed)
-  + Registrar support (completed)
-  + Parser limits enforcement (completed)
-  + Statefull proxy support (completed)
-  + Common dialog support (completed)
-  + Authorization and proxy authorization (in-progress)
-  + SDP support (in-progress)
-  + INVITE dialog support
-  + High-level UA support
-  + Detailed documentation and tutorials
+You can find only pure functions that are compliant to SIP specification.
 
 ## Realworld examples
 
 Working examples:
 
   + Sateful SIP proxy: https://github.com/poroh/ersip_proxy
+  + Hunt group service example: https://github.com/poroh/piraha
 
 ## Provided primitives
 
@@ -56,37 +38,47 @@ Primitives that provided by SIP stack:
 RFC supported in this SIP stack:
 
   + RFC 2543 SIP: Session Initiation Protocol (backward compatibility)
-  + RFC 3261 SIP: Session Initiation Protocol (partially - in progress)
+  + RFC 3261 SIP: Session Initiation Protocol (partially):
+      - 7 SIP Messages
+      - 8.2 UAS Behavior
+      - 9 Canceling a Request
+      - 10 Registration - Registrar part only
+      - 12 Dialogs
+      - 16 Proxy Behavior
+      - 17 Transactions
+      - 18 Transport
+      - 19 Common Message Components
   + RFC 6026 Correct Transaction Handling for 2xx Responses to Session Initiation Protocol (SIP) INVITE Requests
   + RFC 3581 An Extension to the Session Initiation Protocol (SIP) for Symmetric Response Routing (rport)
   + RFC 4475 Session Initiation Protocol (SIP) Torture Test Messages
   + RFC 5118 Session Initiation Protocol (SIP) Torture Test Messages for Internet Protocol Version 6 (IPv6)
-  + RFC 4566 SDP: Session Description Protocol (patially - in progress)
+  + RFC 4566 SDP: Session Description Protocol (patially)
+  + RFC 3515 The Session Initiation Protocol (SIP) Refer Method (header/method only):
+      - 2.1  The Refer-To Header Field
+  + RFC 6665 SIP-Specific Event Notification (header/method only)
+      - 8.2.1. "Event" Header Field
+      - 8.2.3. "Subscription-State" Header Field
+  + RFC 3891 The Session Initiation Protocol (SIP) "Replaces" Header (header only)
+      - 6.1. The Replaces Header
 
-## About Author
+## Roadmap
 
-Dmitry Poroh:
-
-Has huge (17 years) exprience in telecommunication areas. Among other
-projects I have developed:
-
-  + SMTP protocol (RFC2821)
-  + HTTP/FTP proxy (RFC2616, RFC0959)
-  + OSPF protocol (RFC2328)
-  + ZigBee/IEEE 802.15.4 protocol stack
-  + HTTP/HTTPS implementation (RFC2616)
-  + DiffServ implementation
-  + VPN (IPSec/ESP) tunnels implementation
-  + RTP/RTCP implementation (RFC3550/RFC3551)
-
-Also I have experience in VOIP area:
-
-  + Private PBX implementation based on FreeSWITCH
-  + Multipoint Control Unit (developed from scratch)
-  + MSML-capable Audio Media Gateway (developed from scratch)
-  + Session Border Controller (developed from scratch)
-
-I try to contribute all my experience to this project because I
-beleive that SIP protocol is instrument that must be free and
-available.
-
+  + Basic low-level parser (completed)
+  + Essential headers support (completed)
+  + High-level SIP message (completed)
+  + Stateless proxy support (completed)
+     - Request passing (completed)
+     - Response passing (completed)
+  + Transaction support (completed)
+     - Transaction idenification (completed)
+     - Non-INVITE transaction (completed)
+     - INVITE transaction (completed)
+  + Registrar support (completed)
+  + Parser limits enforcement (completed)
+  + Statefull proxy support (completed)
+  + Common dialog support (completed)
+  + SDP support (conpleted)
+  + Detailed documentation and tutorials
+  + Authorization and proxy authorization
+  + INVITE dialog support
+  + High-level UA support

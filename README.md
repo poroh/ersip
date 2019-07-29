@@ -13,12 +13,12 @@ What you cannot find in ersip:
 
 You can find only pure functions that are compliant to SIP specification.
 
-## Realworld examples
+## Real world examples
 
 Working examples:
 
-  + Sateful SIP proxy: https://github.com/poroh/ersip_proxy
-  + Hunt group service example: https://github.com/poroh/piraha
+  + Stateful SIP proxy: https://github.com/poroh/ersip_proxy
+  + Hunt group service (B2BUA) example: https://github.com/poroh/piraha
 
 ## Provided primitives
 
@@ -52,7 +52,7 @@ RFC supported in this SIP stack:
   + RFC 3581 An Extension to the Session Initiation Protocol (SIP) for Symmetric Response Routing (rport)
   + RFC 4475 Session Initiation Protocol (SIP) Torture Test Messages
   + RFC 5118 Session Initiation Protocol (SIP) Torture Test Messages for Internet Protocol Version 6 (IPv6)
-  + RFC 4566 SDP: Session Description Protocol (patially)
+  + RFC 4566 SDP: Session Description Protocol (partially)
   + RFC 3515 The Session Initiation Protocol (SIP) Refer Method (header/method only):
       - 2.1  The Refer-To Header Field
   + RFC 6665 SIP-Specific Event Notification (header/method only)
@@ -60,6 +60,10 @@ RFC supported in this SIP stack:
       - 8.2.3. "Subscription-State" Header Field
   + RFC 3891 The Session Initiation Protocol (SIP) "Replaces" Header (header only)
       - 6.1. The Replaces Header
+
+## License
+
+MIT
 
 ## Roadmap
 
@@ -70,14 +74,14 @@ RFC supported in this SIP stack:
      - Request passing (completed)
      - Response passing (completed)
   + Transaction support (completed)
-     - Transaction idenification (completed)
+     - Transaction identification (completed)
      - Non-INVITE transaction (completed)
      - INVITE transaction (completed)
   + Registrar support (completed)
   + Parser limits enforcement (completed)
-  + Statefull proxy support (completed)
+  + Stateful proxy support (completed)
   + Common dialog support (completed)
-  + SDP support (conpleted)
+  + SDP support (completed)
   + Detailed documentation and tutorials
   + Authorization and proxy authorization
   + INVITE dialog support

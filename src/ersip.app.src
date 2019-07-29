@@ -1,6 +1,6 @@
 {application, ersip,
- [{description, "An OTP application"},
-  {vsn, "0.1.0"},
+ [{description, "Erlang SIP Library"},
+  {vsn, "1.0.0"},
   {registered, []},
   {mod, { ersip_app, []}},
   {applications,
@@ -12,6 +12,6 @@
   {modules, []},
 
   {maintainers, []},
-  {licenses, ["Apache 2.0"]},
+  {licenses, ["MIT"]},
   {links, []}
  ]}.

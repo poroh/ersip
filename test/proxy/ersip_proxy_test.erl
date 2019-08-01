@@ -1266,6 +1266,12 @@ error_on_unexpected_trans_cancel_test() ->
     ?assertError({api_error, _}, ersip_proxy:trans_result({cancel, BranchKey}, timeout, Cancel_State)),
     ok.
 
+server_transaction_finish_is_ignored_test() ->
+    MessageSipMsg = message_request(),
+    {StateProcessReq, ServerTransId} = create_stateful(MessageSipMsg, #{}),
+    ?assertMatch({_, []}, ersip_proxy:trans_finished(ServerTransId, StateProcessReq)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

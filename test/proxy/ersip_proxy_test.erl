@@ -48,11 +48,12 @@ basic_proxy_noninvite_test() ->
 
     %% 4. (branch 1) Creating response and pass as client transaction result:
     {_, Resp@1} = create_client_trans_result(200, SingleReq),
-    {_, SESingleResp} = ersip_proxy:trans_result(ClientTransId@1, Resp@1, State@1_Forward),
+    {State_F1, SESingleResp} = ersip_proxy:trans_result(ClientTransId@1, Resp@1, State@1_Forward),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SESingleResp)),
-    %%    - Check that proxy process is stopped
-    ?assertMatch({stop, _}, se_event(stop, SESingleResp)),
+    %%    - Check that proxy process is not stopped until all transactions are finished
+    ?assertEqual(not_found, se_event(stop, SESingleResp)),
+    stop_proxy_check([ClientTransId@1], State_F1),
 
     %% ==================== Branch 2
     %% 3. (branch 2) Choose two targets to forward:
@@ -89,14 +90,17 @@ basic_proxy_noninvite_test() ->
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SE@2_1_Resp1)),
     ?assertMatch(not_found, se_event(stop, SE@2_1_Resp1)),
     %%    - Second 200 response is passed:
-    {_, SE@2_1_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_1_Resp1),
+    {State@2_1_Final, SE@2_1_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_1_Resp1),
     %%    - Response is passed to server transaction and proxy is stopped
     %%      Note: Response will be discarded by real server transaction by this caluse:
     %%            Any other final responses passed by the TU to the server
     %%            transaction MUST be discarded while in the "Completed"
     %%            state.
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SE@2_1_Resp2)),
-    ?assertMatch({stop, _}, se_event(stop, SE@2_1_Resp2)),
+    ?assertEqual(not_found, se_event(stop, SE@2_1_Resp2)),
+    not_stop_proxy_check([ClientTransId1@2], State@2_1_Final),
+    not_stop_proxy_check([ClientTransId2@2], State@2_1_Final),
+    stop_proxy_check([ClientTransId1@2, ClientTransId2@2], State@2_1_Final),
 
     %% ==================== Branch 2.2 (200 then 401)
     %% 4. (branch 2.2) Creating responses on first transaction and pass result
@@ -105,11 +109,14 @@ basic_proxy_noninvite_test() ->
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SE@2_2_Resp1)),
     ?assertMatch(not_found, se_event(stop, SE@2_2_Resp1)),
     %%    - Second 200 response is passed:
-    {_, SE@2_2_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_2_Resp1),
+    {State@2_2_Final, SE@2_2_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_2_Resp1),
     %%    - Response is passed to server transaction and proxy is stopped
     %%      Note: same as in branch 2.1.
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SE@2_2_Resp2)),
-    ?assertMatch({stop, _}, se_event(stop, SE@2_2_Resp2)),
+    ?assertEqual(not_found, se_event(stop, SE@2_2_Resp2)),
+    not_stop_proxy_check([ClientTransId1@2], State@2_2_Final),
+    not_stop_proxy_check([ClientTransId2@2], State@2_2_Final),
+    stop_proxy_check([ClientTransId1@2, ClientTransId2@2], State@2_2_Final),
 
     %% ==================== Branch 2.3 (401 then 200)
     %% 4. (branch 2.3) Creating responses on first transaction and pass result
@@ -118,10 +125,13 @@ basic_proxy_noninvite_test() ->
     ?assertMatch(not_found, se_event(response, SE@2_3_Resp1)),
     ?assertMatch(not_found, se_event(stop, SE@2_3_Resp1)),
     %%    - Second 200 response is passed:
-    {_, SE@2_3_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_3_Resp1),
-    %%    - Response 200 is passed to server transaction and proxy is stopped
+    {State@2_3_Final, SE@2_3_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_3_Resp1),
+    %%    - Response 200 is passed to server transaction
     ?assertMatch({response, {ServerTransId, Resp2@2_200}}, se_event(response, SE@2_3_Resp2)),
-    ?assertMatch({stop, _}, se_event(stop, SE@2_3_Resp2)),
+    ?assertEqual(not_found, se_event(stop, SE@2_3_Resp2)),
+    not_stop_proxy_check([ClientTransId1@2], State@2_3_Final),
+    not_stop_proxy_check([ClientTransId2@2], State@2_3_Final),
+    stop_proxy_check([ClientTransId1@2, ClientTransId2@2], State@2_3_Final),
 
     %% ==================== Branch 2.4 (401 then 401)
     %% 4. (branch 2.4) Creating responses on first transaction and pass result
@@ -130,12 +140,15 @@ basic_proxy_noninvite_test() ->
     ?assertMatch(not_found, se_event(response, SE@2_4_Resp1)),
     ?assertMatch(not_found, se_event(stop, SE@2_4_Resp1)),
     %%    - Second 401 response is passed:
-    {_, SE@2_4_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_401, State@2_4_Resp1),
+    {State@2_4_Final, SE@2_4_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_401, State@2_4_Resp1),
     %%    - Response 401 is passed to server transaction and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, SE@2_4_Resp2)),
-    ?assertMatch({stop, _}, se_event(stop, SE@2_4_Resp2)),
+    ?assertEqual(not_found, se_event(stop, SE@2_4_Resp2)),
     {response, {ServerTransId, Resp401@2_4}} = se_event(response, SE@2_4_Resp2),
     ?assertEqual(401, ersip_sipmsg:status(Resp401@2_4)),
+    not_stop_proxy_check([ClientTransId1@2], State@2_4_Final),
+    not_stop_proxy_check([ClientTransId2@2], State@2_4_Final),
+    stop_proxy_check([ClientTransId1@2, ClientTransId2@2], State@2_4_Final),
 
     %% ==================== Branch 2.5 (600 then 200)
     %% 4. (branch 2.5) Creating responses on first transaction and pass result
@@ -144,10 +157,13 @@ basic_proxy_noninvite_test() ->
     ?assertMatch(not_found, se_event(response, SE@2_5_Resp1)),
     ?assertMatch(not_found, se_event(stop, SE@2_5_Resp1)),
     %%    - Second 200 response is passed:
-    {_, SE@2_5_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_5_Resp1),
+    {State@2_5_Final, SE@2_5_Resp2} = ersip_proxy:trans_result(ClientTransId2@2, Resp2@2_200, State@2_5_Resp1),
     %%    - Response 200 is passed to server transaction and proxy is stopped
     ?assertMatch({response, {ServerTransId, Resp2@2_200}}, se_event(response, SE@2_5_Resp2)),
-    ?assertMatch({stop, _}, se_event(stop, SE@2_5_Resp2)),
+    ?assertEqual(not_found, se_event(stop, SE@2_5_Resp2)),
+    not_stop_proxy_check([ClientTransId1@2], State@2_5_Final),
+    not_stop_proxy_check([ClientTransId2@2], State@2_5_Final),
+    stop_proxy_check([ClientTransId1@2, ClientTransId2@2], State@2_5_Final),
 
     ok.
 
@@ -172,11 +188,12 @@ non_invite_with_provisional_test() ->
 
     %% 5. Pass 200 after provisional response
     {_, Resp200} = create_client_trans_result(200, Req),
-    {_, Resp200_SE} = ersip_proxy:trans_result(ClientTransId, Resp200, Resp101_State),
+    {State_Final, Resp200_SE} = ersip_proxy:trans_result(ClientTransId, Resp200, Resp101_State),
     %%  - Check that provisional response are sent:
     ?assertMatch({response, {ServerTransId, Resp200}}, se_event(response, Resp200_SE)),
-    %%  - Check that process is stopped
-    ?assertMatch({stop, _}, se_event(stop, Resp200_SE)),
+    %%  - Check that process is stopped after transactions are finished
+    ?assertEqual(not_found, se_event(stop, Resp200_SE)),
+    stop_proxy_check([ClientTransId], State_Final),
 
     ok.
 
@@ -235,13 +252,14 @@ basic_proxy_invite_test() ->
 
     %% 5. Creating 200 response and pass as client transaction result:
     {_, Resp200} = create_client_trans_result(200, Req),
-    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp200, Provisional_State),
+    {State_Final, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp200, Provisional_State),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Final_SE)),
     %%    - Check no new transaction is created:
     ?assertMatch(not_found, se_event(create_trans, Provisional_SE)),
     %%    - Check that process is stopped
-    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ?assertEqual(not_found, se_event(stop, Final_SE)),
+    stop_proxy_check([ClientTransId], State_Final),
     ok.
 
 basic_proxy_invite_cancel_test() ->
@@ -276,11 +294,12 @@ basic_proxy_invite_cancel_test() ->
 
     %% 7. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req),
-    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel200_State),
+    {Final_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel200_State),
     %%   - Check that 487 is passed as server transaction result:
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Resp487_SE)),
     %%   - Check that request processing is stopped:
-    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp487_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Normal CANCEL flow with 487 response on INVITE received before 200
@@ -309,13 +328,14 @@ basic_proxy_invite_cancel_resp_reorder_test() ->
 
     %% 6. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req),
-    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel_State),
+    {Final_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId, Resp487, Cancel_State),
     %%   - Check that 487 is passed as server transaction result:
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Resp487_SE)),
     %%   - Check that request processing is stopped: We really do not
     %%     care about CANCEL transaction result in this case... Maybe
     %%     we can optimize and delete this transaction in future.
-    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp487_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Case:
@@ -348,13 +368,14 @@ proxy_invite_timer_c_fired_test() ->
     ?assertEqual(Target, ersip_sipmsg:ruri(CancelSipMsg)),
 
     %% 6. Timeout on CANCEL request:
-    {_, CancelTimeout_SE} = ersip_proxy:trans_result(CancelClientTransId, timeout, TimerC_State),
+    {Final_State, CancelTimeout_SE} = ersip_proxy:trans_result(CancelClientTransId, timeout, TimerC_State),
     %%   - Check that 408 is passed as server transaction result:
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, CancelTimeout_SE)),
     %%   - Check that client transaction is stopped:
     ?assertMatch({delete_trans, ClientTransId}, se_event(delete_trans, CancelTimeout_SE)),
     %%   - Check that request processing is stopped:
-    ?assertMatch({stop, _}, se_event(stop, CancelTimeout_SE)),
+    ?assertEqual(not_found, se_event(stop, CancelTimeout_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Case:
@@ -373,7 +394,7 @@ proxy_invite_timer_c_fired_without_provisional_test() ->
     {set_timer, {_Timeout, TimerCEvent}} = se_event(set_timer, Forward_SE),
 
     %% 4. TimerC fired:
-    {_, TimerC_SE} = ersip_proxy:timer_fired(TimerCEvent, Forward_State),
+    {Final_State, TimerC_SE} = ersip_proxy:timer_fired(TimerCEvent, Forward_State),
     %%    - Because there was no provisional response CANCEL must not be generated:
     ?assertEqual(not_found, se_event(create_trans, TimerC_SE)),
     %%   - Check that 408 is passed as server transaction result:
@@ -383,7 +404,8 @@ proxy_invite_timer_c_fired_without_provisional_test() ->
     %%   - Check that client transaction is stopped:
     ?assertMatch({delete_trans, ClientTransId}, se_event(delete_trans, TimerC_SE)),
     %%   - Check that request processing is stopped:
-    ?assertMatch({stop, _}, se_event(stop, TimerC_SE)),
+    ?assertEqual(not_found, se_event(stop, TimerC_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Case:
@@ -401,7 +423,7 @@ proxy_invite_transaction_timeout_test() ->
     {create_trans, {client, ClientTransId, _Req}} = se_event(create_trans, Forward_SE),
 
     %% 4. Transaction timeout
-    {_, TimerC_SE} = ersip_proxy:trans_result(ClientTransId, timeout, Forward_State),
+    {Final_State, TimerC_SE} = ersip_proxy:trans_result(ClientTransId, timeout, Forward_State),
     %%    - Because there was no provisional response CANCEL must not be generated:
     ?assertEqual(not_found, se_event(create_trans, TimerC_SE)),
     %%   - Check that 408 is passed as server transaction result:
@@ -411,7 +433,8 @@ proxy_invite_transaction_timeout_test() ->
     %%   - Transaction is not deleted because it is timed out:
     ?assertMatch(not_found, se_event(delete_trans, TimerC_SE)),
     %%   - Check that request processing is stopped:
-    ?assertMatch({stop, _}, se_event(stop, TimerC_SE)),
+    ?assertEqual(not_found, se_event(stop, TimerC_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 
@@ -477,7 +500,7 @@ proxy_invite_timer_c_fired_after_cancel_test() ->
     ?assertMatch(not_found, se_event(stop, TimerC_SE)),
 
     %% 7. CANCEL timer is fired:
-    {_, CancelTimeout_SE} = ersip_proxy:timer_fired(CancelTimeoutEv, TimerC_State),
+    {Final_State, CancelTimeout_SE} = ersip_proxy:timer_fired(CancelTimeoutEv, TimerC_State),
     %%   - Request is considered cancelled and respond with 487
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, CancelTimeout_SE)),
     {response, {_, Resp487}} = se_event(response, CancelTimeout_SE),
@@ -485,8 +508,8 @@ proxy_invite_timer_c_fired_after_cancel_test() ->
     %%   - Client transaction is deleted:
     ?assertEqual({delete_trans, ClientTransId}, se_event(delete_trans, CancelTimeout_SE)),
     %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, CancelTimeout_SE)),
-
+    ?assertEqual(not_found, se_event(stop, CancelTimeout_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Idea of the test is to check that proxy does not pass 503 final
@@ -516,12 +539,13 @@ proxy_invite_503_to_500_test() ->
 
     %% 4. Creating 503 response and pass as client transaction result:
     {_, Resp503} = create_client_trans_result(503, Req),
-    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
+    {Final_State, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Final_SE)),
     {response, {ServerTransId, Resp500}} = se_event(response, Final_SE),
     ?assertEqual(500, ersip_sipmsg:status(Resp500)),
-    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ?assertEqual(not_found, se_event(stop, Final_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Idea of the test is to check that proxy pass 503 final if pass_503
@@ -541,10 +565,11 @@ proxy_invite_503_to_503_test() ->
 
     %% 4. Creating 503 response and pass as client transaction result:
     {_, Resp503} = create_client_trans_result(503, Req),
-    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
+    {Final_State, Final_SE} = ersip_proxy:trans_result(ClientTransId, Resp503, Forward_State),
     %%    - Response is passed to request source and proxy is stopped
     ?assertMatch({response, {ServerTransId, Resp503}}, se_event(response, Final_SE)),
-    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ?assertEqual(not_found, se_event(stop, Final_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 
@@ -578,7 +603,7 @@ proxy_invite_cancel_timeout_test() ->
     {set_timer, {_, CancelTimeoutEv}} = se_event(set_timer, Cancel_SE),
 
     %% 6. Cancel timer is fired:
-    {_, CancelTimer_SE} = ersip_proxy:timer_fired(CancelTimeoutEv, Cancel_State),
+    {Final_State, CancelTimer_SE} = ersip_proxy:timer_fired(CancelTimeoutEv, Cancel_State),
     %%   - 487 is retuned as response on initial message
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, CancelTimer_SE)),
     {response, {_, Resp487}} = se_event(response, CancelTimer_SE),
@@ -586,7 +611,8 @@ proxy_invite_cancel_timeout_test() ->
     %%   - Client transaction is deleted:
     ?assertEqual({delete_trans, ClientTransId}, se_event(delete_trans, CancelTimer_SE)),
     %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, CancelTimer_SE)),
+    ?assertEqual(not_found, se_event(stop, CancelTimer_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Case:
@@ -612,15 +638,16 @@ proxy_invite_cancel_481_timeout_test() ->
     {Cancel_State0, Cancel_SE0} = ersip_proxy:cancel(Provisional_State),
     {create_trans, {client, CancelClientTransId, CancelReq}} = se_event(create_trans, Cancel_SE0),
     {_, CancelResp481} = create_client_trans_result(481, CancelReq),
-    {_, Cancel_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp481, Cancel_State0),
+    {Final_State, Cancel_SE} = ersip_proxy:trans_result(CancelClientTransId, CancelResp481, Cancel_State0),
     %%   - 487 is retuned as response on initial message
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Cancel_SE)),
     {response, {_, InvResp487}} = se_event(response, Cancel_SE),
     ?assertEqual(487, ersip_sipmsg:status(InvResp487)),
     %%   - Client transaction is deleted:
     ?assertEqual({delete_trans, ClientTransId}, se_event(delete_trans, Cancel_SE)),
-    %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, Cancel_SE)),
+    %%   - Check that request processing is stopped:
+    ?assertEqual(not_found, se_event(stop, Cancel_SE)),
+    stop_proxy_check([ClientTransId], Final_State),
     ok.
 
 %% Case:
@@ -774,12 +801,12 @@ basic_invite_fork_on_two_targets_test() ->
 
     %% 6. Response 487 on INVITE request:
     {_, Resp487} = create_client_trans_result(487, Req2),
-    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
+    {Final_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
     %%   - Check that no more responses are passed as server transaction result:
     ?assertMatch(not_found, se_event(response, Resp487_SE)),
     %%   - Check that request processing is stopped:
-    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
-
+    ?assertEqual(not_found, se_event(stop, Resp487_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 basic_invite_cancel_fork_on_two_targets_test() ->
@@ -846,11 +873,12 @@ basic_invite_cancel_fork_on_two_targets_test() ->
 
     %% 7. Response 487 on second INVITE request:
     {_, Resp2_487} = create_client_trans_result(487, Req2),
-    {_, Resp2_487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp2_487, Resp487_State),
+    {Final_State, Resp2_487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp2_487, Resp487_State),
     %%   - Check that 487 is passed as server transaction result:
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Resp2_487_SE)),
     %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, Resp2_487_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp2_487_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 basic_invite_to_two_targets_600_test() ->
@@ -894,11 +922,12 @@ basic_invite_to_two_targets_600_test() ->
 
     %% 8. Response 487 from second target:
     {_, Resp487} = create_client_trans_result(487, Req2),
-    {_, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
+    {Final_State, Resp487_SE} = ersip_proxy:trans_result(ClientTransId2, Resp487, Cancel200_State),
     %%   - Check that 600 is passed as result
     ?assertMatch({response, {ServerTransId, Resp600}}, se_event(response, Resp487_SE)),
     %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, Resp487_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp487_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 invite_to_two_targets_1st_200_2nd_600_test() ->
@@ -932,11 +961,12 @@ invite_to_two_targets_1st_200_2nd_600_test() ->
 
     %% 7. 600 response is received by first target:
     {_, Resp600} = create_client_trans_result(600, Req2),
-    {_, Resp600_SE} = ersip_proxy:trans_result(ClientTransId2, Resp600, Resp200_State),
+    {Final_State, Resp600_SE} = ersip_proxy:trans_result(ClientTransId2, Resp600, Resp200_State),
     %%   - Check that 600 is passed as result
     ?assertMatch({response, {ServerTransId, Resp600}}, se_event(response, Resp600_SE)),
     %%   - Check that request processing is not stopped:
-    ?assertMatch({stop, _}, se_event(stop, Resp600_SE)),
+    ?assertEqual(not_found, se_event(stop, Resp600_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 
@@ -972,11 +1002,12 @@ invite_to_two_targets_first_timer_c_second_200_test() ->
 
     %% 6. 200 response is received by first target:
     {_, Resp200} = create_client_trans_result(200, Req2),
-    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId2, Resp200, TimerCFired_State),
+    {Final_State, Final_SE} = ersip_proxy:trans_result(ClientTransId2, Resp200, TimerCFired_State),
     %%   - 200 response is passed to initiator
     ?assertEqual({response, {ServerTransId, Resp200}}, se_event(response, Final_SE)),
     %%   - Proxy process is stopped
-    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ?assertEqual(not_found, se_event(stop, Final_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 invite_to_two_targets_first_timer_c_second_500_test() ->
@@ -1011,14 +1042,15 @@ invite_to_two_targets_first_timer_c_second_500_test() ->
 
     %% 6. 500 response is received by first target:
     {_, Resp500} = create_client_trans_result(500, Req2),
-    {_, Final_SE} = ersip_proxy:trans_result(ClientTransId2, Resp500, TimerCFired_State),
+    {Final_State, Final_SE} = ersip_proxy:trans_result(ClientTransId2, Resp500, TimerCFired_State),
     %%   - 408 response selfgenerated response is passed to initiator
     %%     (because it has lower class)
     ?assertMatch({response, {ServerTransId, _}}, se_event(response, Final_SE)),
     {response, {ServerTransId, Resp408}} = se_event(response, Final_SE),
     ?assertEqual(408, ersip_sipmsg:status(Resp408)),
     %%   - Proxy process is stopped
-    ?assertMatch({stop, _}, se_event(stop, Final_SE)),
+    ?assertEqual(not_found, se_event(stop, Final_SE)),
+    stop_proxy_check([ClientTransId1, ClientTransId2], Final_State),
     ok.
 
 invite_to_two_targets_timer_c_ignored_after_final_test() ->
@@ -1198,6 +1230,19 @@ error_on_unexpected_trans_result_test() ->
     ?assertError({api_error, _}, ersip_proxy:trans_result(BranchKey, Resp200, Forward_State)),
     ok.
 
+error_on_unexpected_trans_finish_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _} = create_stateful(InviteSipMsg, #{}),
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, _ClientId, _}} = se_event(create_trans, Forward_SE),
+    BranchKey = ersip_branch:make_key(ersip_branch:make_random(7)),
+    ?assertError({api_error, _}, ersip_proxy:trans_finished(BranchKey, Forward_State)),
+    ok.
+
 error_on_unexpected_trans_cancel_test() ->
     InviteSipMsg = invite_request(),
     %% 1. Create new stateful proxy request state.
@@ -1368,3 +1413,21 @@ recv_response_via_default_conn(RemoteSipMsg) ->
 order_statuses(Statuses) ->
     L = [{ersip_proxy:code_comparision_class(X), X} || X <- Statuses],
     [C || {_, C} <- lists:sort(L)].
+
+stop_proxy_check(TransactionIds, State) ->
+    {_, SE} = lists:foldl(fun(TransId, {State0, SE}) ->
+                                  {NewState, AddSE} = ersip_proxy:trans_finished(TransId, State0),
+                                  {NewState, SE ++ AddSE}
+                          end,
+                          {State, []},
+                          TransactionIds),
+    ?assertMatch({stop, _}, se_event(stop, SE)).
+
+not_stop_proxy_check(TransactionIds, State) ->
+    {_, SE} = lists:foldl(fun(TransId, {State0, SE}) ->
+                                  {NewState, AddSE} = ersip_proxy:trans_finished(TransId, State0),
+                                  {NewState, SE ++ AddSE}
+                          end,
+                          {State, []},
+                          TransactionIds),
+    ?assertEqual(not_found, se_event(stop, SE)).

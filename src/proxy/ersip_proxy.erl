@@ -10,6 +10,7 @@
 
 -export([new_stateful/2,
          trans_result/3,
+         trans_finished/2,
          forward_to/2,
          timer_fired/2,
          cancel/1
@@ -108,8 +109,9 @@
          timer_c :: reference() | undefined,
          resp    :: ersip_sipmsg:sipmsg() | undefined,
          provisional_received = false :: boolean(),
-         timer_c_fired = false :: boolean(),
-         cancel_sent   = false :: boolean()
+         timer_c_fired  = false :: boolean(),
+         cancel_sent    = false :: boolean(),
+         trans_finished = false :: boolean()
         }).
 -type request_context() :: #request_context{}.
 
@@ -183,6 +185,23 @@ trans_result(BranchKey, timeout, #stateful{phase = collect, fwd_sipmsg = FwdSipM
     process_response(BranchKey, Resp, Stateful);
 trans_result(BranchKey, Resp, #stateful{phase = collect} = Stateful) ->
     process_response(BranchKey, Resp, Stateful).
+
+-spec trans_finished(internal_trans_id(), stateful()) -> stateful_result().
+trans_finished(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case ReqCtxMap of
+        #{BranchKey := #request_context{} = ReqCtx} ->
+            ReqCtx1 = ReqCtx#request_context{trans_finished = true},
+            ReqCtxMap1 = ReqCtxMap#{BranchKey => ReqCtx1},
+            Stateful1 = Stateful#stateful{req_map = ReqCtxMap1},
+            ReqCtxList = maps:values(ReqCtxMap1),
+            SE = case all_trans_finished(ReqCtxList) of
+                     true  -> [ersip_proxy_se:stop()];
+                     false -> []
+                 end,
+            {Stateful1, SE};
+        _ ->
+            error({api_error, {<<"Unexpected transaction stop">>, BranchKey}})
+    end.
 
 %% @doc Forward request to selected target. If list of URIs is
 %% specified then all requests are forwarded simultaneously (forked).
@@ -501,8 +520,7 @@ pr_forward_2xx_response(_BranchKey, _RespMsg, #stateful{}) ->
     {continue_with,
      [fun pr_update_record_route/3,
       fun pr_forward_response/3,
-      fun pr_cancel_other/3,
-      fun pr_maybe_stop_proxy/3
+      fun pr_cancel_other/3
      ]}.
 
 
@@ -531,14 +549,13 @@ pr_process_6xx_response(_BranchKey, _RespMsg, #stateful{}) ->
 -spec pr_postprocess_6xx(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
 pr_postprocess_6xx(_BranchKey, _Resp6xx, #stateful{req_map = ReqCtxMap}) ->
     ReqCtxList = maps:values(ReqCtxMap),
-    case all_terminated(ReqCtxList) of
+    case all_has_final_response(ReqCtxList) of
         true ->
             %% If all requests are terminated then forwarward 6xx
             %% response.
             {continue_with,
              [fun pr_update_record_route/3,
-              fun pr_forward_response/3,
-              fun pr_stop_proxy/3
+              fun pr_forward_response/3
              ]};
         false ->
             %% If some requests are pending then wait request
@@ -550,19 +567,19 @@ pr_postprocess_6xx(_BranchKey, _Resp6xx, #stateful{req_map = ReqCtxMap}) ->
 pr_choose_best_response(_BranchKey, _RespMsg, #stateful{final_forwarded = WasFinal, req_map = ReqCtxMap, options = ProxyOptions}) ->
     ReqCtxList = maps:values(ReqCtxMap),
     Action =
-        case {all_terminated(ReqCtxList), WasFinal} of
+        case {all_has_final_response(ReqCtxList), WasFinal} of
             {false, _} ->
                 wait_more;     %% Wait more responses
             {true, true} ->
-                stop_processg; %% Stop stateful proxy processing
+                wait_trans_finished;  %% Wait until all transaction finished
             {true, false} ->
                 select_best    %% Select best response among received responses
         end,
     case Action of
         wait_more ->
             stop;
-        stop_processg ->
-            {continue_with, [fun pr_stop_proxy/3]};
+        wait_trans_finished ->
+            stop;
         select_best ->
             %% A stateful proxy MUST send a final response to a response
             %% context's server transaction if no final responses have been
@@ -573,8 +590,7 @@ pr_choose_best_response(_BranchKey, _RespMsg, #stateful{final_forwarded = WasFin
             {continue_with,
              [fun pr_aggregate_auth_header/3,
               fun pr_update_record_route/3,
-              fun pr_forward_response/3,
-              fun pr_stop_proxy/3
+              fun pr_forward_response/3
               %% We do not need cancel requests here because all
               %% requests has been already terminated.
              ],
@@ -630,20 +646,6 @@ pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
     %% context we cannot try to cancel request that produced forwarded
     %% response.
     {continue, cancel_all_pending(Stateful)}.
-
--spec pr_stop_proxy(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_stop_proxy(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
-    {continue, {Stateful, [ersip_proxy_se:stop()]}}.
-
--spec pr_maybe_stop_proxy(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
-pr_maybe_stop_proxy(BranchKey, RespMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
-    ReqCtxList = maps:values(ReqCtxMap),
-    case all_terminated(ReqCtxList) of
-        true ->
-            pr_stop_proxy(BranchKey, RespMsg, Stateful);
-        false ->
-            continue
-    end.
 
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->
@@ -711,15 +713,19 @@ set_cancel_timer(BranchKey, #stateful{} = Stateful) ->
     {Stateful, [CancelTimer]}.
 
 %% @private
-%% @doc All transactions within request context is terminated.
--spec all_terminated([request_context()]) -> boolean().
-all_terminated(ReqCtxList) ->
+%% @doc All transactions within request context received final response.
+-spec all_has_final_response([request_context()]) -> boolean().
+all_has_final_response(ReqCtxList) ->
     lists:all(fun(#request_context{resp = undefined}) ->
                       false;
                  (#request_context{resp = Resp}) ->
                       ersip_sipmsg:status(Resp) >= 200
               end,
               ReqCtxList).
+
+-spec all_trans_finished([request_context()]) -> boolean().
+all_trans_finished(ReqCtxList) ->
+    lists:all(fun(#request_context{trans_finished = TF}) -> TF end, ReqCtxList).
 
 -spec is_request_pending(request_context()) -> boolean().
 is_request_pending(#request_context{resp = undefined}) ->

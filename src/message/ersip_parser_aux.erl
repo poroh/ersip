@@ -308,8 +308,8 @@ utf8_len(<<UTF8_4:8, _:32, _/binary>>)
 utf8_len(<<UTF8_5:8, _:40, _/binary>>)
   when UTF8_5 >= 16#FC andalso UTF8_5 =< 16#FD ->
     {ok, 6};
-utf8_len(_) ->
-    error.
+utf8_len(<<_:8, _/binary>>) ->
+    {ok, 1}.
 
 %% @private
 -spec token_list_impl(binary(), [binary()], binary:cp()) -> Result when

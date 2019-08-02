@@ -96,6 +96,8 @@ assemble_test() ->
     reassemble_check(<<"Alice <sip:alice@atlanta.com>;tag=88sja8x">>),
     reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s">>),
     reassemble_check(<<"\"A. G. Bell\" <sip:agb@bell-telephone.com>;tag=a48s;myparam=Value">>),
+    reassemble_check(<<"\"Fre", 16#c3, 16#bf, "r Maßen\" <sip:freyr@example.com>">>),
+    reassemble_check(<<"\"Freÿr Maßen\" <sip:freyr@example.com>">>),
     ok.
 
 reassemble_without_quotes_test() ->

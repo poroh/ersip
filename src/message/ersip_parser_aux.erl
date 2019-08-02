@@ -250,14 +250,8 @@ quoted_string_impl(<<"\"", R/binary>>, raw) ->
     {ok, R};
 quoted_string_impl(<<"\\", R/binary>>, raw) ->
     quoted_string_impl(R, escaped);
-quoted_string_impl(B, raw) ->
-    case utf8_len(B) of
-        {ok, Len} ->
-            RestLen = byte_size(B) - Len,
-            quoted_string_impl(binary:part(B, Len, RestLen), raw);
-        error ->
-            error
-    end;
+quoted_string_impl(<<_:8, R/binary>>, raw) ->
+    quoted_string_impl(R, raw);
 quoted_string_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F ->
     quoted_string_impl(R, raw);
 quoted_string_impl(<<_:8, _/binary>>, escaped) ->

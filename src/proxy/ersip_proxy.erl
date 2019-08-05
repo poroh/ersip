@@ -189,6 +189,8 @@ trans_result(BranchKey, Resp, #stateful{phase = collect} = Stateful) ->
 -spec trans_finished(internal_trans_id(), stateful()) -> stateful_result().
 trans_finished(?SERVER_TRANS_ID, #stateful{} = Stateful) ->
     {Stateful, []};
+trans_finished({cancel, _}, #stateful{} = Stateful) ->
+    {Stateful, []};
 trans_finished(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
     case ReqCtxMap of
         #{BranchKey := #request_context{} = ReqCtx} ->

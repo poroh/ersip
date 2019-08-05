@@ -1272,6 +1272,29 @@ server_transaction_finish_is_ignored_test() ->
     ?assertMatch({_, []}, ersip_proxy:trans_finished(ServerTransId, StateProcessReq)),
     ok.
 
+cancel_transaction_finish_is_ignored_test() ->
+    InviteSipMsg = invite_request(),
+    %% 1. Create new stateful proxy request state.
+    %% 2. Process server transaction result.
+    {SelectTargetState, _} = create_stateful(InviteSipMsg, #{}),
+
+    %% 3. Choose one target to forward:
+    Target = ersip_uri:make(<<"sip:contact@192.168.1.1">>),
+    {Forward_State, Forward_SE} = ersip_proxy:forward_to(Target, SelectTargetState),
+    {create_trans, {client, ClientTransId, Req}} = se_event(create_trans, Forward_SE),
+
+    %% 4. Pass 180 provisional response:
+    {_, Resp180} = create_client_trans_result(180, Req),
+    {Provisional_State, _} = ersip_proxy:trans_result(ClientTransId, Resp180, Forward_State),
+
+    %% 5. Cancel request:
+    {Cancel_State, Cancel_SE} = ersip_proxy:cancel(Provisional_State),
+    %%    - CANCEL transaction is created:
+    ?assertMatch({create_trans, {client, _, _}}, se_event(create_trans, Cancel_SE)),
+    {create_trans, {client, CancelClientTransId, _CancelReq}} = se_event(create_trans, Cancel_SE),
+    ?assertMatch({_, []}, ersip_proxy:trans_finished(CancelClientTransId, Cancel_State)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

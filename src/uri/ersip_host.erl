@@ -157,6 +157,7 @@ make(Addr) when is_binary(Addr)  ->
 -define(VALID_HOST_CHAR(C), (?is_alphanum(C)
                              orelse C == $.
                              orelse C == $-
+                             orelse C == $_
                              orelse C == $:
                              orelse C == $[
                              orelse C == $])).
@@ -269,12 +270,17 @@ toplabel_valid([A  | Rest])     when ?is_alphanum(A) -> toplabel_valid(Rest);
 toplabel_valid(_)                                    -> false.
 
 %% border conditions for domainlabels
+domainlabel_valid([$., $_])                             -> true;
 domainlabel_valid([$., A])         when ?is_alphanum(A) -> true;
+domainlabel_valid([$_])                                 -> true;
 domainlabel_valid([A])             when ?is_alphanum(A) -> true;
+domainlabel_valid([$., $_ | R])                         -> domainlabel_valid(R);
 domainlabel_valid([$., A | R])     when ?is_alphanum(A) -> domainlabel_valid(R);
+domainlabel_valid([$_, $. | _] = R)                     -> domainlabel_valid(tl(R));
 domainlabel_valid([A, $. | _] = R) when ?is_alphanum(A) -> domainlabel_valid(tl(R));
 %% domainlabel body
 domainlabel_valid([$- | R])                             -> domainlabel_valid(R);
+domainlabel_valid([$_ | R])                             -> domainlabel_valid(R);
 domainlabel_valid([A  | R]) when ?is_alphanum(A)        -> domainlabel_valid(R);
 %% something wrong
 domainlabel_valid(_)                                    -> false.

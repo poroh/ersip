@@ -24,6 +24,7 @@ hostname_parse_test() ->
     ?assertEqual({ok, {hostname, <<"10.com">>}, <<>>},           ersip_host:parse(<<"10.com">>)),
     ?assertEqual({ok, {hostname, <<"10.c-m">>}, <<>>},           ersip_host:parse(<<"10.c-m">>)),
     ?assertEqual({ok, {hostname, <<"10.c--m">>}, <<>>},          ersip_host:parse(<<"10.c--m">>)),
+    %%
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"127..">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"[">>)),
     ?assertMatch({error, {invalid_ipv6, _}},  ersip_host:parse(<<"[]">>)),
@@ -43,6 +44,19 @@ hostname_parse_test() ->
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"--example.com">>)),
     ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example--.com">>)),
     ok.
+
+
+hostname_underscore_test() ->
+    %% Not standard but sometimes in use:
+    ?assertEqual({ok, {hostname, <<"abc_a.com">>}, <<>>},        ersip_host:parse(<<"abc_a.com">>)),
+    ?assertEqual({ok, {hostname, <<"a_a.a.com">>}, <<>>},        ersip_host:parse(<<"a_a.a.com">>)),
+    ?assertMatch({ok, {hostname, <<"_a.a.com">>}, <<>>},         ersip_host:parse(<<"_a.a.com">>)),
+    ?assertMatch({ok, {hostname, <<"_A._a.a.com">>}, <<>>},      ersip_host:parse(<<"_A._a.a.com">>)),
+    ?assertMatch({ok, {hostname, <<"A_.a_.a_.com">>}, <<>>},     ersip_host:parse(<<"A_.a_.a_.com">>)),
+    %% Completely forbidden in top label
+    ?assertMatch({error, {invalid_host, _}},  ersip_host:parse(<<"example.c_m">>)),
+    ok.
+
 
 host_assemble_test() ->
     check_reassemble(<<"127.0.0.1">>),

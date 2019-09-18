@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2018, 2019 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -12,6 +12,7 @@
          session_id/1,
          session_version/1,
          address/1,
+         set_address/2,
          parse/1,
          assemble/1
         ]).
@@ -48,6 +49,10 @@ session_version(#origin{sess_version = Ver}) ->
 -spec address(origin()) -> ersip_sdp_addr:addr().
 address(#origin{address = Addr}) ->
     Addr.
+
+-spec set_address(ersip_sdp_addr:addr(), origin()) -> origin().
+set_address(Addr, #origin{} = Origin) ->
+    Origin#origin{address = Addr}.
 
 -define(crlf, "\r\n").
 

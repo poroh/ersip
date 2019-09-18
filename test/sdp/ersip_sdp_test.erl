@@ -211,6 +211,44 @@ bad_line_start_test() ->
                   ersip_sdp:parse(L))
      || L <- Cases].
 
+set_origin_test() ->
+    OrigSDPBin
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 10.47.16.5" ?crlf
+            "s=SDP Seminar" ?crlf
+            "i=A Seminar on the session description protocol" ?crlf
+            "u=http://www.example.com/seminars/sdp.pdf" ?crlf
+            "e=j.doe@example.com (Jane Doe)" ?crlf
+            "c=IN IP4 224.2.17.12/127" ?crlf
+            "t=2873397496 2873404696" ?crlf
+            "a=recvonly" ?crlf
+            "m=audio 49170 RTP/AVP 0" ?crlf
+            "m=video 51372 RTP/AVP 99" ?crlf
+            "c=IN IP4 192.168.0.1" ?crlf
+            "a=rtpmap:99 h263-1998/90000" ?crlf
+            "">>,
+    ExpectedSDPBin
+        = <<"v=0" ?crlf
+            "o=jdoe 2890844526 2890842807 IN IP4 a.com" ?crlf
+            "s=SDP Seminar" ?crlf
+            "i=A Seminar on the session description protocol" ?crlf
+            "u=http://www.example.com/seminars/sdp.pdf" ?crlf
+            "e=j.doe@example.com (Jane Doe)" ?crlf
+            "c=IN IP4 224.2.17.12/127" ?crlf
+            "t=2873397496 2873404696" ?crlf
+            "a=recvonly" ?crlf
+            "m=audio 49170 RTP/AVP 0" ?crlf
+            "m=video 51372 RTP/AVP 99" ?crlf
+            "c=IN IP4 192.168.0.1" ?crlf
+            "a=rtpmap:99 h263-1998/90000" ?crlf
+            "">>,
+    {ok, OrigSDP} = ersip_sdp:parse(OrigSDPBin),
+    OrigOrigin = ersip_sdp:origin(OrigSDP),
+    ExpectedOrigin = ersip_sdp_origin:set_address(ersip_sdp_addr:make(<<"IN IP4 a.com">>), OrigOrigin),
+    ExpectedSDP = ersip_sdp:set_origin(ExpectedOrigin, OrigSDP),
+    ?assertEqual(ExpectedSDPBin, ersip_sdp:assemble_bin(ExpectedSDP)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers

@@ -10,6 +10,7 @@
 -module(ersip_sdp).
 
 -export([origin/1,
+         set_origin/2,
          session_name/1,
          info/1,
          uri/1,
@@ -60,6 +61,10 @@
 -spec origin(sdp()) -> ersip_sdp_origin:origin().
 origin(#sdp{origin = Origin}) ->
     Origin.
+
+-spec set_origin(ersip_sdp_origin:origin(), sdp()) -> ersip_sdp_origin:origin().
+set_origin(Origin, #sdp{} = SDP) ->
+    SDP#sdp{origin = Origin}.
 
 -spec session_name(sdp()) -> binary().
 session_name(#sdp{session_name = SessName}) ->

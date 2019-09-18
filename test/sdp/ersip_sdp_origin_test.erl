@@ -35,6 +35,13 @@ parse_test() ->
                  ersip_sdp_origin:address(Orig3)),
     ok.
 
+set_address_test() ->
+    {ok, Orig1} = parse(<<"o=mhandley 2890844526 2890845468 IN IP4 126.16.64.4">>), %% RFC 2326
+    Orig2 = ersip_sdp_origin:set_address(ersip_sdp_addr:make(<<"IN IP4 a.com">>), Orig1),
+    ?assertEqual(<<"o=mhandley 2890844526 2890845468 IN IP4 a.com\r\n">>,
+                 iolist_to_binary(ersip_sdp_origin:assemble(Orig2))),
+    ok.
+
 parse_error_test() ->
     ?assertMatch({error, {invalid_origin, _}}, ersip_sdp_origin:parse(<<"o=- 0 0 IN IP4 10.47.16.5">>)),
     ?assertMatch({error, {invalid_origin, _}}, parse(<<"o=2890844526 2890842807 IN IP4 10.47.16.5">>)),

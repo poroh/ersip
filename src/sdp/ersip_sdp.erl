@@ -62,7 +62,7 @@
 origin(#sdp{origin = Origin}) ->
     Origin.
 
--spec set_origin(ersip_sdp_origin:origin(), sdp()) -> ersip_sdp_origin:origin().
+-spec set_origin(ersip_sdp_origin:origin(), sdp()) -> sdp().
 set_origin(Origin, #sdp{} = SDP) ->
     SDP#sdp{origin = Origin}.
 

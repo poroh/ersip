@@ -116,6 +116,11 @@ uri_test() ->
                            host = {hostname, <<"b">>},
                            params = #{transport := {transport, tcp}}}}},
        ersip_uri:parse(<<"sip:b;transport=tcp">>)),
+   ?assertMatch(
+       {ok, #uri{data = #sip_uri_data{
+                           host = {hostname, <<"b">>},
+                           params = #{transport := {transport, sctp}}}}},
+       ersip_uri:parse(<<"sip:b;transport=sctp">>)),
     ?assertMatch(
        {ok, #uri{data = #sip_uri_data{
                            host = {hostname, <<"b">>},

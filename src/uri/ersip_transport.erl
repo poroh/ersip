@@ -103,11 +103,11 @@ is_datagram({transport, ws}) ->
     true;
 is_datagram({transport, wss}) ->
     true;
+is_datagram({transport, sctp}) ->
+    true;
 is_datagram({transport, tls}) ->
     false;
 is_datagram({transport, tcp}) ->
-    false;
-is_datagram({transport, sctp}) ->
     false;
 is_datagram({other_transport, Binary}) when is_binary(Binary) ->
     error({error, {unknown_transport_type, Binary}}).

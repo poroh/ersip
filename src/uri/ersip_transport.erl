@@ -12,7 +12,7 @@
          make_by_uri/1,
          tcp/0, tls/0, udp/0,
          is_known_transport/1,
-         is_datagram/1,
+         is_message_oriented/1,
          is_tls/1,
          is_reliable/1,
          parse/1,
@@ -96,20 +96,20 @@ is_known_transport({transport, _}) ->
 is_known_transport({other_transport, _}) ->
     false.
 
--spec is_datagram(known_transport()) -> boolean().
-is_datagram({transport, udp}) ->
+-spec is_message_oriented(known_transport()) -> boolean().
+is_message_oriented({transport, udp}) ->
     true;
-is_datagram({transport, ws}) ->
+is_message_oriented({transport, ws}) ->
     true;
-is_datagram({transport, wss}) ->
+is_message_oriented({transport, wss}) ->
     true;
-is_datagram({transport, sctp}) ->
+is_message_oriented({transport, sctp}) ->
     true;
-is_datagram({transport, tls}) ->
+is_message_oriented({transport, tls}) ->
     false;
-is_datagram({transport, tcp}) ->
+is_message_oriented({transport, tcp}) ->
     false;
-is_datagram({other_transport, Binary}) when is_binary(Binary) ->
+is_message_oriented({other_transport, Binary}) when is_binary(Binary) ->
     error({error, {unknown_transport_type, Binary}}).
 
 -spec is_tls(known_transport()) -> boolean().

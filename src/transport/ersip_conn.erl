@@ -48,7 +48,7 @@
       Options      :: options().
 new(LocalAddr, LocalPort, RemoteAddr, RemotePort, SIPTransport, Options) ->
     ParserOptions = maps:get(parser, Options, #{}),
-    IsDgram       = ersip_transport:is_datagram(SIPTransport),
+    IsDgram       = ersip_transport:is_message_oriented(SIPTransport),
     #sip_conn{
        local_addr  = {ersip_host:make(LocalAddr),  LocalPort},
        remote_addr = {ersip_host:make(RemoteAddr), RemotePort},

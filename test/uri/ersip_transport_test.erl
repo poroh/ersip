@@ -32,14 +32,14 @@ default_port_test() ->
     CustomTransport = make_transport(<<"unknowntranport">>),
     ?assertEqual({default_port, CustomTransport}, ersip_transport:default_port(CustomTransport)).
 
-is_datagram_test() ->
-    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(udp))),
-    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(ws))),
-    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(wss))),
-    ?assertEqual(true,  ersip_transport:is_datagram(make_transport(sctp))),
-    ?assertEqual(false, ersip_transport:is_datagram(make_transport(tls))),
-    ?assertEqual(false, ersip_transport:is_datagram(make_transport(tcp))),
-    ?assertError({error, _}, ersip_transport:is_datagram(make_transport(<<"unknowntranport">>))).
+is_message_oriented_test() ->
+    ?assertEqual(true,  ersip_transport:is_message_oriented(make_transport(udp))),
+    ?assertEqual(true,  ersip_transport:is_message_oriented(make_transport(ws))),
+    ?assertEqual(true,  ersip_transport:is_message_oriented(make_transport(wss))),
+    ?assertEqual(true,  ersip_transport:is_message_oriented(make_transport(sctp))),
+    ?assertEqual(false, ersip_transport:is_message_oriented(make_transport(tls))),
+    ?assertEqual(false, ersip_transport:is_message_oriented(make_transport(tcp))),
+    ?assertError({error, _}, ersip_transport:is_message_oriented(make_transport(<<"unknowntranport">>))).
 
 is_tls_test() ->
     ?assertEqual(false, ersip_transport:is_tls(make_transport(udp))),

@@ -12,7 +12,7 @@
          make_by_uri/1,
          tcp/0, tls/0, udp/0,
          is_known_transport/1,
-         is_datagram/1,
+         is_message_oriented/1,
          is_tls/1,
          is_reliable/1,
          parse/1,
@@ -30,7 +30,7 @@
 %%% Types
 %%%===================================================================
 
--type transport_atom() :: udp | tcp | tls | ws | wss.
+-type transport_atom() :: udp | tcp | tls | ws | wss | sctp.
 -type transport() :: known_transport()
                    | other_transport().
 -type known_transport() :: {transport, transport_atom()}.
@@ -85,7 +85,7 @@ parse(V) when is_binary(V) ->
         T ->
             {ok, T}
     end;
-parse(V) when V =:= tcp; V =:= udp; V =:= tls; V =:= wss; V =:= ws ->
+parse(V) when V =:= tcp; V =:= udp; V =:= tls; V =:= wss; V =:= ws; V =:= sctp ->
     {ok, {transport, V}};
 parse(V) when is_atom(V) ->
     {error, {bad_transport_atom, V}}.
@@ -96,24 +96,28 @@ is_known_transport({transport, _}) ->
 is_known_transport({other_transport, _}) ->
     false.
 
--spec is_datagram(known_transport()) -> boolean().
-is_datagram({transport, udp}) ->
+-spec is_message_oriented(known_transport()) -> boolean().
+is_message_oriented({transport, udp}) ->
     true;
-is_datagram({transport, ws}) ->
+is_message_oriented({transport, ws}) ->
     true;
-is_datagram({transport, wss}) ->
+is_message_oriented({transport, wss}) ->
     true;
-is_datagram({transport, tls}) ->
+is_message_oriented({transport, sctp}) ->
+    true;
+is_message_oriented({transport, tls}) ->
     false;
-is_datagram({transport, tcp}) ->
+is_message_oriented({transport, tcp}) ->
     false;
-is_datagram({other_transport, Binary}) when is_binary(Binary) ->
+is_message_oriented({other_transport, Binary}) when is_binary(Binary) ->
     error({error, {unknown_transport_type, Binary}}).
 
 -spec is_tls(known_transport()) -> boolean().
 is_tls({transport, udp}) ->
     false;
 is_tls({transport, tcp}) ->
+    false;
+is_tls({transport, sctp}) ->
     false;
 is_tls({transport, ws}) ->
     false;
@@ -135,6 +139,8 @@ is_reliable({transport, tls}) ->
     true;
 is_reliable({transport, tcp}) ->
     true;
+is_reliable({transport, sctp}) ->
+    true;
 is_reliable({other_transport, Binary}) when is_binary(Binary) ->
     error({error, {unknown_transport_type, Binary}}).
 
@@ -152,6 +158,8 @@ default_port({transport, tcp}) ->
     5060; %% RFC 3261 19.1.2
 default_port({transport, udp}) ->
     5060; %% RFC 3261 19.1.2
+default_port({transport, sctp}) ->
+    5060; %% RFC 3261 19.1.2
 default_port({transport, tls}) ->
     5061; %% RFC 3261 19.1.2
 default_port({transport, ws}) ->
@@ -166,6 +174,8 @@ assemble_upper({transport, udp}) ->
     <<"UDP">>;
 assemble_upper({transport, tcp}) ->
     <<"TCP">>;
+assemble_upper({transport, sctp}) ->
+    <<"SCTP">>;
 assemble_upper({transport, tls}) ->
     <<"TLS">>;
 assemble_upper({transport, ws}) ->
@@ -184,6 +194,8 @@ assemble_bin({transport, udp}) ->
     <<"udp">>;
 assemble_bin({transport, tcp}) ->
     <<"tcp">>;
+assemble_bin({transport, sctp}) ->
+    <<"sctp">>;
 assemble_bin({transport, tls}) ->
     <<"tls">>;
 assemble_bin({transport, ws}) ->
@@ -200,6 +212,7 @@ assemble_bin({other_transport, Binary}) ->
 -spec parse_bin(binary()) -> transport() | {error, {einval, transport}}.
 parse_bin(V) ->
     case ersip_bin:to_lower(V) of
+        <<"sctp">> -> {transport, sctp};
         <<"tcp">> -> {transport, tcp};
         <<"udp">> -> {transport, udp};
         <<"tls">> -> {transport, tls};

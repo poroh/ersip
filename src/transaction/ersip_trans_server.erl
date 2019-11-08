@@ -12,6 +12,14 @@
 
 -export([new/3,
          event/2]).
+
+%% Internal export:
+-export(['Trying'/2,
+         'Proceeding'/2,
+         'Completed'/2,
+         'Terminated'/2
+]).
+
 -export_type([trans_server/0
              ]).
 
@@ -20,10 +28,6 @@
 %%%===================================================================
 
 -type result()  :: {trans_server(), [ersip_trans_se:effect()]}.
--type event()   :: enter
-                 | retransmit
-                 | {send_resp, ersip_status:response_type(), Response :: term()}
-                 | {timer, timer_j}.
 -type request()  :: term().
 -type response() :: term().
 

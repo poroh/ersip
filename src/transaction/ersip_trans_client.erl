@@ -15,6 +15,13 @@
          clear_reason/1
         ]).
 
+%% Internal export:
+-export(['Trying'/2,
+         'Proceeding'/2,
+         'Completed'/2,
+         'Terminated'/2
+        ]).
+
 -export_type([trans_client/0,
               result/0,
               clear_reason/0

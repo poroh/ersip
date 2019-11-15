@@ -251,6 +251,54 @@ trans_expire_set_test() ->
     [{TransExpire, _TransactionTimer1}] = lists:sort(proplists:get_all_values(set_timer, SideEffects1)),
     ok.
 
+to_map_test() ->
+   {Trans0, _} = ersip_trans_inv_client:new(unreliable, invite_req(), #{}),
+   Expected0 = #{state => 'Calling',
+                 transport => unreliable,
+                 options => #{sip_t1 => 500},
+                 request => element(5, Trans0),
+                 clear_reason => normal,
+                 timer_a_timeout => 500,
+                 last_ack => undefined
+                },
+   ?assertEqual(Expected0, ersip_trans_inv_client:to_map(Trans0)),
+   ?assertEqual(Trans0, ersip_trans_inv_client:from_map(Expected0)),
+
+   {Trans1, _} = ersip_trans_inv_client:event({received, trying()}, Trans0),
+   Expected1 = #{state => 'Proceeding',
+                 transport => unreliable,
+                 options => #{sip_t1 => 500},
+                 request => element(5, Trans1),
+                 clear_reason => normal,
+                 timer_a_timeout => 500,
+                 last_ack => undefined
+                },
+   ?assertEqual(Expected1, ersip_trans_inv_client:to_map(Trans1)),
+   ?assertEqual(Trans1, ersip_trans_inv_client:from_map(Expected1)),
+
+    {Trans2, _} = ersip_trans_inv_client:event({received, ok200()}, Trans1),
+    Expected2 = #{state => 'Accepted',
+                  transport => unreliable,
+                  options => #{sip_t1 => 500},
+                  request => element(5, Trans2),
+                  clear_reason => normal,
+                  timer_a_timeout => 500,
+                  last_ack => undefined
+                 },
+    ?assertEqual(Expected2, ersip_trans_inv_client:to_map(Trans2)),
+    ?assertEqual(Trans2, ersip_trans_inv_client:from_map(Expected2)),
+
+    {Trans3, _} =  ersip_trans_inv_client:event({timer, timer_m}, Trans2),
+    Expected3 = #{state => 'Terminated',
+                  transport => unreliable,
+                  options => #{sip_t1 => 500},
+                  request => element(5, Trans3),
+                  clear_reason => normal,
+                  timer_a_timeout => 500,
+                  last_ack => undefined
+                 },
+    ?assertEqual(Expected3, ersip_trans_inv_client:to_map(Trans3)),
+    ?assertEqual(Trans3, ersip_trans_inv_client:from_map(Expected3)).
 
 %%%===================================================================
 %%% Helpers

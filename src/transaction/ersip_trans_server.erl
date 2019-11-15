@@ -11,7 +11,10 @@
 -module(ersip_trans_server).
 
 -export([new/3,
-         event/2]).
+         event/2,
+         to_map/1,
+         from_map/1]).
+
 -export_type([trans_server/0
              ]).
 
@@ -20,20 +23,22 @@
 %%%===================================================================
 
 -type result()  :: {trans_server(), [ersip_trans_se:effect()]}.
--type event()   :: enter
-                 | retransmit
-                 | {send_resp, ersip_status:response_type(), Response :: term()}
-                 | {timer, timer_j}.
 -type request()  :: term().
 -type response() :: term().
 
--record(trans_server, {state     = fun 'Trying'/2 :: fun((event(), trans_server()) -> result()),
-                       last_resp = undefined      :: response() | undefined,
-                       transport                  :: reliable | unreliable,
-                       options                    :: ersip:sip_options()
+-record(trans_server, {state     = 'Trying'  :: state(),
+                       last_resp = undefined :: response() | undefined,
+                       transport             :: reliable | unreliable,
+                       options               :: ersip:sip_options()
                       }).
 
 -type trans_server() :: #trans_server{}.
+
+-type trans_server_map() :: #{state => state(),
+                              last_resp => response() | undefined,
+                              transport => reliable | unreliable,
+                              options => ersip:sip_options()
+                             }.
 
 %%%===================================================================
 %%% API
@@ -75,6 +80,8 @@ event({timer, _} = TimerEv, ServerTrans) ->
 %%% Internal implementation
 %%%===================================================================
 
+-type state() :: 'Trying' | 'Proceeding' | 'Completed' | 'Terminated'.
+
 -define(default_options,
         #{sip_t1 => 500}).
 -define(T1(ServerTrans), maps:get(sip_t1, ServerTrans#trans_server.options)).
@@ -100,7 +107,7 @@ new_impl(Reliable, Request, Options) ->
     %% While in the "Trying" state, if the TU passes a provisional
     %% response to the server transaction, the server transaction MUST
     %% enter the "Proceeding" state.
-    ServerTrans1 = set_state(fun 'Proceeding'/2, ServerTrans),
+    ServerTrans1 = set_state('Proceeding', ServerTrans),
     ServerTrans2 = ServerTrans1#trans_server{last_resp = Resp},
     {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
     {ServerTrans3,  [ersip_trans_se:send_response(Resp) | SideEffects]};
@@ -138,7 +145,7 @@ new_impl(Reliable, Request, Options) ->
             %% The server transaction remains in this state until
             %% Timer J fires, at which point it MUST transition to the
             %% "Terminated" state.
-            ServerTrans1 = set_state(fun 'Terminated'/2, ServerTrans),
+            ServerTrans1 = set_state('Terminated', ServerTrans),
             process_event(enter, ServerTrans1);
         unreliable ->
             set_timer_j(64 * ?T1(ServerTrans), ServerTrans)
@@ -155,7 +162,7 @@ new_impl(Reliable, Request, Options) ->
     %% The server transaction remains in this state until
     %% Timer J fires, at which point it MUST transition to the
     %% "Terminated" state.
-    ServerTrans1 = set_state(fun 'Terminated'/2, ServerTrans),
+    ServerTrans1 = set_state('Terminated', ServerTrans),
     process_event(enter, ServerTrans1).
 
 %%
@@ -172,18 +179,46 @@ new_impl(Reliable, Request, Options) ->
 -spec completed(response(), trans_server()) -> result().
 completed(Resp, ServerTrans) ->
     ServerTrans1 = ServerTrans#trans_server{last_resp = Resp},
-    ServerTrans2 = set_state(fun 'Completed'/2, ServerTrans1),
+    ServerTrans2 = set_state('Completed', ServerTrans1),
     {ServerTrans3, SideEffects} = process_event(enter, ServerTrans2),
     {ServerTrans3, [ersip_trans_se:send_response(Resp) | SideEffects]}.
 
 -spec process_event(Event :: term(), trans_server()) -> result().
-process_event(Event, #trans_server{state = StateF} = ServerTrans) ->
-    StateF(Event, ServerTrans).
+process_event(Event, #trans_server{state = 'Trying'} = ServerTrans) ->
+    'Trying'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Proceeding'} = ServerTrans) ->
+    'Proceeding'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Completed'} = ServerTrans) ->
+    'Completed'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Terminated'} = ServerTrans) ->
+    'Terminated'(Event, ServerTrans).
 
--spec set_state(fun((Event :: term(), trans_server()) -> result()), trans_server()) -> trans_server().
+-spec set_state(state(), trans_server()) -> trans_server().
 set_state(State, ServerTrans) ->
     ServerTrans#trans_server{state = State}.
 
 -spec set_timer_j(pos_integer(), trans_server()) -> result().
 set_timer_j(Timeout, ServerTrans) ->
     {ServerTrans, [ersip_trans_se:set_timer(Timeout, {timer, timer_j})]}.
+
+-spec to_map(trans_server()) -> trans_server_map().
+to_map(Trans) ->
+    #{state => Trans#trans_server.state,
+      last_resp => Trans#trans_server.last_resp,
+      transport => Trans#trans_server.transport,
+      options => Trans#trans_server.options}.
+
+-spec from_map(trans_server_map()) -> trans_server().
+from_map(Map) ->
+  Trans = #trans_server{options = maps:get(options, Map),
+                        transport = maps:get(transport, Map)
+                       },
+  maps:fold(fun (Field, Value, T) ->
+                case Field of
+                  state -> T#trans_server{state = Value};
+                  last_resp -> T#trans_server{last_resp = Value};
+                  _ -> T
+                end
+            end,
+            Trans,
+            Map).

@@ -12,7 +12,9 @@
 
 -export([new/3,
          event/2,
-         clear_reason/1
+         clear_reason/1,
+         to_map/1,
+         from_map/1
         ]).
 
 -export_type([trans_client/0,
@@ -28,15 +30,25 @@
 -type clear_reason() :: ersip_trans_se:clear_reason().
 -type request() :: term().
 
--record(trans_client, {state       = fun 'Trying'/2 :: non_inv_state(),
-                       request                      :: term(),
-                       options                      :: map(),
-                       reliable_transport           :: reliable | unreliable,
-                       timers     = #{}             :: #{reference() => timer_type(),
-                                                         timer_type() => reference()},
-                       timer_e_timeout = 500        :: pos_integer(),
-                       clear_reason    = undefined  :: clear_reason() | undefined
+-record(trans_client, {state         = 'Trying'    :: state(),
+                       request                     :: term(),
+                       options                     :: map(),
+                       reliable_transport          :: reliable | unreliable,
+                       timers        = #{}         :: #{reference() => timer_type(),
+                                                        timer_type() => reference()},
+                       timer_e_timeout = 500       :: pos_integer(),
+                       clear_reason    = undefined :: clear_reason() | undefined
                       }).
+
+-type trans_client_map() :: #{state => state(),
+                              request => term(),
+                              options => map(),
+                              reliable_transport => reliable | unreliable,
+                              timers => #{reference() => timer_type(),
+                              timer_type() => reference()},
+                              timer_e_timeout => pos_integer(),
+                              clear_reason => clear_reason() | undefined
+                             }.
 
 %%%===================================================================
 %%% API
@@ -93,7 +105,7 @@ clear_reason(#trans_client{clear_reason = X}) ->
 %%% Internal implementation
 %%%===================================================================
 
--type non_inv_state() :: fun((Event :: term(), trans_client()) -> result()).
+-type state() :: 'Trying' | 'Proceeding' | 'Completed' | 'Terminated'.
 
 
 -type timer_type() :: timer_f
@@ -119,7 +131,7 @@ new_impl(ReliableTransport, Request, Options) ->
     ClientTrans = #trans_client{request = Request,
                                 options = maps:merge(?default_options, Options),
                                 reliable_transport = ReliableTransport,
-                                state   = fun 'Trying'/2
+                                state   = 'Trying'
                                },
     ClientTrans1 = ClientTrans#trans_client{timer_e_timeout = ?T1(ClientTrans)},
     process_event('enter', ClientTrans1).
@@ -173,7 +185,7 @@ new_impl(ReliableTransport, Request, Options) ->
             %% the "Trying" state, the response MUST be passed
             %% to the TU, and then the client transaction
             %% SHOULD move to the "Proceeding" state.
-            ClientTrans1 = set_state(fun 'Proceeding'/2, ClientTrans),
+            ClientTrans1 = set_state('Proceeding', ClientTrans),
             {ClientTrans2, SideEffects} = process_event(enter, ClientTrans1),
             {ClientTrans2, [ersip_trans_se:tu_result(Msg) | SideEffects]};
         final ->
@@ -182,7 +194,7 @@ new_impl(ReliableTransport, Request, Options) ->
             %% response MUST be passed to the TU, and the
             %% client transaction MUST transition to the
             %% "Completed" state.
-            ClientTrans1 = set_state(fun 'Completed'/2, ClientTrans),
+            ClientTrans1 = set_state('Completed', ClientTrans),
             {ClientTrans2, SideEffects} = process_event(enter, ClientTrans1),
             {ClientTrans2, [ersip_trans_se:tu_result(Msg) | SideEffects]}
     end.
@@ -228,7 +240,7 @@ new_impl(ReliableTransport, Request, Options) ->
             %% response MUST be passed to the TU, and the
             %% client transaction MUST transition to the
             %% "Completed" state.
-            ClientTrans1 = set_state(fun 'Completed'/2, ClientTrans),
+            ClientTrans1 = set_state('Completed', ClientTrans),
             {ClientTrans2, SideEffects} = process_event(enter, ClientTrans1),
             {ClientTrans2, [ersip_trans_se:tu_result(Msg) | SideEffects]}
     end.
@@ -276,17 +288,23 @@ new_impl(ReliableTransport, Request, Options) ->
 -spec terminate(Reason,  trans_client()) -> result() when
       Reason :: ersip_trans_se:clear_reason().
 terminate(Reason, ClientTrans) ->
-    ClientTrans1 = set_state(fun 'Terminated'/2, ClientTrans),
+    ClientTrans1 = set_state('Terminated', ClientTrans),
     ClientTrans2 = ClientTrans1#trans_client{clear_reason = Reason},
     process_event('enter', ClientTrans2).
 
--spec set_state(fun((Event :: term(), trans_client()) -> result()), trans_client()) -> trans_client().
+-spec set_state(state(), trans_client()) -> trans_client().
 set_state(State, ClientTrans) ->
     ClientTrans#trans_client{state = State}.
 
 -spec process_event(Event :: term(), trans_client()) -> result().
-process_event(Event, #trans_client{state = StateF} = ClientTrans) ->
-    StateF(Event, ClientTrans).
+process_event(Event, #trans_client{state = 'Trying'} = ClientTrans) ->
+    'Trying'(Event, ClientTrans);
+process_event(Event, #trans_client{state = 'Proceeding'} = ClientTrans) ->
+    'Proceeding'(Event, ClientTrans);
+process_event(Event, #trans_client{state = 'Completed'} = ClientTrans) ->
+    'Completed'(Event, ClientTrans);
+process_event(Event, #trans_client{state = 'Terminated'} = ClientTrans) ->
+    'Terminated'(Event, ClientTrans).
 
 -spec send_request(trans_client()) -> {ersip_trans_se:effect(), trans_client()}.
 send_request(ClientTrans) ->
@@ -364,4 +382,33 @@ collect_side_effects(ClientTrans, Funs) ->
                 end,
                 Record,
                 Funs).
+
+-spec to_map(trans_client()) -> trans_client_map().
+to_map(Trans) ->
+    #{state => Trans#trans_client.state,
+      request => Trans#trans_client.request,
+      options => Trans#trans_client.options,
+      reliable_transport => Trans#trans_client.reliable_transport,
+      timers => Trans#trans_client.timers,
+      timer_e_timeout => Trans#trans_client.timer_e_timeout,
+      clear_reason => Trans#trans_client.clear_reason
+    }.
+
+-spec from_map(trans_client_map()) -> trans_client().
+from_map(Map) ->
+    Trans = #trans_client{options = maps:get(options, Map),
+                          reliable_transport = maps:get(reliable_transport, Map)
+                         },
+    maps:fold(fun (Field, Value, T) ->
+                   case Field of
+                       state -> T#trans_client{state = Value};
+                       request -> T#trans_client{request = Value};
+                       timers -> T#trans_client{timers = Value};
+                       timer_e_timeout -> T#trans_client{timer_e_timeout = Value};
+                       clear_reason -> T#trans_client{clear_reason = Value};
+                       _ -> T
+                  end
+              end,
+              Trans,
+              Map).
 

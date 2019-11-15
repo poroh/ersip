@@ -12,7 +12,9 @@
 -module(ersip_trans_inv_server).
 
 -export([new/3,
-         event/2
+         event/2,
+         to_map/1,
+         from_map/1
         ]).
 
 %% internal exports:
@@ -50,6 +52,14 @@
                     | timer_h
                     | timer_i
                     | timer_l.
+
+-type trans_inv_server_map() :: #{state => state(),
+                                  transport => transport_type(),
+                                  options => ersip:sip_options(),
+                                  last_resp => undefined | ersip_sipmsg:sipmsg(),
+                                  timer_g_timeout => pos_integer(),
+                                  clear_reason => ersip_trans_se:clear_reason()
+                                 }.
 
 %%%===================================================================
 %%% API
@@ -329,3 +339,30 @@ terminate(Reason, Trans) ->
     Trans1 = set_state('Terminated', Trans),
     Trans2 = Trans1#trans_inv_server{clear_reason = Reason},
     process_event('enter', {Trans2, []}).
+
+-spec to_map(trans_inv_server()) -> trans_inv_server_map().
+to_map(Trans) ->
+    #{state => Trans#trans_inv_server.state,
+      transport => Trans#trans_inv_server.transport,
+      options => Trans#trans_inv_server.options,
+      last_resp => Trans#trans_inv_server.last_resp,
+      timer_g_timeout => Trans#trans_inv_server.timer_g_timeout,
+      clear_reason => Trans#trans_inv_server.clear_reason
+    }.
+
+-spec from_map(trans_inv_server_map()) -> trans_inv_server().
+from_map(Map) ->
+    Trans = #trans_inv_server{options = maps:get(options, Map),
+                              transport = maps:get(transport, Map),
+                              last_resp = maps:get(last_resp, Map)
+                             },
+    maps:fold(fun (Field, Value, T) ->
+                  case Field of
+                      state -> T#trans_inv_server{state = Value};
+                      timer_g_timeout -> T#trans_inv_server{timer_g_timeout = Value};
+                      clear_reason -> T#trans_inv_server{clear_reason = Value};
+                      _ -> T
+                  end
+              end,
+              Trans,
+              Map).

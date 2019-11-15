@@ -247,6 +247,40 @@ error_handling_test() ->
 
     ok.
 
+to_map_test() ->
+    {Trans0, _} = ersip_trans_inv_server:new(unreliable, invite(), #{}),
+    Expected0 = #{state => 'Proceeding',
+                  transport => unreliable,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  last_resp => element(5, Trans0),
+                  timer_g_timeout => 500,
+                  clear_reason => normal
+                 },
+    ?assertEqual(Expected0, ersip_trans_inv_server:to_map(Trans0)),
+    ?assertEqual(Trans0, ersip_trans_inv_server:from_map(Expected0)),
+
+    {Trans1, _} = ersip_trans_inv_server:event({send, ok200()}, Trans0),
+    Expected1 = #{state => 'Accepted',
+                  transport => unreliable,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  last_resp => element(5, Trans1),
+                  timer_g_timeout => 500,
+                  clear_reason => normal
+                 },
+    ?assertEqual(Expected1, ersip_trans_inv_server:to_map(Trans1)),
+    ?assertEqual(Trans1, ersip_trans_inv_server:from_map(Expected1)),
+
+    {Trans2, _} = ersip_trans_inv_server:event({timer, timer_l}, Trans1),
+    Expected2 = #{state => 'Terminated',
+                  transport => unreliable,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  last_resp => element(5, Trans2),
+                  timer_g_timeout => 500,
+                  clear_reason => normal
+                 },
+    ?assertEqual(Expected2, ersip_trans_inv_server:to_map(Trans2)),
+    ?assertEqual(Trans2, ersip_trans_inv_server:from_map(Expected2)).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

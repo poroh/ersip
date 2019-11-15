@@ -11,7 +11,9 @@
 -module(ersip_trans_inv_client).
 
 -export([new/3,
-         event/2
+         event/2,
+         to_map/1,
+         from_map/1
         ]).
 
 %% Internal export:
@@ -43,6 +45,15 @@
                  | 'Terminated'.
 -type event()   :: term().
 -type timer_type() :: term().
+
+-type trans_inv_client_map() :: #{state => state(),
+                                  transport => transport_type(),
+                                  options => ersip:sip_options(),
+                                  request => ersip_request:request(),
+                                  clear_reason => ersip_trans_se:clear_reason(),
+                                  timer_a_timeout => pos_integer(),
+                                  last_ack => undefined | ersip_request:request()
+                                 }.
 
 %%%===================================================================
 %%% API
@@ -338,3 +349,32 @@ generate_ack_request(Response, InitialRequest) ->
     %% what we really do here - we generate ersip_request with the
     %% same paramters as InitialRequest
     ersip_request:set_sipmsg(ACK6, InitialRequest).
+
+-spec to_map(trans_inv_client()) -> trans_inv_client_map().
+to_map(Trans) ->
+    #{state => Trans#trans_inv_client.state,
+      transport => Trans#trans_inv_client.transport,
+      options => Trans#trans_inv_client.options,
+      request => Trans#trans_inv_client.request,
+      clear_reason => Trans#trans_inv_client.clear_reason,
+      timer_a_timeout => Trans#trans_inv_client.timer_a_timeout,
+      last_ack => Trans#trans_inv_client.last_ack
+     }.
+
+-spec from_map(trans_inv_client_map()) -> trans_inv_client().
+from_map(Map) ->
+    Trans = #trans_inv_client{request = maps:get(request, Map),
+                              options = maps:get(options, Map),
+                              transport = maps:get(transport, Map),
+                              last_ack = maps:get(last_ack, Map)
+                             },
+    maps:fold(fun (Field, Value, T) ->
+                  case Field of
+                    state -> T#trans_inv_client{state = Value};
+                    clear_reason -> T#trans_inv_client{clear_reason = Value};
+                    timer_a_timeout -> T#trans_inv_client{timer_a_timeout = Value};
+                    _ -> T
+                  end
+              end,
+              Trans,
+              Map).

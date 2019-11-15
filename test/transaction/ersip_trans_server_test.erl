@@ -83,6 +83,43 @@ uas_unreliable_test() ->
     %% Transaction is cleared
     ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_1_2)).
 
+to_map_test() ->
+    {ServerTrans0, _} = ersip_trans_server:new(unreliable, request(), #{}),
+    Expected0 = #{state => 'Trying',
+                  last_resp => undefined,
+                  transport => unreliable,
+                  options => #{sip_t1 => 500}
+                 },
+    ?assertEqual(Expected0, ersip_trans_server:to_map(ServerTrans0)),
+    ?assertEqual(ServerTrans0, ersip_trans_server:from_map(Expected0)),
+
+    {ServerTrans1, _} = ersip_trans_server:event(prov_response_event(), ServerTrans0),
+    Expected1 = #{state => 'Proceeding',
+                  last_resp => prov_response(),
+                  transport => unreliable,
+                  options => #{sip_t1 => 500}
+                 },
+    ?assertEqual(Expected1, ersip_trans_server:to_map(ServerTrans1)),
+    ?assertEqual(ServerTrans1, ersip_trans_server:from_map(Expected1)),
+
+    {ServerTrans2, _} = ersip_trans_server:event(final_response_event(), ServerTrans1),
+    Expected2 = #{state => 'Completed',
+                  last_resp => final_response(),
+                  transport => unreliable,
+                  options => #{sip_t1 => 500}
+                 },
+    ?assertEqual(Expected2, ersip_trans_server:to_map(ServerTrans2)),
+    ?assertEqual(ServerTrans2, ersip_trans_server:from_map(Expected2)),
+
+    {ServerTrans3, _} = ersip_trans_server:event({timer, timer_j}, ServerTrans2),
+    Expected3 = #{state => 'Terminated',
+                  last_resp => final_response(),
+                  transport => unreliable,
+                  options => #{sip_t1 => 500}
+                 },
+    ?assertEqual(Expected3, ersip_trans_server:to_map(ServerTrans3)),
+    ?assertEqual(ServerTrans3, ersip_trans_server:from_map(Expected3)).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

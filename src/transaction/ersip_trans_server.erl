@@ -11,14 +11,9 @@
 -module(ersip_trans_server).
 
 -export([new/3,
-         event/2]).
-
-%% Internal export:
--export(['Trying'/2,
-         'Proceeding'/2,
-         'Completed'/2,
-         'Terminated'/2
-]).
+         event/2,
+         to_map/1,
+         from_map/1]).
 
 -export_type([trans_server/0
              ]).
@@ -38,6 +33,12 @@
                       }).
 
 -type trans_server() :: #trans_server{}.
+
+-type trans_server_map() :: #{state => state(),
+                              last_resp => response() | undefined,
+                              transport => reliable | unreliable,
+                              options => ersip:sip_options()
+                             }.
 
 %%%===================================================================
 %%% API
@@ -183,8 +184,14 @@ completed(Resp, ServerTrans) ->
     {ServerTrans3, [ersip_trans_se:send_response(Resp) | SideEffects]}.
 
 -spec process_event(Event :: term(), trans_server()) -> result().
-process_event(Event, #trans_server{state = StateF} = ServerTrans) ->
-    ?MODULE:StateF(Event, ServerTrans).
+process_event(Event, #trans_server{state = 'Trying'} = ServerTrans) ->
+    'Trying'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Proceeding'} = ServerTrans) ->
+    'Proceeding'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Completed'} = ServerTrans) ->
+    'Completed'(Event, ServerTrans);
+process_event(Event, #trans_server{state = 'Terminated'} = ServerTrans) ->
+    'Terminated'(Event, ServerTrans).
 
 -spec set_state(state(), trans_server()) -> trans_server().
 set_state(State, ServerTrans) ->
@@ -193,3 +200,25 @@ set_state(State, ServerTrans) ->
 -spec set_timer_j(pos_integer(), trans_server()) -> result().
 set_timer_j(Timeout, ServerTrans) ->
     {ServerTrans, [ersip_trans_se:set_timer(Timeout, {timer, timer_j})]}.
+
+-spec to_map(trans_server()) -> trans_server_map().
+to_map(Trans) ->
+    #{state => Trans#trans_server.state,
+      last_resp => Trans#trans_server.last_resp,
+      transport => Trans#trans_server.transport,
+      options => Trans#trans_server.options}.
+
+-spec from_map(trans_server_map()) -> trans_server().
+from_map(Map) ->
+  Trans = #trans_server{options = maps:get(options, Map),
+                        transport = maps:get(transport, Map)
+                       },
+  maps:fold(fun (Field, Value, T) ->
+                case Field of
+                  state -> T#trans_server{state = Value};
+                  last_resp -> T#trans_server{last_resp = Value};
+                  _ -> T
+                end
+            end,
+            Trans,
+            Map).

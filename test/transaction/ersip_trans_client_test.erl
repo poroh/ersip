@@ -200,3 +200,48 @@ trans_expire_set_test() ->
     [{TransExpire, _TransactionTimer1}] = lists:sort(proplists:get_all_values(set_timer, SideEffects1)),
     ok.
 
+trans_to_map_test() ->
+    {ClientTrans0, _} = ersip_trans_client:new(unreliable, message, #{}),
+    Expected0 = #{state => 'Trying',
+                  request => message,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  reliable_transport => unreliable,
+                  timers => element(6, ClientTrans0),
+                  timer_e_timeout => 500,
+                  clear_reason => undefined
+                 },
+    ?assertEqual(Expected0, ersip_trans_client:to_map(ClientTrans0)),
+    ?assertEqual(ClientTrans0, ersip_trans_client:from_map(Expected0)),
+
+    {ClientTrans1, _} = ersip_trans_client:event({resp, provisional, resp_msg}, ClientTrans0),
+    Expected1 = #{state => 'Proceeding',
+                  request => message,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  reliable_transport => unreliable,
+                  timers => element(6, ClientTrans1),
+                  timer_e_timeout => 4000,
+                  clear_reason => undefined
+                 },
+    ?assertEqual(Expected1, ersip_trans_client:to_map(ClientTrans1)),
+
+    {ClientTrans2, _} = ersip_trans_client:event({resp, final, resp_msg}, ClientTrans1),
+    Expected2 = #{state => 'Completed',
+                  request => message,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  reliable_transport => unreliable,
+                  timers => element(6, ClientTrans2),
+                  timer_e_timeout => 4000,
+                  clear_reason => undefined
+                 },
+    ?assertEqual(Expected2, ersip_trans_client:to_map(ClientTrans2)),
+
+    {ClientTrans3, _} = ersip_trans_client:event(timer_k, ClientTrans2),
+    Expected3 = #{state => 'Terminated',
+                  request => message,
+                  options => #{sip_t1 => 500,sip_t2 => 4000,sip_t4 => 5000},
+                  reliable_transport => unreliable,
+                  timers => element(6, ClientTrans3),
+                  timer_e_timeout => 4000,
+                  clear_reason => normal
+                 },
+    ?assertEqual(Expected3, ersip_trans_client:to_map(ClientTrans3)).

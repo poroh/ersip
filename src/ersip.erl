@@ -20,7 +20,7 @@
               nexthop/0
              ]).
 
--type transport_atom() :: udp | tcp | tls | ws | wss.
+-type transport_atom() :: udp | tcp | tls | ws | wss | sctp.
 -type connection_id()  :: term().
 
 -type sip_options() :: #{sip_t1 => pos_integer(),

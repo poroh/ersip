@@ -16,6 +16,7 @@
          set_uri/2,
          tag/1,
          set_tag/2,
+         set_random_tag/2,
          tag_key/1,
          params/1,
          raw_params/1,
@@ -109,6 +110,11 @@ set_tag(undefined, #fromto{} = FT) ->
     OldParams = params(FT),
     NewParams = maps:remove(tag, OldParams),
     set_params(NewParams, FT).
+
+-spec set_random_tag(pos_integer(), fromto()) -> fromto().
+set_random_tag(NumBytes, #fromto{} = FT) ->
+    Tag = {tag, ersip_id:token(crypto:strong_rand_bytes(NumBytes))},
+    set_tag(Tag, FT).
 
 -spec tag_key(tag() | fromto()) -> undefined | tag_key().
 tag_key({tag, T}) ->

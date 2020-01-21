@@ -108,10 +108,10 @@
          req     :: ersip_request:request(),
          timer_c :: reference() | undefined,
          resp    :: ersip_sipmsg:sipmsg() | undefined,
-         provisional_received = false :: boolean(),
          timer_c_fired  = false :: boolean(),
          cancel_sent    = false :: boolean(),
-         trans_finished = false :: boolean()
+         trans_finished = false :: boolean(),
+         pending_cancel = false :: boolean()
         }).
 -type request_context() :: #request_context{}.
 
@@ -259,15 +259,16 @@ timer_fired({timer, BranchKey, TimerCRef}, #stateful{req_map = ReqCtxMap} = Stat
             {Stateful, []}
     end;
 timer_fired({cancel_timer, BranchKey}, #stateful{req_map = ReqCtxMap} = Stateful) ->
-    case ReqCtxMap of
-        #{BranchKey := #request_context{resp = undefined, req = Req}} ->
+    #{BranchKey := #request_context{resp = RResp, req = Req}} = ReqCtxMap,
+    HasFinalResp = RResp /= undefined andalso final == ersip_status:response_type(ersip_sipmsg:status(RResp)),
+    case HasFinalResp of
+        false ->
             %% If we still does not have any final response from the
             %% other side - generate 487 and delete transaction
-            Resp = ersip_sipmsg:reply(487, ersip_request:sipmsg(Req)),
-            {Stateful1, SE} = process_response(BranchKey, Resp, Stateful),
+            InvResp = ersip_sipmsg:reply(487, ersip_request:sipmsg(Req)),
+            {Stateful1, SE} = process_response(BranchKey, InvResp, Stateful),
             {Stateful1, [ersip_proxy_se:delete_trans(BranchKey) | SE]};
-        _ ->
-            %% Otherwise ignore event:
+        true ->
             {Stateful, []}
     end.
 
@@ -336,6 +337,7 @@ process_response(BranchKey, RespSipMsg, #stateful{} = Stateful) ->
     %%    10. Generate any necessary CANCEL requests
     do_process_response([fun pr_find_context/3,
                          fun pr_maybe_update_timer_c/3,
+                         fun pr_maybe_generate_pending_cancel/3,
                          fun pr_process_via/3,
                          fun pr_add_response/3,
                          fun pr_maybe_forward_response/3
@@ -419,7 +421,14 @@ pr_process_selfgenerated(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} =
         Code when Code >= 200 andalso Code =< 299 ->
             %% 200 OK final code on CANCEL - just restart timer_c,
             %% wait for response from server.
-            {continue, set_cancel_timer(BranchKey, Stateful)};
+            ReqCtx = maps:get(BranchKey, ReqCtxMap),
+            case is_request_pending(ReqCtx) of
+                true ->
+                    {continue, set_cancel_timer(BranchKey, Stateful)};
+                false ->
+                    %% Do not set cancel_timer if already have final response...
+                    continue
+            end;
         _ ->
             %% Consider request as cancelled:
             #{BranchKey := ReqCtx} = ReqCtxMap,
@@ -456,7 +465,7 @@ pr_add_response(BranchKey, RespSipMsg, #stateful{req_map = ReqCtxMap} = Stateful
             {continue, Stateful#stateful{req_map = ReqCtxMap1}};
         provisional ->
             #{BranchKey := ReqCtx} = ReqCtxMap,
-            ReqCtx1 = ReqCtx#request_context{provisional_received = true},
+            ReqCtx1 = ReqCtx#request_context{resp = RespSipMsg},
             ReqCtxMap1 = ReqCtxMap#{BranchKey := ReqCtx1},
             {continue, Stateful#stateful{req_map = ReqCtxMap1}}
     end.
@@ -506,6 +515,9 @@ pr_forward_1xx_response(_BranchKey, _RespMsg, #stateful{}) ->
     %% Implementation: we do not pass provisional response through
     %% "Aggregate Authorization Header Field" step because it
     %% applicable only for 401 and 407 codes.
+    %%
+    %% We also generate CANCEL request if request was CANCELed before
+    %% provisional response was received.
     {continue_with,
      [fun pr_update_record_route/3,
       fun pr_forward_response/3
@@ -651,6 +663,23 @@ pr_cancel_other(_BranchKey, _RespMsg, #stateful{} = Stateful) ->
     %% response.
     {continue, cancel_all_pending(Stateful)}.
 
+
+-spec pr_maybe_generate_pending_cancel(ersip_branch:branch_key(), ersip_sipmsg:sipmsg(), stateful()) -> pr_result().
+pr_maybe_generate_pending_cancel(BranchKey, RespMsg, #stateful{req_map = ReqCtxMap} = Stateful) ->
+    case  ersip_status:response_type(ersip_sipmsg:status(RespMsg)) of
+        final ->
+            %% No reason to generate CANCEL when final response has
+            %% received.
+            {continue, Stateful};
+        provisional ->
+            case ReqCtxMap of
+                #{BranchKey := #request_context{pending_cancel = true} = ReqCtx} ->
+                    {continue, maybe_send_cancel(ReqCtx, Stateful)};
+                _ ->
+                    {continue, Stateful}
+            end
+    end.
+
 -spec create_request_context(ersip_branch:branch_key(), ersip_request:request()) -> request_context().
 create_request_context(BranchKey, Request) ->
     INVITE = ersip_method:invite(),
@@ -683,6 +712,15 @@ create_cancel_client_trans([], _ProxyOptions, Acc) ->
 create_cancel_client_trans([{_, #request_context{} = ReqCtx} | Rest], ProxyOptions, {Stateful, Acc}) ->
     {Stateful1, SE1} = maybe_send_cancel(ReqCtx, Stateful),
     create_cancel_client_trans(Rest, ProxyOptions, {Stateful1, SE1 ++ Acc}).
+
+-spec mark_as_pending_cancel([{ersip_branch:branch_key(), request_context()}], stateful()) -> stateful().
+mark_as_pending_cancel(List, #stateful{} = Stateful) ->
+    lists:foldl(fun({Branch, ReqCtx}, #stateful{req_map = ReqMap} =State) ->
+                        ReqCtx1 = ReqCtx#request_context{pending_cancel = true},
+                        State#stateful{req_map = ReqMap#{Branch => ReqCtx1}}
+                end,
+                Stateful,
+                List).
 
 -spec timer_c_timeout(stateful() | options()) -> pos_integer().
 timer_c_timeout(#stateful{options = ProxyOptions}) ->
@@ -737,6 +775,12 @@ is_request_pending(#request_context{resp = undefined}) ->
 is_request_pending(#request_context{resp = Resp}) ->
     ersip_sipmsg:status(Resp) < 200.
 
+-spec is_provisioned_received(request_context()) -> boolean().
+is_provisioned_received(#request_context{resp = undefined}) ->
+    false;
+is_provisioned_received(#request_context{resp = Resp}) ->
+    ersip_sipmsg:status(Resp) < 200.
+
 -spec choose_best_response([request_context()]) -> {ersip_branch:branch_key(), ersip_sipmsg:sipmsg()}.
 choose_best_response(ReqCtxList) ->
     %% Sort all responses by comparision class and select minimal
@@ -782,10 +826,14 @@ cancel_all_pending(#stateful{orig_sipmsg = SipMsg, req_map = ReqCtxMap, options 
     INVITE = ersip_method:invite(),
     case ersip_sipmsg:method(SipMsg) of
         INVITE ->
-            ToBeCancelled = [{BranchKey, ReqCtx}
+            RequestPending = [{BranchKey, ReqCtx}
                              || {BranchKey, ReqCtx} <- maps:to_list(ReqCtxMap),
                                 is_request_pending(ReqCtx)],
-            create_cancel_client_trans(ToBeCancelled, Options, {Stateful, []});
+            {ToBeCancelled, ToBeMarked} =
+                lists:partition(fun({_, ReqCtx}) -> is_provisioned_received(ReqCtx) end, RequestPending),
+            {State0, SE} = create_cancel_client_trans(ToBeCancelled, Options, {Stateful, []}),
+            State = mark_as_pending_cancel(ToBeMarked, State0),
+            {State, SE};
         _ ->
             %% RFC 3261 9.1 Client Behavior:
             %% A CANCEL request SHOULD NOT be sent to cancel a request
@@ -811,22 +859,23 @@ early_cancel_request(#stateful{orig_sipmsg = ReqSipMsg} = Stateful) ->
 %% provisional response, the proxy MUST behave as if the
 %% transaction received a 408 (Request Timeout) response.
 -spec process_timer_c_fired(ersip_branch:branch_key(), request_context(), stateful()) -> stateful_result().
-process_timer_c_fired(BranchKey, #request_context{resp = undefined, req = Req, provisional_received = false}, #stateful{} = Stateful) ->
+process_timer_c_fired(BranchKey, #request_context{resp = undefined, req = Req}, #stateful{} = Stateful) ->
     %% No provisional response:
     Stateful1 = set_timer_c_fired(BranchKey, Stateful),
     Resp = ersip_sipmsg:reply(408, ersip_request:sipmsg(Req)),
     {Stateful2, SE2} = process_response(BranchKey, Resp, Stateful1),
     {Stateful2, [ersip_proxy_se:delete_trans(BranchKey) | SE2]};
-process_timer_c_fired(BranchKey, #request_context{resp = undefined, provisional_received = true} = ReqCtx, #stateful{} = Stateful) ->
-    %% If the client transaction has received a provisional response,
-    %% the proxy MUST generate a CANCEL request matching that
-    %% transaction.
-    Stateful1 = set_timer_c_fired(BranchKey, Stateful),
-    maybe_send_cancel(ReqCtx, Stateful1);
-process_timer_c_fired(_BranchKey, #request_context{}, #stateful{} = Stateful) ->
-    %% Just ignore this timer C because transaction result has been
-    %% already received
-    {Stateful, []}.
+process_timer_c_fired(BranchKey, #request_context{} = ReqCtx, #stateful{} = Stateful) ->
+    case is_provisioned_received(ReqCtx) of
+        true ->
+            %% If the client transaction has received a provisional response,
+            %% the proxy MUST generate a CANCEL request matching that
+            %% transaction.
+            Stateful1 = set_timer_c_fired(BranchKey, Stateful),
+            maybe_send_cancel(ReqCtx, Stateful1);
+        false ->
+            {Stateful, []}
+    end.
 
 
 -spec set_timer_c_fired(ersip_branch:branch_key(), stateful()) -> stateful().
@@ -851,6 +900,6 @@ maybe_send_cancel(#request_context{key = BranchKey, req = InitialReq}, Stateful)
 set_cancel_sent(BranchKey, #stateful{req_map = ReqCtxMap} = Stateful) ->
     ReqCtxMap1 =
         maps:update_with(BranchKey,
-                         fun(RCtx) -> RCtx#request_context{cancel_sent = true} end,
+                         fun(RCtx) -> RCtx#request_context{cancel_sent = true, pending_cancel = false} end,
                          ReqCtxMap),
     Stateful#stateful{req_map = ReqCtxMap1}.

@@ -158,8 +158,8 @@ parse_non_neg_int(Bin) ->
 %% - skip key-value pair
 %% - return error on pair
 -spec parse_kvps(Validator, Sep, binary()) -> parse_result([{Key, Value} | Key]) when
-      Key   :: binary(),
-      Value :: binary(),
+      Key   :: any(),
+      Value :: any(),
       Sep   :: binary(),
       Validator :: parse_kvps_validator().
 parse_kvps(_, _, <<>>) ->

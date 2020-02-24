@@ -43,7 +43,16 @@
                       | contact
                       | expires
                       | minexpires
-                      | date.
+                      | date
+                      | www_authenticate
+                      | authorization
+                      | proxy_authenticate
+                      | proxy_authorization
+                      | subscription_state
+                      | event
+                      | refer_to
+                      | replaces
+                      | rseq.
 -type name_forms() :: header_key()
                     | known_header()
                     | binary().
@@ -108,7 +117,8 @@ all_known_headers() ->
      subscription_state,
      event,
      refer_to,
-     replaces
+     replaces,
+     rseq
     ].
 
 %%%===================================================================
@@ -178,6 +188,8 @@ header_key_map(<<"to">>)                  -> ?ERSIPH_TO;
 header_key_map(<<"unsupported">>)         -> ?ERSIPH_UNSUPPORTED;
 header_key_map(<<"via">>)                 -> ?ERSIPH_VIA;
 header_key_map(<<"www-authenticate">>)    -> ?ERSIPH_WWW_AUTHENTICATE;
+header_key_map(<<"rseq">>)                -> ?ERSIPH_RSEQ;
+header_key_map(<<"rack">>)                -> ?ERSIPH_RACK;
 header_key_map(Name) when is_binary(Name) ->
     case compact_header_key_map(Name) of
         {ok, HdrKey} -> HdrKey;
@@ -223,6 +235,8 @@ print_form_map(?ERSIPH_TO)                   -> <<"To">>;
 print_form_map(?ERSIPH_UNSUPPORTED)          -> <<"Unsupported">>;
 print_form_map(?ERSIPH_VIA)                  -> <<"Via">>;
 print_form_map(?ERSIPH_WWW_AUTHENTICATE)     -> <<"WWW-Authenticate">>;
+print_form_map(?ERSIPH_RSEQ)                 -> <<"RSeq">>;
+print_form_map(?ERSIPH_RACK)                 -> <<"RAck">>;
 print_form_map({hdr_key, Name}) when is_binary(Name) ->
     Name.
 
@@ -252,7 +266,9 @@ known_header_key_map(proxy_authorization) -> ?ERSIPH_PROXY_AUTHORIZATION;
 known_header_key_map(subscription_state ) -> ?ERSIPH_SUBSCRIPTION_STATE;
 known_header_key_map(refer_to           ) -> ?ERSIPH_REFER_TO;
 known_header_key_map(event              ) -> ?ERSIPH_EVENT;
-known_header_key_map(replaces           ) -> ?ERSIPH_REPLACES.
+known_header_key_map(replaces           ) -> ?ERSIPH_REPLACES;
+known_header_key_map(rseq               ) -> ?ERSIPH_RSEQ;
+known_header_key_map(rack               ) -> ?ERSIPH_RACK.
 
 -spec known_header_form_map(header_key()) -> {ok, known_header()} | not_found.
 known_header_form_map(?ERSIPH_FROM)                -> {ok, from          };
@@ -280,6 +296,8 @@ known_header_form_map(?ERSIPH_SUBSCRIPTION_STATE)  -> {ok, subscription_state};
 known_header_form_map(?ERSIPH_EVENT)               -> {ok, event};
 known_header_form_map(?ERSIPH_REFER_TO)            -> {ok, refer_to};
 known_header_form_map(?ERSIPH_REPLACES)            -> {ok, replaces};
+known_header_form_map(?ERSIPH_RSEQ)                -> {ok, rseq};
+known_header_form_map(?ERSIPH_RACK)                -> {ok, rack};
 known_header_form_map({hdr_key, _}) -> not_found.
 
 %% Most common names mapping to keys. This improves performance in
@@ -311,5 +329,7 @@ key_shortcut(<<"Proxy-Authenticate">>)  -> {ok, ?ERSIPH_PROXY_AUTHENTICATE};
 key_shortcut(<<"Proxy-Authorization">>) -> {ok, ?ERSIPH_PROXY_AUTHORIZATION};
 key_shortcut(<<"Subscription-State">>)  -> {ok, ?ERSIPH_SUBSCRIPTION_STATE};
 key_shortcut(<<"P-Asserted-Identity">>) -> {ok, {hdr_key, <<"p-asserted-identity">>}};
+key_shortcut(<<"RSeq">>)                -> {ok, ?ERSIPH_RSEQ};
+key_shortcut(<<"RAck">>)                -> {ok, ?ERSIPH_RACK};
 key_shortcut(_) -> not_found.
 

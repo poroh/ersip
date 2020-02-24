@@ -43,6 +43,8 @@
 -define(ERSIPH_VIA,                 {hdr_key, via}).
 -define(ERSIPH_WWW_AUTHENTICATE,    {hdr_key, www_authenticate}).
 -define(ERSIPH_REPLACES,            {hdr_key, replaces}).
+-define(ERSIPH_RSEQ,                {hdr_key, rseq}).
+-define(ERSIPH_RACK,                {hdr_key, rack}).
 
 
 

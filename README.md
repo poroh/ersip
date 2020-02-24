@@ -48,6 +48,11 @@ RFC supported in this SIP stack:
       - 17 Transactions
       - 18 Transport
       - 19 Common Message Components
+  + RFC 3262 Reliability of Provisional Responses in the Session Initiation Protocol (SIP)
+      - 6 Definition of the PRACK Method
+      - 7 Header Field Definitions
+      - 7.1 RSeq
+      - 7.2 RAck
   + RFC 6026 Correct Transaction Handling for 2xx Responses to Session Initiation Protocol (SIP) INVITE Requests
   + RFC 3581 An Extension to the Session Initiation Protocol (SIP) for Symmetric Response Routing (rport)
   + RFC 4475 Session Initiation Protocol (SIP) Torture Test Messages

@@ -32,6 +32,9 @@
          maxforwards/1,
          topmost_via/1,
 
+         %% PRACK
+         rack/1,
+
          %% Headers manipulation:
          find/2,
          get/2,
@@ -190,6 +193,10 @@ maxforwards(#sipmsg{} = SipMsg) ->
 -spec topmost_via(sipmsg()) -> ersip_hdr_via:via().
 topmost_via(#sipmsg{} = SipMsg) ->
     get(topmost_via, SipMsg).
+
+-spec rack(sipmsg()) -> ersip_hdr_rack:rack().
+rack(#sipmsg{} = SipMsg) ->
+    get(rack, SipMsg).
 
 -spec reason(ersip_sipmsg:sipmsg()) -> undefined | binary().
 reason(#sipmsg{} = SipMsg) ->

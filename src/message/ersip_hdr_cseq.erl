@@ -58,12 +58,12 @@ make(Header) ->
     end.
 
 -spec make(ersip_method:method(), cseq_num()) -> cseq().
-make(Method, Number) ->
+make({method, _} = Method, Number) when is_integer(Number), Number >= 0 ->
     #cseq{method = Method,
           number = Number}.
 
 -spec make_key(cseq()) -> cseq().
-make_key(CSeq) ->
+make_key(#cseq{} = CSeq) ->
     CSeq.
 
 -spec number(cseq()) -> cseq_num().

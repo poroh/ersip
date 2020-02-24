@@ -427,5 +427,18 @@ header_descr(replaces) ->
            may_appear   = once,
            parse_fun    = fun ersip_hdr_replaces:parse/1,
            assemble_fun = fun ersip_hdr_replaces:build/2
+          };
+header_descr(rseq) ->
+    #descr{required     = optional,
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_rseq:parse/1,
+           assemble_fun = fun ersip_hdr_rseq:build/2
+          };
+header_descr(rack) ->
+    #descr{required     = {requests, [ersip_method:prack()]},
+           may_appear   = once,
+           parse_fun    = fun ersip_hdr_rack:parse/1,
+           assemble_fun = fun ersip_hdr_rack:build/2
           }.
+
 

@@ -13,6 +13,7 @@
          ack/0,
          bye/0,
          cancel/0,
+         prack/0,
          subscribe/0,
          notify/0,
          refer/0,
@@ -40,6 +41,8 @@
 -define(CANCEL,   {method, <<"CANCEL">>}).
 -define(REGISTER, {method, <<"REGISTER">>}).
 
+-define(PRACK,     {method, <<"PRACK">>}).
+
 -define(SUBSCRIBE, {method, <<"SUBSCRIBE">>}).
 -define(NOTIFY,    {method, <<"NOTIFY">>}).
 -define(REFER,     {method, <<"REFER">>}).
@@ -61,6 +64,9 @@ cancel() ->
 
 register() ->
     ?REGISTER.
+
+prack() ->
+    ?PRACK.
 
 subscribe() ->
     ?SUBSCRIBE.

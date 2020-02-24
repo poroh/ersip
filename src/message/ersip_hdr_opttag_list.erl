@@ -9,10 +9,12 @@
 
 -module(ersip_hdr_opttag_list).
 
--export([from_list/1,
+-export([make/1,
+         from_list/1,
          to_list/1,
          intersect/2,
          subtract/2,
+         append/2,
          parse/1,
          build/2,
          assemble/1
@@ -28,6 +30,13 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec make(binary()) -> option_tag_list().
+make(Bin) when is_binary(Bin) ->
+    case parse_tag_list([Bin]) of
+        {ok, TagList}  -> TagList;
+        {error, _} = E -> error(E)
+    end.
 
 -spec from_list([ersip_option_tag:option_tag()]) -> option_tag_list().
 from_list(OptionTagList) ->
@@ -45,6 +54,10 @@ intersect({option_tag_list, S1}, {option_tag_list, S2}) ->
 subtract({option_tag_list, S1}, {option_tag_list, S2}) ->
     {option_tag_list, gb_sets:subtract(S1, S2)}.
 
+-spec append(ersip_option_tag:option_tag(), option_tag_list()) -> option_tag_list().
+append({option_tag, _} = OptionTag, {option_tag_list, S}) ->
+    {option_tag_list, gb_sets:insert(OptionTag, S)}.
+
 -spec parse(ersip_hdr:header()) -> Result when
       Result :: {ok, option_tag_list()}
               | {error, Error},
@@ -55,25 +68,7 @@ parse(Header) ->
         [] ->
             {error, no_option_tag_list};
         HeaderList ->
-            try
-                OptionList0 = [binary:split(H, <<",">>, [global]) || H <- HeaderList],
-                OptionList1 = lists:flatten(OptionList0),
-                OptionTagList = [ersip_bin:trim_lws(Tag) || Tag <- OptionList1],
-                L = lists:map(fun(Val) ->
-                                      OptionTagBin = iolist_to_binary(Val),
-                                      case ersip_option_tag:parse(OptionTagBin) of
-                                          {ok, OptionTag} ->
-                                              OptionTag;
-                                          {error, _} = Error ->
-                                              throw(Error)
-                                      end
-                              end,
-                              OptionTagList),
-                {ok, from_list(L)}
-            catch
-                throw:{error, _} = Error ->
-                    {error, {invalid_option_tag_list, Error}}
-            end
+            parse_tag_list(HeaderList)
     end.
 
 -spec build(HeaderName :: binary(), option_tag_list()) -> ersip_hdr:header().
@@ -87,3 +82,27 @@ assemble({option_tag_list, _} = OptionTagList) ->
                       [ersip_option_tag:to_binary(OptionTag)
                        || OptionTag <- to_list(OptionTagList)
                       ]).
+%%===================================================================
+%% Internal implementation
+%%===================================================================
+
+-spec parse_tag_list([iolist() | binary()]) -> {ok, option_tag_list()} | {error, term()}.
+parse_tag_list(Headers) ->
+    AllTagsBin = iolist_to_binary(ersip_iolist:join($,, Headers)),
+    AllTags0 = binary:split(AllTagsBin, <<",">>, [global]),
+    OptionTagList = [ersip_bin:trim_lws(Tag) || Tag <- AllTags0],
+    try
+        L = lists:map(fun(Val) ->
+                              OptionTagBin = iolist_to_binary(Val),
+                              case ersip_option_tag:parse(OptionTagBin) of
+                                  {ok, OptionTag} ->
+                                      OptionTag;
+                                  {error, _} = Error ->
+                                      throw(Error)
+                              end
+                      end,
+                      OptionTagList),
+        {ok, from_list(L)}
+    catch
+        {error, X} -> {error, {invalid_option_tag_list, X}}
+    end.

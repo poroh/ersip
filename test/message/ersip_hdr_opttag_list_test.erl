@@ -25,6 +25,21 @@ parse_test() ->
 option_tag_test() ->
     ?assertError({error, _}, ersip_option_tag:make(<<"^">>)).
 
+option_tag_make_test() ->
+    OptTagList = ersip_hdr_opttag_list:make(<<"100rel, timer">>),
+    ?assertEqual([ersip_option_tag:make(<<"100rel">>),
+                  ersip_option_tag:make(<<"timer">>)],
+                 ersip_hdr_opttag_list:to_list(OptTagList)),
+    ?assertError({error, _}, ersip_hdr_opttag_list:make(<<"@">>)),
+    ok.
+
+append_test() ->
+    OptTagList0 = ersip_hdr_opttag_list:make(<<"timer">>),
+    OptTagList1 = ersip_hdr_opttag_list:append(ersip_option_tag:make(<<"100rel">>), OptTagList0),
+    OptTagRef = ersip_hdr_opttag_list:make(<<"100rel, timer">>),
+    ?assertEqual(OptTagRef, OptTagList1),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

@@ -27,6 +27,7 @@
          params/1,
          raw_params/1,
          raw_headers/1,
+         set_raw_headers/2,
          clear_params/1,
          clear_transport/1,
          set_param/3,
@@ -201,6 +202,11 @@ raw_params(#uri{data = #sip_uri_data{params = Params}}) ->
 -spec raw_headers(uri()) -> [{binary(), binary()}].
 raw_headers(#uri{data = #sip_uri_data{headers = Headers}}) ->
     maps:to_list(Headers).
+
+-spec set_raw_headers([{binary(), binary()}], uri()) -> uri().
+set_raw_headers(Headers, #uri{data = #sip_uri_data{} = Data} = URI) ->
+    HMap = maps:from_list(Headers),
+    URI#uri{data = Data#sip_uri_data{headers = HMap}}.
 
 -spec clear_params(uri()) -> uri().
 clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->

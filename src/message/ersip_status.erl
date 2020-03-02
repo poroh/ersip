@@ -70,5 +70,6 @@ reason_impl(423) -> <<"Interval Too Brief">>;
 reason_impl(481) -> <<"Call/Transaction Does Not Exist">>;
 reason_impl(483) -> <<"Too many hops">>;
 reason_impl(487) -> <<"Request Terminated">>;
+reason_impl(500) -> <<"Internal Server Error">>;
 reason_impl(503) -> <<"Service Unavailable">>;
 reason_impl(_)   -> <<"Unknown Status">>.

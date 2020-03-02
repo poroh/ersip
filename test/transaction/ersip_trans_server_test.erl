@@ -43,7 +43,7 @@ uas_reliable_test() ->
     ?assertEqual(prov_response_2(), maps:get(send_response, SideEffectsMap_2_1_2)),
 
     %% Branch 2.2: (Final after provisional response)
-    {_UAS_2_2_0, SideEffects_2_2_0} = ersip_trans_server:event(final_response_event(), UAS_2_0),
+    {UAS_2_2_0, SideEffects_2_2_0} = ersip_trans_server:event(final_response_event(), UAS_2_0),
     SideEffectsMap_2_2_0 = maps:from_list(SideEffects_2_2_0),
     %% Final response is sent
     ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_2_2_0)),
@@ -51,12 +51,17 @@ uas_reliable_test() ->
     ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_2_2_0)),
 
     %% Branch 3: (Sending final response without provisional)
-    {_UAS_3_0, SideEffects_3_0} = ersip_trans_server:event(final_response_event(), UAS0),
+    {UAS_3_0, SideEffects_3_0} = ersip_trans_server:event(final_response_event(), UAS0),
     SideEffectsMap_3_0 = maps:from_list(SideEffects_3_0),
     %% Response with provisional resp:
     ?assertEqual(final_response(), maps:get(send_response, SideEffectsMap_3_0)),
     %% Transaction is cleared
-    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_3_0)).
+    ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_3_0)),
+
+    %% Check has_final_response for different states:
+    ?assertEqual(true, ersip_trans_server:has_final_response(UAS_2_2_0)),
+    ?assertEqual(true, ersip_trans_server:has_final_response(UAS_3_0)),
+    ok.
 
 uas_unreliable_test() ->
     {UAS0, SideEffects0} = ersip_trans_server:new(unreliable, request(), #{}),

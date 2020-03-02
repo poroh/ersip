@@ -36,7 +36,7 @@ reliable_transport_flow_test() ->
     %% timer B fires, the client transaction SHOULD inform the TU that
     %% a timeout has occurred.  The client transaction MUST NOT
     %% generate an ACK.
-    {_Terminated, SE1} = ersip_trans_inv_client:event(TimerBEv, CallingTrans),
+    {Terminated, SE1} = ersip_trans_inv_client:event(TimerBEv, CallingTrans),
     TimeoutClear = ersip_trans_se:clear_trans(timeout),
     ?assertEqual(TimeoutClear, se_event(clear_trans, SE1)),
     ?assertEqual(not_found,    se_event(send_request, SE1)),
@@ -108,7 +108,6 @@ reliable_transport_flow_test() ->
     ?assertEqual({ProceedingTrans, []}, ersip_trans_inv_client:event(TimerBEv, ProceedingTrans)),
     ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event(TimerBEv, CompletedTrans)),
     ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event(TimerBEv, AcceptedTrans)),
-
     ok.
 
 unreliable_transport_flow_test() ->
@@ -177,7 +176,7 @@ unreliable_transport_flow_test() ->
     %% If Timer D fires while the client transaction is in the
     %% "Completed" state, the client transaction MUST move to the
     %% "Terminated" state.
-    {_TerminatedTrans, SE4} = ersip_trans_inv_client:event(TimerDEv, CompletedTrans),
+    {TerminatedTrans, SE4} = ersip_trans_inv_client:event(TimerDEv, CompletedTrans),
     ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE4)),
 
     {AcceptedTrans, _} = ersip_trans_inv_client:event({received, ok200()}, CallingTrans1),
@@ -196,6 +195,14 @@ unreliable_transport_flow_test() ->
     %% Spurious provisional responses are ignored in Complted/Accepted states:
     ?assertEqual({CompletedTrans, []}, ersip_trans_inv_client:event({received, ringing()}, CompletedTrans)),
     ?assertEqual({AcceptedTrans, []}, ersip_trans_inv_client:event({received, ringing()}, AcceptedTrans)),
+
+
+    %% Check has_final_response for different states:
+    ?assertEqual(false, ersip_trans_inv_client:has_final_response(CallingTrans1)),
+    ?assertEqual(false, ersip_trans_inv_client:has_final_response(ProceedingTrans)),
+    ?assertEqual(true, ersip_trans_inv_client:has_final_response(CompletedTrans)),
+    ?assertEqual(true, ersip_trans_inv_client:has_final_response(AcceptedTrans)),
+    ?assertEqual(true, ersip_trans_inv_client:has_final_response(TerminatedTrans)),
     ok.
 
 final_response_in_accepted_state_test() ->

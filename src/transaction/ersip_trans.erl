@@ -15,7 +15,8 @@
          server_id/1,
          server_cancel_id/1,
          client_id/1,
-         client_id/2
+         client_id/2,
+         has_final_response/1
         ]).
 
 -export_type([trans/0,
@@ -167,6 +168,11 @@ client_id(RecvVia, SipMsg) ->
             FakeBranch = ersip_branch:make_random(6),
             ersip_trans_id:make_client(FakeBranch, Method)
     end.
+
+%% @doc Final response has been sent or received.
+-spec has_final_response(trans()) -> boolean().
+has_final_response(#trans{module =  Module, instance = Instance}) ->
+    Module:has_final_response(Instance).
 
 %%%===================================================================
 %%% Internal implementation

@@ -13,7 +13,8 @@
 -export([new/3,
          event/2,
          to_map/1,
-         from_map/1
+         from_map/1,
+         has_final_response/1
         ]).
 
 %% Internal export:
@@ -87,6 +88,17 @@ event({send, _}, _Trans) ->
     error({api_error, <<"cannot send message within client transaction">>});
 event({timer, _} = TimerEv, #trans_inv_client{} = Trans) ->
     process_event(TimerEv, {Trans, []}).
+
+%% @doc Transaction has received final response
+-spec has_final_response(trans_inv_client()) -> boolean().
+has_final_response(#trans_inv_client{state = 'Completed'}) ->
+    true;
+has_final_response(#trans_inv_client{state = 'Accepted'}) ->
+    true;
+has_final_response(#trans_inv_client{state = 'Terminated'}) ->
+    true;
+has_final_response(#trans_inv_client{}) ->
+    false.
 
 %%%===================================================================
 %%% Internal implementation

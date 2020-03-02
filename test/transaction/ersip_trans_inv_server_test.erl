@@ -53,8 +53,16 @@ reliable_canonnical_2xx_flow_test() ->
     ?assertEqual({tu_result, ACKSipMsg}, se_event(tu_result, SE4)),
 
     %% Req #8: INVITE server tranasaction is stopped after timer L is fired
-    {_TerminatedTrans, SE5} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
+    {TerminatedTrans, SE5} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
     ?assertEqual([{clear_trans, normal}], SE5),
+
+    io:format("~p", [AcceptedTrans]),
+    %% Check has_final_response for different states:
+    ?assertEqual(false, ersip_trans_inv_server:has_final_response(ProceedingTrans1)),
+    ?assertEqual(true, ersip_trans_inv_server:has_final_response(AcceptedTrans)),
+    %% Note: that we consider that we have final response (408) is
+    %% received in case of timeout...
+    ?assertEqual(true, ersip_trans_inv_server:has_final_response(TerminatedTrans)),
     ok.
 
 
@@ -136,6 +144,7 @@ unreliable_with_retransmits_2xx_test() ->
     %% Req #9: Transaction is cleared if timer L is fired in Accepted state.
     {_, SE8} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
     ?assertEqual({clear_trans, normal}, se_event(clear_trans, SE8)),
+
     ok.
 
 unreliable_with_retransmits_4xx_test() ->
@@ -209,8 +218,15 @@ unreliable_with_retransmits_4xx_test() ->
     ?assertEqual([], SE8),
 
     %% Req #11: Transaction is cleared with no_ack if TimerH is fired:
-    {_TerminatedTrans2, SE9} = ersip_trans_inv_server:event(TimerHEv, CompletedTrans1),
+    {TerminatedTrans, SE9} = ersip_trans_inv_server:event(TimerHEv, CompletedTrans1),
     ?assertEqual({clear_trans, no_ack}, se_event(clear_trans, SE9)),
+
+
+    %% Check has_final_response for different states:
+    ?assertEqual(false, ersip_trans_inv_server:has_final_response(ProceedingTrans)),
+    ?assertEqual(true, ersip_trans_inv_server:has_final_response(ConfirmedTrans)),
+    ?assertEqual(true, ersip_trans_inv_server:has_final_response(CompletedTrans1)),
+    ?assertEqual(true, ersip_trans_inv_server:has_final_response(TerminatedTrans)),
     ok.
 
 ignore_ack_in_proceeding_test() ->

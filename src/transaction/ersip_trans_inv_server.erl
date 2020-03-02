@@ -14,7 +14,8 @@
 -export([new/3,
          event/2,
          to_map/1,
-         from_map/1
+         from_map/1,
+         has_final_response/1
         ]).
 
 %% internal exports:
@@ -109,6 +110,18 @@ event({send, SipMsg}, ServerTrans) ->
 event({timer, _} = TimerEv, ServerTrans) ->
     process_event(TimerEv, {ServerTrans, []}).
 
+%% @doc Transaction has sent final response
+-spec has_final_response(trans_inv_server()) -> boolean().
+has_final_response(#trans_inv_server{state = 'Completed'}) ->
+    true;
+has_final_response(#trans_inv_server{state = 'Confirmed'}) ->
+    true;
+has_final_response(#trans_inv_server{state = 'Accepted'}) ->
+    true;
+has_final_response(#trans_inv_server{state = 'Terminated'}) ->
+    true;
+has_final_response(#trans_inv_server{}) ->
+    false.
 
 %%%===================================================================
 %%% Internal implementation

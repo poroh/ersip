@@ -185,7 +185,12 @@ uac_unreliable_test() ->
     {ClientTrans_5_4, SideEffects_5_4} = ersip_trans_client:event(TimerK_5_1, ClientTrans_5_3),
     SideEffectsMap_5_4 = maps:from_list(SideEffects_5_4),
     ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_5_4)),
-    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_4)).
+    ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_4)),
+
+    %% --------------
+    %% Check has_final_response for different states
+    ?assertEqual(true, ersip_trans_client:has_final_response(ClientTrans_1_2)),
+    ok.
 
 trans_expire_set_test() ->
     TransExpire = 31713,

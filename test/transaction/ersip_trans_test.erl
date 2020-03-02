@@ -203,6 +203,90 @@ malformed_invite_test() ->
     ?assertMatch({error, _}, ersip_trans:validate(SipMsgBadCSeq)),
     ok.
 
+has_final_response_client_test() ->
+    SipMsg = default_register_request(),
+    Branch = ersip_branch:make_random(7),
+    OutReq = ersip_request:new(SipMsg, Branch, default_nexthop()),
+    {ClientTrans, _SE} = ersip_trans:new_client(OutReq, default_sip_options()),
+    ?assertEqual(false, ersip_trans:has_final_response(ClientTrans)),
+    %% Get remote message:
+    RemoteMsg = send_req_via_default_conn(OutReq),
+    %% Make response on remote message:
+    Remote100Trying = ersip_sipmsg:reply(100, RemoteMsg),
+    {ClientTrans1, _} = ersip_trans:event({received, Remote100Trying}, ClientTrans),
+    ?assertEqual(false, ersip_trans:has_final_response(ClientTrans1)),
+
+    Remote200OK = ersip_sipmsg:reply(200, RemoteMsg),
+    {ClientTrans2, _} = ersip_trans:event({received, Remote200OK}, ClientTrans1),
+    ?assertEqual(true, ersip_trans:has_final_response(ClientTrans2)),
+
+    %% Ignore retransmits of response:
+    {ClientTrans3, _} = ersip_trans:event({received, Remote200OK}, ClientTrans2),
+    ?assertEqual(true, ersip_trans:has_final_response(ClientTrans3)),
+    ok.
+
+has_final_response_server_test() ->
+    SipMsg = default_register_request(),
+    {ServerTrans, SE} = ersip_trans:new_server(SipMsg, default_sip_options()),
+    ?assertEqual({tu_result, SipMsg}, lists:keyfind(tu_result, 1, SE)),
+    ProvResp = ersip_sipmsg:reply(100, SipMsg),
+    {ServerTrans1, _} = ersip_trans:event({send, ProvResp}, ServerTrans),
+    ?assertEqual(false, ersip_trans:has_final_response(ServerTrans1)),
+
+    {ServerTrans2, _} = ersip_trans:event({received, SipMsg}, ServerTrans1),
+    ?assertEqual(false, ersip_trans:has_final_response(ServerTrans2)),
+
+    FinalResp = ersip_sipmsg:reply(200, SipMsg),
+    {ServerTrans3, _} = ersip_trans:event({send, FinalResp}, ServerTrans2),
+    ?assertEqual(true, ersip_trans:has_final_response(ServerTrans3)),
+
+    {ServerTrans4, _} = ersip_trans:event({received, SipMsg}, ServerTrans3),
+    ?assertEqual(true, ersip_trans:has_final_response(ServerTrans4)),
+    ok.
+
+
+has_final_response_invite_transaction_test() ->
+    InviteReq = invite_req(),
+    {ClientCalling, _} = ersip_trans:new_client(InviteReq, default_sip_options()),
+    ?assertEqual(false, ersip_trans:has_final_response(ClientCalling)),
+    InviteSipMsg = pass_request_to_server(InviteReq),
+
+    {ServerProceeding, SE2} = ersip_trans:new_server(InviteSipMsg, default_sip_options()),
+    ?assertEqual(false, ersip_trans:has_final_response(ServerProceeding)),
+
+    %% Sending 100 Trying to caller
+    {send_response, SrvTryingSipMsg} = se_event(send_response, SE2),
+    TryingSipMsg = pass_response_to_client(SrvTryingSipMsg),
+    {ClientProceeding, _SE3} = ersip_trans:event({received, TryingSipMsg}, ClientCalling),
+    ?assertEqual(false, ersip_trans:has_final_response(ClientProceeding)),
+
+    %% Sending 180 Ringing to caller
+    {ServerProceeding1, SE4} = ersip_trans:event({send, ringing()}, ServerProceeding),
+    ?assertEqual(false, ersip_trans:has_final_response(ServerProceeding1)),
+    {send_response, SrvRingingSipMsg} = se_event(send_response, SE4),
+    RingingSipMsg = pass_response_to_client(SrvRingingSipMsg),
+
+    {ClientProceeding, _SE5} = ersip_trans:event({received, RingingSipMsg}, ClientProceeding),
+    ?assertEqual(false, ersip_trans:has_final_response(ClientProceeding)),
+
+    %% Sending 200 Ringing to caller
+    {ServerAccepted, SE6} = ersip_trans:event({send, ok200()}, ServerProceeding1),
+    ?assertEqual(true, ersip_trans:has_final_response(ServerAccepted)),
+    {send_response, SrvOKSipMsg} = se_event(send_response, SE6),
+    OKSipMsg = pass_response_to_client(SrvOKSipMsg),
+
+    {ClientAccepted, _SE7} = ersip_trans:event({received, OKSipMsg}, ClientProceeding),
+    ?assertEqual(true, ersip_trans:has_final_response(ClientAccepted)),
+
+    %% Send ACK from client side:
+    ACKReq = ack_req(),
+    ACKSipMsg = pass_request_to_server(ACKReq),
+
+    {ServerAccepted, _SE9} = ersip_trans:event({received, ACKSipMsg}, ServerAccepted),
+    ?assertEqual(true, ersip_trans:has_final_response(ServerAccepted)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

@@ -13,6 +13,7 @@
 -export([new/3,
          event/2,
          clear_reason/1,
+         has_final_response/1,
          to_map/1,
          from_map/1
         ]).
@@ -100,6 +101,15 @@ event(Evt, ClientTrans) ->
 -spec clear_reason(trans_client()) -> clear_reason().
 clear_reason(#trans_client{clear_reason = X}) ->
     X.
+
+%% @doc Transaction has received final response
+-spec has_final_response(trans_client()) -> boolean().
+has_final_response(#trans_client{state = 'Completed'}) ->
+    true;
+has_final_response(#trans_client{state = 'Terminated'}) ->
+    true;
+has_final_response(#trans_client{}) ->
+    false.
 
 %%%===================================================================
 %%% Internal implementation

@@ -32,7 +32,8 @@
          maxforwards/1,
          topmost_via/1,
 
-         %% PRACK
+         %% Reliability of Provisional Responses in SIP
+         rseq/1,
          rack/1,
 
          %% Headers manipulation:
@@ -197,6 +198,10 @@ topmost_via(#sipmsg{} = SipMsg) ->
 -spec rack(sipmsg()) -> ersip_hdr_rack:rack().
 rack(#sipmsg{} = SipMsg) ->
     get(rack, SipMsg).
+
+-spec rseq(sipmsg()) -> ersip_hdr_rseq:rseq().
+rseq(#sipmsg{} = SipMsg) ->
+    get(rseq, SipMsg).
 
 -spec reason(ersip_sipmsg:sipmsg()) -> undefined | binary().
 reason(#sipmsg{} = SipMsg) ->

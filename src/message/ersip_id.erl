@@ -12,7 +12,8 @@
 -module(ersip_id).
 
 -export([token/1,
-         word/1]).
+         word/1,
+         alphanum/1]).
 
 %%%===================================================================
 %%% Types
@@ -35,6 +36,10 @@ token(Bin) ->
 -spec word(binary()) -> binary().
 word(Bin) ->
     encode(Bin, word_chars()).
+
+-spec alphanum(binary()) -> binary().
+alphanum(Bin) ->
+    encode(Bin, alphanum_chars()).
 
 %%%===================================================================
 %%% Helpers
@@ -139,3 +144,22 @@ word_translate(X) when X >= ?WORD_SMALL_ALPHA_SHIFT,
 word_translate(X) when X >= ?WORD_CAP_ALPHA_SHIFT,
                         X < ?WORD_CAP_ALPHA_SHIFT + ?CAP_ALPHA_SIZE ->
     X - ?WORD_CAP_ALPHA_SHIFT + $A.
+
+
+-spec alphanum_chars() -> char_table().
+alphanum_chars() ->
+    #char_table{size = ?ALPHA_SIZE + ?DIGIT_SIZE,
+                tfun = fun alphanum_translate/1
+               }.
+
+-define(ALPHANUM_SMALL_ALPHA_SHIFT, ?DIGIT_SIZE).
+-define(ALPHANUM_CAP_ALPHA_SHIFT, (?ALPHANUM_SMALL_ALPHA_SHIFT + ?SMALL_ALPHA_SIZE)).
+
+alphanum_translate(X) when X < ?ALPHANUM_SMALL_ALPHA_SHIFT ->
+    X + $0;
+alphanum_translate(X) when X >= ?ALPHANUM_SMALL_ALPHA_SHIFT,
+                        X < ?ALPHANUM_CAP_ALPHA_SHIFT ->
+    X - ?ALPHANUM_SMALL_ALPHA_SHIFT + $a;
+alphanum_translate(X) when X >= ?ALPHANUM_CAP_ALPHA_SHIFT,
+                           X < ?ALPHANUM_CAP_ALPHA_SHIFT + ?CAP_ALPHA_SIZE ->
+    X - ?ALPHANUM_CAP_ALPHA_SHIFT + $A.

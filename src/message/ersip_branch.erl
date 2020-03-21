@@ -46,7 +46,7 @@ make_rfc3261(Bin) ->
 
 -spec make_random(NumBytes :: pos_integer()) -> branch().
 make_random(NumBytes) ->
-    make_rfc3261(ersip_id:token(crypto:strong_rand_bytes(NumBytes))).
+    make_rfc3261(ersip_id:alphanum(crypto:strong_rand_bytes(NumBytes))).
 
 %% @doc Create comparable key for branch parameter.
 -spec make_key(branch()) -> branch_key().

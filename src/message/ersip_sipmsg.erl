@@ -636,7 +636,7 @@ maybe_set_to_tag(Reply, SipMsg, RSipMsg) ->
             ToTag =
                 case ersip_reply:to_tag(Reply) of
                     auto ->
-                        {tag, ersip_id:token(crypto:strong_rand_bytes(8))};
+                        {tag, ersip_id:alphanum(crypto:strong_rand_bytes(8))};
                     {tag, _} = Tag ->
                         Tag
                 end,

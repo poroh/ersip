@@ -52,7 +52,7 @@ make_key({callid, _} = C) ->
 
 -spec make_random(NumBytes :: pos_integer()) -> callid().
 make_random(NumBytes) ->
-    make(ersip_id:word(crypto:strong_rand_bytes(NumBytes))).
+    make(ersip_id:alphanum(crypto:strong_rand_bytes(NumBytes))).
 
 -spec parse(ersip_hdr:header() | binary()) -> Result when
       Result :: {ok, callid()}

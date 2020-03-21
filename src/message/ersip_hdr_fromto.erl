@@ -113,7 +113,7 @@ set_tag(undefined, #fromto{} = FT) ->
 
 -spec set_random_tag(pos_integer(), fromto()) -> fromto().
 set_random_tag(NumBytes, #fromto{} = FT) ->
-    Tag = {tag, ersip_id:token(crypto:strong_rand_bytes(NumBytes))},
+    Tag = {tag, ersip_id:alphanum(crypto:strong_rand_bytes(NumBytes))},
     set_tag(Tag, FT).
 
 -spec tag_key(tag() | fromto()) -> undefined | tag_key().

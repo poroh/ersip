@@ -817,7 +817,9 @@ do_unquote_hex(<<_:8, Rest/binary>>, Orig, {Pos, Len}, Acc) ->
 hex_char_to_num(X) when X >= $0 andalso X =< $9 ->
     X - $0;
 hex_char_to_num(X) when X >= $A andalso X =< $F ->
-    X - $A + 10.
+    X - $A + 10;
+hex_char_to_num(X) when X >= $a andalso X =< $f ->
+    X - $a + 10.
 
 -spec rebuild_header_value(binary()) -> binary().
 rebuild_header_value(Value) ->

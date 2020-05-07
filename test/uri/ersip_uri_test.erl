@@ -437,6 +437,16 @@ rebuild_headers_value_test() ->
     ?assertEqual(<<"sip:carol@chicago.com?a=">>, NoHdrUriBin),
     ok.
 
+rebuild_headers_lowercase_hexdigit_test() ->
+    Uri = ersip_uri:make(<<"sip:carol@chicago.com?Replaces=1234123@pc99.chicago.com%3bfrom-tag=1%3bto-tag=1">>),
+    RawHeaders = ersip_uri:raw_headers(Uri),
+    ExpectedHeaders = [{<<"Replaces">>, <<"1234123@pc99.chicago.com%3bfrom-tag=1%3bto-tag=1">>}],
+    ?assertEqual(ExpectedHeaders, RawHeaders),
+    UriBin = ersip_uri:assemble_bin(ersip_uri:rebuild_header_values(Uri)),
+    ?assertEqual(<<"sip:carol@chicago.com?Replaces=1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>,
+                 UriBin),
+    ok.
+
 data_test() ->
     ?assertEqual(<<"carol@chicago.com?a=b">>,    ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com?a=b">>))),
     ?assertEqual(<<"carol@chicago.com;newparam=5">>, ersip_uri:data(ersip_uri:make(<<"sip:carol@chicago.com;newparam=5">>))),

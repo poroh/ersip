@@ -73,19 +73,20 @@ nameaddr_parse_test() ->
 
 
 nameaddr_neg_parse_test() ->
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<>>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<>>)),
     %% Not complete UTF-8 in display name
     %% ?assertMatch({error, _}, ersip_nameaddr:parse(<<"\"", 16#c2, "\" <sip:bob-smith@biloxi.com>;tag=a6c85cf">>)),
     %% No LAQUOT
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"sip:bob-smith@biloxi.com>">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"sip:bob-smith@biloxi.com>">>)),
     %% No RAQUOT
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.com">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.com">>)),
     %% Ivalid host name
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.->">>)),
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"1.2.3.4">>)),
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"?:1.2.3.4">>)),
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"1.2.3.4;tag=a6c85cf">>)),
-    ?assertMatch({error, _}, ersip_nameaddr:parse(<<"\"A B C\"">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"<sip:bob-smith@biloxi.->">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"1.2.3.4">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"?:1.2.3.4">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"1.2.3.4;tag=a6c85cf">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"\"A B C\"">>)),
+    ?assertMatch({error, {invalid_nameaddr, _}}, ersip_nameaddr:parse(<<"\"A B C\"Abc <sip:a@b>">>)),
     ok.
 
 nameaddr_assemble_display_name_test() ->

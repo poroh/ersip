@@ -39,7 +39,7 @@ parse(NameAddrBin, AddrSpecSeps) ->
     NA = ersip_bin:trim_head_lws(NameAddrBin),
     case parse_display_name(NA) of
         {_, <<>>} ->
-            {error, {einval, no_uri}};
+            {error, {invalid_nameaddr, no_uri}};
         {DisplayName, <<"<", R/binary>>} ->
             case binary:match(R, <<">">>) of
                 {Pos, 1} ->
@@ -47,11 +47,11 @@ parse(NameAddrBin, AddrSpecSeps) ->
                     case ersip_uri:parse(Addr) of
                         {ok, URI} ->
                             {ok, {DisplayName, URI}, Rest};
-                        Error ->
-                            Error
+                        {error, URIErr} ->
+                            {error, {invalid_nameaddr, {uri_error, URIErr}}}
                     end;
                 _ ->
-                    {error, {einval, address}}
+                    {error, {invalid_nameaddr, {noraquot, NameAddrBin}}}
             end;
         {{display_name, []} = DN, <<R/binary>>} ->
             case binary:match(R, AddrSpecSeps) of
@@ -60,19 +60,21 @@ parse(NameAddrBin, AddrSpecSeps) ->
                     case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of
                         {ok, URI} ->
                             {ok, {DN, URI}, Rest};
-                        Error ->
-                            Error
+                        {error, URIErr} ->
+                            {error, {invalid_nameaddr, {uri_error, URIErr}}}
                     end;
                 _ ->
                     case ersip_uri:parse(R) of
                         {ok, URI} ->
                             {ok, {DN, URI}, <<>>};
-                        Error ->
-                            Error
+                        {error, URIErr} ->
+                            {error, {invalid_nameaddr, {uri_error, URIErr}}}
                     end
             end;
+        {_, _} ->
+            {error, {invalid_nameaddr, {expect_laqout, NameAddrBin}}};
         error ->
-            {error, {einval, address}}
+            {error, {invalid_nameaddr, {bad_display_name, NameAddrBin}}}
     end.
 
 -spec assemble(display_name(), ersip_uri:uri()) -> iolist().

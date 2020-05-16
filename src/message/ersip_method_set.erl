@@ -1,30 +1,37 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP method set
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP method set
+%%%
 
 -module(ersip_method_set).
 
--export([new/1,
+-export([make/1,
+         raw/1,
+         new/1,
          has/2,
          intersection/2,
          to_list/1,
          invite_set/0
         ]).
--export_type([set/0]).
+-export_type([set/0, raw/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type set() :: {method_set, gb_sets:set(ersip_method:method())}.
+-type raw() :: [binary()].
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
+
+-spec make(raw()) -> set().
+make(BinaryList) when is_list(BinaryList) ->
+    new([ersip_method:make(M) || M <- BinaryList]).
 
 -spec new([ersip_method:method()]) -> set().
 new(MethodList) ->
@@ -48,3 +55,7 @@ invite_set() ->
          ersip_method:bye(),
          ersip_method:ack(),
          ersip_method:cancel()]).
+
+-spec raw(set()) -> raw().
+raw({method_set, Set}) ->
+    [ersip_method:to_binary(M) || M <- gb_sets:to_list(Set)].

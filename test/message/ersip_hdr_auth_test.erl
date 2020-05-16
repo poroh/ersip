@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Expires header tests
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Expires header tests
+%%%
 
 -module(ersip_hdr_auth_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 rebuild_test() ->
     rebuild(<<"Digest realm=\"testrealm@host.com\", qop=\"auth,auth-int\",",
@@ -68,11 +68,36 @@ parse_error_test() ->
     ?assertMatch({error, _}, ParseResult),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+raw_test() ->
+    Bin = <<"Digest realm=\"testrealm@host.com\", qop=\"auth,auth-int\",",
+            " nonce=\"dcd98b7102dd2f0e8b11d0f600bfb0c093\", opaque=\"5ccc069c403ebaf9f0171e9517f40e41\", snum=1">>,
+    AuthList = build(Bin),
+    AuthRaw = ersip_hdr_auth:raw(AuthList),
+    ?assertMatch([{_, _}], AuthRaw),
+    [{Type, Params}] = AuthRaw,
+    ?assertEqual(<<"digest">>, Type),
+    ?assertEqual([{<<"realm">>, <<"testrealm@host.com">>},
+                  {<<"qop">>, <<"auth,auth-int">>},
+                  {<<"nonce">>, <<"dcd98b7102dd2f0e8b11d0f600bfb0c093">>},
+                  {<<"opaque">>, <<"5ccc069c403ebaf9f0171e9517f40e41">>},
+                  {<<"snum">>, <<"1">>}],
+                 Params),
+    FromRaw = ersip_hdr_auth:make(AuthRaw),
+    ?assertMatch([_], FromRaw),
+    [FromRawAI] = FromRaw,
+    ?assertEqual(<<"digest">>, ersip_authinfo:type(FromRawAI)),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 rebuild(Bin) ->
     Auth = ersip_authinfo:make(Bin),
     {ok, [Auth1]} = ersip_hdr_auth:parse(ersip_hdr_auth:build(<<"WWW-Authenticate">>, [Auth])),
     ?assertEqual(Auth, Auth1).
+
+build(Bin) ->
+    Auth = ersip_authinfo:make(Bin),
+    {ok, AuthL} = ersip_hdr_auth:parse(ersip_hdr_auth:build(<<"WWW-Authenticate">>, [Auth])),
+    AuthL.

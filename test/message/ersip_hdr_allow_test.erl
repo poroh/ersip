@@ -1,5 +1,5 @@
 %%
-%% Copyright (c) 2018 Dmitry Poroh
+%% Copyright (c) 2020 Dmitry Poroh
 %% All rights reserved.
 %% Distributed under the terms of the MIT License. See the LICENSE file.
 %%
@@ -22,6 +22,34 @@ parse_test() ->
     parse_fail(<<"&">>),
     ok.
 
+parse_bin_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_allow:parse(<<"INVITE,ACK,OPTIONS">>)),
+    ?assertMatch({error, {invalid_allow, _}}, ersip_hdr_allow:parse(<<"@,!,&">>)),
+    ok.
+
+make_test() ->
+    Allow = ersip_hdr_allow:make(<<"INVITE, ACK">>),
+    ?assertEqual(true, ersip_hdr_allow:has(ersip_method:make(<<"INVITE">>), Allow)),
+    ?assertEqual(false, ersip_hdr_allow:has(ersip_method:make(<<"OPTIONS">>), Allow)),
+    ok.
+
+make_error_test() ->
+    ?assertError({invalid_allow, _}, ersip_hdr_allow:make(<<"&">>)),
+    ?assertError({invalid_allow, _}, ersip_hdr_allow:make(<<"INVITE&">>)),
+    ok.
+
+assemble_bin_test() ->
+    [?assertEqual(adjust(X), adjust(ersip_hdr_allow:assemble_bin(ersip_hdr_allow:make(X))))
+     || X <- [<<"INVITE, ACK, OPTIONS">>,
+              <<"INVITE">>
+             ]],
+    ok.
+
+raw_test() ->
+    Allow = [<<"ACK">>, <<"INVITE">>, <<"OPTIONS">>],
+    ?assertEqual(Allow, ersip_hdr_allow:raw(ersip_hdr_allow:make(Allow))),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -40,3 +68,6 @@ parse_success(Bin) ->
 parse_fail(Bin) ->
     AllowH = create(Bin),
     ?assertMatch({error, _}, ersip_hdr_allow:parse(AllowH)).
+
+adjust(Bin) ->
+    lists:sort(binary:split(Bin, <<", ">>, [global])).

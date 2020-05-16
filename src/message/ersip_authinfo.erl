@@ -1,11 +1,11 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Authoriztion info
-%% Includes: common challenge and common credentials
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Authoriztion info
+%%% Includes: common challenge and common credentials
+%%%
 
 -module(ersip_authinfo).
 
@@ -14,22 +14,24 @@
          make/1,
          parse/1,
          assemble/1,
-         assemble_bin/1]).
+         assemble_bin/1,
+         raw/1]).
 
--export_type([authinfo/0]).
+-export_type([authinfo/0, raw/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -record(authinfo, {type   :: binary(),
                    params :: ersip_parser_aux:gen_param_list()
                   }).
 -type authinfo() :: #authinfo{}.
+-type raw() :: {Type :: binary(), [{binary(), binary()}]}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 -spec type(authinfo()) -> binary().
 type(#authinfo{type = T}) ->
@@ -44,13 +46,18 @@ raw_param(Name, #authinfo{params = ParamList}) ->
         [] -> undefined
     end.
 
--spec make(binary()) -> authinfo().
-make(Bin) ->
+-spec make(binary() | raw()) -> authinfo().
+make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, A} -> A;
         {error, Reason} ->
             error({parse_error, Reason})
-    end.
+    end;
+make({Type, Params}) when is_binary(Type) ->
+    IOV = [Type, <<" ">> |
+           ersip_iolist:join(<<", ">>,
+                             [[K, <<"=">>, V] || {K, V} <- quote(Params)])],
+    make(iolist_to_binary(IOV)).
 
 -spec parse(binary()) -> {ok, authinfo()} | {error, term()}.
 parse(Bin) ->
@@ -81,9 +88,13 @@ assemble(#authinfo{type = T, params = P}) ->
 assemble_bin(#authinfo{} = A) ->
     iolist_to_binary(assemble(A)).
 
-%%%===================================================================
-%%% Internals
-%%%===================================================================
+-spec raw(authinfo()) -> raw().
+raw(#authinfo{params = P} = AI) ->
+    {type(AI), unquote(P)}.
+
+%%===================================================================
+%% Internals
+%%===================================================================
 
 -spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
 parse_params(Binary) ->
@@ -107,4 +118,18 @@ validate_params([{Key, <<>>} | _]) ->
 validate_params([{_, _} | Rest]) ->
     validate_params(Rest).
 
+-spec unquote(ersip_parser_aux:gen_param_list()) -> [{binary(), binary()}].
+unquote(List) ->
+    [case V of
+         <<"\"", _/binary>> ->
+             {ok, Unquoted, <<>>} = ersip_parser_aux:unquoted_string(V),
+             {K, Unquoted};
+         _ -> {K, V}
+     end || {K, V} <- List].
 
+-spec quote([{binary(), binary()}]) -> [{binary(), binary()}].
+quote(List) ->
+    [case ersip_parser_aux:check_token(V) of
+         true -> {K, V};
+         false -> {K, ersip_quoted_string:quote(V)}
+     end || {K, V} <- List].

@@ -1,32 +1,41 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Headers:
-%% - WWW-Authenticate
-%% - Authorization
-%% - Proxy-Authenticate
-%% - Proxy-Authorization
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Headers:
+%%% - WWW-Authenticate
+%%% - Authorization
+%%% - Proxy-Authenticate
+%%% - Proxy-Authorization
+%%%
 
 -module(ersip_hdr_auth).
 
--export([parse/1,
-         build/2
+-export([make/1,
+         parse/1,
+         build/2,
+         raw/1
         ]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+-export_type([headers/0, raw/0]).
+
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type headers() :: [ersip_authinfo:authinfo()].
 -type parse_result() :: {ok, headers()}
                       | {error, term()}.
+-type raw() :: [ersip_authinfo:raw()].
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
+
+-spec make(raw()) -> headers().
+make(AuthInfoRawList) ->
+    [ersip_authinfo:make(AIRaw) || AIRaw <- AuthInfoRawList].
 
 -spec parse(ersip_hdr:header()) -> parse_result().
 parse(Header) ->
@@ -43,9 +52,13 @@ build(HdrName, AuthInfos) when is_list(AuthInfos) ->
                 Hdr,
                 AuthInfos).
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+-spec raw(headers()) -> raw().
+raw(Headers) ->
+    [ersip_authinfo:raw(H) || H <- Headers].
+
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 -spec parse_impl([binary()], headers()) -> parse_result().
 parse_impl([], Acc) ->

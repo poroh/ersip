@@ -67,7 +67,7 @@
 quoted_string(Quoted) ->
     Trimmed = ersip_bin:trim_head_lws(Quoted),
     TrimmedLen = byte_size(Trimmed),
-    case quoted_string_impl(Trimmed, start) of
+    case ersip_quoted_string:skip(Trimmed) of
         {ok, Rest} ->
             Len = TrimmedLen - byte_size(Rest),
             {ok, binary:part(Trimmed, 0, Len), Rest};
@@ -235,28 +235,6 @@ parse_gen_param_value(Bin) ->
 %%%===================================================================
 
 %% @private
--spec quoted_string_impl(binary(), State) -> {ok, Rest :: binary()} | error when
-      State :: start
-             | raw
-             | escaped.
-
-quoted_string_impl(<<>>, _) ->
-    error;
-quoted_string_impl(<<"\"", R/binary>>, start) ->
-    quoted_string_impl(R, raw);
-quoted_string_impl(_, start) ->
-    error;
-quoted_string_impl(<<"\"", R/binary>>, raw) ->
-    {ok, R};
-quoted_string_impl(<<"\\", R/binary>>, raw) ->
-    quoted_string_impl(R, escaped);
-quoted_string_impl(<<_:8, R/binary>>, raw) ->
-    quoted_string_impl(R, raw);
-quoted_string_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F ->
-    quoted_string_impl(R, raw);
-quoted_string_impl(<<_:8, _/binary>>, escaped) ->
-    error.
-
 -spec unquoted_string_impl(binary(), start | raw | escaped, [binary()]) -> parse_result(binary()).
 unquoted_string_impl(<<>>, _, _) ->
     {error, {invalid_quoted_string, unexpected_end}};

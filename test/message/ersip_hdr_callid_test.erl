@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% CallID tests
-%%
+%%%
+%%% Copyright (c) 2018 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% CallID tests
+%%%
 
 -module(ersip_hdr_callid_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 parse_test() ->
     WordChars =
@@ -29,8 +29,6 @@ parse_test() ->
     parse_success(<<"a@b">>),
     parse_success(<<WordChars/binary, AlphaNum/binary, "@",
                     AlphaNum/binary, WordChars/binary>>),
-%    parse_success(<<WordChars/binary, AlphaNum/binary, "@",
-%                    AlphaNum/binary, "@", WordChars/binary>>),
     parse_success(<<AlphaNum/binary, WordChars/binary>>),
     parse_fail(<<",">>),
     parse_fail(<<>>),
@@ -38,16 +36,18 @@ parse_test() ->
     parse_fail(<<"alfa@">>),
     parse_fail(<<"alfa@beta@gamma">>),
     parse_fail(<<"a@@b">>),
-    parse_fail(<<"a@b,c@d">>).
+    parse_fail(<<"a@b,c@d">>),
+    parse_fail(<<"a,b">>),
+    ok.
 
 make_test() ->
-    ?assertError({error, _}, ersip_hdr_callid:make(<<"a@@b">>)),
+    ?assertError({invalid_callid, _}, ersip_hdr_callid:make(<<"a@@b">>)),
     H = create_header(<<"a@@b">>),
-    ?assertError({error, _}, ersip_hdr_callid:make(H)),
+    ?assertError({invalid_callid, _}, ersip_hdr_callid:make(H)),
     H1 = create_header(<<"a@b">>),
     ?assertEqual(make(<<"a@b">>), ersip_hdr_callid:make(H1)),
     EmptyH1 = ersip_hdr:new(<<"Call-ID">>),
-    ?assertError({error, no_callid}, ersip_hdr_callid:make(EmptyH1)).
+    ?assertError(no_callid, ersip_hdr_callid:make(EmptyH1)).
 
 make_key_test() ->
     ?assertEqual(make(<<"a@b">>), ersip_hdr_callid:make_key(make(<<"a@b">>))).
@@ -66,10 +66,13 @@ build_test() ->
     {ok, CallId} = ersip_hdr_callid:parse(CallIdH),
     ?assertEqual(CallIdH, ersip_hdr_callid:build(<<"Call-ID">>, CallId)).
 
+raw_test() ->
+    ?assertEqual(<<"a@b">>, ersip_hdr_callid:raw(ersip_hdr_callid:make(<<"a@b">>))),
+    ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 make(Bin) ->
     ersip_hdr_callid:make(Bin).

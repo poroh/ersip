@@ -163,7 +163,7 @@ Example:
 ### parse/1 ###
 
 <pre><code>
-parse(HeaderBin::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; <a href="#type-parse_result">parse_result()</a>
+parse(HeaderBin::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a> | binary()) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
 <br />
 

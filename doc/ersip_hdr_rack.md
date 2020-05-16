@@ -12,11 +12,31 @@
 
 
 
+### <a name="type-parse_error">parse_error()</a> ###
+
+
+<pre><code>
+parse_error() = {invalid_rack, term()}
+</code></pre>
+
+
+
+
+### <a name="type-parse_result">parse_result()</a> ###
+
+
+<pre><code>
+parse_result() = {ok, <a href="#type-rack">rack()</a>} | {error, <a href="#type-parse_error">parse_error()</a>}
+</code></pre>
+
+
+
+
 ### <a name="type-rack">rack()</a> ###
 
 
 <pre><code>
-rack() = #rack{rseq = <a href="ersip_hdr_rseq.md#type-rseq">ersip_hdr_rseq:rseq()</a>, cseq = <a href="ersip_hdr_rseq.md#type-cseq">ersip_hdr_rseq:cseq()</a>}
+rack() = #rack{rseq = <a href="ersip_hdr_rseq.md#type-rseq">ersip_hdr_rseq:rseq()</a>, cseq = <a href="ersip_hdr_cseq.md#type-cseq">ersip_hdr_cseq:cseq()</a>}
 </code></pre>
 
 <a name="index"></a>
@@ -45,7 +65,7 @@ assemble(Rack::<a href="#type-rack">rack()</a>) -&gt; iolist()
 ### assemble_bin/1 ###
 
 <pre><code>
-assemble_bin(Rack::<a href="#type-rack">rack()</a>) -&gt; iolist()
+assemble_bin(Rack::<a href="#type-rack">rack()</a>) -&gt; binary()
 </code></pre>
 <br />
 
@@ -91,10 +111,9 @@ make(RSeq::<a href="ersip_hdr_rseq.md#type-rseq">ersip_hdr_rseq:rseq()</a>, CSeq
 ### parse/1 ###
 
 <pre><code>
-parse(Header::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; Result
+parse(Header::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
-
-<ul class="definitions"><li><code>Result = {ok, <a href="#type-rack">rack()</a>} | {error, Error}</code></li><li><code>Error = no_maxforwards | {invalid_maxforwards, binary()}</code></li></ul>
+<br />
 
 <a name="rseq-1"></a>
 

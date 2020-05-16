@@ -45,7 +45,7 @@ assemble(X1::<a href="#type-rseq">rseq()</a>) -&gt; iolist()
 ### assemble_bin/1 ###
 
 <pre><code>
-assemble_bin(RSeq::<a href="#type-rseq">rseq()</a>) -&gt; iolist()
+assemble_bin(RSeq::<a href="#type-rseq">rseq()</a>) -&gt; binary()
 </code></pre>
 <br />
 

@@ -74,7 +74,7 @@ parse(Header) ->
 assemble({rseq, V}) ->
     [integer_to_binary(V)].
 
--spec assemble_bin(rseq()) -> iolist().
+-spec assemble_bin(rseq()) -> binary().
 assemble_bin({rseq, _} = RSeq) ->
     iolist_to_binary(assemble(RSeq)).
 

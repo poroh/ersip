@@ -247,14 +247,9 @@ unquoted_string_impl(<<"\"", R/binary>>, raw, Acc) ->
 unquoted_string_impl(<<"\\", R/binary>>, raw, Acc) ->
     unquoted_string_impl(R, escaped, Acc);
 unquoted_string_impl(B, raw, Acc) ->
-    case utf8_len(B) of
-        {ok, Len} ->
-            <<Char:Len/binary, Rest/binary>> = B,
-            unquoted_string_impl(Rest, raw, [Char | Acc]);
-        error ->
-            <<Byte:8, _/binary>> = B,
-            {error, {invalid_quoted_string, {bad_char, Byte}}}
-    end;
+    {ok, Len} = utf8_len(B),
+    <<Char:Len/binary, Rest/binary>> = B,
+    unquoted_string_impl(Rest, raw, [Char | Acc]);
 unquoted_string_impl(<<Byte:8, R/binary>>, escaped, Acc) when Byte =< 16#7F ->
     unquoted_string_impl(R, raw, [Byte | Acc]);
 unquoted_string_impl(<<Byte:8, _/binary>>, escaped, _) ->

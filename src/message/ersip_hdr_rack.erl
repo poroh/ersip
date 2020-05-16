@@ -25,9 +25,11 @@
 %%===================================================================
 
 -record(rack, {rseq :: ersip_hdr_rseq:rseq(),
-               cseq :: ersip_hdr_rseq:cseq()
+               cseq :: ersip_hdr_cseq:cseq()
               }).
 -type rack() :: #rack{}.
+-type parse_result() :: {ok, rack()} | {error, parse_error()}.
+-type parse_error() :: {invalid_rack, term()}.
 
 %%===================================================================
 %% API
@@ -58,11 +60,7 @@ rseq(#rack{rseq = RSeq}) ->
 cseq(#rack{cseq = CSeq}) ->
     CSeq.
 
--spec parse(ersip_hdr:header()) -> Result when
-      Result :: {ok, rack()}
-              | {error, Error},
-      Error :: no_maxforwards
-             | {invalid_maxforwards, binary()}.
+-spec parse(ersip_hdr:header()) -> parse_result().
 parse(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] ->
@@ -75,7 +73,7 @@ parse(Header) ->
 assemble(#rack{rseq = R, cseq = C}) ->
     [ersip_hdr_rseq:assemble(R), " ", ersip_hdr_cseq:assemble(C)].
 
--spec assemble_bin(rack()) -> iolist().
+-spec assemble_bin(rack()) -> binary().
 assemble_bin(#rack{} = RAck) ->
     iolist_to_binary(assemble(RAck)).
 
@@ -89,10 +87,7 @@ build(HdrName, #rack{} = RAck) ->
 %% Internal implementation
 %%===================================================================
 
--spec parse_rack(binary()) -> Result when
-      Result :: {ok, rack()}
-              | {error, Error},
-      Error  :: {invalid_rack, binary()}.
+-spec parse_rack(binary()) -> parse_result().
 parse_rack(Binary) ->
     Parsers = [fun ersip_parser_aux:parse_non_neg_int/1,
                fun ersip_parser_aux:parse_lws/1,
@@ -108,8 +103,8 @@ parse_rack(Binary) ->
             {ok, make(RSeq, CSeq)};
         {ok, _, _} ->
             {error, {invalid_rack, Binary}};
-        {error, _} = Error ->
-            Error
+        {error, Reason} ->
+            {error, {invalid_rack, Reason}}
     end.
 
 

@@ -85,7 +85,7 @@ assemble_bin({callid, CallIdBin}) ->
 %%===================================================================
 
 %% callid   =  word ["@" word]
--spec parse_callid(binary()) -> parse_error().
+-spec parse_callid(binary()) -> parse_result().
 parse_callid(Binary) ->
    case start(Binary) of
        true -> {ok, {callid, Binary}};

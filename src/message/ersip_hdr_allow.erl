@@ -3,7 +3,8 @@
 %%% All rights reserved.
 %%% Distributed under the terms of the MIT License. See the LICENSE file.
 %%%
-%%% SIP method set
+%%% @doc
+%%% Allow Header Implementation.
 %%%
 
 -module(ersip_hdr_allow).
@@ -36,26 +37,42 @@
 %%===================================================================
 
 %% @doc Check if header has method.
+%% Example:
+%%   ```
+%%     Allow = ersip_hdr_allow:make(<<"INVITE, ACK, BYE, CANCEL, OPTIONS">>),
+%%     true = ersip_hdr_allow:has(ersip_method:make(<<"INVITE">>), Allow).
+%%   '''
 -spec has(ersip_method:method(), allow()) -> boolean().
 has(M, {allow, MSet}) ->
     ersip_method_set:has(M, MSet).
 
+%% @doc Create Allow header from list of methods.
 -spec from_list([ersip_method:method()]) -> allow().
 from_list(MethodList) ->
     {allow, ersip_method_set:new(MethodList)}.
 
+%% @doc Get all methods from Allow header.
 -spec to_list(allow()) -> [ersip_method:method()].
 to_list({allow, MethodSet}) ->
     ersip_method_set:to_list(MethodSet).
 
+%% @doc Create Allow header from method set.
 -spec from_method_set(ersip_method_set:set()) -> allow().
 from_method_set({method_set, _} = MethodSet) ->
     {allow, MethodSet}.
 
+%% @doc Get method set from Allow header.
 -spec to_method_set(allow()) -> ersip_method_set:set().
 to_method_set({allow, MethodSet}) ->
     MethodSet.
 
+%% @doc Create Allow header from binary or from raw value.
+%% Raise error if input is not well-formed Allow header or incorrect raw value.
+%% Example:
+%% ```
+%%   Allow = ersip_hdr_allow:make(<<"INVITE, ACK, BYE, CANCEL, OPTIONS">>).
+%%   Allow = ersip_hdr_allow:make([<<"INVITE>>, <<"ACK">>, <<"BYE">>, <<"CANCEL">>, <<"OPTIONS">>]).
+%% '''
 -spec make(binary() | raw()) -> allow().
 make(Value) when is_binary(Value) ->
     case parse(Value) of
@@ -65,7 +82,8 @@ make(Value) when is_binary(Value) ->
 make(RawValue) when is_list(RawValue) ->
     from_method_set(ersip_method_set:make(RawValue)).
 
--spec parse(ersip_hdr:header()) -> parse_result().
+%% @doc Parse header from binary or from ersip_hdr header.
+-spec parse(ersip_hdr:header() | binary()) -> parse_result().
 parse(HeaderBin) when is_binary(HeaderBin) ->
     parse_header_list([HeaderBin]);
 parse(Header) ->
@@ -74,11 +92,13 @@ parse(Header) ->
         HeaderList -> parse_header_list(HeaderList)
     end.
 
+%% @doc Create lowlevel ersip_hdr from Allow header.
 -spec build(HeaderName :: binary(), allow()) -> ersip_hdr:header().
 build(HdrName, {allow, _} = Allow) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value([assemble(Allow)], Hdr).
 
+%% @doc Serialize header to iolist.
 -spec assemble(allow()) ->  iolist().
 assemble({allow, _} = Allow) ->
     ersip_iolist:join(<<", ">>,
@@ -86,10 +106,12 @@ assemble({allow, _} = Allow) ->
                        || Method <- to_list(Allow)
                       ]).
 
+%% @doc Serialize the header to binary.
 -spec assemble_bin(allow()) -> binary().
 assemble_bin(Allow) ->
     iolist_to_binary(assemble(Allow)).
 
+%% @doc Get raw value (in plain erlang types) of the header.
 -spec raw(allow()) -> raw().
 raw({allow, _} = Allow) ->
     ersip_method_set:raw(to_method_set(Allow)).
@@ -98,6 +120,7 @@ raw({allow, _} = Allow) ->
 %% Internal implementation
 %%===================================================================
 
+%% @private
 -spec parse_header_list([binary()]) -> parse_result().
 parse_header_list(HeaderList) ->
     try

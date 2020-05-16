@@ -1,0 +1,151 @@
+
+
+# Module ersip_host #
+* [Data Types](#types)
+* [Function Index](#index)
+* [Function Details](#functions)
+
+<a name="types"></a>
+
+## Data Types ##
+
+
+
+
+### <a name="type-address">address()</a> ###
+
+
+<pre><code>
+address() = {ipv4, <a href="inet.md#type-ip4_address">inet:ip4_address()</a>} | {ipv6, <a href="inet.md#type-ip6_address">inet:ip6_address()</a>}
+</code></pre>
+
+
+
+
+### <a name="type-host">host()</a> ###
+
+
+<pre><code>
+host() = <a href="#type-hostname">hostname()</a> | <a href="#type-address">address()</a>
+</code></pre>
+
+
+
+
+### <a name="type-hostname">hostname()</a> ###
+
+
+<pre><code>
+hostname() = {hostname, binary()}
+</code></pre>
+
+<a name="index"></a>
+
+## Function Index ##
+
+
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_received-1">assemble_received/1</a></td><td></td></tr><tr><td valign="top"><a href="#check_hostname-1">check_hostname/1</a></td><td></td></tr><tr><td valign="top"><a href="#ip_address-1">ip_address/1</a></td><td></td></tr><tr><td valign="top"><a href="#is_host-1">is_host/1</a></td><td>check term is valid host.</td></tr><tr><td valign="top"><a href="#is_ip_address-1">is_ip_address/1</a></td><td></td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td></td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>make comparable hostname (from rfc3261 comparision rules).</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Generate host specification from binary.</td></tr></table>
+
+
+<a name="functions"></a>
+
+## Function Details ##
+
+<a name="assemble-1"></a>
+
+### assemble/1 ###
+
+<pre><code>
+assemble(X1::<a href="#type-host">host()</a>) -&gt; iolist()
+</code></pre>
+<br />
+
+<a name="assemble_bin-1"></a>
+
+### assemble_bin/1 ###
+
+<pre><code>
+assemble_bin(Host::<a href="#type-host">host()</a>) -&gt; binary()
+</code></pre>
+<br />
+
+<a name="assemble_received-1"></a>
+
+### assemble_received/1 ###
+
+<pre><code>
+assemble_received(X1::<a href="#type-host">host()</a>) -&gt; iolist()
+</code></pre>
+<br />
+
+<a name="check_hostname-1"></a>
+
+### check_hostname/1 ###
+
+<pre><code>
+check_hostname(Bin::binary()) -&gt; boolean()
+</code></pre>
+<br />
+
+<a name="ip_address-1"></a>
+
+### ip_address/1 ###
+
+<pre><code>
+ip_address(X1::<a href="#type-host">host()</a>) -&gt; <a href="inet.md#type-ip_address">inet:ip_address()</a>
+</code></pre>
+<br />
+
+<a name="is_host-1"></a>
+
+### is_host/1 ###
+
+<pre><code>
+is_host(MaybeHost) -&gt; boolean()
+</code></pre>
+
+<ul class="definitions"><li><code>MaybeHost = <a href="#type-host">host()</a> | term()</code></li></ul>
+
+check term is valid host.
+
+<a name="is_ip_address-1"></a>
+
+### is_ip_address/1 ###
+
+<pre><code>
+is_ip_address(X1::<a href="#type-host">host()</a>) -&gt; boolean()
+</code></pre>
+<br />
+
+<a name="make-1"></a>
+
+### make/1 ###
+
+<pre><code>
+make(Addr) -&gt; <a href="#type-host">host()</a>
+</code></pre>
+
+<ul class="definitions"><li><code>Addr = <a href="inet.md#type-ip_address">inet:ip_address()</a> | <a href="#type-host">host()</a> | binary()</code></li></ul>
+
+<a name="make_key-1"></a>
+
+### make_key/1 ###
+
+<pre><code>
+make_key(H::<a href="#type-host">host()</a>) -&gt; <a href="#type-host">host()</a>
+</code></pre>
+<br />
+
+make comparable hostname (from rfc3261 comparision rules).
+
+<a name="parse-1"></a>
+
+### parse/1 ###
+
+<pre><code>
+parse(Binary::binary()) -&gt; <a href="ersip_parser_aux.md#type-parse_result">ersip_parser_aux:parse_result</a>(<a href="#type-host">host()</a>)
+</code></pre>
+<br />
+
+Generate host specification from binary.
+

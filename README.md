@@ -3,6 +3,10 @@
 
 # Erlang SIP and SDP library
 
+## Documentation
+
+Full module documentation is available [here](https://github.com/poroh/ersip/blob/master/doc/ersip.md).
+
 ## Approach to design
 
 What you cannot find in ersip:

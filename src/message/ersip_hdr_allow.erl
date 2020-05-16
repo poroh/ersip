@@ -35,6 +35,7 @@
 %% API
 %%===================================================================
 
+%% @doc Check if header has method.
 -spec has(ersip_method:method(), allow()) -> boolean().
 has(M, {allow, MSet}) ->
     ersip_method_set:has(M, MSet).

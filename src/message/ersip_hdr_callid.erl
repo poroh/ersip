@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Call-ID header
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Call-ID header
+%%%
 
 -module(ersip_hdr_callid).
 -include("ersip_sip_abnf.hrl").
@@ -20,15 +20,17 @@
 
 -export_type([callid/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type callid() :: {callid, binary()}.
+-type parse_result() :: {ok, callid()} | {error, parse_error()}.
+-type parse_error() :: no_callid | {invalid_callid, binary()}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 -spec make(ersip_hdr:header() | binary()) -> callid().
 make(Bin) when is_binary(Bin) ->
@@ -54,11 +56,7 @@ make_key({callid, _} = C) ->
 make_random(NumBytes) ->
     make(ersip_id:alphanum(crypto:strong_rand_bytes(NumBytes))).
 
--spec parse(ersip_hdr:header() | binary()) -> Result when
-      Result :: {ok, callid()}
-              | {error, Error},
-      Error :: no_callid
-             | {invalid_callid, binary()}.
+-spec parse(ersip_hdr:header() | binary()) -> parse_result().
 parse(Value)  when is_binary(Value)->
     parse_callid(Value);
 parse(Header) ->
@@ -82,16 +80,12 @@ assemble({callid, CallIdBin}) ->
 assemble_bin({callid, CallIdBin}) ->
     CallIdBin.
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 %% callid   =  word ["@" word]
--spec parse_callid(binary()) -> Result when
-      Result :: {ok, callid()}
-              | {error, Error},
-      Error  :: {invalid_callid, binary()}.
-
+-spec parse_callid(binary()) -> parse_error().
 parse_callid(Binary) ->
    case start(Binary) of
        true -> {ok, {callid, Binary}};

@@ -123,6 +123,11 @@ assemble_new_test() ->
     ?assertEqual(<<"<sip:a@b>">>, ersip_hdr_contact:assemble_bin(NewContact)),
     ok.
 
+new_test() ->
+    NewContact = ersip_hdr_contact:new(ersip_uri:make(<<"sip:a@b">>)),
+    ?assertEqual(<<"<sip:a@b>">>, ersip_hdr_contact:assemble_bin(NewContact)),
+    ok.
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

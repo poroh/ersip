@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP branch tests
-%%
+%%%
+%%% Copyright (c) 2018 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP branch tests
+%%%
 
 -module(ersip_branch_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 is_rfc3261_test() ->
     assert_rfc3261(<<"z9hG4bK776asdhds">>),
@@ -37,6 +37,11 @@ branch_key_idempotent_test() ->
     Key = make_key(<<"z9hG4bK776asdhds">>),
     ?assertEqual(Key, ersip_branch:make_key(Key)).
 
+make_error_test() ->
+    ?assertError({invalid_branch, _}, ersip_branch:make(<<"1,2">>)),
+    ?assertError({invalid_branch, _}, ersip_branch:make_rfc3261(<<"1,2">>)),
+    ok.
+
 make_rfc3261_test() ->
     ?assertEqual(true, ersip_branch:is_rfc3261(ersip_branch:make_rfc3261(<<"aaaa">>))),
     ?assertEqual(true, ersip_branch:is_rfc3261(ersip_branch:make_rfc3261(<<"z9hG4bKaaaa">>))),
@@ -56,9 +61,10 @@ assemle_bin_test() ->
     check_reassemble_bin(<<"_">>),
     check_reassemble_bin(<<"z">>).
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+%%===================================================================
+%% Helpers
+%%===================================================================
+
 assert_rfc3261(Bin) ->
     Branch = ersip_branch:make(Bin),
     ?assertEqual(true, ersip_branch:is_rfc3261(Branch)).

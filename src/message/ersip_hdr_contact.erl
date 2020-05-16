@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2018, 2019 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP One SIP Contact entry
-%%
+%%%
+%%% Copyright (c) 2018, 2019, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP One SIP Contact entry
+%%%
 
 -module(ersip_hdr_contact).
 
@@ -27,9 +27,9 @@
 -export_type([contact/0,
               contact_param/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -record(contact, {display_name  :: undefined | ersip_nameaddr:display_name(),
                   uri           :: ersip_uri:uri(),
@@ -42,63 +42,82 @@
                        | {binary(), binary()}.
 -type expires() :: non_neg_integer().
 
--type parse_result() :: {ok, contact()}
-                      | {error, {invalid_contact, term()}}.
+-type parse_result() :: {ok, contact()} | {error, parse_error()}.
+-type parse_error() ::  {invalid_contact, term()}.
 -type known_param() :: q | expires.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
+%% @doc Create Contact header from SIP URI.
 -spec new(ersip_uri:uri()) -> contact().
 new(URI) ->
-    #contact{uri = URI,
-             hparams = ersip_hparams:new()}.
+    case ersip_uri:is_sip(URI) of
+        true  -> #contact{uri = URI, hparams = ersip_hparams:new()};
+        false -> error({sip_uri_expected, URI})
+    end.
 
+%% @doc Get URI from Contact header.
 -spec uri(contact()) -> ersip_uri:uri().
 uri(#contact{uri = URI}) ->
     URI.
 
+%% @doc Get display name from Contact header.
 -spec display_name(contact()) -> undefined | ersip_nameaddr:display_name().
 display_name(#contact{display_name = DN}) ->
     DN.
 
--spec expires(contact(), Default :: non_neg_integer()) -> non_neg_integer().
+%% @doc Get expires parameter value.
+%% If no expires parameter is in the header then Default is returned.
+-spec expires(contact(), Default :: expires()) -> expires().
 expires(#contact{hparams = HParams}, Default) ->
     case ersip_hparams:find(expires, HParams) of
-        not_found ->
-            Default;
-        {ok, V} ->
-            V
+        not_found -> Default;
+        {ok, V} -> V
     end.
 
--spec set_expires({expires, ExpiresVal} | ExpiresVal, contact()) -> contact() when
-      ExpiresVal :: non_neg_integer().
+%% @doc Set expires parameter of Contact header.
+-spec set_expires({expires, expires()} | expires(), contact()) -> contact().
 set_expires({expires, ExpiresVal}, #contact{} = Contact) when is_integer(ExpiresVal) ->
     set_expires(ExpiresVal, Contact);
 set_expires(ExpiresVal, #contact{hparams = HParams} = Contact) when is_integer(ExpiresVal) ->
     NewHParams = ersip_hparams:set(expires, ExpiresVal, <<"expires">>, integer_to_binary(ExpiresVal), HParams),
     Contact#contact{hparams = NewHParams}.
 
+%% @doc Get q parameter value.
 -spec qvalue(contact(), Default :: term()) -> ersip_qvalue:qvalue() | term().
 qvalue(#contact{hparams = HParams}, Default) ->
     case ersip_hparams:find(q, HParams) of
-        not_found ->
-            Default;
-        {ok, V} ->
-            V
+        not_found -> Default;
+        {ok, V} -> V
     end.
 
+%% @doc Set q parameter value.
 -spec set_qvalue(ersip_qvalue:qvalue(), contact()) -> contact().
 set_qvalue({qvalue, _} = QVal, #contact{hparams = HParams} = Contact) ->
     NewHParams = ersip_hparams:set(q, QVal, <<"q">>, ersip_qvalue:assemble(QVal), HParams),
     Contact#contact{hparams = NewHParams}.
 
-
+%% @doc Get parameter by name.
+%% Example:
+%% ```
+%%   {ok, <<"99">>} = ersip_hdr_contact:param(<<"X">>, ersip_hdr_contact:make(<<"<sip:a@b>;x=99">>)),
+%%   not_found = ersip_hdr_contact:param(<<"y">>, ersip_hdr_contact:make(<<"<sip:a@b>;x=99">>)).
+%% '''
 -spec param(Name :: binary(), contact()) -> {ok, Value :: binary()} | not_found.
 param(Name, #contact{hparams = HParams}) when is_binary(Name) ->
     ersip_hparams:find_raw(Name, HParams).
 
+%% @doc Set parameter by name.
+%% Example
+%% ```
+%%   Contact = ersip_hdr_contact:make(<<"sip:a@b">>),
+%%   99 = ersip_hdr_contact:expires(ersip_hdr_contact:set_param(<<"expires">>, <<"99">>, Contact), 3600).
+%%   QValue = ersip_qvalue:make(<<"1">>),
+%%   QValue = ersip_hdr_contact:qvalue(ersip_hdr_contact:set_param(<<"q">>, <<"1">>, Contact), 1),
+%%   {ok, <<"11">>} = ersip_hdr_contact:param(<<"x">>, ersip_hdr_contact:set_param(<<"X">>, <<"11">>, Contact)).
+%% '''
 -spec set_param(Name :: binary(), PValue :: binary(), contact()) -> contact().
 set_param(PName, PValue, #contact{hparams = HParams} = Contact)
         when is_binary(PName), is_binary(PValue) ->
@@ -109,10 +128,17 @@ set_param(PName, PValue, #contact{hparams = HParams} = Contact)
             error(Reason)
     end.
 
+%% @doc Get all parameters in raw representation.
+%% Example
+%% ```
+%%   [{<<"x">>, <<"1">>}, <<"y">>] = ersip_hdr_contact:all_raw_params(ersip_hdr_contact:make(<<"sip:a@b;x=1;y">>)).
+%% '''
 -spec all_raw_params(contact()) -> [{binary(), binary()} | binary()].
 all_raw_params(#contact{hparams = HParams}) ->
     ersip_hparams:to_raw_list(HParams).
 
+%% @doc Create Contact header from binary value.
+%% Raise error if input is not well-formed Conact header.
 -spec make(binary()) -> contact().
 make(Bin) when is_binary(Bin) ->
     case ersip_hdr_contact:parse(Bin) of
@@ -149,6 +175,7 @@ parse_hdr(Bin) ->
             {error, {invalid_contact, Reason}}
     end.
 
+%% @doc Serialize header to iolist.
 -spec assemble(contact()) -> iolist().
 assemble(#contact{} = Contact) ->
     #contact{display_name = DN,
@@ -167,14 +194,16 @@ assemble(#contact{} = Contact) ->
         end,
     [ersip_nameaddr:assemble(DisplayName, URI), HParamsIO].
 
+%% @doc Serialize header to binary.
 -spec assemble_bin(contact()) -> binary().
 assemble_bin(#contact{} = Contact) ->
     iolist_to_binary(assemble(Contact)).
 
-%%%===================================================================
-%%% Internal Implementation
-%%%===================================================================
+%%===================================================================
+%% Internal Implementation
+%%===================================================================
 
+%% @private
 -spec param_name_to_atom(binary()) -> {ok, known_param()} | not_found | {error, {invalid_param, binary()}}.
 param_name_to_atom(<<"expires">>) -> {ok, expires};
 param_name_to_atom(<<"q">>)       -> {ok, q};
@@ -184,12 +213,14 @@ param_name_to_atom(X) when is_binary(X) ->
         false -> {error, {invalid_param, X}}
     end.
 
+%% @private
 -spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_contact_params(<<$;, Bin/binary>>) ->
     do_parse_contact_params(Bin);
 parse_contact_params(Bin) ->
     {ok, ersip_hparams:new(), Bin}.
 
+%% @private
 -spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 do_parse_contact_params(Bin) ->
     case ersip_parser_aux:parse_params($;, Bin) of
@@ -216,6 +247,7 @@ do_parse_contact_params(Bin) ->
     end.
 
 
+%% @private
 -spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
       Value :: integer()| ersip_qvalue:qvalue(),
       Err   :: {invalid_expires, binary()}
@@ -240,6 +272,7 @@ parse_param(q, Value) ->
     end.
 
 
+%% @private
 -spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> Result when
       Result :: {ok, ersip_hparams:hparams()}
               | {error, term()}.

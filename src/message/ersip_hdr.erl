@@ -1,10 +1,12 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Raw header
-%%
+%%%
+%%% Copyright (c) 2017 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% @doc
+%%% SIP raw header.
+%%% This module used for low-level generic header.
+%%%
 
 -module(ersip_hdr).
 
@@ -27,9 +29,9 @@
 
 -include("ersip_headers.hrl").
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -record(header, {name        :: binary(),
                  key         :: header_key(),
@@ -40,14 +42,13 @@
 -type header() :: #header{}.
 -type header_key() :: ersip_hnames:header_key().
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
-%% @doc Create key by the header name.
--spec make_key(NameOrHeader) -> header_key() when
-      NameOrHeader :: ersip_hnames:name_forms()
-                    | header().
+%% @doc Create key by the header name or get header from header
+%% itself.
+-spec make_key(ersip_hnames:name_forms() | header()) -> header_key().
 make_key(#header{key = Key}) ->
     Key;
 make_key(HeaderName) ->
@@ -147,13 +148,14 @@ as_integer(#header{values = []}) ->
 as_integer(#header{values = [_,_ |_]}) ->
     {error, multiple_values}.
 
+%% @doc User-readable non-comparable header name.
 -spec name(header()) -> binary().
 name(#header{name = Name}) ->
     Name.
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 %% @private
 %% @doc Ensure that header has raw values (serializable)
@@ -173,6 +175,7 @@ serialize_rev_iolist_impl(#header{name = Name, values = [V | Rest]} = H, Acc) ->
     serialize_rev_iolist_impl(H#header{values = Rest},
                               [V, <<": ">>, Name, <<"\r\n">> | Acc]).
 
+%% @private
 -spec serialize_rev_iolist_comma_impl(header(), list()) -> list().
 serialize_rev_iolist_comma_impl(#header{values = []}, Acc) ->
     Acc;
@@ -181,12 +184,14 @@ serialize_rev_iolist_comma_impl(#header{name = Name, values = Vs}, []) ->
 serialize_rev_iolist_comma_impl(#header{name = Name, values = Vs}, Acc) ->
     rev_comma_sep_values(Vs, [<<": ">> , Name, <<"\r\n">> | Acc]).
 
+%% @private
 -spec rev_comma_sep_values([value()], value()) -> iolist().
 rev_comma_sep_values([LastVal], Acc) ->
     [LastVal | Acc];
 rev_comma_sep_values([Val | Rest], Acc) ->
     rev_comma_sep_values(Rest, [<<", ">>, Val | Acc]).
 
+%% @private
 -spec use_comma(header_key()) -> boolean().
 use_comma(?ERSIPH_VIA) ->     false;
 use_comma(?ERSIPH_CONTACT) -> false;

@@ -352,6 +352,7 @@ host_bin_test() ->
     URI1 = ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>), URI0),
     ?assertEqual(<<"[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>, ersip_uri:host_bin(URI0)),
     ?assertEqual(<<"biloxi.com">>, ersip_uri:host_bin(URI1)),
+    ?assertError({sip_uri_expected, _}, ersip_uri:host_bin(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 get_parts_test() ->
@@ -374,12 +375,23 @@ user_manip_test() ->
     ?assertEqual(<<"sip:alice@1.1.1.1:5091">>, ersip_uri:assemble_bin(URIAlice)),
     ok.
 
+user_only_for_sip_test() ->
+    ?assertError({sip_uri_expected, _}, ersip_uri:user(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_user(<<"alice">>, ersip_uri:make(<<"tel:+16505550505">>))),
+    ok.
+
 host_manip_test() ->
     URIBob = ersip_uri:make(<<"sip:bob@1.1.1.1:5091">>),
     Biloxi = ersip_host:make(<<"biloxi.com">>),
     URIBob@Biloxi = ersip_uri:set_host(Biloxi, URIBob),
     ?assertEqual(Biloxi, ersip_uri:host(URIBob@Biloxi)),
     ?assertEqual(<<"sip:bob@biloxi.com:5091">>, ersip_uri:assemble_bin(URIBob@Biloxi)),
+    ok.
+
+host_only_for_sip_test() ->
+    ?assertError({sip_uri_expected, _}, ersip_uri:host(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>),
+                                                           ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 port_manip_test() ->
@@ -390,6 +402,11 @@ port_manip_test() ->
     URIBobDef = ersip_uri:set_port(undefined, URIBob5091),
     ?assertEqual(undefined, ersip_uri:port(URIBobDef)),
     ?assertEqual(<<"sip:bob@1.1.1.1">>, ersip_uri:assemble_bin(URIBobDef)),
+    ok.
+
+port_only_for_sip_test() ->
+    ?assertError({sip_uri_expected, _}, ersip_uri:port(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_port(5060, ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 parse_three_params_test() ->
@@ -458,6 +475,25 @@ clear_transport_test() ->
                  ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;transport=tcp">>))),
     ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com">>),
                  ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;TRANSPORT=tcp">>))),
+    ok.
+
+is_sip_test() ->
+    ?assertEqual(true, ersip_uri:is_sip(ersip_uri:make(<<"sip:a@b">>))),
+    ?assertEqual(false, ersip_uri:is_sip(ersip_uri:make(<<"tel:11234">>))),
+    ok.
+
+raw_test() ->
+    ?assertMatch(#{scheme := <<"sip">>,
+                   data := <<"a@b">>,
+                   sip := #{user := <<"a">>,
+                            host := <<"b">>}
+                  }, ersip_uri:raw(ersip_uri:make(<<"sip:a@b">>))),
+    ?assertMatch(#{sip := #{params := [{<<"ttl">>, <<"255">>}]}}, ersip_uri:raw(ersip_uri:make(<<"sip:a@b;ttl=255">>))),
+    ?assertMatch(#{sip := #{params := [<<"lr">>]}}, ersip_uri:raw(ersip_uri:make(<<"sip:b;lr">>))),
+    ?assertMatch(#{sip := #{headers := [{<<"Replaces">>, <<"1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>}]}},
+                 ersip_uri:raw(ersip_uri:make(<<"sip:carol@chicago.com?Replaces=1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>))),
+
+    ?assertMatch(#{scheme := <<"tel">>, data := <<"+16505550505">>}, ersip_uri:raw(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 %%%===================================================================

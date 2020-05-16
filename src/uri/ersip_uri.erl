@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2017, 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP URI
-%%
+%%%
+%%% Copyright (c) 2017, 2018, 2019, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP URI
+%%%
 
 -module(ersip_uri).
 
@@ -33,17 +33,20 @@
          set_param/3,
          clear_not_allowed_parts/2,
          rebuild_header_values/1,
-         assemble_scheme/1
+         assemble_scheme/1,
+         is_sip/1,
+         raw/1
         ]).
--export_type([uri/0, scheme/0]).
+-export_type([uri/0, scheme/0, raw/0]).
 
 
 -include("ersip_uri.hrl").
 -include("ersip_sip_abnf.hrl").
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
+
 -type uri_param_name() :: transport
                         | user
                         | method
@@ -64,14 +67,29 @@
 -type scheme() :: uri_scheme().
 -type binary_part() :: {Start :: non_neg_integer(), Length :: integer()}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+-type raw() :: #{scheme := binary(),
+                 data := binary(),
+                 sip => sip_uri_raw()}.
 
+-type sip_uri_raw() :: #{host := binary(),
+                         user => binary(),
+                         port => inet:port_number(),
+                         params => key_value_list(),
+                         headers => key_value_list()
+                        }.
+-type key_value_list() :: [{binary(), binary()} | binary()].
+
+%%===================================================================
+%% API
+%%===================================================================
+-define(IS_VALID_PORT(X), is_integer(P), P >= 0, P =< 65535; P == undefined).
+
+%% @doc Scheme of the URI.
 -spec scheme(uri()) -> scheme().
 scheme(#uri{scheme = S}) ->
     S.
 
+%% @doc URI scheme in binary form.
 -spec scheme_bin(uri()) -> binary().
 scheme_bin(#uri{scheme = {scheme, sip}}) ->
     <<"sip">>;
@@ -80,49 +98,100 @@ scheme_bin(#uri{scheme = {scheme, sips}}) ->
 scheme_bin(#uri{scheme = {scheme, Bin}}) when is_binary(Bin) ->
     ersip_bin:to_lower(Bin).
 
+%% @doc Get data of the URI (everything after scheme).
+%% Example:
+%% ```
+%%    <<"+16505550505">> = ersip_uri:data(ersip_uri:make(<<"tel:+16505550505">>)).
+%%    <<"a@b">> = ersip_uri:data(ersip_uri:make(<<"sip:a@b">>)).
+%% '''
 -spec data(uri()) -> binary().
 data(#uri{data = Data}) ->
     iolist_to_binary(assemble_data(Data)).
 
+%% @doc Get user part of SIP URI.
+%% Raises error if URI is not SIP(S) URI.
+%% Example:
+%% ```
+%%    <<"alice">> = ersip_uri:user(ersip_uri:make(<<"sip:alice@atlanta.com">>)).
+%%    <<"bob">> = ersip_uri:user(ersip_uri:make(<<"sips:bob@biloxi.com">>)).
+%%    undefined = ersip_uri:user(ersip_uri:make(<<"sip:biloxi.com">>)).
+%%    ersip_uri:user(ersip_uri:make(<<"tel:+16505550505">>)). % raises error
+%% '''
 -spec user(ersip_uri:uri()) -> binary() | undefined.
 user(#uri{data = #sip_uri_data{user = undefined}}) ->
     undefined;
 user(#uri{data = #sip_uri_data{user = {user, U}}}) ->
-    U.
+    U;
+user(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
 
+
+%% @doc Set user part of SIP URI.
+%% Raises error if URI is not SIP(S) URI.
 -spec set_user(binary(), ersip_uri:uri()) -> ersip_uri:uri().
-set_user(NewUser, #uri{data = #sip_uri_data{} = D} = U) ->
-    U#uri{data = D#sip_uri_data{user = {user, NewUser}}}.
+set_user(NewUser, #uri{data = #sip_uri_data{} = D} = U) when is_binary(NewUser) ->
+    U#uri{data = D#sip_uri_data{user = {user, NewUser}}};
+set_user(NewUser, #uri{} = URI) when is_binary(NewUser)  ->
+    error({sip_uri_expected, URI}).
 
+%% @doc Get host part of SIP URI.
+%% Raises error if URI is not SIP(S) URI.
 -spec host(ersip_uri:uri()) -> ersip_host:host().
 host(#uri{data = #sip_uri_data{host = H}}) ->
-    H.
+    H;
+host(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
 
+%% @doc Get host part of SIP URI in binary representation.
+%% Raises error if URI is not SIP(S) URI.
+%% Example:
+%% ```
+%%    <<"atlanta.com">> = ersip_uri:host_bin(ersip_uri:make(<<"sip:alice@atlanta.com">>)).
+%%    <<"biloxi.com">> = ersip_uri:host_bin(ersip_uri:make(<<"sips:bob@biloxi.com">>)).
+%%    <<"127.0.0.1">> = ersip_uri:host_bin(ersip_uri:make(<<"sip:127.0.0.1">>)).
+%%    ersip_uri:host_bin(ersip_uri:make(<<"tel:+16505550505">>)). % raises error
+%% '''
 -spec host_bin(ersip_uri:uri()) -> binary().
 host_bin(#uri{data = #sip_uri_data{host_orig = undefined, host = H}}) ->
     ersip_host:assemble_bin(H);
 host_bin(#uri{data = #sip_uri_data{host_orig = HostBin}}) when is_binary(HostBin) ->
-    HostBin.
+    HostBin;
+host_bin(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
 
 -spec set_host(ersip_host:host(), ersip_uri:uri()) -> ersip_uri:uri().
 set_host(H, #uri{data = #sip_uri_data{host = H}} = U) ->
     U;
 set_host(H, #uri{data = #sip_uri_data{} = D} = U) ->
-    U#uri{data = D#sip_uri_data{host = H, host_orig = undefined}}.
+    U#uri{data = D#sip_uri_data{host = H, host_orig = undefined}};
+set_host(_, #uri{} = URI) ->
+    error({sip_uri_expected, URI}).
 
+%% @doc Get port number of 'undefined'.
+%% Raises error if URI is not SIP(S) URI.
+%% ```
+%%    undefined = ersip_uri:port(ersip_uri:make(<<"sip:alice@atlanta.com">>)).
+%%    5060 = ersip_uri:port(ersip_uri:make(<<"sip:alice@atlanta.com:5060">>)).
+%%    ersip_uri:port(ersip_uri:make(<<"tel:+16505550505">>)). %% raises error
+%% '''
 -spec port(ersip_uri:uri()) -> undefined | inet:port_number().
 port(#uri{data = #sip_uri_data{port = P}}) ->
-    P.
+    P;
+port(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
 
+%% @doc Set port number.
+%% Raises error if URI is not SIP(S) URI.
 -spec set_port(undefined | inet:port_number(), ersip_uri:uri()) -> ersip_uri:uri().
-set_port(P, #uri{data = #sip_uri_data{} = D} = U) ->
-    U#uri{data = D#sip_uri_data{port = P}}.
+set_port(P, #uri{data = #sip_uri_data{} = D} = U) when ?IS_VALID_PORT(P) ->
+    U#uri{data = D#sip_uri_data{port = P}};
+set_port(P, #uri{} = URI) when ?IS_VALID_PORT(P) ->
+    error({sip_uri_expected, URI}).
 
--spec get(Parts, uri()) -> Result when
-      Parts :: uri_part_name()
-             | [uri_part_name()],
-      Result :: uri_part()
-              | [uri_part()].
+%% @doc Get URI part by identify. This function is depricated and will
+%% be removed eventually.
+%% @depricated
+-spec get(uri_part_name() | [uri_part_name()], uri()) -> uri_part() | [uri_part()].
 get(Part, URI) when is_atom(Part) ->
     get_part(Part, URI);
 get(Parts, URI) when is_list(Parts) ->
@@ -139,7 +208,7 @@ make(Bin) when is_binary(Bin) ->
         {error, _} = Error ->
             error(Error)
     end;
-make(Parts) ->
+make(Parts) when is_list(Parts) ->
     Init = #uri{data = #sip_uri_data{host = {ipv4, {0, 0, 0, 0}}}},
     lists:foldl(fun(Option, URI) ->
                         set_part(Option, URI)
@@ -156,10 +225,12 @@ make_key(#uri{} = URI) ->
         }.
 
 %% @doc Parse URI from the binary
+%% ```
 %% SIP-URI          =  "sip:" [userinfo] hostport
 %%                     uri-parameters [headers]
 %% SIPS-URI         =  "sips:" [userinfo] hostport
 %%                     uri-parameters [headers]
+%% '''
 -spec parse(binary()) -> {ok, uri()} | {error, {einval, atom()}}.
 parse(Binary) ->
     case split_scheme(Binary) of
@@ -190,6 +261,13 @@ assemble(#uri{scheme = Scheme, data = Data}) ->
 -spec assemble_bin(uri()) -> binary().
 assemble_bin(#uri{} = U) ->
     iolist_to_binary(assemble(U)).
+
+%% @doc Returns true if URI is SIP or SIPS URI.
+-spec is_sip(uri()) -> boolean().
+is_sip(#uri{data = #sip_uri_data{}}) ->
+    true;
+is_sip(#uri{}) ->
+    false.
 
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
@@ -298,9 +376,16 @@ rebuild_header_values(#uri{data = #sip_uri_data{headers = H} = D} = URI) ->
 rebuild_header_values(#uri{} = U) ->
     U.
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%% @doc Get raw value (in plain erlang types) of the uri.
+-spec raw(uri()) -> raw().
+raw(#uri{} = URI) ->
+    Base = #{scheme => scheme_bin(URI),
+             data => data(URI)},
+    enrich_raw(Base, URI).
+
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 -spec parse_uri(LowerScheme, Scheme, Data) -> {ok, uri()} | {error, term()} when
       LowerScheme :: binary(),
@@ -836,4 +921,16 @@ escape_header_byte(V) when ?is_unreserved(V);
     V;
 escape_header_byte(V) ->
     io_lib:format("%~2.16.0B", [V]).
+
+-spec enrich_raw(raw(), uri()) -> raw().
+enrich_raw(Base, #uri{data = #sip_uri_data{}} = URI) ->
+    Parts = [{user, user(URI)},
+             {host, host_bin(URI)},
+             {port, port(URI)},
+             {params, raw_params(URI)},
+             {headers, raw_headers(URI)}],
+    NonEmpty = [{K, V} || {K, V} <- Parts, V /= undefined andalso V /= []],
+    Base#{sip => maps:from_list(NonEmpty)};
+enrich_raw(Base, #uri{}) ->
+    Base.
 

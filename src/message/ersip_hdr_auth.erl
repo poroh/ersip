@@ -3,11 +3,16 @@
 %%% All rights reserved.
 %%% Distributed under the terms of the MIT License. See the LICENSE file.
 %%%
-%%% SIP Headers:
+%%% @doc.
+%%% SIP headers related to authentication/authorization.
+%%% Namely:
 %%% - WWW-Authenticate
 %%% - Authorization
 %%% - Proxy-Authenticate
 %%% - Proxy-Authorization
+%%%
+%%% Note that more than one header may present in SIP message. So this
+%%% module works with lists of these headers.
 %%%
 
 -module(ersip_hdr_auth).
@@ -33,15 +38,18 @@
 %% API
 %%===================================================================
 
+%% @doc Create headers values from raw values.
 -spec make(raw()) -> headers().
-make(AuthInfoRawList) ->
+make(AuthInfoRawList) when is_list(AuthInfoRawList) ->
     [ersip_authinfo:make(AIRaw) || AIRaw <- AuthInfoRawList].
 
+%% @doc Parse headers list from generic SIP header.
 -spec parse(ersip_hdr:header()) -> parse_result().
 parse(Header) ->
     HdrValues = [iolist_to_binary(V) || V <- ersip_hdr:raw_values(Header)],
     parse_impl(HdrValues, []).
 
+%% @doc Build generic SIP header from headers list.
 -spec build(HdrName :: binary(), headers()) -> ersip_hdr:header().
 build(HdrName, AuthInfos) when is_list(AuthInfos) ->
     Hdr = ersip_hdr:new(HdrName),
@@ -52,6 +60,7 @@ build(HdrName, AuthInfos) when is_list(AuthInfos) ->
                 Hdr,
                 AuthInfos).
 
+%% @doc Represent header list as plain Erlang values.
 -spec raw(headers()) -> raw().
 raw(Headers) ->
     [ersip_authinfo:raw(H) || H <- Headers].
@@ -60,6 +69,7 @@ raw(Headers) ->
 %% Internal implementation
 %%===================================================================
 
+%% @private
 -spec parse_impl([binary()], headers()) -> parse_result().
 parse_impl([], Acc) ->
     {ok, lists:reverse(Acc)};

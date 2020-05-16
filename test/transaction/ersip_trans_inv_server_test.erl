@@ -56,7 +56,6 @@ reliable_canonnical_2xx_flow_test() ->
     {TerminatedTrans, SE5} = ersip_trans_inv_server:event(TimerLEv, AcceptedTrans),
     ?assertEqual([{clear_trans, normal}], SE5),
 
-    io:format("~p", [AcceptedTrans]),
     %% Check has_final_response for different states:
     ?assertEqual(false, ersip_trans_inv_server:has_final_response(ProceedingTrans1)),
     ?assertEqual(true, ersip_trans_inv_server:has_final_response(AcceptedTrans)),

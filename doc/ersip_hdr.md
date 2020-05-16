@@ -1,9 +1,17 @@
 
 
 # Module ersip_hdr #
+* [Description](#description)
 * [Data Types](#types)
 * [Function Index](#index)
 * [Function Details](#functions)
+
+SIP raw header.
+
+<a name="description"></a>
+
+## Description ##
+This module used for low-level generic header.
 
 <a name="types"></a>
 
@@ -44,7 +52,8 @@ value() = iolist() | binary()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_topmost-2">add_topmost/2</a></td><td></td></tr><tr><td valign="top"><a href="#add_value-2">add_value/2</a></td><td>Append value to list of values.</td></tr><tr><td valign="top"><a href="#add_values-2">add_values/2</a></td><td>Append list of values to headr's list of values.</td></tr><tr><td valign="top"><a href="#as_integer-1">as_integer/1</a></td><td>Get integer value from the header.</td></tr><tr><td valign="top"><a href="#is_empty-1">is_empty/1</a></td><td></td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Create key by the header name.</td></tr><tr><td valign="top"><a href="#name-1">name/1</a></td><td></td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create new headers.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td></td></tr><tr><td valign="top"><a href="#raw_values-1">raw_values/1</a></td><td>Return raw values of the header.</td></tr><tr><td valign="top"><a href="#replace_topmost-2">replace_topmost/2</a></td><td></td></tr><tr><td valign="top"><a href="#serialize_rev_iolist-2">serialize_rev_iolist/2</a></td><td>serialize header values in reverse iolist If Acc is not empty
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#add_topmost-2">add_topmost/2</a></td><td></td></tr><tr><td valign="top"><a href="#add_value-2">add_value/2</a></td><td>Append value to list of values.</td></tr><tr><td valign="top"><a href="#add_values-2">add_values/2</a></td><td>Append list of values to headr's list of values.</td></tr><tr><td valign="top"><a href="#as_integer-1">as_integer/1</a></td><td>Get integer value from the header.</td></tr><tr><td valign="top"><a href="#is_empty-1">is_empty/1</a></td><td></td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Create key by the header name or get header from header
+itself.</td></tr><tr><td valign="top"><a href="#name-1">name/1</a></td><td>User-readable non-comparable header name.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create new headers.</td></tr><tr><td valign="top"><a href="#new-2">new/2</a></td><td></td></tr><tr><td valign="top"><a href="#raw_values-1">raw_values/1</a></td><td>Return raw values of the header.</td></tr><tr><td valign="top"><a href="#replace_topmost-2">replace_topmost/2</a></td><td></td></tr><tr><td valign="top"><a href="#serialize_rev_iolist-2">serialize_rev_iolist/2</a></td><td>serialize header values in reverse iolist If Acc is not empty
 then also adds CR LF before adding header.</td></tr><tr><td valign="top"><a href="#take_topmost-1">take_topmost/1</a></td><td></td></tr></table>
 
 
@@ -109,12 +118,12 @@ is_empty(Header::<a href="#type-header">header()</a>) -&gt; boolean()
 ### make_key/1 ###
 
 <pre><code>
-make_key(NameOrHeader) -&gt; <a href="#type-header_key">header_key()</a>
+make_key(Header::<a href="ersip_hnames.md#type-name_forms">ersip_hnames:name_forms()</a> | <a href="#type-header">header()</a>) -&gt; <a href="#type-header_key">header_key()</a>
 </code></pre>
+<br />
 
-<ul class="definitions"><li><code>NameOrHeader = <a href="ersip_hnames.md#type-name_forms">ersip_hnames:name_forms()</a> | <a href="#type-header">header()</a></code></li></ul>
-
-Create key by the header name.
+Create key by the header name or get header from header
+itself.
 
 <a name="name-1"></a>
 
@@ -124,6 +133,8 @@ Create key by the header name.
 name(Header::<a href="#type-header">header()</a>) -&gt; binary()
 </code></pre>
 <br />
+
+User-readable non-comparable header name.
 
 <a name="new-1"></a>
 

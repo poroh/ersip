@@ -5,7 +5,7 @@
 
 ## Documentation
 
-Full module documentation is available [here](https://github.com/poroh/ersip/blob/master/doc/ersip.md).
+Full module documentation is available [here](https://github.com/poroh/ersip/blob/master/doc/README.md).
 
 ## Approach to design
 

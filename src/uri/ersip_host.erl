@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Host-related routines
-%%
+%%%
+%%% Copyright (c) 2017, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Host-related routines
+%%%
 
 -module(ersip_host).
 -export([is_host/1,
@@ -18,11 +18,11 @@
          assemble_bin/1,
          assemble_received/1
         ]).
--export_type([host/0]).
+-export_type([host/0, parse_error/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type host() :: hostname()
               | address().
@@ -30,20 +30,18 @@
                   | {ipv6, inet:ip6_address()}.
 -type hostname() :: {hostname, binary()}.
 
--type parse_result() :: {ok, host()}
-                      | {error, {invalid_host, binary()}}
-                      | {error, {invalid_ipv6, binary()}}.
+-type parse_result() :: {ok, host()} | {error, parse_error()}.
+-type parse_error() :: {invalid_name, binary()}
+                     | {invalid_ipv6, binary()}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 -include("ersip_sip_abnf.hrl").
 
 %% @doc check term is valid host.
--spec is_host(MaybeHost) -> boolean() when
-      MaybeHost :: host()
-                 | term().
+-spec is_host(host() | term()) -> boolean().
 is_host({hostname, Bin}) ->
     hostname_valid(Bin);
 is_host({ipv4, {A0,A1,A2,A3}}) ->
@@ -145,7 +143,7 @@ make(Addr) when is_binary(Addr)  ->
         {ok, Host, <<>>} ->
             Host;
         {error, _} ->
-            error({error, {invalid_host, Addr}})
+            error({error, {invalid_name, Addr}})
     end.
 
 %%%===================================================================
@@ -186,14 +184,14 @@ find_host_end(_, Pos) ->
 %% IPv6reference  =  "[" IPv6address "]"
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
-              | {error, {invalid_host, binary()}}.
+              | {error, {invalid_name, binary()}}.
 parse_ipv6_reference(R) when byte_size(R) < 2 ->
-    {error, {invalid_host, R}};
+    {error, {invalid_name, R}};
 parse_ipv6_reference(R) ->
     IP6size = byte_size(R) - 2,
     case R of
         <<"[", IP6:IP6size/binary, "]">> ->  parse_ipv6_address(IP6);
-        _ ->  {error, {invalid_host, R}}
+        _ ->  {error, {invalid_name, R}}
     end.
 
 %% @private
@@ -295,13 +293,13 @@ assure_host(Host) ->
             error({error, {not_valid_host, Host}})
     end.
 
--spec assume_its_hostname(binary()) -> {ok, host()} | {error, {invalid_host, binary()}}.
+-spec assume_its_hostname(binary()) -> {ok, host()} | {error, {invalid_name, binary()}}.
 assume_its_hostname(Bin) ->
     case hostname_valid(Bin) of
         true ->
             {ok, {hostname, Bin}};
         false ->
-            {error, {invalid_host, Bin}}
+            {error, {invalid_name, Bin}}
     end.
 
 -spec assemble_ip6(inet:ip6_address()) -> iolist().

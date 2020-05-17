@@ -11,13 +11,40 @@
 -export([scheme/1,
          scheme_bin/1,
          data/1,
+
          user/1,
          set_user/2,
+
          host/1,
          host_bin/1,
          set_host/2,
+
          port/1,
          set_port/2,
+
+         transport/1,
+         set_transport/2,
+         clear_transport/1,
+
+         loose_router/1,
+         set_loose_router/2,
+
+         maddr/1,
+         set_maddr/2,
+         clear_maddr/1,
+
+         user_param/1,
+         set_user_param/2,
+         clear_user_param/1,
+
+         ttl/1,
+         set_ttl/2,
+         clear_ttl/1,
+
+         gen_param/2,
+         set_gen_param/3,
+         clear_gen_param/2,
+
          get/2,
          make/1,
          make_key/1,
@@ -29,7 +56,6 @@
          raw_headers/1,
          set_raw_headers/2,
          clear_params/1,
-         clear_transport/1,
          set_param/3,
          clear_not_allowed_parts/2,
          rebuild_header_values/1,
@@ -39,33 +65,65 @@
         ]).
 -export_type([uri/0, scheme/0, raw/0]).
 
-
--include("ersip_uri.hrl").
 -include("ersip_sip_abnf.hrl").
 
 %%===================================================================
 %% Types
 %%===================================================================
 
--type uri_param_name() :: transport
-                        | user
-                        | method
-                        | ttl
-                        | maddr
-                        | lr
-                        | binary().
+-record(sip_uri_data, {
+          %% user: The identifier of a particular resource at the host being
+          %%    addressed.  The term "host" in this context frequently refers
+          %%    to a domain.  The "userinfo" of a URI consists of this user
+          %%    field, the password field, and the @ sign following them.  The
+          %%    userinfo part of a URI is optional and MAY be absent when the
+          %%    destination host does not have a notion of users or when the
+          %%    host itself is the resource being identified.  If the @ sign is
+          %%    present in a SIP or SIPS URI, the user field MUST NOT be empty.
+          user   = undefined :: undefined
+                              | {user, binary()},
+          %% host: The host providing the SIP resource.  The host part contains
+          %%    either a fully-qualified domain name or numeric IPv4 or IPv6
+          %%    address.  Using the fully-qualified domain name form is
+          %%    RECOMMENDED whenever possible.
+          host               :: ersip_host:host(),
+          %% original (binary) representation of host
+          host_orig          :: binary() | undefined,
+          %% port: The port number where the request is to be sent.
+          port               :: undefined | inet:port_number(),
+          %% URI parameters: Parameters affecting a request constructed from
+          %% the URI.
+          params = #{}       :: uri_params(),
+          %% URI headers
+          headers = #{}      :: uri_headers()
+         }).
+-record(absolute_uri_data, {opaque :: binary()}).
+-record(uri, {scheme = {scheme, sip}   :: scheme(),
+              data   = #sip_uri_data{} :: uri_data()
+             }).
 
--type uri_part_name() :: scheme
-                       | user
-                       | host
-                       | port.
--type uri_part() :: scheme()
-                  | {user, binary()}
-                  | {host, ersip_host:host()}
+
+-type sip_uri_data()      :: #sip_uri_data{}.
+-type absolute_uri_data() :: #absolute_uri_data{}.
+-type uri()               :: #uri{}.
+
+-type uri_data()   :: sip_uri_data() | absolute_uri_data().
+
+-type uri_params() :: #{transport => ersip_transport:transport(),
+                        maddr     => ersip_host:host(),
+                        ttl       => 0..255,
+                        user      => phone | ip | binary(),
+                        method    => binary(),
+                        lr        => true
+                       }.
+-type uri_headers() ::  #{binary() => binary()}.
+-type scheme()   :: {scheme, sip | sips | binary()}.
+
+-type uri_param_name() :: known_param() | binary().
+
+-type uri_part_name() :: scheme | user | host | port.
+-type uri_part() :: scheme()  | {user, binary()} | {host, ersip_host:host()}
                   | {port, inet:port_number() | undefined}.
-
--type scheme() :: uri_scheme().
--type binary_part() :: {Start :: non_neg_integer(), Length :: integer()}.
 
 -type raw() :: #{scheme := binary(),
                  data := binary(),
@@ -78,6 +136,23 @@
                          headers => key_value_list()
                         }.
 -type key_value_list() :: [{binary(), binary()} | binary()].
+
+-type parse_result() :: {ok, uri()} | {error, parse_error()}.
+-type parse_error() :: {invalid_scheme, binary()}
+                     | {invalid_sip_uri, sip_uri_parse_error()}.
+-type sip_uri_parse_result() :: {ok, sip_uri_data()} | {error, sip_uri_parse_error()}.
+-type sip_uri_parse_error() :: {invalid_host, ersip_host:parse_error() | {garbage_at_the_end, binary()}}
+                             | {invalid_ipv6_reference, binary()}
+                             | {invalid_port, binary()}.
+
+-type known_param() :: transport | lr | ttl | user | maddr.
+-type known_param_value() :: ersip_transport:transport()
+                           | boolean()
+                           | ttl_param()
+                           | user_param()
+                           | ersip_host:host().
+-type user_param() :: phone | ip | binary().
+-type ttl_param() :: 0..255.
 
 %%===================================================================
 %% API
@@ -188,9 +263,199 @@ set_port(P, #uri{data = #sip_uri_data{} = D} = U) when ?IS_VALID_PORT(P) ->
 set_port(P, #uri{} = URI) when ?IS_VALID_PORT(P) ->
     error({sip_uri_expected, URI}).
 
-%% @doc Get URI part by identify. This function is depricated and will
+%% @doc Get transport from URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec transport(ersip_uri:uri()) -> undefined | ersip_transport:transport().
+transport(#uri{data = #sip_uri_data{params = #{transport := T}}}) ->
+    T;
+transport(#uri{data = #sip_uri_data{params = #{}}}) ->
+    undefined;
+transport(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+%% @doc Set transport to URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec set_transport(ersip_transport:transport(), uri()) -> uri().
+set_transport(Transport, #uri{} = URI) ->
+    set_sip_param(transport, Transport, URI).
+
+%% @doc Remove transport parameter from URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec clear_transport(uri()) -> uri().
+clear_transport(#uri{} = URI) ->
+    clear_sip_param(transport, URI).
+
+%% @doc Checks if URI has loose router parameter (lr).
+%% Raises error if URI is not SIP(S) URI.
+%% Example:
+%% ```
+%%   true  = ersip_uri:loose_route(ersip_uri:make(<<"sip:host;lr">>)).
+%%   false = ersip_uri:loose_route(ersip_uri:make(<<"sip:host">>)).
+%% '''
+-spec loose_router(uri()) -> boolean().
+loose_router(#uri{data = #sip_uri_data{params = #{lr := true}}}) ->
+    true;
+loose_router(#uri{data = #sip_uri_data{}}) ->
+    false;
+loose_router(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+-spec set_loose_router(boolean(), uri()) -> uri().
+set_loose_router(true, #uri{} = URI) ->
+    set_sip_param(lr, true, URI);
+set_loose_router(false, #uri{} = URI) ->
+    clear_sip_param(lr, URI).
+
+%% @doc Return maddr parameter value or undefined.
+%% Raises error if URI is not SIP(S) URI.
+-spec maddr(uri()) -> ersip_host:host() | undefined.
+maddr(#uri{data = #sip_uri_data{params = #{maddr := Maddr}}}) ->
+    Maddr;
+maddr(#uri{data = #sip_uri_data{}}) ->
+    undefined;
+maddr(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+%% @doc Set maddr parameter value.
+%% Raises error if URI is not SIP(S) URI or if first parameter is not
+%% host.
+-spec set_maddr(ersip_host:host(), uri()) -> uri().
+set_maddr(Host, #uri{} = URI) ->
+    case ersip_host:is_host(Host) of
+        true ->
+            set_sip_param(maddr, Host, URI);
+        false ->
+            error({host_expected, Host})
+    end.
+
+%% @doc Remove maddr parameter from URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec clear_maddr(uri()) -> uri().
+clear_maddr(#uri{} = URI) ->
+    clear_sip_param(maddr, URI).
+
+%% @doc Get user parameter of URI (Ex: ;user=ip or ;user=phone).
+%% Raises error if URI is not SIP(S) URI.
+-spec user_param(uri()) -> user_param() | undefined.
+user_param(#uri{data = #sip_uri_data{params = #{user := U}}}) ->
+    U;
+user_param(#uri{data = #sip_uri_data{}}) ->
+    undefined;
+user_param(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+%% @doc Set user parameter of URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec set_user_param(user_param(), uri()) -> uri().
+set_user_param(UserParam, #uri{} = URI)
+  when UserParam == ip; UserParam == phone; is_binary(UserParam) ->
+    set_sip_param(user, UserParam, URI);
+set_user_param(UserParam, _) ->
+    error({user_param_expected, UserParam}).
+
+%% @doc Clear user parameter from URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec clear_user_param(uri()) -> uri().
+clear_user_param(#uri{} = URI) ->
+    clear_sip_param(user, URI).
+
+%% @doc Get ttl parameter of URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec ttl(uri()) -> ttl_param() | undefined.
+ttl(#uri{data = #sip_uri_data{params = #{ttl := TTL}}}) ->
+    TTL;
+ttl(#uri{data = #sip_uri_data{}}) ->
+    undefined;
+ttl(#uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+%% @doc Set ttl parameter of URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec set_ttl(ttl_param(), uri()) -> uri().
+set_ttl(TTL, #uri{} = URI) when TTL >= 0, TTL =< 255 ->
+    set_sip_param(ttl, TTL, URI);
+set_ttl(TTL, #uri{}) ->
+    error({ttl_expected, TTL}).
+
+%% @doc Clear TTL parameter from URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec clear_ttl(uri()) -> uri().
+clear_ttl(#uri{} = URI) ->
+    clear_sip_param(ttl, URI).
+
+%% @doc Get generic parameter of the URI.
+%% Raises error if URI is not SIP(S) URI.
+%% This function also can be used to get known parameters in generic form
+%% Example:
+%% ```
+%%   <<"11">> = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;ttl=11">>)).
+%%   true = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;lr">>)).
+%%   undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
+%% '''
+-spec gen_param(binary(), uri()) -> binary() | undefined.
+gen_param(Name, #uri{data = #sip_uri_data{params = P}}) when is_binary(Name) ->
+    case find_known_param(Name) of
+        {ok, KnownParam} ->
+            case P of
+                #{KnownParam := V} ->
+                    {_, BinV} = raw_param({KnownParam, V}),
+                    BinV;
+                _ -> undefined
+            end;
+        error ->
+            maps:get(ersip_bin:to_lower(Name), P, undefined)
+    end;
+gen_param(Name, #uri{} = URI) when is_binary(Name) ->
+    error({sip_uri_expected, URI}).
+
+
+%% @doc Set generic parameter of URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec set_gen_param(binary(), binary(), uri()) -> uri().
+set_gen_param(Name, Value, #uri{data = #sip_uri_data{} = D} = U)
+  when is_binary(Name) andalso (is_binary(Value) orelse Value == true) ->
+    ParamBin =
+        case Value of
+            true -> Name;
+            _ -> <<Name/binary, "=", Value/binary>>
+        end,
+    case parse_and_add_param(ParamBin, D) of
+        #sip_uri_data{} = NewD ->
+            U#uri{data = NewD};
+        {error, Reason} ->
+            error({invalid_value, Reason})
+    end;
+set_gen_param(Name, Value, #uri{} = URI)
+  when is_binary(Name) andalso (is_binary(Value) orelse Value == true) ->
+    error({sip_uri_expected, URI}).
+
+%% @doc Clear generic parameter of URI.
+%% Raises error if URI is not SIP(S) URI.
+-spec clear_gen_param(binary(), uri()) -> uri().
+clear_gen_param(Name, #uri{data = #sip_uri_data{params = P} = D} = U) when is_binary(Name) ->
+    case find_known_param(Name) of
+        {ok, KnownParam} ->
+            U#uri{data = D#sip_uri_data{params = maps:remove(KnownParam, P)}};
+        error ->
+            U#uri{data = D#sip_uri_data{params = maps:remove(ersip_bin:to_lower(Name), P)}}
+    end;
+clear_gen_param(Name, #uri{} = URI) when is_binary(Name) ->
+    error({sip_uri_expected, URI}).
+
+
+%% @doc Set parameter of the URI
+%% @deprecated
+%% This function is deprecated. Please use set_gen_param for generic
+%% form and set_transport, set_ttl, set_... for known params.
+-spec set_param(uri_param_name(), term(), uri() | sip_uri_data()) -> uri() | sip_uri_data().
+set_param(ParamName, Value, #uri{data = SIPData} = URI) ->
+    URI#uri{data = set_param(ParamName, Value, SIPData)};
+set_param(ParamName, Value, #sip_uri_data{params = P} = SIPData) ->
+    SIPData#sip_uri_data{params = P#{ParamName => Value}}.
+
+%% @doc Get URI part by identify. This function is deprecated and will
 %% be removed eventually.
-%% @depricated
+%% @deprecated
 -spec get(uri_part_name() | [uri_part_name()], uri()) -> uri_part() | [uri_part()].
 get(Part, URI) when is_atom(Part) ->
     get_part(Part, URI);
@@ -200,14 +465,25 @@ get(Parts, URI) when is_list(Parts) ->
               end,
               Parts).
 
--spec make(PartsOrBin :: [uri_part()] | binary()) -> uri().
+%% @doc Create URI from binary, raw representation and deprecated from URI parts.
+%% Note that creation from URI parts are deprecated and will be
+%% removed in future releases.
+%% Raises error if URI cannot be constracted from this data (has invalid syntax).
+%% Examples:
+%% ```
+%%   SIPURI = ersip_uri:make(<<"sip:a@b">>),
+%%   SIPURI = ersip_uri:make(#{scheme => <<"sip">>, data => <<"a@b">>}),
+%%   TelURI = ersip_uri:make(<<"tel:+16505550505">>),
+%%   TelURI = ersip_uri:make(#{scheme => <<"tel">>, data => <<"+16505550505">>}).
+%% '''
+-spec make(binary() | raw() | [uri_part()]) -> uri().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
-        {ok, URI} ->
-            URI;
-        {error, _} = Error ->
-            error(Error)
+        {ok, URI}       -> URI;
+        {error, Reason} -> error(Reason)
     end;
+make(#{scheme := Scheme, data := Data}) ->
+    make(iolist_to_binary([Scheme, $:, Data]));
 make(Parts) when is_list(Parts) ->
     Init = #uri{data = #sip_uri_data{host = {ipv4, {0, 0, 0, 0}}}},
     lists:foldl(fun(Option, URI) ->
@@ -231,23 +507,15 @@ make_key(#uri{} = URI) ->
 %% SIPS-URI         =  "sips:" [userinfo] hostport
 %%                     uri-parameters [headers]
 %% '''
--spec parse(binary()) -> {ok, uri()} | {error, {einval, atom()}}.
+-spec parse(binary()) -> parse_result().
 parse(Binary) ->
     case split_scheme(Binary) of
         {<<>>, _} ->
-            {error, {einval, invalid_scheme}};
+            {error, {invalid_scheme, Binary}};
         {<<"sip">>, R} ->
-            case parse_sipdata(R) of
-                {ok, SipData} ->
-                    {ok, #uri{scheme = {scheme, sip}, data = SipData}};
-                {error, _} = Error -> Error
-            end;
+            parse_uri(<<"sip">>, <<"sip">>, R);
         {<<"sips">>, R} ->
-            case parse_sipdata(R) of
-                {ok, SipData} ->
-                    {ok, #uri{scheme = {scheme, sips}, data = SipData}};
-                {error, _} = Error -> Error
-            end;
+            parse_uri(<<"sips">>, <<"sips">>, R);
         {S, R} ->
             parse_uri(ersip_bin:to_lower(S), S, R)
     end.
@@ -291,18 +559,6 @@ clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->
     URI#uri{data = SIPData#sip_uri_data{params = #{}}};
 clear_params(#uri{} = URI) ->
     URI.
-
--spec clear_transport(uri()) -> uri().
-clear_transport(#uri{data = #sip_uri_data{params = P} = SIPData} = URI) ->
-    NewP = maps:remove(transport, P),
-    URI#uri{data = SIPData#sip_uri_data{params = NewP}}.
-
-%% @doc set paramter of the URI
--spec set_param(uri_param_name(), term(), uri() | sip_uri_data()) -> uri() | sip_uri_data().
-set_param(ParamName, Value, #uri{data = SIPData} = URI) ->
-    URI#uri{data = set_param(ParamName, Value, SIPData)};
-set_param(ParamName, Value, #sip_uri_data{params = P} = SIPData) ->
-    SIPData#sip_uri_data{params = P#{ParamName => Value}}.
 
 %% @doc set paramter of the URI
 -spec set_part(uri_part(), uri()) -> uri().
@@ -387,46 +643,35 @@ raw(#uri{} = URI) ->
 %% Internal implementation
 %%===================================================================
 
--spec parse_uri(LowerScheme, Scheme, Data) -> {ok, uri()} | {error, term()} when
-      LowerScheme :: binary(),
-      Scheme      :: binary(),
-      Data        :: binary().
+-spec parse_uri(Scheme :: binary(), OrigScheme :: binary(), URIData :: binary()) -> parse_result().
 parse_uri(<<"sip">>, _, R) ->
     case parse_sipdata(R) of
-        {error, _} = Error ->
-            Error;
         {ok, SipData} ->
-            {ok, #uri{scheme = {scheme, sip},
-                      data   = SipData
-                     }
-            }
+            {ok, #uri{scheme = {scheme, sip}, data = SipData}};
+        {error, Reason} ->
+            {error, {invalid_sip_uri, Reason}}
     end;
 parse_uri(<<"sips">>, _, R) ->
     case parse_sipdata(R) of
-        {error, _} = Error ->
-            Error;
         {ok, SipData} ->
-            {ok, #uri{scheme = {scheme, sips},
-                      data   = SipData
-                     }
-            }
+            {ok, #uri{scheme = {scheme, sips}, data = SipData}};
+        {error, Reason} ->
+            {error, {invalid_sip_uri, Reason}}
     end;
 parse_uri(_, SchemeBin, R) ->
     case check_token(SchemeBin) of
         true ->
-            {ok, #uri{scheme = {scheme, SchemeBin},
-                      data   = #absolute_uri_data{opaque = R}
-                     }
-            };
+            URI = #uri{scheme = {scheme, SchemeBin}, data = #absolute_uri_data{opaque = R}},
+            {ok, URI};
         false ->
             {error, {invalid_scheme, SchemeBin}}
     end.
 
--spec parse_sipdata(binary()) -> {ok, sip_uri_data()} | {error, term()}.
+-spec parse_sipdata(binary()) -> sip_uri_parse_result().
 parse_sipdata(Bin) ->
     parse_usesrinfo(Bin).
 
--spec parse_usesrinfo(binary()) -> {ok, sip_uri_data()} | {error, term()}.
+-spec parse_usesrinfo(binary()) -> sip_uri_parse_result().
 parse_usesrinfo(Bin) ->
     case binary:split(Bin, <<"@">>) of
         [Userinfo, R] ->
@@ -441,8 +686,7 @@ parse_usesrinfo(Bin) ->
     end.
 
 %% hostport         =  host [":" port]
--spec parse_hostport(User, binary()) -> {ok, sip_uri_data()} | {error, {einval, atom()}} when
-      User   :: {user, binary()} | undefined.
+-spec parse_hostport({user, binary()} | undefined, binary()) -> sip_uri_parse_result().
 parse_hostport(User, R) ->
     {HostPort, Params, Headers} = split_uri(R),
     MaybeSIPData =
@@ -451,15 +695,19 @@ parse_hostport(User, R) ->
                 case ersip_host:parse(HostBin) of
                     {ok, Host, <<>>} ->
                         {ok, #sip_uri_data{user = User, host = Host, host_orig = HostBin}};
-                    _ ->
-                        {error, {invalid_hostport, HostPort}}
+                    {ok, _, End} ->
+                        {error, {invalid_host, {garbage_at_the_end, End}}};
+                    {error, Reason} ->
+                        {error, {invalid_host, Reason}}
                 end;
             {ok, {HostBin, PortBin}} ->
                 case {ersip_host:parse(HostBin), parse_port(PortBin)} of
                     {{ok, Host, <<>>}, {ok, Port}} ->
                         {ok, #sip_uri_data{user = User, host = Host, port = Port, host_orig = HostBin}};
-                    _ ->
-                        {error, {invalid_hostport, {HostBin, PortBin}}}
+                    {{error, Reason}, _} ->
+                        {error, {invalid_host, Reason}};
+                    {_, {error, _} = Error} ->
+                        Error
                 end;
             {error, _} = Error ->
                 Error
@@ -468,21 +716,19 @@ parse_hostport(User, R) ->
     maybe_add_headers(MaybeSIPData1, Headers).
 
 %% port           =  1*DIGIT
--spec parse_port(binary()) -> {ok, 0..65535} |  {error, {einval, port}}.
+-spec parse_port(binary()) -> {ok, 0..65535} | {error, {invalid_port, binary()}}.
 parse_port(Bin) ->
     case catch binary_to_integer(Bin) of
         Int when is_integer(Int) andalso Int >= 0 andalso Int =< 65535 ->
             {ok, Int};
         _ ->
-            {error, {einval, port}}
+            {error, {invalid_port, Bin}}
     end.
 
 %% uri-parameters    =  *( ";" uri-parameter)
 %% uri-parameter     =  transport-param / user-param / method-param
 %%                      / ttl-param / maddr-param / lr-param / other-param
--spec maybe_add_params(SIPDataOrError, binary()) -> {ok, sip_uri_data()} | {error, {einval, atom()}} when
-      SIPDataOrError :: {ok, sip_uri_data()}
-                      | {error, {einval, atom()}}.
+-spec maybe_add_params(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
 maybe_add_params({error, _} = Err, _) ->
     Err;
 maybe_add_params({ok, #sip_uri_data{} = SIPData}, <<>>) ->
@@ -504,9 +750,7 @@ maybe_add_params({ok, #sip_uri_data{} = SIPData}, ParamsBin) ->
             Error
     end.
 
--spec maybe_add_headers(SIPDataOrError, binary()) -> {ok, sip_uri_data()} | {error, {einval, atom()}} when
-      SIPDataOrError :: sip_uri_data()
-                      | {error, {einval, atom()}}.
+-spec maybe_add_headers(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
 maybe_add_headers({error, _} = Err, _) ->
     Err;
 maybe_add_headers({ok, #sip_uri_data{} = SIPData}, <<>>) ->
@@ -517,7 +761,7 @@ maybe_add_headers({ok, #sip_uri_data{} = SIPData}, Headers) ->
 
 %% @private
 %% @doc Parse and add parameters described in RFC3261
--spec parse_and_add_param(binary(), sip_uri_data()) -> {ok, sip_uri_data()} | {error, {einval, atom()}}.
+-spec parse_and_add_param(binary(), sip_uri_data()) -> sip_uri_data() | {error, term()}.
 parse_and_add_param(Param, SIPData) ->
     Pair =
         case binary:split(Param, <<"=">>) of
@@ -706,11 +950,7 @@ split_uri(Bin) ->
             {HostPort, Params, Headers}
     end.
 
--spec split_hostport(binary()) -> Result when
-      Result :: {ok, {binary(), binary()}}
-              | {error, Error},
-      Error :: {invalid_ipv6_reference, binary()}
-             | {invalid_port, binary()}.
+-spec split_hostport(binary()) -> {ok, {binary(), binary()}} | {error, sip_uri_parse_error()}.
 split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
     case binary:match(IPv6RefPort, <<"]">>) of
         nomatch ->
@@ -819,6 +1059,19 @@ assemble_headers(Headers) ->
             ]
     end.
 
+-spec set_sip_param(known_param(), known_param_value(), uri()) -> uri().
+set_sip_param(Name, Value, #uri{data = #sip_uri_data{params = P} = D} = U) ->
+    U#uri{data = D#sip_uri_data{params = P#{Name => Value}}};
+set_sip_param(_, _, #uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+-spec clear_sip_param(known_param(), uri()) -> uri().
+clear_sip_param(Name, #uri{data = #sip_uri_data{params = P} = SIPData} = URI) ->
+    URI#uri{data = SIPData#sip_uri_data{params = maps:remove(Name, P)}};
+clear_sip_param(_, #uri{} = URI) ->
+    error({sip_uri_expected, URI}).
+
+
 -spec raw_param({uri_param_name(), term()}) -> {binary(), binary()} | binary().
 raw_param({transport, Value}) -> {<<"transport">>, ersip_transport:assemble_bin(Value)};
 raw_param({maddr, Host})      -> {<<"maddr">>,    ersip_host:assemble_bin(Host)};
@@ -831,6 +1084,15 @@ raw_param({ttl, TTL})         -> {<<"ttl">>, integer_to_binary(TTL)};
 raw_param({Name, <<>>})
   when is_binary(Name)        -> Name;
 raw_param({Name, Value})      -> {Name, Value}.
+
+-spec find_known_param(binary()) -> {ok, known_param()} | error.
+find_known_param(<<"ttl">>)       -> {ok, ttl};
+find_known_param(<<"maddr">>)     -> {ok, maddr};
+find_known_param(<<"user">>)      -> {ok, user};
+find_known_param(<<"lr">>)        -> {ok, lr};
+find_known_param(<<"transport">>) -> {ok, transport};
+find_known_param(_)               -> error.
+
 
 -spec assemble_param({Name, Value}) -> iolist() when
       Name :: uri_param_name(),
@@ -878,7 +1140,7 @@ is_paramchar_string(_) ->
 unquote_hex(Bin) ->
     do_unquote_hex(Bin, Bin, {0, 0}, []).
 
--spec do_unquote_hex(binary(), binary(), binary_part(), iolist()) -> binary().
+-spec do_unquote_hex(binary(), binary(), {non_neg_integer(), integer()}, iolist()) -> binary().
 do_unquote_hex(<<>>, Orig, {_, Len}, []) when Len == byte_size(Orig) ->
     Orig;
 do_unquote_hex(<<>>, _, {_, 0}, Acc) ->
@@ -933,4 +1195,3 @@ enrich_raw(Base, #uri{data = #sip_uri_data{}} = URI) ->
     Base#{sip => maps:from_list(NonEmpty)};
 enrich_raw(Base, #uri{}) ->
     Base.
-

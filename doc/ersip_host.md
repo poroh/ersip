@@ -39,6 +39,16 @@ host() = <a href="#type-hostname">hostname()</a> | <a href="#type-address">addre
 hostname() = {hostname, binary()}
 </code></pre>
 
+
+
+
+### <a name="type-parse_error">parse_error()</a> ###
+
+
+<pre><code>
+parse_error() = {invalid_name, binary()} | {invalid_ipv6, binary()}
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
@@ -101,10 +111,9 @@ ip_address(X1::<a href="#type-host">host()</a>) -&gt; <a href="inet.md#type-ip_a
 ### is_host/1 ###
 
 <pre><code>
-is_host(MaybeHost) -&gt; boolean()
+is_host(X1::<a href="#type-host">host()</a> | term()) -&gt; boolean()
 </code></pre>
-
-<ul class="definitions"><li><code>MaybeHost = <a href="#type-host">host()</a> | term()</code></li></ul>
+<br />
 
 check term is valid host.
 

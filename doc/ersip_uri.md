@@ -32,6 +32,36 @@ key_value_list() = [{binary(), binary()} | binary()]
 
 
 
+### <a name="type-known_param">known_param()</a> ###
+
+
+<pre><code>
+known_param() = transport | lr | ttl | user | maddr
+</code></pre>
+
+
+
+
+### <a name="type-parse_error">parse_error()</a> ###
+
+
+<pre><code>
+parse_error() = {invalid_scheme, binary()} | {invalid_sip_uri, <a href="#type-sip_uri_parse_error">sip_uri_parse_error()</a>}
+</code></pre>
+
+
+
+
+### <a name="type-parse_result">parse_result()</a> ###
+
+
+<pre><code>
+parse_result() = {ok, <a href="#type-uri">uri()</a>} | {error, <a href="#type-parse_error">parse_error()</a>}
+</code></pre>
+
+
+
+
 ### <a name="type-raw">raw()</a> ###
 
 
@@ -62,11 +92,31 @@ sip_uri_data() = #sip_uri_data{user = undefined | {user, binary()}, host = <a hr
 
 
 
+### <a name="type-sip_uri_parse_error">sip_uri_parse_error()</a> ###
+
+
+<pre><code>
+sip_uri_parse_error() = {invalid_host, <a href="ersip_host.md#type-parse_error">ersip_host:parse_error()</a> | {garbage_at_the_end, binary()}} | {invalid_ipv6_reference, binary()} | {invalid_port, binary()}
+</code></pre>
+
+
+
+
 ### <a name="type-sip_uri_raw">sip_uri_raw()</a> ###
 
 
 <pre><code>
 sip_uri_raw() = #{host =&gt; binary(), user =&gt; binary(), port =&gt; <a href="inet.md#type-port_number">inet:port_number()</a>, params =&gt; <a href="#type-key_value_list">key_value_list()</a>, headers =&gt; <a href="#type-key_value_list">key_value_list()</a>}
+</code></pre>
+
+
+
+
+### <a name="type-ttl_param">ttl_param()</a> ###
+
+
+<pre><code>
+ttl_param() = 0..255
 </code></pre>
 
 
@@ -106,7 +156,7 @@ uri_headers() = #{binary() =&gt; binary()}
 
 
 <pre><code>
-uri_param_name() = transport | user | method | ttl | maddr | lr | binary()
+uri_param_name() = <a href="#type-known_param">known_param()</a> | binary()
 </code></pre>
 
 
@@ -149,16 +199,26 @@ uri_part_name() = scheme | user | host | port
 uri_scheme() = {scheme, sip | sips | binary()}
 </code></pre>
 
+
+
+
+### <a name="type-user_param">user_param()</a> ###
+
+
+<pre><code>
+user_param() = phone | ip | binary()
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_scheme-1">assemble_scheme/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_not_allowed_parts-2">clear_not_allowed_parts/2</a></td><td></td></tr><tr><td valign="top"><a href="#clear_params-1">clear_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_transport-1">clear_transport/1</a></td><td></td></tr><tr><td valign="top"><a href="#data-1">data/1</a></td><td>Get data of the URI (everything after scheme).</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get URI part by identify.</td></tr><tr><td valign="top"><a href="#host-1">host/1</a></td><td>Get host part of SIP URI.</td></tr><tr><td valign="top"><a href="#host_bin-1">host_bin/1</a></td><td>Get host part of SIP URI in binary representation.</td></tr><tr><td valign="top"><a href="#is_sip-1">is_sip/1</a></td><td>Returns true if URI is SIP or SIPS URI.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td></td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make URI comparable with =:= erlang operator.</td></tr><tr><td valign="top"><a href="#params-1">params/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse URI from the binary
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_scheme-1">assemble_scheme/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_gen_param-2">clear_gen_param/2</a></td><td>Clear generic parameter of URI.</td></tr><tr><td valign="top"><a href="#clear_maddr-1">clear_maddr/1</a></td><td>Remove maddr parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_not_allowed_parts-2">clear_not_allowed_parts/2</a></td><td></td></tr><tr><td valign="top"><a href="#clear_params-1">clear_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_transport-1">clear_transport/1</a></td><td>Remove transport parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_ttl-1">clear_ttl/1</a></td><td>Clear TTL parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_user_param-1">clear_user_param/1</a></td><td>Clear user parameter from URI.</td></tr><tr><td valign="top"><a href="#data-1">data/1</a></td><td>Get data of the URI (everything after scheme).</td></tr><tr><td valign="top"><a href="#gen_param-2">gen_param/2</a></td><td>Get generic parameter of the URI.</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get URI part by identify.</td></tr><tr><td valign="top"><a href="#host-1">host/1</a></td><td>Get host part of SIP URI.</td></tr><tr><td valign="top"><a href="#host_bin-1">host_bin/1</a></td><td>Get host part of SIP URI in binary representation.</td></tr><tr><td valign="top"><a href="#is_sip-1">is_sip/1</a></td><td>Returns true if URI is SIP or SIPS URI.</td></tr><tr><td valign="top"><a href="#loose_router-1">loose_router/1</a></td><td>Checks if URI has loose router parameter (lr).</td></tr><tr><td valign="top"><a href="#maddr-1">maddr/1</a></td><td>Return maddr parameter value or undefined.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create URI from binary, raw representation and deprecated from URI parts.</td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make URI comparable with =:= erlang operator.</td></tr><tr><td valign="top"><a href="#params-1">params/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse URI from the binary
 <pre>  SIP-URI          =  "sip:" [userinfo] hostport
                       uri-parameters [headers]
   SIPS-URI         =  "sips:" [userinfo] hostport
-                      uri-parameters [headers]</pre></td></tr><tr><td valign="top"><a href="#port-1">port/1</a></td><td>Get port number of 'undefined'.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw value (in plain erlang types) of the uri.</td></tr><tr><td valign="top"><a href="#raw_headers-1">raw_headers/1</a></td><td></td></tr><tr><td valign="top"><a href="#raw_params-1">raw_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#rebuild_header_values-1">rebuild_header_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#scheme-1">scheme/1</a></td><td>Scheme of the URI.</td></tr><tr><td valign="top"><a href="#scheme_bin-1">scheme_bin/1</a></td><td>URI scheme in binary form.</td></tr><tr><td valign="top"><a href="#set_host-2">set_host/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>set paramter of the URI.</td></tr><tr><td valign="top"><a href="#set_port-2">set_port/2</a></td><td>Set port number.</td></tr><tr><td valign="top"><a href="#set_raw_headers-2">set_raw_headers/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_user-2">set_user/2</a></td><td>Set user part of SIP URI.</td></tr><tr><td valign="top"><a href="#user-1">user/1</a></td><td>Get user part of SIP URI.</td></tr></table>
+                      uri-parameters [headers]</pre></td></tr><tr><td valign="top"><a href="#port-1">port/1</a></td><td>Get port number of 'undefined'.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw value (in plain erlang types) of the uri.</td></tr><tr><td valign="top"><a href="#raw_headers-1">raw_headers/1</a></td><td></td></tr><tr><td valign="top"><a href="#raw_params-1">raw_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#rebuild_header_values-1">rebuild_header_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#scheme-1">scheme/1</a></td><td>Scheme of the URI.</td></tr><tr><td valign="top"><a href="#scheme_bin-1">scheme_bin/1</a></td><td>URI scheme in binary form.</td></tr><tr><td valign="top"><a href="#set_gen_param-3">set_gen_param/3</a></td><td>Set generic parameter of URI.</td></tr><tr><td valign="top"><a href="#set_host-2">set_host/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_loose_router-2">set_loose_router/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_maddr-2">set_maddr/2</a></td><td>Set maddr parameter value.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>(<em>Deprecated</em>.) Set parameter of the URI.</td></tr><tr><td valign="top"><a href="#set_port-2">set_port/2</a></td><td>Set port number.</td></tr><tr><td valign="top"><a href="#set_raw_headers-2">set_raw_headers/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_transport-2">set_transport/2</a></td><td>Set transport to URI.</td></tr><tr><td valign="top"><a href="#set_ttl-2">set_ttl/2</a></td><td>Set ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#set_user-2">set_user/2</a></td><td>Set user part of SIP URI.</td></tr><tr><td valign="top"><a href="#set_user_param-2">set_user_param/2</a></td><td>Set user parameter of URI.</td></tr><tr><td valign="top"><a href="#transport-1">transport/1</a></td><td>Get transport from URI.</td></tr><tr><td valign="top"><a href="#ttl-1">ttl/1</a></td><td>Get ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#user-1">user/1</a></td><td>Get user part of SIP URI.</td></tr><tr><td valign="top"><a href="#user_param-1">user_param/1</a></td><td>Get user parameter of URI (Ex: ;user=ip or ;user=phone).</td></tr></table>
 
 
 <a name="functions"></a>
@@ -189,6 +249,30 @@ assemble_bin(Uri::<a href="#type-uri">uri()</a>) -&gt; binary()
 
 `assemble_scheme(X1) -> any()`
 
+<a name="clear_gen_param-2"></a>
+
+### clear_gen_param/2 ###
+
+<pre><code>
+clear_gen_param(Name::binary(), Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Clear generic parameter of URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="clear_maddr-1"></a>
+
+### clear_maddr/1 ###
+
+<pre><code>
+clear_maddr(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Remove maddr parameter from URI.
+Raises error if URI is not SIP(S) URI.
+
 <a name="clear_not_allowed_parts-2"></a>
 
 ### clear_not_allowed_parts/2 ###
@@ -217,6 +301,33 @@ clear_transport(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">ur
 </code></pre>
 <br />
 
+Remove transport parameter from URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="clear_ttl-1"></a>
+
+### clear_ttl/1 ###
+
+<pre><code>
+clear_ttl(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Clear TTL parameter from URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="clear_user_param-1"></a>
+
+### clear_user_param/1 ###
+
+<pre><code>
+clear_user_param(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Clear user parameter from URI.
+Raises error if URI is not SIP(S) URI.
+
 <a name="data-1"></a>
 
 ### data/1 ###
@@ -234,6 +345,26 @@ Example:
      <<"a@b">> = ersip_uri:data(ersip_uri:make(<<"sip:a@b">>)).
 ```
 
+<a name="gen_param-2"></a>
+
+### gen_param/2 ###
+
+<pre><code>
+gen_param(Name::binary(), Uri::<a href="#type-uri">uri()</a>) -&gt; binary() | undefined
+</code></pre>
+<br />
+
+Get generic parameter of the URI.
+Raises error if URI is not SIP(S) URI.
+This function also can be used to get known parameters in generic form
+Example:
+
+```
+    <<"11">> = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;ttl=11">>)).
+    true = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;lr">>)).
+    undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
+```
+
 <a name="get-2"></a>
 
 ### get/2 ###
@@ -243,7 +374,7 @@ get(Part::<a href="#type-uri_part_name">uri_part_name()</a> | [<a href="#type-ur
 </code></pre>
 <br />
 
-Get URI part by identify. This function is depricated and will
+Get URI part by identify. This function is deprecated and will
 be removed eventually.
 
 <a name="host-1"></a>
@@ -289,14 +420,57 @@ is_sip(Uri::<a href="#type-uri">uri()</a>) -&gt; boolean()
 
 Returns true if URI is SIP or SIPS URI.
 
+<a name="loose_router-1"></a>
+
+### loose_router/1 ###
+
+<pre><code>
+loose_router(Uri::<a href="#type-uri">uri()</a>) -&gt; boolean()
+</code></pre>
+<br />
+
+Checks if URI has loose router parameter (lr).
+Raises error if URI is not SIP(S) URI.
+Example:
+
+```
+    true  = ersip_uri:loose_route(ersip_uri:make(<<"sip:host;lr">>)).
+    false = ersip_uri:loose_route(ersip_uri:make(<<"sip:host">>)).
+```
+
+<a name="maddr-1"></a>
+
+### maddr/1 ###
+
+<pre><code>
+maddr(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="ersip_host.md#type-host">ersip_host:host()</a> | undefined
+</code></pre>
+<br />
+
+Return maddr parameter value or undefined.
+Raises error if URI is not SIP(S) URI.
+
 <a name="make-1"></a>
 
 ### make/1 ###
 
 <pre><code>
-make(PartsOrBin::[<a href="#type-uri_part">uri_part()</a>] | binary()) -&gt; <a href="#type-uri">uri()</a>
+make(Bin::binary() | <a href="#type-raw">raw()</a> | [<a href="#type-uri_part">uri_part()</a>]) -&gt; <a href="#type-uri">uri()</a>
 </code></pre>
 <br />
+
+Create URI from binary, raw representation and deprecated from URI parts.
+Note that creation from URI parts are deprecated and will be
+removed in future releases.
+Raises error if URI cannot be constracted from this data (has invalid syntax).
+Examples:
+
+```
+    SIPURI = ersip_uri:make(<<"sip:a@b">>),
+    SIPURI = ersip_uri:make(#{scheme => <<"sip">>, data => <<"a@b">>}),
+    TelURI = ersip_uri:make(<<"tel:+16505550505">>),
+    TelURI = ersip_uri:make(#{scheme => <<"tel">>, data => <<"+16505550505">>}).
+```
 
 <a name="make_key-1"></a>
 
@@ -324,7 +498,7 @@ params(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri_params">uri_
 ### parse/1 ###
 
 <pre><code>
-parse(Binary::binary()) -&gt; {ok, <a href="#type-uri">uri()</a>} | {error, {einval, atom()}}
+parse(Binary::binary()) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
 <br />
 
@@ -415,6 +589,18 @@ scheme_bin(Uri::<a href="#type-uri">uri()</a>) -&gt; binary()
 
 URI scheme in binary form.
 
+<a name="set_gen_param-3"></a>
+
+### set_gen_param/3 ###
+
+<pre><code>
+set_gen_param(Name::binary(), Value::binary(), Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Set generic parameter of URI.
+Raises error if URI is not SIP(S) URI.
+
 <a name="set_host-2"></a>
 
 ### set_host/2 ###
@@ -423,6 +609,28 @@ URI scheme in binary form.
 set_host(H::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Uri::<a href="ersip_uri.md#type-uri">ersip_uri:uri()</a>) -&gt; <a href="ersip_uri.md#type-uri">ersip_uri:uri()</a>
 </code></pre>
 <br />
+
+<a name="set_loose_router-2"></a>
+
+### set_loose_router/2 ###
+
+<pre><code>
+set_loose_router(X1::boolean(), Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+<a name="set_maddr-2"></a>
+
+### set_maddr/2 ###
+
+<pre><code>
+set_maddr(Host::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Set maddr parameter value.
+Raises error if URI is not SIP(S) URI or if first parameter is not
+host.
 
 <a name="set_param-3"></a>
 
@@ -433,7 +641,11 @@ set_param(ParamName::<a href="#type-uri_param_name">uri_param_name()</a>, Value:
 </code></pre>
 <br />
 
-set paramter of the URI
+__This function is deprecated:__ 
+This function is deprecated. Please use set_gen_param for generic
+form and set_transport, set_ttl, set_... for known params.
+
+Set parameter of the URI
 
 <a name="set_port-2"></a>
 
@@ -456,6 +668,30 @@ set_raw_headers(Headers::[{binary(), binary()}], Uri::<a href="#type-uri">uri()<
 </code></pre>
 <br />
 
+<a name="set_transport-2"></a>
+
+### set_transport/2 ###
+
+<pre><code>
+set_transport(Transport::<a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Set transport to URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="set_ttl-2"></a>
+
+### set_ttl/2 ###
+
+<pre><code>
+set_ttl(TTL::<a href="#type-ttl_param">ttl_param()</a>, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Set ttl parameter of URI.
+Raises error if URI is not SIP(S) URI.
+
 <a name="set_user-2"></a>
 
 ### set_user/2 ###
@@ -466,6 +702,42 @@ set_user(NewUser::binary(), Uri::<a href="ersip_uri.md#type-uri">ersip_uri:uri()
 <br />
 
 Set user part of SIP URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="set_user_param-2"></a>
+
+### set_user_param/2 ###
+
+<pre><code>
+set_user_param(UserParam::<a href="#type-user_param">user_param()</a>, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
+</code></pre>
+<br />
+
+Set user parameter of URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="transport-1"></a>
+
+### transport/1 ###
+
+<pre><code>
+transport(Uri::<a href="ersip_uri.md#type-uri">ersip_uri:uri()</a>) -&gt; undefined | <a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>
+</code></pre>
+<br />
+
+Get transport from URI.
+Raises error if URI is not SIP(S) URI.
+
+<a name="ttl-1"></a>
+
+### ttl/1 ###
+
+<pre><code>
+ttl(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-ttl_param">ttl_param()</a> | undefined
+</code></pre>
+<br />
+
+Get ttl parameter of URI.
 Raises error if URI is not SIP(S) URI.
 
 <a name="user-1"></a>
@@ -487,4 +759,16 @@ Example:
      undefined = ersip_uri:user(ersip_uri:make(<<"sip:biloxi.com">>)).
      ersip_uri:user(ersip_uri:make(<<"tel:+16505550505">>)). % raises error
 ```
+
+<a name="user_param-1"></a>
+
+### user_param/1 ###
+
+<pre><code>
+user_param(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-user_param">user_param()</a> | undefined
+</code></pre>
+<br />
+
+Get user parameter of URI (Ex: ;user=ip or ;user=phone).
+Raises error if URI is not SIP(S) URI.
 

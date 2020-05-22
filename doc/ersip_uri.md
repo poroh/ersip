@@ -76,7 +76,7 @@ raw() = #{scheme =&gt; binary(), data =&gt; binary(), sip =&gt; <a href="#type-s
 
 
 <pre><code>
-scheme() = <a href="#type-uri_scheme">uri_scheme()</a>
+scheme() = {scheme, sip | sips | binary()}
 </code></pre>
 
 
@@ -126,7 +126,7 @@ ttl_param() = 0..255
 
 
 <pre><code>
-uri() = #uri{scheme = <a href="#type-uri_scheme">uri_scheme()</a>, data = <a href="#type-uri_data">uri_data()</a>}
+uri() = #uri{scheme = <a href="#type-scheme">scheme()</a>, data = <a href="#type-uri_data">uri_data()</a>}
 </code></pre>
 
 
@@ -192,16 +192,6 @@ uri_part_name() = scheme | user | host | port
 
 
 
-### <a name="type-uri_scheme">uri_scheme()</a> ###
-
-
-<pre><code>
-uri_scheme() = {scheme, sip | sips | binary()}
-</code></pre>
-
-
-
-
 ### <a name="type-user_param">user_param()</a> ###
 
 
@@ -214,11 +204,11 @@ user_param() = phone | ip | binary()
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_scheme-1">assemble_scheme/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_gen_param-2">clear_gen_param/2</a></td><td>Clear generic parameter of URI.</td></tr><tr><td valign="top"><a href="#clear_maddr-1">clear_maddr/1</a></td><td>Remove maddr parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_not_allowed_parts-2">clear_not_allowed_parts/2</a></td><td></td></tr><tr><td valign="top"><a href="#clear_params-1">clear_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_transport-1">clear_transport/1</a></td><td>Remove transport parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_ttl-1">clear_ttl/1</a></td><td>Clear TTL parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_user_param-1">clear_user_param/1</a></td><td>Clear user parameter from URI.</td></tr><tr><td valign="top"><a href="#data-1">data/1</a></td><td>Get data of the URI (everything after scheme).</td></tr><tr><td valign="top"><a href="#gen_param-2">gen_param/2</a></td><td>Get generic parameter of the URI.</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get URI part by identify.</td></tr><tr><td valign="top"><a href="#host-1">host/1</a></td><td>Get host part of SIP URI.</td></tr><tr><td valign="top"><a href="#host_bin-1">host_bin/1</a></td><td>Get host part of SIP URI in binary representation.</td></tr><tr><td valign="top"><a href="#is_sip-1">is_sip/1</a></td><td>Returns true if URI is SIP or SIPS URI.</td></tr><tr><td valign="top"><a href="#loose_router-1">loose_router/1</a></td><td>Checks if URI has loose router parameter (lr).</td></tr><tr><td valign="top"><a href="#maddr-1">maddr/1</a></td><td>Return maddr parameter value or undefined.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create URI from binary, raw representation and deprecated from URI parts.</td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make URI comparable with =:= erlang operator.</td></tr><tr><td valign="top"><a href="#params-1">params/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse URI from the binary
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Assemble URI to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Assemble URI to binary.</td></tr><tr><td valign="top"><a href="#assemble_scheme-1">assemble_scheme/1</a></td><td></td></tr><tr><td valign="top"><a href="#clear_gen_param-2">clear_gen_param/2</a></td><td>Clear generic parameter of URI.</td></tr><tr><td valign="top"><a href="#clear_maddr-1">clear_maddr/1</a></td><td>Remove maddr parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_not_allowed_parts-2">clear_not_allowed_parts/2</a></td><td>Clear not allowed par of the URI in context.</td></tr><tr><td valign="top"><a href="#clear_params-1">clear_params/1</a></td><td>Clear all URI parameters.</td></tr><tr><td valign="top"><a href="#clear_transport-1">clear_transport/1</a></td><td>Remove transport parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_ttl-1">clear_ttl/1</a></td><td>Clear TTL parameter from URI.</td></tr><tr><td valign="top"><a href="#clear_user_param-1">clear_user_param/1</a></td><td>Clear user parameter from URI.</td></tr><tr><td valign="top"><a href="#data-1">data/1</a></td><td>Get data of the URI (everything after scheme).</td></tr><tr><td valign="top"><a href="#gen_param-2">gen_param/2</a></td><td>Get generic parameter of the URI.</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get URI part by identify.</td></tr><tr><td valign="top"><a href="#host-1">host/1</a></td><td>Get host part of SIP URI.</td></tr><tr><td valign="top"><a href="#host_bin-1">host_bin/1</a></td><td>Get host part of SIP URI in binary representation.</td></tr><tr><td valign="top"><a href="#is_sip-1">is_sip/1</a></td><td>Returns true if URI is SIP or SIPS URI.</td></tr><tr><td valign="top"><a href="#loose_router-1">loose_router/1</a></td><td>Checks if URI has loose router parameter (lr).</td></tr><tr><td valign="top"><a href="#maddr-1">maddr/1</a></td><td>Return maddr parameter value or undefined.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create URI from binary, raw representation and deprecated from URI parts.</td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make URI comparable with =:= erlang operator.</td></tr><tr><td valign="top"><a href="#params-1">params/1</a></td><td>Get URI params.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse URI from the binary
 <pre>  SIP-URI          =  "sip:" [userinfo] hostport
                       uri-parameters [headers]
   SIPS-URI         =  "sips:" [userinfo] hostport
-                      uri-parameters [headers]</pre></td></tr><tr><td valign="top"><a href="#port-1">port/1</a></td><td>Get port number of 'undefined'.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw value (in plain erlang types) of the uri.</td></tr><tr><td valign="top"><a href="#raw_headers-1">raw_headers/1</a></td><td></td></tr><tr><td valign="top"><a href="#raw_params-1">raw_params/1</a></td><td></td></tr><tr><td valign="top"><a href="#rebuild_header_values-1">rebuild_header_values/1</a></td><td></td></tr><tr><td valign="top"><a href="#scheme-1">scheme/1</a></td><td>Scheme of the URI.</td></tr><tr><td valign="top"><a href="#scheme_bin-1">scheme_bin/1</a></td><td>URI scheme in binary form.</td></tr><tr><td valign="top"><a href="#set_gen_param-3">set_gen_param/3</a></td><td>Set generic parameter of URI.</td></tr><tr><td valign="top"><a href="#set_host-2">set_host/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_loose_router-2">set_loose_router/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_maddr-2">set_maddr/2</a></td><td>Set maddr parameter value.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>(<em>Deprecated</em>.) Set parameter of the URI.</td></tr><tr><td valign="top"><a href="#set_port-2">set_port/2</a></td><td>Set port number.</td></tr><tr><td valign="top"><a href="#set_raw_headers-2">set_raw_headers/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_transport-2">set_transport/2</a></td><td>Set transport to URI.</td></tr><tr><td valign="top"><a href="#set_ttl-2">set_ttl/2</a></td><td>Set ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#set_user-2">set_user/2</a></td><td>Set user part of SIP URI.</td></tr><tr><td valign="top"><a href="#set_user_param-2">set_user_param/2</a></td><td>Set user parameter of URI.</td></tr><tr><td valign="top"><a href="#transport-1">transport/1</a></td><td>Get transport from URI.</td></tr><tr><td valign="top"><a href="#ttl-1">ttl/1</a></td><td>Get ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#user-1">user/1</a></td><td>Get user part of SIP URI.</td></tr><tr><td valign="top"><a href="#user_param-1">user_param/1</a></td><td>Get user parameter of URI (Ex: ;user=ip or ;user=phone).</td></tr></table>
+                      uri-parameters [headers]</pre></td></tr><tr><td valign="top"><a href="#port-1">port/1</a></td><td>Get port number of 'undefined'.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw value (in plain erlang types) of the uri.</td></tr><tr><td valign="top"><a href="#raw_headers-1">raw_headers/1</a></td><td>Get raw URI headers as list.</td></tr><tr><td valign="top"><a href="#raw_params-1">raw_params/1</a></td><td>Get raw URI params as list.</td></tr><tr><td valign="top"><a href="#rebuild_header_values-1">rebuild_header_values/1</a></td><td>Unquote and quote again headers.</td></tr><tr><td valign="top"><a href="#scheme-1">scheme/1</a></td><td>Scheme of the URI.</td></tr><tr><td valign="top"><a href="#scheme_bin-1">scheme_bin/1</a></td><td>URI scheme in binary form.</td></tr><tr><td valign="top"><a href="#set_gen_param-3">set_gen_param/3</a></td><td>Set generic parameter of URI.</td></tr><tr><td valign="top"><a href="#set_host-2">set_host/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_loose_router-2">set_loose_router/2</a></td><td></td></tr><tr><td valign="top"><a href="#set_maddr-2">set_maddr/2</a></td><td>Set maddr parameter value.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>(<em>Deprecated</em>.) Set parameter of the URI.</td></tr><tr><td valign="top"><a href="#set_port-2">set_port/2</a></td><td>Set port number.</td></tr><tr><td valign="top"><a href="#set_raw_headers-2">set_raw_headers/2</a></td><td>Set raw URI headers from list.</td></tr><tr><td valign="top"><a href="#set_transport-2">set_transport/2</a></td><td>Set transport to URI.</td></tr><tr><td valign="top"><a href="#set_ttl-2">set_ttl/2</a></td><td>Set ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#set_user-2">set_user/2</a></td><td>Set user part of SIP URI.</td></tr><tr><td valign="top"><a href="#set_user_param-2">set_user_param/2</a></td><td>Set user parameter of URI.</td></tr><tr><td valign="top"><a href="#transport-1">transport/1</a></td><td>Get transport from URI.</td></tr><tr><td valign="top"><a href="#ttl-1">ttl/1</a></td><td>Get ttl parameter of URI.</td></tr><tr><td valign="top"><a href="#user-1">user/1</a></td><td>Get user part of SIP URI.</td></tr><tr><td valign="top"><a href="#user_param-1">user_param/1</a></td><td>Get user parameter of URI (Ex: ;user=ip or ;user=phone).</td></tr></table>
 
 
 <a name="functions"></a>
@@ -234,6 +224,8 @@ assemble(Uri::<a href="#type-uri">uri()</a>) -&gt; iolist()
 </code></pre>
 <br />
 
+Assemble URI to iolist.
+
 <a name="assemble_bin-1"></a>
 
 ### assemble_bin/1 ###
@@ -242,6 +234,8 @@ assemble(Uri::<a href="#type-uri">uri()</a>) -&gt; iolist()
 assemble_bin(Uri::<a href="#type-uri">uri()</a>) -&gt; binary()
 </code></pre>
 <br />
+
+Assemble URI to binary.
 
 <a name="assemble_scheme-1"></a>
 
@@ -283,6 +277,26 @@ clear_not_allowed_parts(Type, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href=
 
 <ul class="definitions"><li><code>Type = ruri | record_route</code></li></ul>
 
+Clear not allowed par of the URI in context.
+
+```
+                                                        dialog
+                                            reg./redir. Contact/
+                default  Req.-URI  To  From  Contact   R-R/Route  external
+  user          --          o      o    o       o          o         o
+  password      --          o      o    o       o          o         o
+  host          --          m      m    m       m          m         m
+  port          (1)         o      -    -       o          o         o
+  user-param    ip          o      o    o       o          o         o
+  method        INVITE      -      -    -       -          -         o
+  maddr-param   --          o      -    -       o          o         o
+  ttl-param     1           o      -    -       o          -         o
+  transp.-param (2)         o      -    -       o          o         o
+  lr-param      --          o      -    -       -          o         o
+  other-param   --          o      o    o       o          o         o
+  headers       --          -      -    -       o          -         o
+```
+
 <a name="clear_params-1"></a>
 
 ### clear_params/1 ###
@@ -291,6 +305,8 @@ clear_not_allowed_parts(Type, Uri::<a href="#type-uri">uri()</a>) -&gt; <a href=
 clear_params(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
 </code></pre>
 <br />
+
+Clear all URI parameters.
 
 <a name="clear_transport-1"></a>
 
@@ -361,7 +377,7 @@ Example:
 
 ```
     <<"11">> = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;ttl=11">>)).
-    true = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;lr">>)).
+    true = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b;lr">>)).
     undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
 ```
 
@@ -493,6 +509,8 @@ params(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri_params">uri_
 </code></pre>
 <br />
 
+Get URI params.
+
 <a name="parse-1"></a>
 
 ### parse/1 ###
@@ -549,6 +567,8 @@ raw_headers(Uri::<a href="#type-uri">uri()</a>) -&gt; [{binary(), binary()}]
 </code></pre>
 <br />
 
+Get raw URI headers as list.
+
 <a name="raw_params-1"></a>
 
 ### raw_params/1 ###
@@ -558,6 +578,8 @@ raw_params(Uri::<a href="#type-uri">uri()</a>) -&gt; [{binary(), binary()} | bin
 </code></pre>
 <br />
 
+Get raw URI params as list.
+
 <a name="rebuild_header_values-1"></a>
 
 ### rebuild_header_values/1 ###
@@ -566,6 +588,8 @@ raw_params(Uri::<a href="#type-uri">uri()</a>) -&gt; [{binary(), binary()} | bin
 rebuild_header_values(Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
 </code></pre>
 <br />
+
+Unquote and quote again headers.
 
 <a name="scheme-1"></a>
 
@@ -667,6 +691,8 @@ Raises error if URI is not SIP(S) URI.
 set_raw_headers(Headers::[{binary(), binary()}], Uri::<a href="#type-uri">uri()</a>) -&gt; <a href="#type-uri">uri()</a>
 </code></pre>
 <br />
+
+Set raw URI headers from list.
 
 <a name="set_transport-2"></a>
 

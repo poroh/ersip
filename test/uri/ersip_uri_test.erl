@@ -51,6 +51,7 @@ parse_fail_test() ->
     ?assertMatch({error, {invalid_sip_uri, {invalid_port, _}}}, ersip_uri:parse(<<"sip:[::1]x">>)),
 
     ?assertMatch({error, {invalid_sip_uri, {invalid_port, _}}}, ersip_uri:parse(<<"sips:[::1]x">>)),
+    ?assertMatch({error, {invalid_sip_uri, {invalid_parameter, _}}}, ersip_uri:parse(<<"sips:[::1];=b">>)),
     ok.
 
 permissive_parsing_test() ->
@@ -263,6 +264,8 @@ gen_param_test() ->
     ?assertEqual(<<"atlanta.com">>, ersip_uri:gen_param(<<"maddr">>, ersip_uri:make(<<"sip:b;maddr=atlanta.com">>))),
     ?assertEqual(undefined,         ersip_uri:gen_param(<<"maddr">>, ersip_uri:make(<<"sip:b">>))),
 
+    ?assertEqual(true, ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b;lr">>))),
+
     ?assertEqual(<<"1">>,   ersip_uri:gen_param(<<"Some">>,    ersip_uri:make(<<"sip:b;Some=1">>))),
     ?assertEqual(<<"2">>,   ersip_uri:gen_param(<<"Another">>, ersip_uri:make(<<"sip:b;Some=1;Another=2">>))),
     ?assertEqual(undefined, ersip_uri:gen_param(<<"Another">>, ersip_uri:make(<<"sip:b;Some=1">>))),
@@ -339,6 +342,11 @@ raw_headers_test() ->
                                   {<<"c">>, <<"d">>},
                                   {<<"e">>, <<"f">>}]),
     ?assertEqual(ExpectedHeaders, RawHeaders),
+    ok.
+
+set_raw_headers_test() ->
+    ?assertEqual(ersip_uri:raw_headers(ersip_uri:make(<<"sip:a@b?H=V">>)),
+                 ersip_uri:raw_headers(ersip_uri:set_raw_headers([{<<"H">>, <<"V">>}], ersip_uri:make(<<"sip:a@b">>)))),
     ok.
 
 rebuild_headers_value_test() ->
@@ -484,6 +492,7 @@ uri_set_host_test() ->
     URI0 = ersip_uri:make(<<"sip:[FDFB:6E63:7442:92B6:CC1A:DBE6:D33B:DE78]">>),
     URI1 = ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>), URI0),
     ?assertEqual(<<"sip:biloxi.com">>, ersip_uri:assemble_bin(URI1)),
+    URI1 = ersip_uri:set_host(ersip_host:make(<<"biloxi.com">>), URI1),
     ok.
 
 host_bin_test() ->
@@ -600,9 +609,29 @@ make_from_raw_test() ->
     ?assertEqual(TelURI, ersip_uri:make(#{scheme => <<"tel">>, data => <<"+16505550505">>})),
     ok.
 
+clear_not_allowed_parts_test() ->
+    ?assertEqual(<<"sip:a@b">>, clear_not_allowed_parts(ruri, <<"sip:a@b?a=b">>)),
+    ?assertEqual(<<"sip:a@b">>, clear_not_allowed_parts(ruri, <<"sip:a@b;method=INFO">>)),
+    ?assertEqual(<<"tel:+16505550505">>, clear_not_allowed_parts(ruri, <<"tel:+16505550505">>)),
+
+    ?assertEqual(<<"sip:a@b">>, clear_not_allowed_parts(record_route, <<"sip:a@b?a=b">>)),
+    ?assertEqual(<<"sip:a@b">>, clear_not_allowed_parts(record_route, <<"sip:a@b;method=INFO">>)),
+    ?assertEqual(<<"sip:a@b">>, clear_not_allowed_parts(record_route, <<"sip:a@b;ttl=10">>)),
+    ?assertEqual(<<"tel:+16505550505">>, clear_not_allowed_parts(record_route, <<"tel:+16505550505">>)),
+    ok.
+
+clear_params_test() ->
+    ?assertEqual(<<"sip:a@b">>, clear_params(<<"sip:a@b;a=b">>)),
+    ?assertEqual(<<"sip:a@b">>, clear_params(<<"sip:a@b;a=b;c=d">>)),
+    ?assertEqual(<<"sip:a@b">>, clear_params(<<"sip:a@b;ttl=1">>)),
+    ?assertEqual(<<"tel:+16505550505">>, clear_params(<<"tel:+16505550505">>)),
+    ok.
+
+
 %%===================================================================
 %% Helpers
 %%===================================================================
+
 make_key(Bin) ->
     {ok, URI} = ersip_uri:parse(Bin),
     ersip_uri:make_key(URI).
@@ -632,3 +661,12 @@ check_transport(URIBin, Transport) ->
 
 check_other_transport(URIBin, Transport) ->
     ?assertMatch({other_transport, Transport}, ersip_uri:transport(ersip_uri:make(URIBin))).
+
+clear_not_allowed_parts(Type, UriBIN) ->
+    ersip_uri:assemble_bin(ersip_uri:clear_not_allowed_parts(Type, ersip_uri:make(UriBIN))).
+
+clear_params(UriBIN) ->
+    ersip_uri:assemble_bin(ersip_uri:clear_params(ersip_uri:make(UriBIN))).
+
+
+

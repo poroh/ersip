@@ -389,7 +389,7 @@ clear_ttl(#uri{} = URI) ->
 %% Example:
 %% ```
 %%   <<"11">> = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;ttl=11">>)).
-%%   true = ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"sip:b;lr">>)).
+%%   true = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b;lr">>)).
 %%   undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
 %% '''
 -spec gen_param(binary(), uri()) -> binary() | undefined.
@@ -398,8 +398,10 @@ gen_param(Name, #uri{data = #sip_uri_data{params = P}}) when is_binary(Name) ->
         {ok, KnownParam} ->
             case P of
                 #{KnownParam := V} ->
-                    {_, BinV} = raw_param({KnownParam, V}),
-                    BinV;
+                    case raw_param({KnownParam, V}) of
+                        {_, BinV} -> BinV;
+                        _ -> true
+                    end;
                 _ -> undefined
             end;
         error ->
@@ -441,7 +443,6 @@ clear_gen_param(Name, #uri{data = #sip_uri_data{params = P} = D} = U) when is_bi
     end;
 clear_gen_param(Name, #uri{} = URI) when is_binary(Name) ->
     error({sip_uri_expected, URI}).
-
 
 %% @doc Set parameter of the URI
 %% @deprecated
@@ -520,12 +521,14 @@ parse(Binary) ->
             parse_uri(ersip_bin:to_lower(S), S, R)
     end.
 
+%% @doc Assemble URI to iolist.
 -spec assemble(uri()) -> iolist().
 assemble(#uri{scheme = Scheme, data = Data}) ->
     [assemble_scheme(Scheme), $:,
      assemble_data(Data)
     ].
 
+%% @doc Assemble URI to binary.
 -spec assemble_bin(uri()) -> binary().
 assemble_bin(#uri{} = U) ->
     iolist_to_binary(assemble(U)).
@@ -537,30 +540,37 @@ is_sip(#uri{data = #sip_uri_data{}}) ->
 is_sip(#uri{}) ->
     false.
 
+%% @doc Get URI params.
+%% @deprecated
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
     Params.
 
+%% @doc Get raw URI params as list.
 -spec raw_params(uri()) -> [{binary(), binary()} | binary()].
 raw_params(#uri{data = #sip_uri_data{params = Params}}) ->
     lists:map(fun raw_param/1, maps:to_list(Params)).
 
+%% @doc Get raw URI headers as list.
 -spec raw_headers(uri()) -> [{binary(), binary()}].
 raw_headers(#uri{data = #sip_uri_data{headers = Headers}}) ->
     maps:to_list(Headers).
 
+%% @doc Set raw URI headers from list.
 -spec set_raw_headers([{binary(), binary()}], uri()) -> uri().
 set_raw_headers(Headers, #uri{data = #sip_uri_data{} = Data} = URI) ->
     HMap = maps:from_list(Headers),
     URI#uri{data = Data#sip_uri_data{headers = HMap}}.
 
+%% @doc Clear all URI parameters.
 -spec clear_params(uri()) -> uri().
 clear_params(#uri{data = #sip_uri_data{} = SIPData} = URI) ->
     URI#uri{data = SIPData#sip_uri_data{params = #{}}};
 clear_params(#uri{} = URI) ->
     URI.
 
-%% @doc set paramter of the URI
+%% @doc Set part of the URI
+%% @deprecated
 -spec set_part(uri_part(), uri()) -> uri().
 set_part({scheme, _} = Scheme, #uri{} = URI) ->
     URI#uri{scheme = Scheme};
@@ -578,6 +588,8 @@ set_part({host, H}, #uri{data = #sip_uri_data{} = SIPData} = URI) ->
 set_part(Part, _) ->
     error({invalid_part, Part}).
 
+%% @doc Get part of the URI
+%% @deprecated
 -spec get_part(uri_part_name(), uri()) -> uri_part().
 get_part(scheme, #uri{scheme = Scheme}) ->
     Scheme;
@@ -588,6 +600,8 @@ get_part(port, #uri{data = #sip_uri_data{port = Port}}) ->
 get_part(host, #uri{data = #sip_uri_data{host = Host}}) ->
     {host, Host}.
 
+%% @doc Clear not allowed par of the URI in context.
+%% ```
 %%                                                       dialog
 %%                                           reg./redir. Contact/
 %%               default  Req.-URI  To  From  Contact   R-R/Route  external
@@ -603,12 +617,13 @@ get_part(host, #uri{data = #sip_uri_data{host = Host}}) ->
 %% lr-param      --          o      -    -       -          o         o
 %% other-param   --          o      o    o       o          o         o
 %% headers       --          -      -    -       o          -         o
+%% '''
 -spec clear_not_allowed_parts(Type, uri()) -> uri() when
       Type :: ruri
             | record_route.
 clear_not_allowed_parts(ruri, #uri{data = #sip_uri_data{params = P} = SIPData} = URI) ->
     URI#uri{data = SIPData#sip_uri_data{
-                     params = maps:without([method], P),
+                     params = maps:without([<<"method">>], P),
                      headers = #{}
                     }
            };
@@ -617,14 +632,14 @@ clear_not_allowed_parts(ruri, URI) ->
     URI;
 clear_not_allowed_parts(record_route, #uri{data = #sip_uri_data{params = P} = SIPData} = URI) ->
     URI#uri{data = SIPData#sip_uri_data{
-                     params = maps:without([method, ttl], P),
+                     params = maps:without([<<"method">>, ttl], P),
                      headers = #{}
                     }};
 clear_not_allowed_parts(record_route, URI) ->
     %% For schemes other than sip/sips we do not clear anything
     URI.
 
-%% Unquote and quote again headers
+%% @doc Unquote and quote again headers.
 -spec rebuild_header_values(uri()) -> uri().
 rebuild_header_values(#uri{data = #sip_uri_data{headers = H} = D} = URI) ->
     NewH = maps:map(fun(_, V) -> rebuild_header_value(V) end, H),

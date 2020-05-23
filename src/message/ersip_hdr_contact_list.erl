@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Contact headers
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Contact headers
+%%%
 
 -module(ersip_hdr_contact_list).
 
@@ -18,9 +18,9 @@
 
 -include("ersip_headers.hrl").
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type star_contact() :: star.
 -type contact_list() :: star_contact()
@@ -32,10 +32,11 @@
 -type maybe_rev_contact_list() :: {ok, contact_list()}
                                 | {error, term()}.
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
+%% @doc Make contact list from binary.
 -spec make(iolist() | binary()) -> contact_list().
 make(Binary) ->
     H0 = ersip_hdr:new(?ERSIPH_CONTACT),
@@ -47,10 +48,12 @@ make(Binary) ->
             error(Reason)
     end.
 
+%% @doc Make star contact (for REGISTER requests).
 -spec make_star() -> star_contact().
 make_star() ->
     star.
 
+%% @doc Build raw SIP header.
 -spec build(HeaderName :: binary(), contact_list()) -> ersip_hdr:header().
 build(HdrName, star) ->
     Hdr = ersip_hdr:new(HdrName),
@@ -64,9 +67,12 @@ build(HdrName, ContactList) when is_list(ContactList) ->
       Hdr,
       ContactList).
 
-
+%% @doc Parse contact list from raw SIP header.
+%%
+%% ```
 %% Contact        =  ("Contact" / "m" ) HCOLON
 %%                   ( STAR / (contact-param *(COMMA contact-param)))
+%% '''
 -spec parse(ersip_hdr:header()) -> parse_result().
 parse(Header) ->
     MaybeRevContactList =
@@ -84,10 +90,11 @@ parse(Header) ->
             Error
     end.
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
+%% @private
 -spec add_to_maybe_contact_list(binary(), maybe_rev_contact_list()) -> maybe_rev_contact_list().
 add_to_maybe_contact_list(_, {error, _} = Error) ->
     Error;

@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Name and address (Used in From/To/Contact etc. fields)
-%%
+%%%
+%%% Copyright (c) 2017, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Name and address (Used in From/To/Contact etc. fields)
+%%%
 
 -module(ersip_nameaddr).
 
@@ -18,15 +18,15 @@
 
 -include("ersip_sip_abnf.hrl").
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
--type display_name() :: {display_name, binary() | [binary()]}.
+-type display_name() :: ersip_display_name:display_name().
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 %% [display-name] LAQUOT addr-spec RAQUOT
 %% display-name   =  *(token LWS)/ quoted-string
@@ -37,9 +37,8 @@ parse(NameAddrBin) ->
 -spec parse(binary(), [binary()]) ->  ersip_parser_aux:parse_result({display_name(), ersip_uri:uri()}).
 parse(NameAddrBin, AddrSpecSeps) ->
     NA = ersip_bin:trim_head_lws(NameAddrBin),
+    EmptyDN = ersip_display_name:empty(),
     case parse_display_name(NA) of
-        {_, <<>>} ->
-            {error, {invalid_nameaddr, no_uri}};
         {DisplayName, <<"<", R/binary>>} ->
             case binary:match(R, <<">">>) of
                 {Pos, 1} ->
@@ -53,85 +52,74 @@ parse(NameAddrBin, AddrSpecSeps) ->
                 _ ->
                     {error, {invalid_nameaddr, {noraquot, NameAddrBin}}}
             end;
-        {{display_name, []} = DN, <<R/binary>>} ->
+        {EmptyDN, <<R/binary>>} ->
             case binary:match(R, AddrSpecSeps) of
                 {Pos, 1} ->
                     <<Addr:Pos/binary, Rest/binary>> = R,
                     case ersip_uri:parse(ersip_bin:trim_lws(Addr)) of
                         {ok, URI} ->
-                            {ok, {DN, URI}, Rest};
+                            {ok, {EmptyDN, URI}, Rest};
                         {error, URIErr} ->
                             {error, {invalid_nameaddr, {uri_error, URIErr}}}
                     end;
                 _ ->
                     case ersip_uri:parse(R) of
                         {ok, URI} ->
-                            {ok, {DN, URI}, <<>>};
+                            {ok, {EmptyDN, URI}, <<>>};
                         {error, URIErr} ->
                             {error, {invalid_nameaddr, {uri_error, URIErr}}}
                     end
             end;
-        {_, _} ->
-            {error, {invalid_nameaddr, {expect_laqout, NameAddrBin}}};
         error ->
-            {error, {invalid_nameaddr, {bad_display_name, NameAddrBin}}}
+            {error, {invalid_nameaddr, NameAddrBin}}
     end.
 
 -spec assemble(display_name(), ersip_uri:uri()) -> iolist().
 assemble(DisplayName, URI) ->
-    DN = assemble_display_name(DisplayName),
+    DN = ersip_display_name:assemble(DisplayName),
     [DN,
      case ersip_iolist:is_empty(DN) of
-         true ->
-             <<"">>;
-         false ->
-             <<" ">>
+         true  -> <<"">>;
+         false -> <<" ">>
      end,
      $<, ersip_uri:assemble(URI), $>
     ].
 
+%% @deprecated
+%% @doc Assemble disloay name to iolist
+%%
+%% Please use ersip_display_name:assemble/1.
 -spec assemble_display_name(display_name()) -> iolist().
-assemble_display_name({display_name, L}) when is_list(L) ->
-    ersip_iolist:join(<<" ">>, L);
-assemble_display_name({display_name, V}) when is_binary(V) ->
-    V.
+assemble_display_name(DN) ->
+    ersip_display_name:assemble(DN).
 
+%% @deprecated
+%% @doc Assemble disloay name to iolist
+%%
+%% Please use ersip_display_name:assemble_bin/1.
 -spec assemble_display_name_bin(display_name()) -> binary().
-assemble_display_name_bin({display_name, _} = DN) ->
-    iolist_to_binary(assemble_display_name(DN)).
+assemble_display_name_bin(DN) ->
+    ersip_display_name:assemble_bin(DN).
 
-
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 %% display-name   =  *(token LWS)/ quoted-string
 -spec parse_display_name(binary()) -> Result when
       Result :: {display_name(), Rest :: binary()}
               | error.
-parse_display_name(<<>>) ->
-    error;
-parse_display_name(<<$", _/binary>> = Quoted) ->
-    case ersip_parser_aux:quoted_string(Quoted) of
-        {ok, Q, Rest} ->
-            {{display_name, Q}, ersip_bin:trim_head_lws(Rest)};
-        error ->
-            error
-    end;
-parse_display_name(<<Char/utf8, _/binary>> = TL) when ?is_token_char(Char) ->
-    case ersip_parser_aux:token_list(TL, lws) of
-        {ok,  Tokens, Rest} ->
-            case Rest of
-                <<"<", _/binary>> ->
-                    {{display_name,  Tokens}, Rest};
-                _ ->
-                    {{display_name, []}, TL}
+parse_display_name(<<Char/utf8, _/binary>> = DNBin) when ?is_token_char(Char); Char == $" ->
+    case ersip_display_name:parse_dn(DNBin) of
+        {ok, DN, Rest} ->
+            case ersip_bin:trim_head_lws(Rest) of
+                <<"<", _/binary>> = Addr -> {DN, Addr};
+                _ -> {ersip_display_name:empty(), DNBin}
             end;
-        error ->
-            {{display_name, []}, TL}
+        {error, _} -> error
     end;
 parse_display_name(<<"<", _/binary>> = Addr) ->
-    {{display_name, []}, Addr};
+    {ersip_display_name:empty(), Addr};
 parse_display_name(_) ->
     error.
 

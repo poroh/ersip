@@ -95,3 +95,15 @@ nameaddr_assemble_display_name_test() ->
     ?assertEqual(<<"Bob Smith">>, ersip_nameaddr:assemble_display_name_bin(DNBob)),
     ?assertEqual(<<"\"A. G. Bell\"">>, ersip_nameaddr:assemble_display_name_bin(DNBell)),
     ok.
+
+
+assemble_display_name_test() ->
+    [ ?assertEqual(ersip_nameaddr:assemble_display_name(DN), ersip_display_name:assemble(DN))
+      || DN <- [ersip_display_name:make(<<"Alice">>),
+                ersip_display_name:make(<<"\"Bob\"">>),
+                ersip_display_name:make(<<"Theodore \"Teddy\" Roosevelt">>)]],
+    [ ?assertEqual(ersip_nameaddr:assemble_display_name_bin(DN), ersip_display_name:assemble_bin(DN))
+      || DN <- [ersip_display_name:make(<<"Alice">>),
+                ersip_display_name:make(<<"\"Bob\"">>),
+                ersip_display_name:make(<<"Theodore \"Teddy\" Roosevelt">>)]],
+    ok.

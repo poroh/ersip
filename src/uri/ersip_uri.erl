@@ -1201,12 +1201,17 @@ escape_header_byte(V) ->
 
 -spec enrich_raw(raw(), uri()) -> raw().
 enrich_raw(Base, #uri{data = #sip_uri_data{}} = URI) ->
+    RawList =
+      [case P of
+           {K, V} -> {ersip_bin:to_lower(K), V};
+           K -> {ersip_bin:to_lower(K), <<>>}
+       end || P <- raw_params(URI)],
     Parts = [{user, user(URI)},
              {host, ersip_host:raw(host(URI))},
              {port, port(URI)},
-             {params, raw_params(URI)},
+             {params, maps:from_list(RawList)},
              {headers, raw_headers(URI)}],
-    NonEmpty = [{K, V} || {K, V} <- Parts, V /= undefined andalso V /= []],
+    NonEmpty = [{K, V} || {K, V} <- Parts, V /= undefined andalso V /= [] andalso V /= #{}],
     Base#{sip => maps:from_list(NonEmpty)};
 enrich_raw(Base, #uri{}) ->
     Base.

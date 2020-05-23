@@ -11,8 +11,10 @@
 -export([new/1,
          uri/1,
          display_name/1,
+         expires/1,
          expires/2,
          set_expires/2,
+         qvalue/1,
          qvalue/2,
          set_qvalue/2,
          param/2,
@@ -22,16 +24,18 @@
          parse/1,
          parse_hdr/1,
          assemble/1,
-         assemble_bin/1
+         assemble_bin/1,
+         raw/1
         ]).
 -export_type([contact/0,
+              raw/0,
               contact_param/0]).
 
 %%===================================================================
 %% Types
 %%===================================================================
 
--record(contact, {display_name  :: undefined | ersip_nameaddr:display_name(),
+-record(contact, {display_name  = ersip_display_name:empty() :: ersip_display_name:display_name(),
                   uri           :: ersip_uri:uri(),
                   hparams       :: ersip_hparams:hparams()
                  }).
@@ -44,7 +48,12 @@
 
 -type parse_result() :: {ok, contact()} | {error, parse_error()}.
 -type parse_error() ::  {invalid_contact, term()}.
--type known_param() :: q | expires.
+
+-type raw() :: #{uri          := ersip_uri:raw(),
+                 params       := ersip_hparams:raw(),
+                 display_name := ersip_display_name:raw(),
+                 expires      => expires(),
+                 q            => ersip_qvalue:raw()}.
 
 %%===================================================================
 %% API
@@ -64,16 +73,25 @@ uri(#contact{uri = URI}) ->
     URI.
 
 %% @doc Get display name from Contact header.
--spec display_name(contact()) -> undefined | ersip_nameaddr:display_name().
+-spec display_name(contact()) -> ersip_nameaddr:display_name().
 display_name(#contact{display_name = DN}) ->
     DN.
 
-%% @doc Get expires parameter value.
-%% If no expires parameter is in the header then Default is returned.
--spec expires(contact(), Default :: expires()) -> expires().
+%% @doc Get expires parameter value. If no expires parameter is
+%% defined than undefined is retutned
+-spec expires(contact(), Default :: expires()) -> expires() | undefined.
 expires(#contact{hparams = HParams}, Default) ->
     case ersip_hparams:find(expires, HParams) of
         not_found -> Default;
+        {ok, V} -> V
+    end.
+
+%% @doc Get expires parameter value.
+%% If no expires parameter is in the header then Default is returned.
+-spec expires(contact()) -> expires() | undefined.
+expires(#contact{hparams = HParams}) ->
+    case ersip_hparams:find(expires, HParams) of
+        not_found -> undefined;
         {ok, V} -> V
     end.
 
@@ -84,6 +102,15 @@ set_expires({expires, ExpiresVal}, #contact{} = Contact) when is_integer(Expires
 set_expires(ExpiresVal, #contact{hparams = HParams} = Contact) when is_integer(ExpiresVal) ->
     NewHParams = ersip_hparams:set(expires, ExpiresVal, <<"expires">>, integer_to_binary(ExpiresVal), HParams),
     Contact#contact{hparams = NewHParams}.
+
+
+%% @doc Get q parameter value.
+-spec qvalue(contact()) -> ersip_qvalue:qvalue() | undefined.
+qvalue(#contact{hparams = HParams}) ->
+    case ersip_hparams:find(q, HParams) of
+        not_found -> undefined;
+        {ok, V} -> V
+    end.
 
 %% @doc Get q parameter value.
 -spec qvalue(contact(), Default :: term()) -> ersip_qvalue:qvalue() | term().
@@ -137,17 +164,49 @@ set_param(PName, PValue, #contact{hparams = HParams} = Contact)
 all_raw_params(#contact{hparams = HParams}) ->
     ersip_hparams:to_raw_list(HParams).
 
-%% @doc Create Contact header from binary value.
+%% @doc Create Contact header from binary or raw values.
 %% Raise error if input is not well-formed Conact header.
--spec make(binary()) -> contact().
+-spec make(binary() | raw()) -> contact().
 make(Bin) when is_binary(Bin) ->
     case ersip_hdr_contact:parse(Bin) of
         {ok, Contact} ->
             Contact;
         {error, Reason} ->
             error(Reason)
-    end.
+    end;
+make(#{uri := URI} = Raw) ->
+    HParams0 = ersip_hparams:make(maps:get(params, Raw, #{})),
+    HParams =
+        case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+            {ok, H} -> H;
+            {error, Reason} -> error({invalid_params, Reason})
+        end,
+    C0 = #contact{display_name  = ersip_display_name:make(maps:get(display_name, Raw, <<>>)),
+                  uri           = ersip_uri:make(URI),
+                  hparams       = HParams
+                 },
 
+    Opts = [{expires, fun(X, C) -> set_expires(X, C) end},
+            {q,       fun(X, C) -> set_qvalue(ersip_qvalue:make(X), C) end}],
+    lists:foldl(fun({Key, F}, C) ->
+                        case Raw of
+                            #{Key := Value} -> F(Value, C);
+                            _ -> C
+                        end
+                end,
+                C0,
+                Opts).
+
+%% @doc Parse single contact value.
+%%
+%% Examples:
+%% ```
+%%   {ok, _} = ersip_hdr_contact:parse(<<"sip:alice@atlanta.com">>).
+%%   {ok, _} = ersip_hdr_contact:parse(<<"<sip:alice@atlanta.com>">>).
+%%   {ok, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>">>).
+%%   {ok, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>;expires=30">>).
+%%   {error, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>;expires=30, Bob <sip;bob@biloxi.com>">>).
+%% '''
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     case parse_hdr(Bin) of
@@ -155,10 +214,14 @@ parse(Bin) ->
             {ok, Contact};
         {ok, _, _} ->
             {error, {invalid_contact, Bin}};
-        {error, _} = Err ->
-            Err
+        {error, _} = Error ->
+            Error
     end.
 
+%% @doc Parse contact header and return the rest.
+%%
+%% This function is used to parse comma-separated contact values for
+%% REGISTER case.
 -spec parse_hdr(binary()) -> ersip_parser_aux:parse_result(contact()).
 parse_hdr(Bin) ->
     Parsers = [fun ersip_nameaddr:parse/1,
@@ -178,40 +241,63 @@ parse_hdr(Bin) ->
 %% @doc Serialize header to iolist.
 -spec assemble(contact()) -> iolist().
 assemble(#contact{} = Contact) ->
-    #contact{display_name = DN,
-           uri = URI,
-           hparams = HParams
-          } = Contact,
-    DisplayName = case DN of
-                      undefined -> {display_name, []};
-                      _ -> DN
-                  end,
+    #contact{display_name = DN, uri = URI, hparams = HParams} = Contact,
     HParamsIO0 = ersip_hparams:assemble(HParams),
     HParamsIO =
         case ersip_iolist:is_empty(HParamsIO0) of
             true -> [];
             false -> [$; | HParamsIO0]
         end,
-    [ersip_nameaddr:assemble(DisplayName, URI), HParamsIO].
+    [ersip_nameaddr:assemble(DN, URI), HParamsIO].
 
 %% @doc Serialize header to binary.
 -spec assemble_bin(contact()) -> binary().
 assemble_bin(#contact{} = Contact) ->
     iolist_to_binary(assemble(Contact)).
 
+%% @doc Raw (in plain erlang terms()) representation of contact header.
+%%
+%% Examples:
+%% ```
+%%   #{display_name := <<"Alice">>} = ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>)).
+%%   #{uri := #{sip := #{host := <<"atlanta.com">>}}} = ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>)).
+%% '''
+-spec raw(contact()) -> raw().
+raw(#contact{} = C) ->
+    #contact{display_name = DN, uri = URI, hparams = HParams} = C,
+    Raw = #{uri    => ersip_uri:raw(URI),
+            params => ersip_hparams:raw(HParams),
+            display_name => ersip_display_name:raw(DN)
+           },
+    Opts = [{expires,      expires(C), fun(X) -> X end},
+            {q,            qvalue(C),  fun(X) -> ersip_qvalue:raw(X) end}],
+    OptsKVP = [{K, F(V)} || {K, V, F} <- Opts, V /= undefined],
+    maps:merge(maps:from_list(OptsKVP), Raw).
+
 %%===================================================================
 %% Internal Implementation
 %%===================================================================
 
 %% @private
--spec param_name_to_atom(binary()) -> {ok, known_param()} | not_found | {error, {invalid_param, binary()}}.
-param_name_to_atom(<<"expires">>) -> {ok, expires};
-param_name_to_atom(<<"q">>)       -> {ok, q};
-param_name_to_atom(X) when is_binary(X) ->
-    case ersip_parser_aux:check_token(X) of
-        true -> not_found;
-        false -> {error, {invalid_param, X}}
-    end.
+-spec parse_known(binary(), binary()) -> ersip_hparams:parse_known_fun_result().
+parse_known(<<"expires">>, Value) ->
+    try
+        case binary_to_integer(Value) of
+            V when V >= 0 -> {ok, {expires, V}};
+            _ -> {error, {invalid_expires, Value}}
+        end
+    catch
+        error:badarg ->
+            {error, {invalid_expires, Value}}
+    end;
+parse_known(<<"q">>, Value) ->
+    case ersip_qvalue:parse(Value) of
+        {ok, QVal} -> {ok, {q, QVal}};
+        {error, Reason} ->
+            {error, {invalid_qvalue, Reason}}
+    end;
+parse_known(_, _) ->
+    {ok, unknown}.
 
 %% @private
 -spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
@@ -223,71 +309,30 @@ parse_contact_params(Bin) ->
 %% @private
 -spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 do_parse_contact_params(Bin) ->
-    case ersip_parser_aux:parse_params($;, Bin) of
-        {ok, PList, Rest} ->
-            try
-                HParams =
-                    lists:foldl(fun({Key, Value}, HParams) ->
-                                        case set_hparam(Key, Value, HParams) of
-                                            {ok, NewHParam} ->
-                                                NewHParam;
-                                            {error, _} = Error ->
-                                                throw(Error)
-                                        end
-                                end,
-                                ersip_hparams:new(),
-                                PList),
-                {ok, HParams, Rest}
-            catch
-                throw:{error, _} = Error ->
+    case ersip_hparams:parse_raw(Bin) of
+        {ok, HParams0, Rest} ->
+            case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+                {ok, HParams} ->
+                    {ok, HParams, Rest};
+                {error, _} = Error ->
                     Error
             end;
         {error, _} = Error ->
             Error
     end.
 
-
 %% @private
--spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
-      Value :: integer()| ersip_qvalue:qvalue(),
-      Err   :: {invalid_expires, binary()}
-             | {invalid_qvalue, binary()}.
-parse_param(expires, Value) ->
-    try
-        case binary_to_integer(Value) of
-            V when V >= 0 ->
-                {ok, V};
-            _ ->
-                {error, {invalid_expires, Value}}
-        end
-    catch
-        error:badarg ->
-            {error, {invalid_expires, Value}}
-    end;
-parse_param(q, Value) ->
-    case ersip_qvalue:parse(Value) of
-        {ok, _} = Ok -> Ok;
-        {error, Reason} ->
-            {error, {invalid_qvalue, Reason}}
-    end.
-
-
-%% @private
--spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> Result when
-      Result :: {ok, ersip_hparams:hparams()}
-              | {error, term()}.
+-spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> {ok, ersip_hparams:hparams()} | {error, term()}.
 set_hparam(PName, PValue, HParams) ->
     LowerName = ersip_bin:to_lower(PName),
-    case param_name_to_atom(LowerName) of
-        {ok, ParsedName} ->
-            case parse_param(ParsedName, PValue) of
-                {ok, ParsedValue} ->
-                    {ok, ersip_hparams:set(ParsedName, ParsedValue, PName, PValue, HParams)};
-                {error, _} = Error ->
-                    Error
+    case parse_known(LowerName, PValue) of
+        {ok, {ParsedName, ParsedValue}} ->
+            {ok, ersip_hparams:set(ParsedName, ParsedValue, PName, PValue, HParams)};
+        {ok, unknown} ->
+            case ersip_parser_aux:check_token(PName) of
+                true -> {ok, ersip_hparams:set_raw(PName, PValue, HParams)};
+                false -> {error, {invalid_param, PName}}
             end;
         {error, _} = Error ->
-            Error;
-        not_found ->
-            {ok, ersip_hparams:set_raw(PName, PValue, HParams)}
+            Error
     end.

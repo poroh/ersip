@@ -594,8 +594,8 @@ raw_test() ->
                    sip := #{user := <<"a">>,
                             host := <<"b">>}
                   }, ersip_uri:raw(ersip_uri:make(<<"sip:a@b">>))),
-    ?assertMatch(#{sip := #{params := [{<<"ttl">>, <<"255">>}]}}, ersip_uri:raw(ersip_uri:make(<<"sip:a@b;ttl=255">>))),
-    ?assertMatch(#{sip := #{params := [<<"lr">>]}}, ersip_uri:raw(ersip_uri:make(<<"sip:b;lr">>))),
+    ?assertMatch(#{sip := #{params := #{<<"ttl">> := <<"255">>}}}, ersip_uri:raw(ersip_uri:make(<<"sip:a@b;ttl=255">>))),
+    ?assertMatch(#{sip := #{params := #{<<"lr">> := _}}}, ersip_uri:raw(ersip_uri:make(<<"sip:b;lr">>))),
     ?assertMatch(#{sip := #{headers := [{<<"Replaces">>, <<"1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>}]}},
                  ersip_uri:raw(ersip_uri:make(<<"sip:carol@chicago.com?Replaces=1234123%40pc99.chicago.com%3Bfrom-tag%3D1%3Bto-tag%3D1">>))),
 

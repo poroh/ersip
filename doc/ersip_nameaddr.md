@@ -16,7 +16,7 @@
 
 
 <pre><code>
-display_name() = {display_name, binary() | [binary()]}
+display_name() = <a href="ersip_display_name.md#type-display_name">ersip_display_name:display_name()</a>
 </code></pre>
 
 <a name="index"></a>
@@ -24,7 +24,7 @@ display_name() = {display_name, binary() | [binary()]}
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-2">assemble/2</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_display_name-1">assemble_display_name/1</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_display_name_bin-1">assemble_display_name_bin/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-2">parse/2</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-2">assemble/2</a></td><td></td></tr><tr><td valign="top"><a href="#assemble_display_name-1">assemble_display_name/1</a></td><td>Assemble disloay name to iolist.</td></tr><tr><td valign="top"><a href="#assemble_display_name_bin-1">assemble_display_name_bin/1</a></td><td>Assemble disloay name to iolist.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-2">parse/2</a></td><td></td></tr></table>
 
 
 <a name="functions"></a>
@@ -45,9 +45,13 @@ assemble(DisplayName::<a href="#type-display_name">display_name()</a>, URI::<a h
 ### assemble_display_name/1 ###
 
 <pre><code>
-assemble_display_name(X1::<a href="#type-display_name">display_name()</a>) -&gt; iolist()
+assemble_display_name(DN::<a href="#type-display_name">display_name()</a>) -&gt; iolist()
 </code></pre>
 <br />
+
+Assemble disloay name to iolist
+
+Please use ersip_display_name:assemble/1.
 
 <a name="assemble_display_name_bin-1"></a>
 
@@ -57,6 +61,10 @@ assemble_display_name(X1::<a href="#type-display_name">display_name()</a>) -&gt;
 assemble_display_name_bin(DN::<a href="#type-display_name">display_name()</a>) -&gt; binary()
 </code></pre>
 <br />
+
+Assemble disloay name to iolist
+
+Please use ersip_display_name:assemble_bin/1.
 
 <a name="parse-1"></a>
 

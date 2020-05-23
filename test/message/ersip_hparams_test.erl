@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Header parameters test
-%%
+%%%
+%%% Copyright (c) 2018 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Header parameters test
+%%%
 
 -module(ersip_hparams_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 parse_raw_test() ->
     {ok, HParams0, <<>>} = ersip_hparams:parse_raw(<<"a=b">>),
@@ -82,7 +82,40 @@ set_test() ->
     ?assertEqual({ok, <<"3">>},                      ersip_hparams:find_raw(expires,   HParams3)),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+
+get_test() ->
+    ?assertEqual(<<"b">>, ersip_hparams:get(<<"a">>, ersip_hparams:make(<<"a=b">>))),
+    ?assertEqual(<<"d">>, ersip_hparams:get(<<"c">>, ersip_hparams:make(<<"a=b;c=d">>))),
+    ?assertEqual(<<>>, ersip_hparams:get(<<"lr">>, ersip_hparams:make(<<"lr">>))),
+    ?assertError({no_param, _}, ersip_hparams:get(<<"e">>, ersip_hparams:make(<<>>))),
+    ?assertError({no_param, _}, ersip_hparams:get(<<"e">>, ersip_hparams:make(<<"a=b">>))),
+    ok.
+
+make_test() ->
+    ?assertEqual({ok, <<"b">>}, ersip_hparams:find_raw(<<"a">>, ersip_hparams:make(<<"a=b;c=d">>))),
+    ?assertEqual({ok, <<"d">>}, ersip_hparams:find_raw(<<"c">>, ersip_hparams:make(<<"a=b;c=d">>))),
+    ?assertError({bad_params, _}, ersip_hparams:make(<<"&=?">>)),
+    ?assertError({garbage_at_the_end, _}, ersip_hparams:make(<<"a=b, &">>)),
+
+    ?assertEqual({ok, <<"b">>}, ersip_hparams:find_raw(<<"a">>, ersip_hparams:make(#{<<"a">> => <<"b">>}))),
+    ?assertEqual({ok, <<"d">>}, ersip_hparams:find_raw(<<"c">>, ersip_hparams:make(#{<<"a">> => <<"b">>, <<"c">> => <<"d">>}))),
+    ?assertError({invalid_raw_value, _}, ersip_hparams:make(#{a => <<"a">>})),
+    ok.
+
+empty_test() ->
+    ?assertEqual(true, ersip_hparams:is_empty(ersip_hparams:make(<<>>))),
+    ?assertEqual(false, ersip_hparams:is_empty(ersip_hparams:make(<<"a=b">>))),
+    ?assertEqual(false, ersip_hparams:is_empty(ersip_hparams:make(<<"lr">>))),
+    ok.
+
+parse_known_test() ->
+    ?assertEqual({error, my_error}, ersip_hparams:parse_known(fun(_, _) -> {error, my_error} end,
+                                                              ersip_hparams:make(<<"a=b;c=d">>))),
+
+    {ok, HParams} = ersip_hparams:parse_known(fun(<<"a">>, V) -> {ok, {a, V}};
+                                                 (_, _) -> {ok, unknown}
+                                              end,
+                                              ersip_hparams:make(<<"a=b;c=d">>)),
+    ?assertEqual(<<"b">>, ersip_hparams:get(a, HParams)),
+    ok.
 

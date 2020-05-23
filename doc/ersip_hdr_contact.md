@@ -16,7 +16,7 @@
 
 
 <pre><code>
-contact() = #contact{display_name = undefined | <a href="ersip_nameaddr.md#type-display_name">ersip_nameaddr:display_name()</a>, uri = <a href="ersip_uri.md#type-uri">ersip_uri:uri()</a>, hparams = <a href="ersip_hparams.md#type-hparams">ersip_hparams:hparams()</a>}
+contact() = #contact{display_name = <a href="ersip_display_name.md#type-display_name">ersip_display_name:display_name()</a>, uri = <a href="ersip_uri.md#type-uri">ersip_uri:uri()</a>, hparams = <a href="ersip_hparams.md#type-hparams">ersip_hparams:hparams()</a>}
 </code></pre>
 
 
@@ -59,12 +59,22 @@ parse_error() = {invalid_contact, term()}
 parse_result() = {ok, <a href="#type-contact">contact()</a>} | {error, <a href="#type-parse_error">parse_error()</a>}
 </code></pre>
 
+
+
+
+### <a name="type-raw">raw()</a> ###
+
+
+<pre><code>
+raw() = #{uri =&gt; <a href="ersip_uri.md#type-raw">ersip_uri:raw()</a>, params =&gt; <a href="ersip_hparams.md#type-raw">ersip_hparams:raw()</a>, display_name =&gt; <a href="ersip_display_name.md#type-raw">ersip_display_name:raw()</a>, expires =&gt; <a href="#type-expires">expires()</a>, q =&gt; <a href="ersip_qvalue.md#type-raw">ersip_qvalue:raw()</a>}
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#all_raw_params-1">all_raw_params/1</a></td><td>Get all parameters in raw representation.</td></tr><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize header to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize header to binary.</td></tr><tr><td valign="top"><a href="#display_name-1">display_name/1</a></td><td>Get display name from Contact header.</td></tr><tr><td valign="top"><a href="#expires-2">expires/2</a></td><td>Get expires parameter value.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create Contact header from binary value.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create Contact header from SIP URI.</td></tr><tr><td valign="top"><a href="#param-2">param/2</a></td><td>Get parameter by name.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse_hdr-1">parse_hdr/1</a></td><td></td></tr><tr><td valign="top"><a href="#qvalue-2">qvalue/2</a></td><td>Get q parameter value.</td></tr><tr><td valign="top"><a href="#set_expires-2">set_expires/2</a></td><td>Set expires parameter of Contact header.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>Set parameter by name.</td></tr><tr><td valign="top"><a href="#set_qvalue-2">set_qvalue/2</a></td><td>Set q parameter value.</td></tr><tr><td valign="top"><a href="#uri-1">uri/1</a></td><td>Get URI from Contact header.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#all_raw_params-1">all_raw_params/1</a></td><td>Get all parameters in raw representation.</td></tr><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize header to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize header to binary.</td></tr><tr><td valign="top"><a href="#display_name-1">display_name/1</a></td><td>Get display name from Contact header.</td></tr><tr><td valign="top"><a href="#expires-1">expires/1</a></td><td>Get expires parameter value.</td></tr><tr><td valign="top"><a href="#expires-2">expires/2</a></td><td>Get expires parameter value.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create Contact header from binary or raw values.</td></tr><tr><td valign="top"><a href="#new-1">new/1</a></td><td>Create Contact header from SIP URI.</td></tr><tr><td valign="top"><a href="#param-2">param/2</a></td><td>Get parameter by name.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse single contact value.</td></tr><tr><td valign="top"><a href="#parse_hdr-1">parse_hdr/1</a></td><td>Parse contact header and return the rest.</td></tr><tr><td valign="top"><a href="#qvalue-1">qvalue/1</a></td><td>Get q parameter value.</td></tr><tr><td valign="top"><a href="#qvalue-2">qvalue/2</a></td><td>Get q parameter value.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Raw (in plain erlang terms()) representation of contact header.</td></tr><tr><td valign="top"><a href="#set_expires-2">set_expires/2</a></td><td>Set expires parameter of Contact header.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>Set parameter by name.</td></tr><tr><td valign="top"><a href="#set_qvalue-2">set_qvalue/2</a></td><td>Set q parameter value.</td></tr><tr><td valign="top"><a href="#uri-1">uri/1</a></td><td>Get URI from Contact header.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -114,34 +124,46 @@ Serialize header to binary.
 ### display_name/1 ###
 
 <pre><code>
-display_name(Contact::<a href="#type-contact">contact()</a>) -&gt; undefined | <a href="ersip_nameaddr.md#type-display_name">ersip_nameaddr:display_name()</a>
+display_name(Contact::<a href="#type-contact">contact()</a>) -&gt; <a href="ersip_nameaddr.md#type-display_name">ersip_nameaddr:display_name()</a>
 </code></pre>
 <br />
 
 Get display name from Contact header.
 
-<a name="expires-2"></a>
+<a name="expires-1"></a>
 
-### expires/2 ###
+### expires/1 ###
 
 <pre><code>
-expires(Contact::<a href="#type-contact">contact()</a>, Default::<a href="#type-expires">expires()</a>) -&gt; <a href="#type-expires">expires()</a>
+expires(Contact::<a href="#type-contact">contact()</a>) -&gt; <a href="#type-expires">expires()</a> | undefined
 </code></pre>
 <br />
 
 Get expires parameter value.
 If no expires parameter is in the header then Default is returned.
 
+<a name="expires-2"></a>
+
+### expires/2 ###
+
+<pre><code>
+expires(Contact::<a href="#type-contact">contact()</a>, Default::<a href="#type-expires">expires()</a>) -&gt; <a href="#type-expires">expires()</a> | undefined
+</code></pre>
+<br />
+
+Get expires parameter value. If no expires parameter is
+defined than undefined is retutned
+
 <a name="make-1"></a>
 
 ### make/1 ###
 
 <pre><code>
-make(Bin::binary()) -&gt; <a href="#type-contact">contact()</a>
+make(Bin::binary() | <a href="#type-raw">raw()</a>) -&gt; <a href="#type-contact">contact()</a>
 </code></pre>
 <br />
 
-Create Contact header from binary value.
+Create Contact header from binary or raw values.
 Raise error if input is not well-formed Conact header.
 
 <a name="new-1"></a>
@@ -181,6 +203,18 @@ parse(Bin::binary()) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
 <br />
 
+Parse single contact value.
+
+Examples:
+
+```
+    {ok, _} = ersip_hdr_contact:parse(<<"sip:alice@atlanta.com">>).
+    {ok, _} = ersip_hdr_contact:parse(<<"<sip:alice@atlanta.com>">>).
+    {ok, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>">>).
+    {ok, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>;expires=30">>).
+    {error, _} = ersip_hdr_contact:parse(<<"Alice <sip:alice@atlanta.com>;expires=30, Bob <sip;bob@biloxi.com>">>).
+```
+
 <a name="parse_hdr-1"></a>
 
 ### parse_hdr/1 ###
@@ -189,6 +223,22 @@ parse(Bin::binary()) -&gt; <a href="#type-parse_result">parse_result()</a>
 parse_hdr(Bin::binary()) -&gt; <a href="ersip_parser_aux.md#type-parse_result">ersip_parser_aux:parse_result</a>(<a href="#type-contact">contact()</a>)
 </code></pre>
 <br />
+
+Parse contact header and return the rest.
+
+This function is used to parse comma-separated contact values for
+REGISTER case.
+
+<a name="qvalue-1"></a>
+
+### qvalue/1 ###
+
+<pre><code>
+qvalue(Contact::<a href="#type-contact">contact()</a>) -&gt; <a href="ersip_qvalue.md#type-qvalue">ersip_qvalue:qvalue()</a> | undefined
+</code></pre>
+<br />
+
+Get q parameter value.
 
 <a name="qvalue-2"></a>
 
@@ -200,6 +250,24 @@ qvalue(Contact::<a href="#type-contact">contact()</a>, Default::term()) -&gt; <a
 <br />
 
 Get q parameter value.
+
+<a name="raw-1"></a>
+
+### raw/1 ###
+
+<pre><code>
+raw(Contact::<a href="#type-contact">contact()</a>) -&gt; <a href="#type-raw">raw()</a>
+</code></pre>
+<br />
+
+Raw (in plain erlang terms()) representation of contact header.
+
+Examples:
+
+```
+    #{display_name := <<"Alice">>} = ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>)).
+    #{uri := #{sip := #{host := <<"atlanta.com">>}}} = ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>)).
+```
 
 <a name="set_expires-2"></a>
 

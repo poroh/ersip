@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Contact header tests
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Contact header tests
+%%%
 
 -module(ersip_hdr_contact_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 rebuild_test() ->
     rebuild(<<"sip:a@b">>),
@@ -64,6 +64,9 @@ expires_test() ->
 
     Alice45 = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;Expires=45">>),
     ?assertEqual(45, ersip_hdr_contact:expires(Alice45, any)),
+
+    ?assertEqual(46, ersip_hdr_contact:expires(ersip_hdr_contact:make(<<"sip:a@b;expires=46">>))),
+    ?assertEqual(undefined, ersip_hdr_contact:expires(ersip_hdr_contact:make(<<"sip:a@b">>))),
     ok.
 
 qvalue_test() ->
@@ -73,6 +76,9 @@ qvalue_test() ->
     Alice01 = ersip_hdr_contact:set_qvalue(ersip_qvalue:make(<<"0.1">>), Alice1),
     ?assertEqual(ersip_qvalue:make(<<"0.1">>), ersip_hdr_contact:qvalue(Alice01, any)),
     ?assertEqual(ersip_qvalue:make(<<"0.13">>), ersip_hdr_contact:qvalue(AliceNoQValue, ersip_qvalue:make(<<"0.13">>))),
+
+    ?assertEqual(ersip_qvalue:make(<<"0.1">>), ersip_hdr_contact:qvalue(ersip_hdr_contact:make(<<"sip:a@b;q=0.1">>))),
+    ?assertEqual(undefined, ersip_hdr_contact:qvalue(ersip_hdr_contact:make(<<"sip:a@b">>))),
     ok.
 
 uri_test() ->
@@ -126,11 +132,37 @@ assemble_new_test() ->
 new_test() ->
     NewContact = ersip_hdr_contact:new(ersip_uri:make(<<"sip:a@b">>)),
     ?assertEqual(<<"<sip:a@b>">>, ersip_hdr_contact:assemble_bin(NewContact)),
+    ?assertError({sip_uri_expected, _}, ersip_hdr_contact:new(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+raw_test() ->
+    ?assertMatch(#{display_name := <<"Alice">>}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>))),
+    ?assertMatch(#{uri := #{sip := #{host := <<"atlanta.com">>}}}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>))),
+    ?assertMatch(#{uri := #{sip := #{user := <<"alice">>}}}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>))),
+    ?assertMatch(#{q   := 100}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>))),
+    ?assertMatch(#{expires := 20}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20;q=0.1">>))),
+    ?assertMatch(#{params := #{<<"some">> := <<"b">>}}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;some=b">>))),
+    ?assertMatch(#{params := #{<<"some">> := <<"b">>}}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;Some=b">>))),
+
+    ?assertNotMatch(#{expires := _}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"sip:a@b">>))),
+    ?assertNotMatch(#{qvalue  := _}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"sip:a@b">>))),
+    ok.
+
+make_from_raw_test() ->
+    check_set_from_raw(<<"<sip:a@b>">>),
+    check_set_from_raw(<<"<sip:a@b>;expires=30">>),
+    check_set_from_raw(<<"<sip:a@b>;expires=30;q=0.111">>),
+    check_set_from_raw(<<"<sip:a@b>;q=0.111">>),
+    check_set_from_raw(<<"Alice <sip:a@b>;q=0.111">>),
+    check_set_from_raw(<<"<sip:a@b>;some">>),
+    check_set_from_raw(<<"<sip:a@b>;some=x">>),
+
+    ?assertError({invalid_params, _}, ersip_hdr_contact:make(#{uri => <<"sip:a@b">>, params => #{<<"expires">> => <<"bad_expires">>}})),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 rebuild(Bin) ->
     Contact = ersip_hdr_contact:make(Bin),
@@ -144,3 +176,6 @@ parse_error(Bin) ->
 all_raw_params(Bin) ->
     Contact = ersip_hdr_contact:make(Bin),
     ersip_hdr_contact:all_raw_params(Contact).
+
+check_set_from_raw(Bin) ->
+    ?assertEqual(Bin, ersip_hdr_contact:assemble_bin(ersip_hdr_contact:make(ersip_hdr_contact:raw(ersip_hdr_contact:make(Bin))))).

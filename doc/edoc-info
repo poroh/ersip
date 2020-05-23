@@ -1,8 +1,8 @@
 %% encoding: UTF-8
 {application,ersip}.
 {modules,[ersip,ersip_app,ersip_authinfo,ersip_bin,ersip_branch,ersip_buf,
-          ersip_conn,ersip_conn_se,ersip_dialog,ersip_hdr,ersip_hdr_allow,
-          ersip_hdr_auth,ersip_hdr_callid,ersip_hdr_contact,
+          ersip_conn,ersip_conn_se,ersip_dialog,ersip_display_name,ersip_hdr,
+          ersip_hdr_allow,ersip_hdr_auth,ersip_hdr_callid,ersip_hdr_contact,
           ersip_hdr_contact_list,ersip_hdr_content_type,ersip_hdr_cseq,
           ersip_hdr_date,ersip_hdr_event,ersip_hdr_expires,ersip_hdr_fromto,
           ersip_hdr_maxforwards,ersip_hdr_opttag_list,ersip_hdr_rack,

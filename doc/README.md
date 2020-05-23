@@ -16,6 +16,7 @@
 <tr><td><a href="ersip_conn.md" class="module">ersip_conn</a></td></tr>
 <tr><td><a href="ersip_conn_se.md" class="module">ersip_conn_se</a></td></tr>
 <tr><td><a href="ersip_dialog.md" class="module">ersip_dialog</a></td></tr>
+<tr><td><a href="ersip_display_name.md" class="module">ersip_display_name</a></td></tr>
 <tr><td><a href="ersip_hdr.md" class="module">ersip_hdr</a></td></tr>
 <tr><td><a href="ersip_hdr_allow.md" class="module">ersip_hdr_allow</a></td></tr>
 <tr><td><a href="ersip_hdr_auth.md" class="module">ersip_hdr_auth</a></td></tr>

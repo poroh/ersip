@@ -11,10 +11,11 @@
 
 -export([make/1,
          parse/1,
-         assemble/1
+         assemble/1,
+         raw/1
         ]).
 
--export_type([qvalue/0]).
+-export_type([qvalue/0, raw/0]).
 
 %%%===================================================================
 %%% Types
@@ -23,19 +24,24 @@
 -type qvalue() :: {qvalue, 0..1000}.
 -type parse_result() :: {ok, qvalue()}
                       | {error, {invalid_qvalue, binary()}}.
+-type raw() :: 0..1000.
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec make(binary()) -> qvalue().
-make(Bin) ->
+-spec make(binary() | raw()) -> qvalue().
+make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, QValue} ->
             QValue;
         {error, Reason} ->
             error(Reason)
-    end.
+    end;
+make(V) when V >= 0, V =< 1000 ->
+    {qvalue, V};
+make(V) ->
+    error({invalid_qvalue, V}).
 
 %% qvalue         =  ( "0" [ "." 0*3DIGIT ] )
 %%                  / ( "1" [ "." 0*3("0") ] )
@@ -53,6 +59,10 @@ assemble({qvalue, Value}) ->
         2 -> <<"0.0", ValueBin/binary>>;
         3 -> <<"0.", ValueBin/binary>>
     end.
+
+-spec raw(qvalue()) -> raw().
+raw({qvalue, X}) ->
+    X.
 
 %%%===================================================================
 %%% Internal implementation

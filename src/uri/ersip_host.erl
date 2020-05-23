@@ -40,7 +40,7 @@
 
 -include("ersip_sip_abnf.hrl").
 
-%% @doc check term is valid host.
+%% @doc Check term is valid host.
 -spec is_host(host() | term()) -> boolean().
 is_host({hostname, Bin}) ->
     hostname_valid(Bin);
@@ -57,16 +57,20 @@ is_host({ipv6, {A0,A1,A2,A3,A4,A5,A6,A7}}) ->
 is_host(_) ->
     false.
 
+%% @doc Check if host is defined as IP address.
 -spec is_ip_address(host()) -> boolean().
 is_ip_address({ipv4, _}) -> true;
 is_ip_address({ipv6, _}) -> true;
 is_ip_address({hostname, _}) -> false.
 
+%% @doc Transform host to inet:ip_address().
+%% Raises error if not ersip_host:is_ip_address().
 -spec ip_address(host()) -> inet:ip_address().
 ip_address({ipv4, A}) -> A;
 ip_address({ipv6, A}) -> A;
 ip_address({hostname, _}) -> error({api_error, <<"cannot get IP from hostname host. Use resolve.">>}).
 
+%% @doc Check that hostname is valid domain name.
 -spec check_hostname(binary()) -> boolean().
 check_hostname(Bin) when is_binary(Bin) ->
     hostname_valid(Bin).
@@ -83,7 +87,7 @@ parse(Binary) ->
             Error
     end.
 
-%% @doc make comparable hostname (from rfc3261 comparision rules).
+%% @doc Make comparable hostname (from rfc3261 comparision rules).
 -spec make_key(host()) -> host().
 make_key({hostname, Bin}) ->
     UnquotedLowerHostName = ersip_bin:to_lower(ersip_bin:unquote_rfc_2396(Bin)),
@@ -102,6 +106,7 @@ make_key({ipv4, _} = H) ->
 make_key({ipv6, _} = H) ->
     H.
 
+%% @doc Assemble hostname to iolist().
 -spec assemble(host()) -> iolist().
 assemble({hostname, Bin}) ->
     Bin;
@@ -110,12 +115,15 @@ assemble({ipv4, IpAddr}) ->
 assemble({ipv6, IpAddr}) ->
     [$[, assemble_ip6(IpAddr), $]].
 
+%% @doc Assemble hostname to binary().
 -spec assemble_bin(host()) -> binary().
 assemble_bin(Host) ->
     iolist_to_binary(assemble(Host)).
 
-%% Assemble host as received parameter of via:
+%% @doc Assemble host as received parameter of via.
+%% ```
 %% via-received      =  "received" EQUAL (IPv4address / IPv6address)
+%% '''
 -spec assemble_received(host()) -> iolist().
 assemble_received({hostname, Bin}) ->
     Bin;
@@ -124,10 +132,9 @@ assemble_received({ipv4, IpAddr}) ->
 assemble_received({ipv6, IpAddr}) ->
     assemble_ip6(IpAddr).
 
--spec make(Addr) -> host() when
-      Addr :: inet:ip_address()
-            | host()
-            | binary().
+%% @doc Create hostname from inet:ip_address() or from another host or
+%% from binary().
+-spec make(inet:ip_address() | host() | binary()) -> host().
 make({_, _, _, _} = Addr) ->
     assure_host({ipv4, Addr});
 make({ipv4, {_, _, _, _}} = Addr) ->
@@ -146,9 +153,9 @@ make(Addr) when is_binary(Addr)  ->
             error({error, {invalid_name, Addr}})
     end.
 
-%%%===================================================================
-%%% Internal implementation
-%%%===================================================================
+%%===================================================================
+%% Internal implementation
+%%===================================================================
 
 -type nonempty_binary() :: <<_:8,_:_*8>>.
 
@@ -180,8 +187,9 @@ find_host_end(_, Pos) ->
 
 %% @private
 %% @doc Parse IPv6 reference
-%%
+%% ```
 %% IPv6reference  =  "[" IPv6address "]"
+%% '''
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
               | {error, {invalid_name, binary()}}.
@@ -197,11 +205,13 @@ parse_ipv6_reference(R) ->
 %% @private
 %% @doc Parse IPv6 address
 %%
+%% ```
 %% IPv6reference  =  "[" IPv6address "]"
 %% IPv6address    =  hexpart [":" IPv4address]
 %% hexpart        =  hexseq / hexseq "::" [hexseq] / "::" [hexseq]
 %% hexseq         =  hex4 *( ":" hex4)
 %% hex4           =  1*4HEXDIG
+%% '''
 -spec parse_ipv6_address(binary()) -> {ok, {ipv6, inet:ip6_address()}} | {error, {invalid_ipv6, binary()}}.
 parse_ipv6_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),
@@ -215,7 +225,9 @@ parse_ipv6_address(Bin) when is_binary(Bin) ->
 %% @private
 %% @doc Parse IPv4 address
 %%
+%% ```
 %% IPv4address    =  1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT "." 1*3DIGIT
+%% '''
 -spec parse_address(binary()) -> {ok, host()} | {error, {invalid_address, binary()}}.
 parse_address(Bin) when is_binary(Bin) ->
     L = binary_to_list(Bin),

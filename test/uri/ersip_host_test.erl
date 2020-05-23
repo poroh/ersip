@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP message parser tests
-%%
+%%%
+%%% Copyright (c) 2017 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP message parser tests
+%%%
 
 -module(ersip_host_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 hostname_parse_test() ->
     ?assertEqual({ok, {ipv4, {127, 0, 0, 1}}, <<>>},             ersip_host:parse(<<"127.0.0.1">>)),
@@ -53,6 +53,7 @@ hostname_underscore_test() ->
     ?assertMatch({ok, {hostname, <<"_a.a.com">>}, <<>>},         ersip_host:parse(<<"_a.a.com">>)),
     ?assertMatch({ok, {hostname, <<"_A._a.a.com">>}, <<>>},      ersip_host:parse(<<"_A._a.a.com">>)),
     ?assertMatch({ok, {hostname, <<"A_.a_.a_.com">>}, <<>>},     ersip_host:parse(<<"A_.a_.a_.com">>)),
+    ?assertMatch({ok, {hostname, <<"_.a.com">>}, <<>>},          ersip_host:parse(<<"_.a.com">>)),
     %% Completely forbidden in top label
     ?assertMatch({error, {invalid_name, _}},  ersip_host:parse(<<"example.c_m">>)),
     ok.
@@ -70,19 +71,20 @@ host_assemble_test() ->
     check_reassemble(<<"[AAAA::1:0:AAAA]">>),
     ok.
 
-hostname_is_host_test() ->
-    ?assertEqual(true, ersip_host:is_host({ipv4, {1, 2, 3, 4}})),
-    ?assertEqual(true, ersip_host:is_host({ipv4, {0, 2, 3, 4}})),
+is_host_test() ->
+    ?assertEqual(true,  ersip_host:is_host({ipv4, {1, 2, 3, 4}})),
+    ?assertEqual(true,  ersip_host:is_host({ipv4, {0, 2, 3, 4}})),
     ?assertEqual(false, ersip_host:is_host({ipv4, {1, 2, 3}})),
     ?assertEqual(false, ersip_host:is_host({ipv4, {1, 2, 3, 4, 5}})),
     ?assertEqual(false, ersip_host:is_host({ipv4, {256, 2, 3, 4}})),
     ?assertEqual(false, ersip_host:is_host({ipv4, {-1, 2, 3, 4}})),
-    ?assertEqual(true, ersip_host:is_host({ipv6, {1, 2, 3, 4, 1, 2, 3, 4}})),
-    ?assertEqual(true, ersip_host:is_host({ipv6, {1, 0, 3, 4, 1, 2, 3, 4}})),
+    ?assertEqual(true,  ersip_host:is_host({ipv6, {1, 2, 3, 4, 1, 2, 3, 4}})),
+    ?assertEqual(true,  ersip_host:is_host({ipv6, {1, 0, 3, 4, 1, 2, 3, 4}})),
     ?assertEqual(false, ersip_host:is_host({ipv6, {1, 0, 3, 4, 1, 2, 3}})),
     ?assertEqual(false, ersip_host:is_host({ipv6, {1, 0, 3, 4, 1, 2, 3, 4, 5}})),
     ?assertEqual(false, ersip_host:is_host({ipv6, {-1, 0, 3, 4, 1, 2, 3}})),
-    ?assertEqual(false, ersip_host:is_host({ipv6, {65536, 0, 3, 4, 1, 2, 3, 4, 5}})).
+    ?assertEqual(false, ersip_host:is_host({ipv6, {65536, 0, 3, 4, 1, 2, 3, 4, 5}})),
+    ok.
 
 host_make_test() ->
     ?assertEqual(ersip_host:make(<<"127.0.0.1">>), ersip_host:make({127, 0, 0, 1})),
@@ -91,16 +93,35 @@ host_make_test() ->
     ?assertEqual(ersip_host:make(<<"[::1]">>), ersip_host:make({0, 0, 0, 0,  0, 0, 0, 1})),
     ?assertEqual(ersip_host:make(<<"a.com">>), ersip_host:make({hostname, <<"a.com">>})),
     ?assertError({error, _}, ersip_host:make({hostname, <<".">>})),
-    ?assertError({error, _}, ersip_host:make(<<".">>)).
+    ?assertError({error, _}, ersip_host:make(<<".">>)),
+    ok.
 
 make_key_test() ->
     ?assertEqual(make_key(<<"example.com.">>),  make_key(<<"example.com">>)),
     ?assertEqual(make_key(<<"examplE.com">>),   make_key(<<"example.com">>)),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+is_ip_address_test() ->
+    ?assertEqual(true,  ersip_host:is_ip_address(ersip_host:make(<<"127.0.0.1">>))),
+    ?assertEqual(true,  ersip_host:is_ip_address(ersip_host:make(<<"[::1]">>))),
+    ?assertEqual(false, ersip_host:is_ip_address(ersip_host:make(<<"a.com">>))),
+    ok.
+
+ip_address_test() ->
+    ?assertEqual({127, 0, 0, 1}, ersip_host:ip_address(ersip_host:make(<<"127.0.0.1">>))),
+    ?assertEqual({0, 0, 0, 0,  0, 0, 0, 1}, ersip_host:ip_address(ersip_host:make(<<"[::1]">>))),
+    ?assertError({api_error, _}, ersip_host:ip_address(ersip_host:make(<<"a.com">>))),
+    ok.
+
+assemble_received_test() ->
+    ?assertEqual(<<"127.0.0.1">>, iolist_to_binary(ersip_host:assemble_received(ersip_host:make(<<"127.0.0.1">>)))),
+    ?assertEqual(<<"::1">>,       iolist_to_binary(ersip_host:assemble_received(ersip_host:make(<<"[::1]">>)))),
+    ?assertEqual(<<"a.com">>,     iolist_to_binary(ersip_host:assemble_received(ersip_host:make(<<"a.com">>)))),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 check_reassemble(Binary) ->
     Host = ersip_host:make(Binary),

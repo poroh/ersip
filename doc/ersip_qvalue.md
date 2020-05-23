@@ -65,7 +65,7 @@ assemble(X1::<a href="#type-qvalue">qvalue()</a>) -&gt; binary()
 ### make/1 ###
 
 <pre><code>
-make(Bin::binary()) -&gt; <a href="#type-qvalue">qvalue()</a>
+make(Bin::binary() | <a href="#type-raw">raw()</a>) -&gt; <a href="#type-qvalue">qvalue()</a>
 </code></pre>
 <br />
 

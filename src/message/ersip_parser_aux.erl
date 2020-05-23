@@ -77,8 +77,7 @@ quoted_string(Quoted) ->
 
 -spec unquoted_string(binary()) -> parse_result(binary()).
 unquoted_string(Quoted) ->
-    Trimmed = ersip_bin:trim_head_lws(Quoted),
-    unquoted_string_impl(Trimmed, start, []).
+    ersip_quoted_string:unquoting_parse(Quoted).
 
 %% @doc Parse token list separated with SEP
 -spec token_list(binary(), SEP) -> {ok, [Token, ...], Rest} | error when
@@ -233,50 +232,6 @@ parse_gen_param_value(Bin) ->
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
-
-%% @private
--spec unquoted_string_impl(binary(), start | raw | escaped, [binary()]) -> parse_result(binary()).
-unquoted_string_impl(<<>>, _, _) ->
-    {error, {invalid_quoted_string, unexpected_end}};
-unquoted_string_impl(<<"\"", R/binary>>, start, Acc) ->
-    unquoted_string_impl(R, raw, Acc);
-unquoted_string_impl(_, start, _) ->
-    {error, {invalid_quoted_string, no_quote}};
-unquoted_string_impl(<<"\"", R/binary>>, raw, Acc) ->
-    {ok, iolist_to_binary(lists:reverse(Acc)), R};
-unquoted_string_impl(<<"\\", R/binary>>, raw, Acc) ->
-    unquoted_string_impl(R, escaped, Acc);
-unquoted_string_impl(B, raw, Acc) ->
-    {ok, Len} = utf8_len(B),
-    <<Char:Len/binary, Rest/binary>> = B,
-    unquoted_string_impl(Rest, raw, [Char | Acc]);
-unquoted_string_impl(<<Byte:8, R/binary>>, escaped, Acc) when Byte =< 16#7F ->
-    unquoted_string_impl(R, raw, [Byte | Acc]);
-unquoted_string_impl(<<Byte:8, _/binary>>, escaped, _) ->
-    {error, {invalid_quoted_string, {bad_char, Byte}}}.
-
-%% @private
-%% @doc get length of the first UTF8 character in binary
--spec utf8_len(binary()) -> {ok, Len :: 1..6} | error.
-utf8_len(<<ASCII:8, _/binary>>) when ASCII =< 16#7F ->
-    {ok, 1};
-utf8_len(<<UTF8_1:8, _:8, _/binary>>)
-  when UTF8_1 >= 16#C0 andalso UTF8_1 =< 16#DF  ->
-    {ok, 2};
-utf8_len(<<UTF8_2:8, _:16, _/binary>>)
-  when UTF8_2 >= 16#E0 andalso UTF8_2 =< 16#EF ->
-    {ok, 3};
-utf8_len(<<UTF8_3:8, _:24, _/binary>>)
-  when UTF8_3 >= 16#F0 andalso UTF8_3 =< 16#F7 ->
-    {ok, 4};
-utf8_len(<<UTF8_4:8, _:32, _/binary>>)
-  when UTF8_4 >= 16#F8 andalso UTF8_4 =< 16#FB ->
-    {ok, 5};
-utf8_len(<<UTF8_5:8, _:40, _/binary>>)
-  when UTF8_5 >= 16#FC andalso UTF8_5 =< 16#FD ->
-    {ok, 6};
-utf8_len(<<_:8, _/binary>>) ->
-    {ok, 1}.
 
 %% @private
 -spec token_list_impl(binary(), [binary()], binary:cp()) -> Result when

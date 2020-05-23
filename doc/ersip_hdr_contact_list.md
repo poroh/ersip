@@ -44,7 +44,7 @@ star_contact() = star
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#build-2">build/2</a></td><td></td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td></td></tr><tr><td valign="top"><a href="#make_star-0">make_star/0</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#build-2">build/2</a></td><td>Build raw SIP header.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Make contact list from binary.</td></tr><tr><td valign="top"><a href="#make_star-0">make_star/0</a></td><td>Make star contact (for REGISTER requests).</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse contact list from raw SIP header.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -60,6 +60,8 @@ build(HeaderName::binary(), ContactList::<a href="#type-contact_list">contact_li
 </code></pre>
 <br />
 
+Build raw SIP header.
+
 <a name="make-1"></a>
 
 ### make/1 ###
@@ -68,6 +70,8 @@ build(HeaderName::binary(), ContactList::<a href="#type-contact_list">contact_li
 make(Binary::iolist() | binary()) -&gt; <a href="#type-contact_list">contact_list()</a>
 </code></pre>
 <br />
+
+Make contact list from binary.
 
 <a name="make_star-0"></a>
 
@@ -78,6 +82,8 @@ make_star() -&gt; <a href="#type-star_contact">star_contact()</a>
 </code></pre>
 <br />
 
+Make star contact (for REGISTER requests).
+
 <a name="parse-1"></a>
 
 ### parse/1 ###
@@ -86,4 +92,11 @@ make_star() -&gt; <a href="#type-star_contact">star_contact()</a>
 parse(Header::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
 <br />
+
+Parse contact list from raw SIP header.
+
+```
+  Contact        =  ("Contact" / "m" ) HCOLON
+                    ( STAR / (contact-param *(COMMA contact-param)))
+```
 

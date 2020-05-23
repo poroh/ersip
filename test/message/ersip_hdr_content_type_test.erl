@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP From/to header tests
-%%
+%%%
+%%% Copyright (c) 2018 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Content-Type header test
+%%%
 
 -module(ersip_hdr_content_type_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 parse_test() ->
     ContentType = success_parse_content_type(<<"application/sdp">>),
@@ -44,7 +44,8 @@ parse_test() ->
     MultiH = ersip_hdr:new(<<"Content-Type">>),
     MultiH1 = ersip_hdr:add_value(<<"application/sdp">>, MultiH),
     MultiH2 = ersip_hdr:add_value(<<"text/html">>, MultiH1),
-    ?assertMatch({error, _}, ersip_hdr_content_type:parse(MultiH2)).
+    ?assertMatch({error, _}, ersip_hdr_content_type:parse(MultiH2)),
+    ok.
 
 make_test() ->
     ContentType = success_parse_content_type(<<"text/html; charset=ISO-8859-4">>),
@@ -54,11 +55,13 @@ make_test() ->
     ContentTypeH = create(<<"text/html; charset=ISO-8859-4">>),
     ?assertEqual(ContentType, ersip_hdr_content_type:make(ContentTypeH)),
     ContentTypeH2 = create(<<"text/html; charset=&">>),
-    ?assertError({error, _}, ersip_hdr_content_type:make(ContentTypeH2)).
+    ?assertError({error, _}, ersip_hdr_content_type:make(ContentTypeH2)),
+    ok.
 
 reassemble_test() ->
     reassemble(<<"application/sdp">>),
-    reassemble(<<"text/html;charset=\"ISO-8859-4\"">>).
+    reassemble(<<"text/html;charset=\"ISO-8859-4\"">>),
+    ok.
 
 build_test() ->
     ContentTypeH = create(<<"application/sdp">>),
@@ -69,10 +72,24 @@ build_test() ->
     ?assertEqual(ContentTypeHValues, BuiltContentTypeHValues),
     ok.
 
+raw_test() ->
+    ?assertMatch(#{type := {<<"application">>, <<"sdp">>}}, raw(<<"application/sdp">>)),
+    ?assertMatch(#{params := #{<<"charset">> := <<"ISO-8859-4">>}}, raw(<<"text/html; charset=\"ISO-8859-4\"">>)),
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+    ?assertEqual(<<"application/sdp">>, from_raw(#{type => {<<"application">>, <<"sdp">>}})),
+    ?assertEqual(<<"text/html;charset=ISO-8859-4">>,
+                 from_raw(#{type => {<<"text">>, <<"html">>},
+                            params => #{<<"charset">> => <<"ISO-8859-4">>}})),
+    ?assertEqual(<<"text/html;not-token=\" \"">>,
+                 from_raw(#{type => {<<"text">>, <<"html">>},
+                            params => #{<<"not-token">> => <<" ">>}})),
+    ok.
+
+
+%%===================================================================
+%% Helpers
+%%===================================================================
+
 create(Bin) ->
     H = ersip_hdr:new(<<"Content-Type">>),
     ersip_hdr:add_value(Bin, H).
@@ -84,4 +101,10 @@ success_parse_content_type(Bin) ->
 
 reassemble(Bin) ->
     ContentType = success_parse_content_type(Bin),
-    ?assertEqual(Bin, iolist_to_binary(ersip_hdr_content_type:assemble(ContentType))).
+    ?assertEqual(Bin, ersip_hdr_content_type:assemble_bin(ContentType)).
+
+raw(Bin) ->
+    ersip_hdr_content_type:raw(ersip_hdr_content_type:make(Bin)).
+
+from_raw(Raw) ->
+    ersip_hdr_content_type:assemble_bin(ersip_hdr_content_type:make(Raw)).

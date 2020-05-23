@@ -9,7 +9,9 @@
 -module(ersip_quoted_string).
 
 -export([skip/1,
-         quote/1
+         quote/1,
+         unquote/1,
+         unquoting_parse/1
         ]).
 
 %%===================================================================
@@ -30,6 +32,18 @@ skip(String) ->
 -spec quote(binary()) -> binary().
 quote(String) ->
     <<"\"", (escape(String))/binary, "\"">>.
+
+-spec unquote(binary()) -> binary().
+unquote(<<"\"", _/binary>> = V) ->
+    {ok, Unquoted, <<>>} = unquoting_parse(V),
+    Unquoted;
+unquote(V) ->
+    V.
+
+-spec unquoting_parse(binary()) -> ersip_parser_aux:parse_result(binary()).
+unquoting_parse(Quoted) ->
+    Trimmed = ersip_bin:trim_head_lws(Quoted),
+    unquoting_parse_impl(Trimmed, start, []).
 
 %%===================================================================
 %% Internal implementation
@@ -61,3 +75,48 @@ escape_impl(<<$\\, R/binary>>, Bytes, Acc) ->
     escape_impl(R, [], ["\\\\", AccBin | Acc]);
 escape_impl(<<Byte:8, R/binary>>, Bytes, Acc) ->
     escape_impl(R, [Byte | Bytes], Acc).
+
+
+%% @private
+-spec unquoting_parse_impl(binary(), start | raw | escaped, [binary()]) -> ersip_parser_aux:parse_result(binary()).
+unquoting_parse_impl(<<>>, _, _) ->
+    {error, {invalid_quoted_string, unexpected_end}};
+unquoting_parse_impl(<<"\"", R/binary>>, start, Acc) ->
+    unquoting_parse_impl(R, raw, Acc);
+unquoting_parse_impl(_, start, _) ->
+    {error, {invalid_quoted_string, no_quote}};
+unquoting_parse_impl(<<"\"", R/binary>>, raw, Acc) ->
+    {ok, iolist_to_binary(lists:reverse(Acc)), R};
+unquoting_parse_impl(<<"\\", R/binary>>, raw, Acc) ->
+    unquoting_parse_impl(R, escaped, Acc);
+unquoting_parse_impl(B, raw, Acc) ->
+    {ok, Len} = utf8_len(B),
+    <<Char:Len/binary, Rest/binary>> = B,
+    unquoting_parse_impl(Rest, raw, [Char | Acc]);
+unquoting_parse_impl(<<Byte:8, R/binary>>, escaped, Acc) when Byte =< 16#7F ->
+    unquoting_parse_impl(R, raw, [Byte | Acc]);
+unquoting_parse_impl(<<Byte:8, _/binary>>, escaped, _) ->
+    {error, {invalid_quoted_string, {bad_char, Byte}}}.
+
+%% @private
+%% @doc get length of the first UTF8 character in binary
+-spec utf8_len(binary()) -> {ok, Len :: 1..6} | error.
+utf8_len(<<ASCII:8, _/binary>>) when ASCII =< 16#7F ->
+    {ok, 1};
+utf8_len(<<UTF8_1:8, _:8, _/binary>>)
+  when UTF8_1 >= 16#C0 andalso UTF8_1 =< 16#DF  ->
+    {ok, 2};
+utf8_len(<<UTF8_2:8, _:16, _/binary>>)
+  when UTF8_2 >= 16#E0 andalso UTF8_2 =< 16#EF ->
+    {ok, 3};
+utf8_len(<<UTF8_3:8, _:24, _/binary>>)
+  when UTF8_3 >= 16#F0 andalso UTF8_3 =< 16#F7 ->
+    {ok, 4};
+utf8_len(<<UTF8_4:8, _:32, _/binary>>)
+  when UTF8_4 >= 16#F8 andalso UTF8_4 =< 16#FB ->
+    {ok, 5};
+utf8_len(<<UTF8_5:8, _:40, _/binary>>)
+  when UTF8_5 >= 16#FC andalso UTF8_5 =< 16#FD ->
+    {ok, 6};
+utf8_len(<<_:8, _/binary>>) ->
+    {ok, 1}.

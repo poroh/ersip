@@ -49,13 +49,23 @@ hostname() = {hostname, binary()}
 parse_error() = {invalid_name, binary()} | {invalid_ipv6, binary()}
 </code></pre>
 
+
+
+
+### <a name="type-raw">raw()</a> ###
+
+
+<pre><code>
+raw() = binary()
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
 <table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Assemble hostname to iolist().</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Assemble hostname to binary().</td></tr><tr><td valign="top"><a href="#assemble_received-1">assemble_received/1</a></td><td>Assemble host as received parameter of via.</td></tr><tr><td valign="top"><a href="#check_hostname-1">check_hostname/1</a></td><td>Check that hostname is valid domain name.</td></tr><tr><td valign="top"><a href="#ip_address-1">ip_address/1</a></td><td>Transform host to inet:ip_address().</td></tr><tr><td valign="top"><a href="#is_host-1">is_host/1</a></td><td>Check term is valid host.</td></tr><tr><td valign="top"><a href="#is_ip_address-1">is_ip_address/1</a></td><td>Check if host is defined as IP address.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create hostname from inet:ip_address() or from another host or
-from binary().</td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make comparable hostname (from rfc3261 comparision rules).</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Generate host specification from binary.</td></tr></table>
+from raw().</td></tr><tr><td valign="top"><a href="#make_key-1">make_key/1</a></td><td>Make comparable hostname (from rfc3261 comparision rules).</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Generate host specification from binary.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw value (in plain erlang types) of the host.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -149,12 +159,12 @@ Check if host is defined as IP address.
 ### make/1 ###
 
 <pre><code>
-make(Addr::<a href="inet.md#type-ip_address">inet:ip_address()</a> | <a href="#type-host">host()</a> | binary()) -&gt; <a href="#type-host">host()</a>
+make(Addr::<a href="inet.md#type-ip_address">inet:ip_address()</a> | <a href="#type-host">host()</a> | <a href="#type-raw">raw()</a>) -&gt; <a href="#type-host">host()</a>
 </code></pre>
 <br />
 
 Create hostname from inet:ip_address() or from another host or
-from binary().
+from raw().
 
 <a name="make_key-1"></a>
 
@@ -177,4 +187,15 @@ parse(Binary::binary()) -&gt; <a href="ersip_parser_aux.md#type-parse_result">er
 <br />
 
 Generate host specification from binary.
+
+<a name="raw-1"></a>
+
+### raw/1 ###
+
+<pre><code>
+raw(Host::<a href="#type-host">host()</a>) -&gt; <a href="#type-raw">raw()</a>
+</code></pre>
+<br />
+
+Get raw value (in plain erlang types) of the host.
 

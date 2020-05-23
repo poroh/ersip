@@ -49,21 +49,21 @@
              }).
 -type via()           :: #via{}.
 -type sent_protocol() :: {sent_protocol, Protocol :: binary(), ProtocolVersion :: binary(), ersip_transport:transport()}.
--type sent_by()       :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number()}.
--type internal_sent_by() :: {sent_by, ersip_host:host(), Port :: ersip_transport:port_number() | default_port}.
+-type sent_by()       :: {sent_by, ersip_host:host(), Port :: inet:port_number()}.
+-type internal_sent_by() :: {sent_by, ersip_host:host(), Port :: inet:port_number() | default_port}.
 -type known_via_params() :: branch
                           | maddr
                           | received
                           | ttl
                           | rport.
--type rport_value() :: ersip_transport:port_number() | true.
+-type rport_value() :: inet:port_number() | true.
 -type ttl_value()   :: 0..255.
 -type via_key() :: {sent_protocol(), sent_by(), via_params_key()}.
 -type via_params_key()    :: #{branch   => ersip_branch:branch(),
                                maddr    => ersip_host:host(),
                                received => ersip_host:host(),
                                ttl      => non_neg_integer(),
-                               rport    => ersip_transport:port_number() | true,
+                               rport    => inet:port_number() | true,
                                binary() => binary()
                               }.
 
@@ -71,14 +71,14 @@
 %%% API
 %%%===================================================================
 
--spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport()) -> via().
+-spec new(ersip_host:host(), inet:port_number(), ersip_transport:transport()) -> via().
 new(Address, Port, Transport) ->
     #via{sent_protocol = {sent_protocol, <<"SIP">>, <<"2.0">>, Transport},
          sent_by = {sent_by, Address, Port},
          hparams = ersip_hparams:new()
         }.
 
--spec new(ersip_host:host(), ersip_transport:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
+-spec new(ersip_host:host(), inet:port_number(), ersip_transport:transport(), ersip_branch:branch()) -> via().
 new(Address, Port, Transport, Branch) ->
     HParams0 = ersip_hparams:new(),
     HParams = ersip_hparams:set(branch, Branch, <<"branch">>, ersip_branch:assemble(Branch), HParams0),
@@ -125,7 +125,7 @@ all_raw_params(#via{hparams = HParams}) ->
       ParamName :: known_via_params() | binary(),
       Value     :: binary()
                  | ersip_host:host()
-                 | ersip_transport:port_number()
+                 | inet:port_number()
                  | ersip_branch:branch().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
@@ -355,7 +355,7 @@ parse_sent_by_host_port(<<>>, port, Acc) ->
 parse_sent_by_host_port(<<":", Rest/binary>>, port, Acc) ->
     parse_sent_by_host_port([Rest], port, Acc);
 parse_sent_by_host_port([Bin], port, Acc) when is_binary(Bin) ->
-    case ersip_transport:parse_port_number(ersip_bin:trim_lws(Bin)) of
+    case parse_port_number(ersip_bin:trim_lws(Bin)) of
         {ok, PortNumber, <<>>} ->
             parse_sent_by_host_port(<<>>, result, Acc#{port => PortNumber});
         _ ->
@@ -445,7 +445,7 @@ parse_known(<<"rport">>, <<>>) ->
     {ok, {rport, true}};
 parse_known(<<"rport">>, Value) ->
     %% response-port = "rport" [EQUAL 1*DIGIT]
-    case ersip_transport:parse_port_number(Value) of
+    case parse_port_number(Value) of
         {ok, Port, <<>>} ->
             {ok, {rport, Port}};
         _ ->
@@ -524,4 +524,13 @@ validate_topmost_via(#via{sent_protocol = SentProtocol}) ->
             end;
         {sent_protocol, Proto, Version, _} ->
             {error, {unknown_protocol, Proto, Version}}
+    end.
+
+-spec parse_port_number(binary()) -> ersip_parser_aux:parse_result(inet:port_number()).
+parse_port_number(Bin) ->
+    case ersip_parser_aux:parse_non_neg_int(Bin) of
+       {ok, Int, _} = R when Int > 0 andalso Int =< 65535 ->
+            R;
+        _ ->
+            {error, {invalid_port, Bin}}
     end.

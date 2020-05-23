@@ -1202,7 +1202,7 @@ escape_header_byte(V) ->
 -spec enrich_raw(raw(), uri()) -> raw().
 enrich_raw(Base, #uri{data = #sip_uri_data{}} = URI) ->
     Parts = [{user, user(URI)},
-             {host, host_bin(URI)},
+             {host, ersip_host:raw(host(URI))},
              {port, port(URI)},
              {params, raw_params(URI)},
              {headers, raw_headers(URI)}],

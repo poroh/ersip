@@ -16,9 +16,10 @@
          make_key/1,
          assemble/1,
          assemble_bin/1,
-         assemble_received/1
+         assemble_received/1,
+         raw/1
         ]).
--export_type([host/0, parse_error/0]).
+-export_type([host/0, raw/0, parse_error/0]).
 
 %%===================================================================
 %% Types
@@ -33,6 +34,7 @@
 -type parse_result() :: {ok, host()} | {error, parse_error()}.
 -type parse_error() :: {invalid_name, binary()}
                      | {invalid_ipv6, binary()}.
+-type raw() :: binary().
 
 %%===================================================================
 %% API
@@ -133,8 +135,8 @@ assemble_received({ipv6, IpAddr}) ->
     assemble_ip6(IpAddr).
 
 %% @doc Create hostname from inet:ip_address() or from another host or
-%% from binary().
--spec make(inet:ip_address() | host() | binary()) -> host().
+%% from raw().
+-spec make(inet:ip_address() | host() | raw()) -> host().
 make({_, _, _, _} = Addr) ->
     assure_host({ipv4, Addr});
 make({ipv4, {_, _, _, _}} = Addr) ->
@@ -152,6 +154,11 @@ make(Addr) when is_binary(Addr)  ->
         {error, _} ->
             error({error, {invalid_name, Addr}})
     end.
+
+%% @doc Get raw value (in plain erlang types) of the host.
+-spec raw(host()) -> raw().
+raw(Host) ->
+    assemble_bin(Host).
 
 %%===================================================================
 %% Internal implementation

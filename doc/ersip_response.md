@@ -16,7 +16,7 @@
 
 
 <pre><code>
-target() = {<a href="ersip_host.md#type-host">ersip_host:host()</a>, <a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a>, <a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>, Options::map()}
+target() = {<a href="ersip_host.md#type-host">ersip_host:host()</a>, <a href="inet.md#type-port_number">inet:port_number()</a>, <a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>, Options::map()}
 </code></pre>
 
 <a name="index"></a>

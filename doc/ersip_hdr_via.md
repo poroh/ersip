@@ -16,7 +16,7 @@
 
 
 <pre><code>
-internal_sent_by() = {sent_by, <a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a> | default_port}
+internal_sent_by() = {sent_by, <a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="inet.md#type-port_number">inet:port_number()</a> | default_port}
 </code></pre>
 
 
@@ -36,7 +36,7 @@ known_via_params() = branch | maddr | received | ttl | rport
 
 
 <pre><code>
-rport_value() = <a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a> | true
+rport_value() = <a href="inet.md#type-port_number">inet:port_number()</a> | true
 </code></pre>
 
 
@@ -46,7 +46,7 @@ rport_value() = <a href="ersip_transport.md#type-port_number">ersip_transport:po
 
 
 <pre><code>
-sent_by() = {sent_by, <a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a>}
+sent_by() = {sent_by, <a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="inet.md#type-port_number">inet:port_number()</a>}
 </code></pre>
 
 
@@ -96,7 +96,7 @@ via_key() = {<a href="#type-sent_protocol">sent_protocol()</a>, <a href="#type-s
 
 
 <pre><code>
-via_params_key() = #{branch =&gt; <a href="ersip_branch.md#type-branch">ersip_branch:branch()</a>, maddr =&gt; <a href="ersip_host.md#type-host">ersip_host:host()</a>, received =&gt; <a href="ersip_host.md#type-host">ersip_host:host()</a>, ttl =&gt; non_neg_integer(), rport =&gt; <a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a> | true, binary() =&gt; binary()}
+via_params_key() = #{branch =&gt; <a href="ersip_branch.md#type-branch">ersip_branch:branch()</a>, maddr =&gt; <a href="ersip_host.md#type-host">ersip_host:host()</a>, received =&gt; <a href="ersip_host.md#type-host">ersip_host:host()</a>, ttl =&gt; non_neg_integer(), rport =&gt; <a href="inet.md#type-port_number">inet:port_number()</a> | true, binary() =&gt; binary()}
 </code></pre>
 
 <a name="index"></a>
@@ -180,7 +180,7 @@ make_key(Via::<a href="#type-via">via()</a>) -&gt; <a href="#type-via_key">via_k
 ### new/3 ###
 
 <pre><code>
-new(Address::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a>, Transport::<a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>) -&gt; <a href="#type-via">via()</a>
+new(Address::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="inet.md#type-port_number">inet:port_number()</a>, Transport::<a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>) -&gt; <a href="#type-via">via()</a>
 </code></pre>
 <br />
 
@@ -189,7 +189,7 @@ new(Address::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a h
 ### new/4 ###
 
 <pre><code>
-new(Address::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a>, Transport::<a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>, Branch::<a href="ersip_branch.md#type-branch">ersip_branch:branch()</a>) -&gt; <a href="#type-via">via()</a>
+new(Address::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Port::<a href="inet.md#type-port_number">inet:port_number()</a>, Transport::<a href="ersip_transport.md#type-transport">ersip_transport:transport()</a>, Branch::<a href="ersip_branch.md#type-branch">ersip_branch:branch()</a>) -&gt; <a href="#type-via">via()</a>
 </code></pre>
 <br />
 
@@ -285,7 +285,7 @@ set_maddr(Host::<a href="ersip_host.md#type-host">ersip_host:host()</a>, Via::<a
 set_param(ParamName, Value, Via::<a href="#type-via">via()</a>) -&gt; <a href="#type-via">via()</a>
 </code></pre>
 
-<ul class="definitions"><li><code>ParamName = <a href="#type-known_via_params">known_via_params()</a> | binary()</code></li><li><code>Value = binary() | <a href="ersip_host.md#type-host">ersip_host:host()</a> | <a href="ersip_transport.md#type-port_number">ersip_transport:port_number()</a> | <a href="ersip_branch.md#type-branch">ersip_branch:branch()</a></code></li></ul>
+<ul class="definitions"><li><code>ParamName = <a href="#type-known_via_params">known_via_params()</a> | binary()</code></li><li><code>Value = binary() | <a href="ersip_host.md#type-host">ersip_host:host()</a> | <a href="inet.md#type-port_number">inet:port_number()</a> | <a href="ersip_branch.md#type-branch">ersip_branch:branch()</a></code></li></ul>
 
 <a name="set_received-2"></a>
 

@@ -76,8 +76,8 @@ transport_parse_test() ->
     ok.
 
 transport_parse_fail_test() ->
-    ?assertMatch({error, {invalid_sip_uri, {einval, _}}}, ersip_uri:parse(<<"sip:b;transport=&">>)),
-    ?assertMatch({error, {invalid_sip_uri, {einval, _}}}, ersip_uri:parse(<<"sip:b;transport=&;user=phone">>)),
+    ?assertMatch({error, {invalid_sip_uri, {invalid_transport, _}}}, ersip_uri:parse(<<"sip:b;transport=&">>)),
+    ?assertMatch({error, {invalid_sip_uri, {invalid_transport, _}}}, ersip_uri:parse(<<"sip:b;transport=&;user=phone">>)),
     ok.
 
 set_transport_test() ->

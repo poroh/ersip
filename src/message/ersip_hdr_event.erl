@@ -19,10 +19,12 @@
          parse/1,
          assemble/1,
          assemble_bin/1,
-         build/2
+         build/2,
+
+         raw/1
         ]).
 
--export_type([type/0, id/0]).
+-export_type([type/0, id/0, raw/0]).
 
 %%===================================================================
 %% Types
@@ -34,17 +36,22 @@
                }).
 -type event() :: #event{}.
 -type type()  :: {unknown_event, binary()}.
--type known_param() :: id.
--type id()   :: binary(). %% lower case.
+-type id()    :: binary(). %% lower case.
+-type raw()   :: #{type   := binary(), %% lower case
+                   params := ersip_hparams:raw(),
+                   id     => binary() %% lower case,
+                  }.
 
 %%===================================================================
 %% API
 %%===================================================================
 
+%% @doc Get event type.
 -spec type(event()) -> type().
 type(#event{type = T}) ->
     T.
 
+%% @doc Get event type in binary form.
 -spec type_bin(event()) -> binary().
 type_bin(#event{type = {unknown_event, V}}) ->
     V.
@@ -59,20 +66,34 @@ id(#event{hparams = HParams}, Default) ->
             V
     end.
 
--spec param(Name :: binary(), event()) -> {ok, Value :: binary()} | not_found.
-param(Name, #event{hparams = HParams}) when is_binary(Name) ->
-    ersip_hparams:find_raw(Name, HParams).
-
--spec set_param(Name :: binary(), PValue :: binary(), event()) -> event().
-set_param(PName, PValue, #event{hparams = HParams} = Event)
-        when is_binary(PName), is_binary(PValue) ->
-    case set_hparam(PName, PValue, HParams) of
+%% Set event identifier.
+%% Raises error if first parameter is not valid identifier.
+-spec set_id(binary(), event()) -> event().
+set_id(Value, #event{hparams = HParams} = Event) ->
+    case ersip_hparams:set(<<"id">>, Value, fun parse_known/2, HParams) of
         {ok, NewHParam} ->
             Event#event{hparams = NewHParam};
         {error, Reason} ->
             error(Reason)
     end.
 
+%% @doc Get raw parameter value.
+-spec param(Name :: binary(), event()) -> {ok, Value :: binary()} | not_found.
+param(Name, #event{hparams = HParams}) when is_binary(Name) ->
+    ersip_hparams:find_raw(Name, HParams).
+
+%% @doc Set raw parameter value.
+-spec set_param(Name :: binary(), PValue :: binary(), event()) -> event().
+set_param(PName, PValue, #event{hparams = HParams} = Event)
+        when is_binary(PName), is_binary(PValue) ->
+    case ersip_hparams:set(PName, PValue, fun parse_known/2, HParams) of
+        {ok, NewHParam} ->
+            Event#event{hparams = NewHParam};
+        {error, Reason} ->
+            error(Reason)
+    end.
+
+%% @doc Creete event header from SIP or from raw representation.
 -spec make(binary()) -> event().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
@@ -80,8 +101,26 @@ make(Bin) when is_binary(Bin) ->
             Event;
         {error, Reason} ->
             error(Reason)
+    end;
+make(#{type := TypeBin} = Raw) when is_binary(TypeBin) ->
+    case ersip_parser_aux:check_token(TypeBin) of
+        true -> ok;
+        false -> error({invalid_type, TypeBin})
+    end,
+    Type = decode_type(TypeBin),
+    HParams0 = ersip_hparams:make(maps:get(params, Raw, #{})),
+    HParams =
+        case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+            {ok, H} -> H;
+            {error, Reason} -> error({invalid_params, Reason})
+        end,
+    Ev0 = #event{type = Type, typebin = TypeBin, hparams = HParams},
+    case Raw of
+        #{id := Id} -> set_id(Id, Ev0);
+        _ -> Ev0
     end.
 
+%% @doc Parse event header from binary form or from SIP raw header.
 -spec parse(binary() | ersip_hdr:header()) -> {ok, event()} | {error, term()}.
 parse(Bin) when is_binary(Bin) ->
     Parsers = [fun ersip_parser_aux:parse_token/1,
@@ -107,6 +146,7 @@ parse(Header) ->
             parse(iolist_to_binary(EventIOList))
     end.
 
+%% @doc Serialize header to iolist.
 -spec assemble(event()) -> iolist().
 assemble(#event{} = Event) ->
     #event{typebin  = TypeBin,
@@ -119,19 +159,32 @@ assemble(#event{} = Event) ->
         end,
     [TypeBin, HParamsIO].
 
+%% @doc Serialize header to binary.
 -spec assemble_bin(event()) -> binary().
 assemble_bin(#event{} = Event) ->
     iolist_to_binary(assemble(Event)).
 
+%% @doc Build raw SIP header.
 -spec build(HdrName :: binary(), event()) -> ersip_hdr:header().
 build(HdrName, #event{} = Event) ->
     Hdr = ersip_hdr:new(HdrName),
     ersip_hdr:add_value(assemble(Event), Hdr).
 
+%% @doc Get raw Erlang term representation.
+-spec raw(event()) -> raw().
+raw(#event{hparams = HParams} = Ev) ->
+    Base = #{type   => type_bin(Ev),
+             params => ersip_hparams:raw(HParams)},
+    case id(Ev, undefined) of
+        undefined -> Base;
+        Id -> Base#{id => Id}
+    end.
+
 %%===================================================================
 %% Internal Implementation
 %%===================================================================
 
+%% @private
 -spec decode_type(binary()) -> type().
 decode_type(Bin) ->
     case ersip_bin:to_lower(Bin) of
@@ -139,77 +192,36 @@ decode_type(Bin) ->
             {unknown_event, Lower}
     end.
 
+%% @private
+-spec parse_known(binary(), binary()) -> ersip_hparams:parse_known_fun_result().
+parse_known(<<"id">>, Value) ->
+    %% "id" EQUAL token
+    case ersip_parser_aux:parse_token(Value) of
+        {ok, Value, <<>>} -> {ok, {id, ersip_bin:to_lower(Value)}};
+        {ok, _, _}        -> {error, {invalid_event_id, Value}};
+        {error, Reason}   -> {error, {invalid_event_id, Reason}}
+    end;
+parse_known(_, _) ->
+    {ok, unknown}.
+
+%% @private
 -spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_params(<<$;, Bin/binary>>) ->
     do_parse_params(Bin);
 parse_params(Bin) ->
     {ok, ersip_hparams:new(), Bin}.
 
+%% @private
 -spec do_parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 do_parse_params(Bin) ->
-    case ersip_parser_aux:parse_params($;, Bin) of
-        {ok, PList, Rest} ->
-            try
-                HParams =
-                    lists:foldl(fun({Key, Value}, HParams) ->
-                                        case set_hparam(Key, Value, HParams) of
-                                            {ok, NewHParam} ->
-                                                NewHParam;
-                                            {error, _} = Error ->
-                                                throw(Error)
-                                        end
-                                end,
-                                ersip_hparams:new(),
-                                PList),
-                {ok, HParams, Rest}
-            catch
-                throw:{error, _} = Error ->
-                    Error
-            end;
-        {error, _} = Error ->
-            Error
-    end.
-
--spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> Result when
-      Result :: {ok, ersip_hparams:hparams()}
-              | {error, term()}.
-set_hparam(PName, PValue, HParams) ->
-    LowerName = ersip_bin:to_lower(PName),
-    case param_name_to_atom(LowerName) of
-        {ok, ParsedName} ->
-            case parse_param(ParsedName, PValue) of
-                {ok, ParsedValue} ->
-                    {ok, ersip_hparams:set(ParsedName, ParsedValue, PName, PValue, HParams)};
+    case ersip_hparams:parse_raw(Bin) of
+        {ok, HParams0, Rest} ->
+            case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+                {ok, HParams} ->
+                    {ok, HParams, Rest};
                 {error, _} = Error ->
                     Error
             end;
         {error, _} = Error ->
-            Error;
-        not_found ->
-            {ok, ersip_hparams:set_raw(PName, PValue, HParams)}
-    end.
-
-%% event-param       =  generic-param / ( "id" EQUAL token )
--spec param_name_to_atom(binary()) -> {ok, known_param()}
-                                     | not_found
-                                     | {error, {invalid_param, binary()}}.
-param_name_to_atom(<<"id">>) -> {ok, id};
-param_name_to_atom(X) when is_binary(X) ->
-    case ersip_parser_aux:check_token(X) of
-        true -> not_found;
-        false -> {error, {invalid_param, X}}
-    end.
-
--spec parse_param(known_param(), binary()) -> {ok, Value} | {error, Err} when
-      Value :: binary(),
-      Err   :: {invalid_event_id, term()}.
-parse_param(id, Value) ->
-    %% "id" EQUAL token
-    case ersip_parser_aux:parse_token(Value) of
-        {ok, Value, <<>>} ->
-            {ok, ersip_bin:to_lower(Value)};
-        {ok, _, _} ->
-            {error, {invalid_event_id, Value}};
-        {error, Reason} ->
-            {error, {invalid_event_id, Reason}}
+            Error
     end.

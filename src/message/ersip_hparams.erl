@@ -29,6 +29,7 @@
          get/2,
          set_raw/3,
          set/5,
+         set/4,
          raw/1
         ]).
 -export_type([hparams/0, raw/0, parse_known_fun_result/0]).
@@ -212,6 +213,22 @@ set(ParsedName, ParsedValue, Key, Value, #hparams{parsed = PMap} = HParams) ->
             Orig   = (HParams#hparams.orig)#{LowerKey => {Key, Value}},
             Parsed = PMap#{ParsedName => {LowerKey, ParsedValue}},
             HParams#hparams{orig = Orig, parsed = Parsed}
+    end.
+
+%% @doc Set parameter and parse it using ParseKnownFun.
+-spec set(binary(), binary(), parse_known_fun(), ersip_hparams:hparams()) -> {ok, ersip_hparams:hparams()} | {error, term()}.
+set(PName, PValue, ParseKnownF, HParams) ->
+    LowerName = ersip_bin:to_lower(PName),
+    case ParseKnownF(LowerName, PValue) of
+        {ok, {ParsedName, ParsedValue}} ->
+            {ok, set(ParsedName, ParsedValue, PName, PValue, HParams)};
+        {ok, unknown} ->
+            case ersip_parser_aux:check_token(PName) of
+                true -> {ok, set_raw(PName, PValue, HParams)};
+                false -> {error, {invalid_param, PName}}
+            end;
+        {error, _} = Error ->
+            Error
     end.
 
 %% @doc Find original value of the parameter.

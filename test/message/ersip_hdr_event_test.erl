@@ -170,6 +170,23 @@ required_in_notify_test() ->
     ?assertMatch({error, {header_error, {event, _}}}, ersip_sipmsg:parse(BadNotify, [event])),
     ok.
 
+raw_test() ->
+    ?assertMatch(#{type := <<"dialog">>, id := <<"1">>}, ersip_hdr_event:raw(ersip_hdr_event:make(<<"dialog;id=1">>))),
+    ?assertMatch(#{type := <<"reg">>}, ersip_hdr_event:raw(ersip_hdr_event:make(<<"Reg">>))),
+    ?assertMatch(#{type := <<"dialog">>, params := #{<<"some">> := <<"Value">>}}, ersip_hdr_event:raw(ersip_hdr_event:make(<<"dialog;Some=Value">>))),
+
+    ?assertEqual(<<"dialog;id=1">>, ersip_hdr_event:assemble_bin(ersip_hdr_event:make(#{type => <<"dialog">>, id => <<"1">>}))),
+    ?assertEqual(<<"dialog;Some=Value">>, ersip_hdr_event:assemble_bin(ersip_hdr_event:make(#{type => <<"dialog">>,
+                                                                                              params => #{<<"Some">> => <<"Value">>}}))),
+
+    %% Type is not token.
+    ?assertError({invalid_type, _}, ersip_hdr_event:make(#{type => <<"@">>})),
+    %% Id is not token.
+    ?assertError({invalid_event_id, _}, ersip_hdr_event:make(#{type => <<"dialog">>, id => <<"@">>})),
+    %% Id is not token.
+    ?assertError({invalid_params, _}, ersip_hdr_event:make(#{type => <<"dialog">>, params => #{<<"id">> => <<"@">>}})),
+    ok.
+
 %%===================================================================
 %% Helpers
 %%===================================================================

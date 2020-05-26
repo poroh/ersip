@@ -114,7 +114,7 @@ raw_list() = [{<a href="#type-orig_key">orig_key()</a>, <a href="#type-orig_valu
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize parameters to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize parameters to binary.</td></tr><tr><td valign="top"><a href="#find-2">find/2</a></td><td>Find parsed or generic parameter.</td></tr><tr><td valign="top"><a href="#find_raw-2">find_raw/2</a></td><td>Find original value of the parameter.</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get value of the parameter.</td></tr><tr><td valign="top"><a href="#is_empty-1">is_empty/1</a></td><td>Check if headers params are empty.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create paramters from binary or from raw data.</td></tr><tr><td valign="top"><a href="#new-0">new/0</a></td><td>Create empty parameters.</td></tr><tr><td valign="top"><a href="#parse_known-2">parse_known/2</a></td><td>Enrich parameters with parsed values.</td></tr><tr><td valign="top"><a href="#parse_raw-1">parse_raw/1</a></td><td>Parse paramters from binary.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Represent in play Erlang terms.</td></tr><tr><td valign="top"><a href="#set-5">set/5</a></td><td>Set value of the parameter.</td></tr><tr><td valign="top"><a href="#set_raw-3">set_raw/3</a></td><td>Set original value of the parameter.</td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td>Return list of mixed parsed (known) and unparsed (unknown) parameters.</td></tr><tr><td valign="top"><a href="#to_raw_list-1">to_raw_list/1</a></td><td>Return list of parameters.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize parameters to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize parameters to binary.</td></tr><tr><td valign="top"><a href="#find-2">find/2</a></td><td>Find parsed or generic parameter.</td></tr><tr><td valign="top"><a href="#find_raw-2">find_raw/2</a></td><td>Find original value of the parameter.</td></tr><tr><td valign="top"><a href="#get-2">get/2</a></td><td>Get value of the parameter.</td></tr><tr><td valign="top"><a href="#is_empty-1">is_empty/1</a></td><td>Check if headers params are empty.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create paramters from binary or from raw data.</td></tr><tr><td valign="top"><a href="#new-0">new/0</a></td><td>Create empty parameters.</td></tr><tr><td valign="top"><a href="#parse_known-2">parse_known/2</a></td><td>Enrich parameters with parsed values.</td></tr><tr><td valign="top"><a href="#parse_raw-1">parse_raw/1</a></td><td>Parse paramters from binary.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Represent in play Erlang terms.</td></tr><tr><td valign="top"><a href="#set-4">set/4</a></td><td>Set parameter and parse it using ParseKnownFun.</td></tr><tr><td valign="top"><a href="#set-5">set/5</a></td><td>Set value of the parameter.</td></tr><tr><td valign="top"><a href="#set_raw-3">set_raw/3</a></td><td>Set original value of the parameter.</td></tr><tr><td valign="top"><a href="#to_list-1">to_list/1</a></td><td>Return list of mixed parsed (known) and unparsed (unknown) parameters.</td></tr><tr><td valign="top"><a href="#to_raw_list-1">to_raw_list/1</a></td><td>Return list of parameters.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -244,6 +244,17 @@ raw(Hparams::<a href="#type-hparams">hparams()</a>) -&gt; <a href="#type-raw">ra
 <br />
 
 Represent in play Erlang terms.
+
+<a name="set-4"></a>
+
+### set/4 ###
+
+<pre><code>
+set(PName::binary(), PValue::binary(), ParseKnownF::<a href="#type-parse_known_fun">parse_known_fun()</a>, HParams::<a href="ersip_hparams.md#type-hparams">ersip_hparams:hparams()</a>) -&gt; {ok, <a href="ersip_hparams.md#type-hparams">ersip_hparams:hparams()</a>} | {error, term()}
+</code></pre>
+<br />
+
+Set parameter and parse it using ParseKnownFun.
 
 <a name="set-5"></a>
 

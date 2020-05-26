@@ -148,7 +148,7 @@ param(Name, #contact{hparams = HParams}) when is_binary(Name) ->
 -spec set_param(Name :: binary(), PValue :: binary(), contact()) -> contact().
 set_param(PName, PValue, #contact{hparams = HParams} = Contact)
         when is_binary(PName), is_binary(PValue) ->
-    case set_hparam(PName, PValue, HParams) of
+    case ersip_hparams:set(PName, PValue, fun parse_known/2, HParams) of
         {ok, NewHParam} ->
             Contact#contact{hparams = NewHParam};
         {error, Reason} ->
@@ -316,22 +316,6 @@ do_parse_contact_params(Bin) ->
                     {ok, HParams, Rest};
                 {error, _} = Error ->
                     Error
-            end;
-        {error, _} = Error ->
-            Error
-    end.
-
-%% @private
--spec set_hparam(Name :: binary(), PValue :: binary(), ersip_hparams:hparams()) -> {ok, ersip_hparams:hparams()} | {error, term()}.
-set_hparam(PName, PValue, HParams) ->
-    LowerName = ersip_bin:to_lower(PName),
-    case parse_known(LowerName, PValue) of
-        {ok, {ParsedName, ParsedValue}} ->
-            {ok, ersip_hparams:set(ParsedName, ParsedValue, PName, PValue, HParams)};
-        {ok, unknown} ->
-            case ersip_parser_aux:check_token(PName) of
-                true -> {ok, ersip_hparams:set_raw(PName, PValue, HParams)};
-                false -> {error, {invalid_param, PName}}
             end;
         {error, _} = Error ->
             Error

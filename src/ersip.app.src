@@ -1,6 +1,6 @@
 {application, ersip,
- [{description, "Erlang SIP Library"},
-  {vsn, "1.0.0"},
+ [{description, "Erlang SIP/SDP Library"},
+  {vsn, "1.2.0"},
   {registered, []},
   {mod, { ersip_app, []}},
   {applications,
@@ -13,5 +13,5 @@
 
   {maintainers, []},
   {licenses, ["MIT"]},
-  {links, []}
+  {links, [{"GitHub", "https://github.com/poroh/ersip"}]}
  ]}.

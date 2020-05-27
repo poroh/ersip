@@ -93,7 +93,7 @@ set_param(PName, PValue, #event{hparams = HParams} = Event)
             error(Reason)
     end.
 
-%% @doc Creete event header from SIP or from raw representation.
+%% @doc Create Event header from SIP or from raw representation.
 -spec make(binary()) -> event().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of

@@ -55,7 +55,7 @@ type() = {unknown_event, binary()}
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize header to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize header to binary.</td></tr><tr><td valign="top"><a href="#build-2">build/2</a></td><td>Build raw SIP header.</td></tr><tr><td valign="top"><a href="#id-2">id/2</a></td><td></td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Creete event header from SIP or from raw representation.</td></tr><tr><td valign="top"><a href="#param-2">param/2</a></td><td>Get raw parameter value.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse event header from binary form or from SIP raw header.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw Erlang term representation.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>Set raw parameter value.</td></tr><tr><td valign="top"><a href="#type-1">type/1</a></td><td>Get event type.</td></tr><tr><td valign="top"><a href="#type_bin-1">type_bin/1</a></td><td>Get event type in binary form.</td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize header to iolist.</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize header to binary.</td></tr><tr><td valign="top"><a href="#build-2">build/2</a></td><td>Build raw SIP header.</td></tr><tr><td valign="top"><a href="#id-2">id/2</a></td><td></td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Create Event header from SIP or from raw representation.</td></tr><tr><td valign="top"><a href="#param-2">param/2</a></td><td>Get raw parameter value.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse event header from binary form or from SIP raw header.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Get raw Erlang term representation.</td></tr><tr><td valign="top"><a href="#set_param-3">set_param/3</a></td><td>Set raw parameter value.</td></tr><tr><td valign="top"><a href="#type-1">type/1</a></td><td>Get event type.</td></tr><tr><td valign="top"><a href="#type_bin-1">type_bin/1</a></td><td>Get event type in binary form.</td></tr></table>
 
 
 <a name="functions"></a>
@@ -113,7 +113,7 @@ make(Bin::binary()) -&gt; <a href="#type-event">event()</a>
 </code></pre>
 <br />
 
-Creete event header from SIP or from raw representation.
+Create Event header from SIP or from raw representation.
 
 <a name="param-2"></a>
 

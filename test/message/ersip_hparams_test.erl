@@ -108,6 +108,16 @@ empty_test() ->
     ?assertEqual(false, ersip_hparams:is_empty(ersip_hparams:make(<<"lr">>))),
     ok.
 
+remove_test() ->
+    ?assertEqual(<<"a=b">>, ersip_hparams:assemble_bin(ersip_hparams:remove(<<"c">>, ersip_hparams:make(<<"a=b;c=d">>)))),
+
+    {ok, WithKnown, <<>>} = ersip_hparams:parse(fun(<<"c">>, B) -> {ok, {c, B}}; (_, _) -> {ok, unknown} end, <<"a=b;c=d">>),
+    ?assertMatch({ok, _}, ersip_hparams:find(c, WithKnown)),
+    ?assertEqual(<<"a=b">>, ersip_hparams:assemble_bin(ersip_hparams:remove(c, WithKnown))),
+    ?assertEqual(not_found, ersip_hparams:find(c, ersip_hparams:remove(c, WithKnown))),
+    ?assertEqual(not_found, ersip_hparams:find(<<"c">>, ersip_hparams:remove(c, WithKnown))),
+    ok.
+
 parse_known_test() ->
     ?assertEqual({error, my_error}, ersip_hparams:parse_known(fun(_, _) -> {error, my_error} end,
                                                               ersip_hparams:make(<<"a=b;c=d">>))),

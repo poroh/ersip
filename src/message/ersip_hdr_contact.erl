@@ -188,14 +188,7 @@ make(#{uri := URI} = Raw) ->
 
     Opts = [{expires, fun(X, C) -> set_expires(X, C) end},
             {q,       fun(X, C) -> set_qvalue(ersip_qvalue:make(X), C) end}],
-    lists:foldl(fun({Key, F}, C) ->
-                        case Raw of
-                            #{Key := Value} -> F(Value, C);
-                            _ -> C
-                        end
-                end,
-                C0,
-                Opts).
+    ersip_map:apply_to(Opts, Raw, C0).
 
 %% @doc Parse single contact value.
 %%
@@ -302,21 +295,6 @@ parse_known(_, _) ->
 %% @private
 -spec parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_contact_params(<<$;, Bin/binary>>) ->
-    do_parse_contact_params(Bin);
+    ersip_hparams:parse(fun parse_known/2, Bin);
 parse_contact_params(Bin) ->
     {ok, ersip_hparams:new(), Bin}.
-
-%% @private
--spec do_parse_contact_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
-do_parse_contact_params(Bin) ->
-    case ersip_hparams:parse_raw(Bin) of
-        {ok, HParams0, Rest} ->
-            case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
-                {ok, HParams} ->
-                    {ok, HParams, Rest};
-                {error, _} = Error ->
-                    Error
-            end;
-        {error, _} = Error ->
-            Error
-    end.

@@ -43,6 +43,7 @@
 <tr><td><a href="ersip_hparams.md" class="module">ersip_hparams</a></td></tr>
 <tr><td><a href="ersip_id.md" class="module">ersip_id</a></td></tr>
 <tr><td><a href="ersip_iolist.md" class="module">ersip_iolist</a></td></tr>
+<tr><td><a href="ersip_map.md" class="module">ersip_map</a></td></tr>
 <tr><td><a href="ersip_method.md" class="module">ersip_method</a></td></tr>
 <tr><td><a href="ersip_method_set.md" class="module">ersip_method_set</a></td></tr>
 <tr><td><a href="ersip_msg.md" class="module">ersip_msg</a></td></tr>

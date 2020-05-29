@@ -207,21 +207,6 @@ parse_known(_, _) ->
 %% @private
 -spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
 parse_params(<<$;, Bin/binary>>) ->
-    do_parse_params(Bin);
+    ersip_hparams:parse(fun parse_known/2, Bin);
 parse_params(Bin) ->
     {ok, ersip_hparams:new(), Bin}.
-
-%% @private
--spec do_parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_hparams:hparams()).
-do_parse_params(Bin) ->
-    case ersip_hparams:parse_raw(Bin) of
-        {ok, HParams0, Rest} ->
-            case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
-                {ok, HParams} ->
-                    {ok, HParams, Rest};
-                {error, _} = Error ->
-                    Error
-            end;
-        {error, _} = Error ->
-            Error
-    end.

@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018, 2019 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP From/to header tests
-%%
+%%%
+%%% Copyright (c) 2018, 2019 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP From/to header tests
+%%%
 
 -module(ersip_hdr_fromto_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 parse_test() ->
     URIBin = <<"sip:alice@atlanta.com">>,
@@ -41,6 +41,8 @@ parse_test() ->
     ?assertEqual({display_name,  []}, ersip_hdr_fromto:display_name(To4)),
     ?assertEqual({tag, <<"100">>}, ersip_hdr_fromto:tag(To4)),
     ?assertEqual(URI, ersip_hdr_fromto:uri(To4)),
+
+    ?assertMatch({ok, _},  ersip_hdr_fromto:parse(URIBin)),
     ok.
 
 
@@ -59,7 +61,6 @@ comma_username_test() ->
     ?assertEqual(URI, ersip_hdr_fromto:uri(To2)),
     ?assertEqual({tag, <<"12345">>}, ersip_hdr_fromto:tag(To2)),
     ok.
-
 
 parse_fail_test() ->
     ?assertMatch({error, _}, ersip_hdr_fromto:parse(create(<<"a@b">>))),
@@ -83,12 +84,18 @@ make_test() ->
     ?assertEqual({display_name,  [<<"Alice">>]}, ersip_hdr_fromto:display_name(To)),
     ?assertEqual({tag, <<"1928301774">>}, ersip_hdr_fromto:tag(To)),
     ?assertEqual(URI, ersip_hdr_fromto:uri(To)),
-    ?assertError({error, _}, ersip_hdr_fromto:make(<<>>)).
+    ?assertError({error, _}, ersip_hdr_fromto:make(<<>>)),
+
+    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin}))),
+    ?assertEqual(<<"<", URIBin/binary, ">;tag=1928301774">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin, tag => <<"1928301774">>}))),
+    ?assertError({invalid_params, _}, ersip_hdr_fromto:make(#{uri => URIBin, params => #{<<"tag">> => <<"@">>}})),
+    ok.
 
 tag_key_test() ->
     ?assertEqual({tag_key, <<"1928301774">>}, tag_key(<<"sip:a@b;tag=1928301774">>)),
     ?assertEqual({tag_key, <<"abc">>}, tag_key(<<"sip:a@b;tag=ABC">>)),
-    ?assertEqual(undefined, tag_key(<<"sip:a@b">>)).
+    ?assertEqual(undefined, tag_key(<<"sip:a@b">>)),
+    ok.
 
 assemble_test() ->
     reassemble_check(<<"<sip:a@b>">>),
@@ -111,11 +118,20 @@ set_tag_test() ->
     ?assertEqual(<<"Alice <sip:alice@atlanta.com>;tag=88sja8x">>, assemble(AliceWithTag)),
     ok.
 
+set_display_name_test() ->
+    FT = ersip_hdr_fromto:make(<<"Alice <sip:alice@atlanta.com>">>),
+    FT1 = ersip_hdr_fromto:set_display_name(ersip_display_name:make(<<"Alice Cooper">>), FT),
+    FT2 = ersip_hdr_fromto:set_display_name(ersip_display_name:make(<<"Freÿr Maßen">>), FT),
+    ?assertEqual(<<"Alice Cooper <sip:alice@atlanta.com>">>, ersip_hdr_fromto:assemble_bin(FT1)),
+    ?assertEqual(<<"\"Freÿr Maßen\" <sip:alice@atlanta.com>">>, ersip_hdr_fromto:assemble_bin(FT2)),
+    ok.
+
 build_test() ->
     AliceF = success_parse_fromto(<<"Alice <sip:alice@atlanta.com>">>),
     AliceFH = ersip_hdr_fromto:build(<<"From">>, AliceF),
     {ok, AliceF2} = ersip_hdr_fromto:parse(AliceFH),
-    ?assertEqual(AliceF, AliceF2).
+    ?assertEqual(AliceF, AliceF2),
+    ok.
 
 rfc4475_crazy_example_test() ->
     CrazyExampleBin = <<"\"BEL:\<hex>07</hex> NUL:\<hex>00</hex> DEL:\<hex>7F</hex>\" <sip:1_unusual.URI~(to-be!sure)&isn't+it$/crazy?,/;;*@example.com>">>,
@@ -134,9 +150,15 @@ raw_params_test() ->
 
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+raw_test() ->
+    ?assertMatch(#{uri := #{sip := #{user := <<"alice">>}}}, ersip_hdr_fromto:raw(ersip_hdr_fromto:make(<<"sip:alice@atlanta.com">>))),
+    ?assertMatch(#{tag := <<"mytag">>}, ersip_hdr_fromto:raw(ersip_hdr_fromto:make(<<"sip:alice@atlanta.com;tag=mytag">>))),
+    ?assertMatch(#{display_name := <<"Alice">>}, ersip_hdr_fromto:raw(ersip_hdr_fromto:make(<<"Alice <sip:alice@atlanta.com>">>))),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 create(Bin) ->
     H = ersip_hdr:new(<<"To">>),
     ersip_hdr:add_value(Bin, H).

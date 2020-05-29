@@ -19,6 +19,7 @@
          make/1,
          parse_raw/1,
          parse_known/2,
+         parse/2,
          assemble/1,
          assemble_bin/1,
          is_empty/1,
@@ -30,6 +31,7 @@
          set_raw/3,
          set/5,
          set/4,
+         remove/2,
          raw/1
         ]).
 -export_type([hparams/0, raw/0, parse_known_fun_result/0]).
@@ -51,6 +53,7 @@
 -type parsed_value() :: term().
 -type orig_value()   :: binary().
 
+-type parse_result() :: {ok, hparams()} | {error, term()}.
 -type parse_known_fun() :: fun((lower_key(), orig_value()) -> parse_known_fun_result()).
 -type parse_known_fun_result() :: {ok, {parsed_name(), parsed_value()}}
                                 | {ok, unknown}
@@ -113,6 +116,21 @@ parse_known(ParseKnownFun, #hparams{order = Order, orig = Orig} = HParams0) ->
                 end,
                 {ok, HParams0},
                 Order).
+
+%% @doc Parse parameters and parse all known params.
+-spec parse(parse_known_fun(), binary()) -> ersip_parser_aux:parse_result(hparams()).
+parse(ParseKnownF, Bin) ->
+    case ersip_hparams:parse_raw(Bin) of
+        {ok, HParams0, Rest} ->
+            case ersip_hparams:parse_known(ParseKnownF, HParams0) of
+                {ok, HParams} ->
+                    {ok, HParams, Rest};
+                {error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
+    end.
 
 %% @doc Serialize parameters to iolist.
 -spec assemble(hparams()) -> iolist().
@@ -260,6 +278,20 @@ set_raw(Key, Value, #hparams{} = HParams) ->
             HParams#hparams{orig  = Orig}
     end.
 
+%% @doc Remove parameter from parameters.
+-spec remove(binary() | parsed_name(), hparams()) -> hparams().
+remove(BinName, #hparams{} = HParams) when is_binary(BinName) ->
+    LowerName = ersip_bin:to_lower(BinName),
+    remove_impl(LowerName, HParams);
+remove(ParsedName, #hparams{parsed = Parsed} = HParams) when is_atom(ParsedName) ->
+    case Parsed of
+        #{ParsedName := {LowerName, _}} ->
+            remove_impl(LowerName, HParams);
+        _ ->
+            HParams
+    end.
+
+
 %% @doc Represent in play Erlang terms.
 -spec raw(hparams()) -> raw().
 raw(#hparams{} = HParams) ->
@@ -268,6 +300,7 @@ raw(#hparams{} = HParams) ->
            {K, V} -> {ersip_bin:to_lower(K), V};
            K -> {ersip_bin:to_lower(K), <<>>}
        end || P <- to_raw_list(HParams)]).
+
 
 %%===================================================================
 %% Internal Implementation
@@ -287,3 +320,15 @@ set_parsed(LowerKey, ParsedName, ParsedValue, #hparams{parsed = PMap0} = HParams
                   LowerKey   => ParsedName},
     HParams#hparams{parsed = PMap}.
 
+
+-spec remove_impl(lower_key(), hparams()) -> hparams().
+remove_impl(LowerKey, #hparams{parsed = Parsed, orig = Orig, order = Order} = HP) ->
+    NewParsed =
+        case Parsed of
+            #{LowerKey := ParsedKey} ->
+                maps:without([ParsedKey, LowerKey], Parsed);
+            _ -> Parsed
+        end,
+    NewOrig = maps:remove(LowerKey, Orig),
+    NewOrder = [X || X <- Order, X /= LowerKey],
+    HP#hparams{parsed = NewParsed, orig = NewOrig, order = NewOrder}.

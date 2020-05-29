@@ -9,7 +9,7 @@
           ersip_hdr_refer_to,ersip_hdr_replaces,ersip_hdr_route,
           ersip_hdr_rseq,ersip_hdr_subscription_state,ersip_hdr_via,
           ersip_hnames,ersip_host,ersip_hparams,ersip_id,ersip_iolist,
-          ersip_method,ersip_method_set,ersip_msg,ersip_nameaddr,
+          ersip_map,ersip_method,ersip_method_set,ersip_msg,ersip_nameaddr,
           ersip_option_tag,ersip_parser,ersip_parser_aux,ersip_proxy,
           ersip_proxy_common,ersip_proxy_se,ersip_proxy_stateless,
           ersip_quoted_string,ersip_qvalue,ersip_registrar,

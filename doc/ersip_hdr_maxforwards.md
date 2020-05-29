@@ -19,27 +19,81 @@
 maxforwards() = {maxforwards, non_neg_integer()}
 </code></pre>
 
+
+
+
+### <a name="type-parse_error">parse_error()</a> ###
+
+
+<pre><code>
+parse_error() = no_maxforwards | {invalid_maxforwards, binary()}
+</code></pre>
+
+
+
+
+### <a name="type-parse_result">parse_result()</a> ###
+
+
+<pre><code>
+parse_result() = {ok, <a href="#type-maxforwards">maxforwards()</a>} | {error, <a href="#type-parse_error">parse_error()</a>}
+</code></pre>
+
+
+
+
+### <a name="type-raw">raw()</a> ###
+
+
+<pre><code>
+raw() = non_neg_integer()
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
 
 
-<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#build-2">build/2</a></td><td></td></tr><tr><td valign="top"><a href="#dec-1">dec/1</a></td><td></td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td></td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td></td></tr><tr><td valign="top"><a href="#value-1">value/1</a></td><td></td></tr></table>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#assemble-1">assemble/1</a></td><td>Serialize Max-Forwards header value to iolist().</td></tr><tr><td valign="top"><a href="#assemble_bin-1">assemble_bin/1</a></td><td>Serialize Max-Forwards header value to binary().</td></tr><tr><td valign="top"><a href="#build-2">build/2</a></td><td>Build SIP raw header.</td></tr><tr><td valign="top"><a href="#dec-1">dec/1</a></td><td>Decrement value in Max-Forwards header.</td></tr><tr><td valign="top"><a href="#make-1">make/1</a></td><td>Make From/To field from binary(), raw representation or SIP
+raw header.</td></tr><tr><td valign="top"><a href="#parse-1">parse/1</a></td><td>Parse Max-Forwards from binary() of SIP raw header.</td></tr><tr><td valign="top"><a href="#raw-1">raw/1</a></td><td>Raw representation of Max-Forwards.</td></tr><tr><td valign="top"><a href="#value-1">value/1</a></td><td>Integer value in Max-Forwards header.</td></tr></table>
 
 
 <a name="functions"></a>
 
 ## Function Details ##
 
+<a name="assemble-1"></a>
+
+### assemble/1 ###
+
+<pre><code>
+assemble(X1::<a href="#type-maxforwards">maxforwards()</a>) -&gt; binary()
+</code></pre>
+<br />
+
+Serialize Max-Forwards header value to iolist().
+
+<a name="assemble_bin-1"></a>
+
+### assemble_bin/1 ###
+
+<pre><code>
+assemble_bin(X1::<a href="#type-maxforwards">maxforwards()</a>) -&gt; binary()
+</code></pre>
+<br />
+
+Serialize Max-Forwards header value to binary().
+
 <a name="build-2"></a>
 
 ### build/2 ###
 
 <pre><code>
-build(HdrName, X2::<a href="#type-maxforwards">maxforwards()</a>) -&gt; <a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>
+build(HdrName::binary(), X2::<a href="#type-maxforwards">maxforwards()</a>) -&gt; <a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>
 </code></pre>
+<br />
 
-<ul class="definitions"><li><code>HdrName = binary()</code></li></ul>
+Build SIP raw header.
 
 <a name="dec-1"></a>
 
@@ -50,24 +104,42 @@ dec(X1::<a href="#type-maxforwards">maxforwards()</a>) -&gt; <a href="#type-maxf
 </code></pre>
 <br />
 
+Decrement value in Max-Forwards header.
+Function raises error if Max-Forwards is 0.
+
 <a name="make-1"></a>
 
 ### make/1 ###
 
 <pre><code>
-make(Number::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a> | binary() | non_neg_integer()) -&gt; <a href="#type-maxforwards">maxforwards()</a>
+make(Number::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a> | binary() | <a href="#type-raw">raw()</a>) -&gt; <a href="#type-maxforwards">maxforwards()</a>
 </code></pre>
 <br />
+
+Make From/To field from binary(), raw representation or SIP
+raw header.
 
 <a name="parse-1"></a>
 
 ### parse/1 ###
 
 <pre><code>
-parse(Header::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; Result
+parse(Bin::binary() | <a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
+<br />
 
-<ul class="definitions"><li><code>Result = {ok, <a href="#type-maxforwards">maxforwards()</a>} | {error, Error}</code></li><li><code>Error = no_maxforwards | {invalid_maxforwards, binary()}</code></li></ul>
+Parse Max-Forwards from binary() of SIP raw header.
+
+<a name="raw-1"></a>
+
+### raw/1 ###
+
+<pre><code>
+raw(MaxForwards::<a href="#type-maxforwards">maxforwards()</a>) -&gt; <a href="#type-raw">raw()</a>
+</code></pre>
+<br />
+
+Raw representation of Max-Forwards.
 
 <a name="value-1"></a>
 
@@ -77,4 +149,6 @@ parse(Header::<a href="ersip_hdr.md#type-header">ersip_hdr:header()</a>) -&gt; R
 value(X1::<a href="#type-maxforwards">maxforwards()</a>) -&gt; non_neg_integer()
 </code></pre>
 <br />
+
+Integer value in Max-Forwards header.
 

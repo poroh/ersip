@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Maxforwards tests
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Maxforwards tests
+%%%
 
 -module(ersip_hdr_maxforwards_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 parse_test() ->
     parse_success(<<"70">>),
@@ -21,7 +21,11 @@ parse_test() ->
     parse_fail(<<",">>),
     parse_fail(<<>>),
     parse_fail(<<"a@b">>),
-    parse_fail(<<"70,1">>).
+    parse_fail(<<"70,1">>),
+
+    ?assertMatch({error, {invalid_maxforwards, _}}, ersip_hdr_maxforwards:parse(<<"70,1">>)),
+    ?assertMatch({ok, _}, ersip_hdr_maxforwards:parse(<<"70">>)),
+    ok.
 
 make_test() ->
     ?assertError({error, _}, ersip_hdr_maxforwards:make(<<"-1">>)),
@@ -30,7 +34,8 @@ make_test() ->
     H1 = create_header(<<"55">>),
     ?assertEqual(make(<<"55">>), ersip_hdr_maxforwards:make(H1)),
     EmptyH1 = ersip_hdr:new(<<"Max-Forwards">>),
-    ?assertError({error, no_maxforwards}, ersip_hdr_maxforwards:make(EmptyH1)).
+    ?assertError({error, no_maxforwards}, ersip_hdr_maxforwards:make(EmptyH1)),
+    ok.
 
 dec_test() ->
     MV0 = ersip_hdr_maxforwards:make(0),
@@ -39,9 +44,19 @@ dec_test() ->
     ?assertEqual({maxforwards, 0}, ersip_hdr_maxforwards:dec(MV1)),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+assemble_test() ->
+    ?assertEqual(<<"70">>, ersip_hdr_maxforwards:assemble_bin(ersip_hdr_maxforwards:make(70))),
+    ?assertEqual(<<"70">>, ersip_hdr_maxforwards:assemble(ersip_hdr_maxforwards:make(70))),
+    ok.
+
+raw_test() ->
+    ?assertEqual(70, ersip_hdr_maxforwards:raw(ersip_hdr_maxforwards:make(<<"70">>))),
+    ?assertEqual(70, ersip_hdr_maxforwards:raw(ersip_hdr_maxforwards:make(70))),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 make(Bin) ->
     ersip_hdr_maxforwards:make(Bin).

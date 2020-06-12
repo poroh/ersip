@@ -84,7 +84,11 @@ make(Bin) when is_binary(Bin) ->
 make(#{} = Raw) ->
     Adjusted =
         [case Pair of
-             {K, V} when is_binary(K), is_binary(V) -> {K, V};
+             {K, V} when is_binary(K), is_binary(V) ->
+                 case ersip_parser_aux:check_token(K) of
+                     true -> {K, V};
+                     false -> error({invalid_param, {invalid_key, K}})
+                 end;
              _ -> error({invalid_raw_value, Raw})
          end || Pair <- maps:to_list(Raw)],
     fill_hparams(Adjusted).

@@ -36,6 +36,7 @@ parse_error_test() ->
     parse_error(<<"">>),
     parse_error(<<"invalid_uri">>),
     parse_error(<<"sip:a@b, sip:b@d">>),
+    parse_error(<<"sip:a@b ,">>),
     parse_error(<<"sip:a@b;@=1">>),
     parse_error(<<"sip:a@b;a=@">>),
     ok.
@@ -76,6 +77,18 @@ setters_test() ->
     ?assertEqual(<<"Alice <sip:bob@biloxi.com>;header-param=1;header-param2">>, ersip_hdr_refer_to:assemble_bin(ReferTo1)),
     ReferTo2 = ersip_hdr_refer_to:set_display_name({display_name, [<<"Bob">>]}, ReferTo1),
     ?assertEqual(<<"Bob <sip:bob@biloxi.com>;header-param=1;header-param2">>, ersip_hdr_refer_to:assemble_bin(ReferTo2)),
+    ok.
+
+raw_test() ->
+    ?assertMatch(#{uri := #{sip := #{user := <<"alice">>}}}, ersip_hdr_refer_to:raw(ersip_hdr_refer_to:make(<<"sip:alice@atlanta.com">>))),
+    ?assertMatch(#{display_name := <<"Alice">>}, ersip_hdr_refer_to:raw(ersip_hdr_refer_to:make(<<"Alice <sip:alice@atlanta.com>">>))),
+    ok.
+
+make_from_raw_test() ->
+    URIBin = <<"sip:alice@atlanta.com">>,
+    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin}))),
+    ?assertEqual(<<"<", URIBin/binary, ">;hparam1=hvalue1">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<"hparam1">> => <<"hvalue1">>}}))),
+    ?assertError({invalid_param, _}, ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<";">> => <<"hvalue1">>}})),
     ok.
 
 %%===================================================================

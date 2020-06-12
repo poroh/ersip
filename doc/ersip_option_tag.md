@@ -19,6 +19,26 @@
 option_tag() = {option_tag, binary()}
 </code></pre>
 
+
+
+
+### <a name="type-parse_error">parse_error()</a> ###
+
+
+<pre><code>
+parse_error() = {invalid_option_tag, binary()}
+</code></pre>
+
+
+
+
+### <a name="type-parse_result">parse_result()</a> ###
+
+
+<pre><code>
+parse_result() = {ok, <a href="#type-option_tag">option_tag()</a>} | {error, <a href="#type-parse_error">parse_error()</a>}
+</code></pre>
+
 <a name="index"></a>
 
 ## Function Index ##
@@ -45,10 +65,9 @@ make(Bin::binary()) -&gt; <a href="#type-option_tag">option_tag()</a>
 ### parse/1 ###
 
 <pre><code>
-parse(Bin::binary()) -&gt; {ok, <a href="#type-option_tag">option_tag()</a>} | {error, Error}
+parse(Bin::binary()) -&gt; <a href="#type-parse_result">parse_result()</a>
 </code></pre>
-
-<ul class="definitions"><li><code>Error = {invalid_option_tag, binary()}</code></li></ul>
+<br />
 
 <a name="to_binary-1"></a>
 

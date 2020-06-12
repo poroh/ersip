@@ -72,6 +72,30 @@ getters_test() ->
     ?assertEqual(false, ersip_hdr_replaces:early_only(ReplacesNoEarly)),
     ok.
 
+raw_test() ->
+    Replaces = ersip_hdr_replaces:make(<<"425928@bobster.example.org;to-tag=7743;from-tag=6472;early-only">>),
+    Replaces2 = ersip_hdr_replaces:make(<<"425928@bobster.example.org;to-tag=7743;from-tag=6472">>),
+    ?assertMatch(#{call_id := <<"425928@bobster.example.org">>}, ersip_hdr_replaces:raw(Replaces)),
+    ?assertMatch(#{to_tag := <<"7743">>}, ersip_hdr_replaces:raw(Replaces)),
+    ?assertMatch(#{from_tag := <<"6472">>}, ersip_hdr_replaces:raw(Replaces)),
+    ?assertMatch(#{early_only := true}, ersip_hdr_replaces:raw(Replaces)),
+    ?assertMatch(#{early_only := false}, ersip_hdr_replaces:raw(Replaces2)),
+
+    ?assertEqual(ersip_hdr_replaces:dialog_id(Replaces),
+                 ersip_hdr_replaces:dialog_id(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces)))),
+    ?assertEqual(ersip_hdr_replaces:early_only(Replaces),
+                 ersip_hdr_replaces:early_only(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces)))),
+
+    ?assertEqual(ersip_hdr_replaces:dialog_id(Replaces2),
+                 ersip_hdr_replaces:dialog_id(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces2)))),
+    ?assertEqual(ersip_hdr_replaces:early_only(Replaces2),
+                 ersip_hdr_replaces:early_only(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces2)))),
+    Raw = #{call_id => <<"425928@bobster.example.org">>, from_tag => <<"7743">>, to_tag => <<"6472">>},
+    ?assertError({invalid_param, _}, ersip_hdr_replaces:make(Raw#{params => #{<<"@">> => <<>>}})),
+    ?assertError({invalid_param, _}, ersip_hdr_replaces:make(Raw#{params => #{<<"to-tag">> => <<"@">>}})),
+    ok.
+
+
 %%===================================================================
 %% Helpers
 %%===================================================================

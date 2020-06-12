@@ -53,7 +53,6 @@
 -type parsed_value() :: term().
 -type orig_value()   :: binary().
 
--type parse_result() :: {ok, hparams()} | {error, term()}.
 -type parse_known_fun() :: fun((lower_key(), orig_value()) -> parse_known_fun_result()).
 -type parse_known_fun_result() :: {ok, {parsed_name(), parsed_value()}}
                                 | {ok, unknown}

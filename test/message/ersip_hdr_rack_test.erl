@@ -28,6 +28,11 @@ parse_test() ->
     parse_fail(<<"1 -1 INVITE">>),
     ok.
 
+parse_bin_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_rack:parse(<<"776656 1 INVITE">>)),
+    ?assertMatch({error, _}, ersip_hdr_rack:parse(<<",">>)),
+    ok.
+
 make_test() ->
     ?assertError({error, _}, ersip_hdr_rack:make(<<"1">>)),
     ?assertError({error, _}, ersip_hdr_rack:make(<<"4294967296 1 INVITE">>)),
@@ -62,11 +67,18 @@ build_test() ->
     RAckHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(RAckH)],
     BuiltRAckH = ersip_hdr_rack:build(<<"RAck">>, RAck),
     BuiltRAckHValues = [iolist_to_binary(IOListVal) || IOListVal <- ersip_hdr:raw_values(BuiltRAckH)],
-    ?assertEqual(RAckHValues, BuiltRAckHValues).
+    ?assertEqual(RAckHValues, BuiltRAckHValues),
+    ok.
 
 empty_test() ->
     EmptyH = ersip_hdr:new(<<"RAck">>),
     ?assertEqual({error, no_rack}, ersip_hdr_rack:parse(EmptyH)),
+    ok.
+
+raw_test() ->
+    ?assertMatch(#{rseq := 1}, ersip_hdr_rack:raw(ersip_hdr_rack:make(<<"1 776656 INVITE">>))),
+    ?assertMatch(#{cseq := {776656, <<"INVITE">>}}, ersip_hdr_rack:raw(ersip_hdr_rack:make(<<"1 776656 INVITE">>))),
+    ?assertEqual(<<"1 776656 INVITE">>, ersip_hdr_rack:assemble_bin(ersip_hdr_rack:make(#{rseq => 1, cseq => {776656, <<"INVITE">>}}))),
     ok.
 
 

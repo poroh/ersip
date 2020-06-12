@@ -10,27 +10,33 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
-parse_test() ->
+parse_raw_sip_test() ->
     parse_success(<<"70">>),
     parse_success(<<"0">>),
     parse_success(<<"200">>),
     parse_fail(<<",">>),
     parse_fail(<<>>),
     parse_fail(<<"a@b">>),
-    parse_fail(<<"70,1">>).
+    parse_fail(<<"70,1">>),
+    ok.
+
+parse_bin_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_rseq:parse(<<"70">>)),
+    ?assertMatch({error, _}, ersip_hdr_rseq:parse(<<"70,1">>)),
+    ok.
 
 make_test() ->
-    ?assertError({error, _}, ersip_hdr_rseq:make(<<"-1">>)),
+    ?assertError({invalid_rseq, _}, ersip_hdr_rseq:make(<<"-1">>)),
     H = create_header(<<"-1">>),
-    ?assertError({error, _}, ersip_hdr_rseq:make(H)),
+    ?assertError({invalid_rseq, _}, ersip_hdr_rseq:make(H)),
     H1 = create_header(<<"55">>),
     ?assertEqual(make(<<"55">>), ersip_hdr_rseq:make(H1)),
     EmptyH1 = ersip_hdr:new(<<"RSeq">>),
-    ?assertError({error, no_rseq}, ersip_hdr_rseq:make(EmptyH1)).
+    ?assertError(no_rseq, ersip_hdr_rseq:make(EmptyH1)).
 
 inc_test() ->
     RV0 = ersip_hdr_rseq:make(0),
@@ -38,7 +44,7 @@ inc_test() ->
     RV3 = ersip_hdr_rseq:make(16#FFFFFFFF),
     ?assertEqual({rseq, 1}, ersip_hdr_rseq:inc(RV0)),
     ?assertEqual({rseq, 2}, ersip_hdr_rseq:inc(RV1)),
-    ?assertError({error, _}, ersip_hdr_rseq:inc(RV3)),
+    ?assertError(negative_rseq, ersip_hdr_rseq:inc(RV3)),
     ok.
 
 value_test() ->

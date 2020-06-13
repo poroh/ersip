@@ -477,7 +477,7 @@ fwd_record_route(_TargetURI, {SipMsg, FwdOpts}, #{record_route_uri := RR0}) ->
     %% SIP or SIPS URI. This URI MUST contain an lr parameter (see
     %% Section 19.1.1).
     RR2 = ersip_uri:set_param(lr, true, RR1),
-    RRRoute = ersip_hdr_route:make_route(RR2),
+    RRRoute = ersip_hdr_route:new(RR2),
     RRSet0 =
         case ersip_sipmsg:find(record_route, SipMsg) of
             {ok, ExistRRSet} ->
@@ -642,7 +642,7 @@ strict_router_workaround({SipMsg0, FwdOpts}) ->
     %%    field as the last value.
     RURI = ersip_sipmsg:ruri(SipMsg0),
     RouteSet0 = ersip_sipmsg:get(route, SipMsg0),
-    RURIRoute = ersip_hdr_route:make_route(RURI),
+    RURIRoute = ersip_hdr_route:new(RURI),
     RouteSet1 = ersip_route_set:add_last(RURIRoute, RouteSet0),
     %% -  The proxy MUST then place the first Route header field value
     %%    into the Request-URI and remove that value from the Route

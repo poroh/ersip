@@ -317,14 +317,14 @@ header_descr(content_type) ->
 header_descr(route) ->
     #descr{required     = optional,
            may_appear   = multiple,
-           parse_fun    = fun ersip_hdr_route:parse/1,
-           assemble_fun = fun ersip_hdr_route:build/2
+           parse_fun    = fun ersip_hdr_route_list:parse/1,
+           assemble_fun = fun ersip_hdr_route_list:build/2
           };
 header_descr(record_route) ->
     #descr{required     = optional,
            may_appear   = multiple,
-           parse_fun    = fun ersip_hdr_route:parse/1,
-           assemble_fun = fun ersip_hdr_route:build/2
+           parse_fun    = fun ersip_hdr_route_list:parse/1,
+           assemble_fun = fun ersip_hdr_route_list:build/2
           };
 header_descr(allow) ->
     #descr{required     = optional,

@@ -1,95 +1,107 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Route header test
-%%
+%%%
+%%% Copyright (c) 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Route header test
+%%%
 
 -module(ersip_hdr_route_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
-topmost_route_test() ->
-    Route = topmost_route(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
-    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(Route)),
-    RouteWithExt = topmost_route(<<"<sip:alice@atlanta.com>;extension=1">>),
-    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(RouteWithExt)),
-    ?assertEqual([{<<"extension">>, <<"1">>}], ersip_hdr_route:params(RouteWithExt)),
-    RouteWithLR = topmost_route(<<"<sip:alice@atlanta.com;lr>">>),
-    URIWithLR = ersip_hdr_route:uri(RouteWithLR),
-    ?assertEqual(#{lr => true}, ersip_uri:params(URIWithLR)),
+parse_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_route:parse(<<"<sip:services.example.com;lr;unknownwith=value;unknown-no-value>">>)),
+    ?assertMatch({ok, _}, ersip_hdr_route:parse(<<"sip:services.example.com;lr">>)),
+
+    ?assertMatch({error, {invalid_route, _}}, ersip_hdr_route:parse(<<"sip:a@b,">>)),
+    ?assertMatch({error, {invalid_route, _}}, ersip_hdr_route:parse(<<"sip:">>)),
+    ?assertMatch({error, {invalid_route, _}}, ersip_hdr_route:parse(<<"Bob">>)),
     ok.
 
-make_route_test() ->
-    Route = ersip_hdr_route:make(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
-    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(ersip_route_set:first(Route))),
-    ?assertError({error, _}, ersip_hdr_route:make(<<"?">>)),
-    ?assertError({error, _}, ersip_hdr_route:make_route(<<"?">>)),
+make_from_raw_test() ->
+    ?assertEqual(<<"<sip:a@b>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b">>}))),
+    ?assertEqual(<<"<sip:a@b;lr>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>}))),
+    ?assertEqual(<<"<sip:a@b;lr>;ext=1">>,
+                 assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>,
+                                                 params => #{<<"ext">> => <<"1">>}}))),
+    ?assertEqual(<<"<sip:a@b;lr>;extNoArg">>,
+                 assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>,
+                                                 params => #{<<"extNoArg">> => <<>>}}))),
     ok.
 
-bad_topmost_test() ->
-    H = ersip_hdr:new(<<"Route">>),
-    H1 = ersip_hdr:add_value(<<"?">>, H),
-    ?assertMatch({error, _}, ersip_hdr_route:parse(H1)).
-
-bad_middle_test() ->
-    H = ersip_hdr:new(<<"Route">>),
-    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>,?,<sip:bob@biloxi.com>">>, H),
-    ?assertMatch({error, _}, ersip_hdr_route:parse(H1)).
-
-route_with_inval_lr_test() ->
-    Route = topmost_route(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
-    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(Route)),
-    RouteWithExt = topmost_route(<<"<sip:alice@atlanta.com>;extension=1">>),
-    ?assertEqual(ersip_uri:make(<<"sip:alice@atlanta.com">>), ersip_hdr_route:uri(RouteWithExt)),
-    ?assertEqual([{<<"extension">>, <<"1">>}], ersip_hdr_route:params(RouteWithExt)),
-    RouteWithInvalLR = topmost_route(<<"<sip:alice@atlanta.com>;lr">>),
-    URIWithInvalLR = ersip_hdr_route:uri(RouteWithInvalLR),
-    ?assertEqual(#{}, ersip_uri:params(URIWithInvalLR)),
+make_error_test() ->
+    ?assertError({invalid_route, _}, ersip_hdr_route:make(<<"Bob">>)),
+    ?assertError({invalid_route, _}, ersip_hdr_route:make(<<"sip:a@b,">>)),
+    ?assertError({invalid_route, _}, ersip_hdr_route:make(<<"sip:">>)),
     ok.
 
-invalid_rr_param_test() ->
-    H = ersip_hdr:new(<<"Route">>),
-    H1 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x&">>, H),
-    ?assertMatch({error, _}, ersip_hdr_route:parse(H1)),
-    H2 = ersip_hdr:new(<<"Route">>),
-    H3 = ersip_hdr:add_value(<<"<sip:alice@atlanta.com>;x&=x">>, H2),
-    ?assertMatch({error, _}, ersip_hdr_route:parse(H3)).
+is_loose_route_test() ->
+    ?assertEqual(true,  ersip_hdr_route:is_loose_route(make(<<"<sip:a@b;lr>">>))),
+    ?assertEqual(true,  ersip_hdr_route:is_loose_route(make(<<"<sip:a@b;lr=on>">>))),
+    ?assertEqual(false, ersip_hdr_route:is_loose_route(make(<<"<sip:a@b>;lr">>))),
+    ?assertEqual(false, ersip_hdr_route:is_loose_route(make(<<"<sip:a@b>">>))),
+    ?assertEqual(false, ersip_hdr_route:is_loose_route(make(<<"sip:a@b;lr">>))),
+    ?assertEqual(false, ersip_hdr_route:is_loose_route(make(<<"sip:a@b">>))),
+    ok.
 
-empty_route_test() ->
-    H = ersip_hdr:new(<<"Route">>),
-    Empty = ersip_route_set:new(),
-    ?assertEqual(true, ersip_route_set:is_empty(Empty)),
-    ?assertEqual({ok,  Empty}, ersip_hdr_route:parse(H)).
+param_test() ->
+    ?assertEqual(<<"<sip:a@b>;ext=1">>, assemble(ersip_hdr_route:set_param(<<"ext">>, <<"1">>, make(<<"sip:a@b">>)))),
+    ?assertEqual(<<"<sip:a@b>;extNoArg">>, assemble(ersip_hdr_route:set_param(<<"extNoArg">>, <<>>, make(<<"sip:a@b">>)))),
 
-rebuild_route_test() ->
-    rebuild(<<"<sip:alice@atlanta.com>,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
-    rebuild(<<"<sip:alice@atlanta.com>;test=1,<sip:carol@chicago.com>,<sip:bob@biloxi.com>">>),
-    rebuild(<<"<sip:alice@atlanta.com>;lr">>),
-    rebuild(<<"<sip:alice@atlanta.com>">>).
+    ?assertEqual({ok, <<"1">>}, ersip_hdr_route:param(<<"ext">>, make(<<"sip:a@b;ext=1">>))),
+    ?assertEqual({ok, <<"1">>}, ersip_hdr_route:param(<<"Ext">>, make(<<"sip:a@b;ext=1">>))),
+    ?assertEqual({ok, <<"1">>}, ersip_hdr_route:param(<<"ext">>, make(<<"sip:a@b;Ext=1">>))),
+    ?assertEqual({ok, <<>>}, ersip_hdr_route:param(<<"extNoArg">>, make(<<"sip:a@b;ExtNoArg">>))),
+    ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+uri_modification_test() ->
+    BiloxiURI = uri(<<"sip:biloxi.com;lr">>),
+    BiloxiRt1 = ersip_hdr_route:set_uri(BiloxiURI, make(<<"Alice Proxy <sip:alice-proxy.atlanta.com>;ext=1">>)),
+    ?assertEqual(<<"Alice Proxy <sip:biloxi.com;lr>;ext=1">>, assemble(BiloxiRt1)),
+    BiloxiRt2 = ersip_hdr_route:set_uri(BiloxiURI, make(<<"Alice Proxy <sip:alice-proxy.atlanta.com>">>)),
+    ?assertEqual(<<"Alice Proxy <sip:biloxi.com;lr>">>, assemble(BiloxiRt2)),
+    BiloxiRt3 = ersip_hdr_route:set_uri(BiloxiURI, make(<<"sip:alice-proxy.atlanta.com;ext=1">>)),
+    ?assertEqual(<<"<sip:biloxi.com;lr>;ext=1">>, assemble(BiloxiRt3)),
 
-create(RouteBin) ->
-    HRoute = ersip_hdr:new(<<"Route">>),
-    ersip_hdr:add_value(RouteBin, HRoute).
+    ?assertEqual(BiloxiURI, ersip_hdr_route:uri(make(assemble(BiloxiRt1)))),
+    ?assertEqual(BiloxiURI, ersip_hdr_route:uri(make(assemble(BiloxiRt2)))),
+    ?assertEqual(BiloxiURI, ersip_hdr_route:uri(make(assemble(BiloxiRt3)))),
+    ok.
 
-topmost_route(RouteBin) ->
-    HRoute = create(RouteBin),
-    case ersip_hdr_route:parse(HRoute) of
-        {ok, RouteSet} -> ersip_route_set:first(RouteSet);
-        Error ->
-            error(Error)
-    end.
+display_name_modification_test() ->
+    BobRt1 = ersip_hdr_route:set_display_name(display_name(<<"Bob">>), make(<<"Alice Proxy <sip:alice-proxy.atlanta.com>;ext=1">>)),
+    ?assertEqual(<<"Bob <sip:alice-proxy.atlanta.com>;ext=1">>, assemble(BobRt1)),
+    ?assertEqual(display_name(<<"Bob">>), ersip_hdr_route:display_name(make(assemble(BobRt1)))),
 
-rebuild(Bin) ->
-    Route = ersip_hdr_route:make(Bin),
-    {ok, Route1} = ersip_hdr_route:parse(ersip_hdr_route:build(<<"Route">>, Route)),
-    ?assertEqual(Route, Route1).
+    BobRt2 = ersip_hdr_route:set_display_name(display_name(<<"Bob \"Marley\" Proxy">>), make(<<"Alice Proxy <sip:alice-proxy.atlanta.com>;ext=1">>)),
+    ?assertEqual(<<"\"Bob \\\"Marley\\\" Proxy\" <sip:alice-proxy.atlanta.com>;ext=1">>, assemble(BobRt2)),
+    ?assertEqual(display_name(<<"Bob \"Marley\" Proxy">>), ersip_hdr_route:display_name(make(assemble(BobRt2)))),
+    ok.
+
+raw_test() ->
+    ?assertMatch(#{uri := #{sip := #{user := <<"alice">>}}}, ersip_hdr_route:raw(make(<<"sip:alice@atlanta.com">>))),
+    ?assertMatch(#{display_name := <<"Alice">>},             ersip_hdr_route:raw(make(<<"Alice <sip:alice@atlanta.com>">>))),
+    ?assertMatch(#{params := #{<<"ext">> := <<"1">>}},       ersip_hdr_route:raw(make(<<"Alice <sip:alice@atlanta.com>;ext=1">>))),
+    ok.
+
+
+%%===================================================================
+%% Helpers
+%%===================================================================
+
+uri(Bin) ->
+    ersip_uri:make(Bin).
+
+display_name(Bin) ->
+    ersip_display_name:make(Bin).
+
+make(Bin) ->
+    ersip_hdr_route:make(Bin).
+
+assemble(Route) ->
+    ersip_hdr_route:assemble_bin(Route).

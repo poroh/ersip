@@ -1,193 +1,182 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SIP Route/Record-route headers
-%%
+%%%
+%%% Copyright (c) 2018, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SIP Route/Record-route header (single header).
+%%%
 
 -module(ersip_hdr_route).
 
--export([uri/1,
+-export([new/1,
+         uri/1,
+         set_uri/2,
+         display_name/1,
+         set_display_name/2,
          is_loose_route/1,
          params/1,
+         param/2,
          set_param/3,
          make/1,
-         parse/1,
-         build/2,
-         make_route/1
+         assemble/1,
+         assemble_bin/1,
+         parse_hdr/1,
+         raw/1
         ]).
 
--export_type([route/0]).
+-export_type([route/0, raw/0]).
 
--include("ersip_headers.hrl").
-
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -record(route, {display_name :: ersip_nameaddr:display_name(),
                 uri          :: ersip_uri:uri(),
-                params = []  :: [route_param()]
+                hparams   = ersip_hparams:new() :: ersip_hparams:hparams()
                }).
--type route()     :: #route{}.
--type route_set() :: ersip_route_set:route_set().
--type route_param() :: {Key :: binary(), Value :: binary()}.
--type parse_result() :: {ok, route_set()}
-                      | {error, term()}.
+-type route()        :: #route{}.
+-type route_param()  :: {Key :: binary(), Value :: binary()}.
+-type parse_result() :: {ok, route()} | {error, parse_error()}.
+-type parse_error()  :: {invalid_route, term()}.
+-type raw() :: #{uri          := ersip_uri:raw(),
+                 params       := ersip_hparams:raw(),
+                 display_name := ersip_display_name:raw()}.
 
--type maybe_rev_route_set() :: {ok, route_set()}
-                             | {error, term()}.
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
+%% @doc Create Route header from SIP URI.
+-spec new(ersip_uri:uri()) -> route().
+new(URI) ->
+    #route{display_name = {display_name, []}, uri = URI}.
+
+%% @doc URI from Route header.
 -spec uri(route()) -> ersip_uri:uri().
 uri(#route{uri = URI}) ->
     URI.
 
+%% @doc Set URI of Route header.
+-spec set_uri(ersip_uri:uri(), route()) -> route().
+set_uri(URI, #route{} = R) ->
+    R#route{uri = URI}.
+
+%% @doc Display name in Route header.
+-spec display_name(route()) -> ersip_display_name:display_name().
+display_name(#route{display_name = DN}) ->
+    DN.
+
+%% @doc Set display name of Route header.
+-spec set_display_name(ersip_display_name:display_name(), route()) -> route().
+set_display_name(DN, #route{} = Route) ->
+    Route#route{display_name = DN}.
+
+%% @doc Check if route contains loose router's URI.
 -spec is_loose_route(route()) -> boolean().
 is_loose_route(#route{uri = URI}) ->
-    URIParams  = ersip_uri:params(URI),
-    maps:is_key(lr, URIParams).
+    ersip_uri:loose_router(URI).
 
+%% @doc Get parameters of Route header.
 -spec params(route()) -> [route_param()].
-params(#route{params = P}) ->
-    P.
+params(#route{hparams = HP}) ->
+    ersip_hparams:to_raw_list(HP).
 
+%% @doc Get parameter of Route header.
+-spec param(binary(), route()) -> {ok, binary()} | not_found.
+param(Key, #route{hparams = HParams}) ->
+    ersip_hparams:find_raw(Key, HParams).
+
+%% @doc Set parameters of Route header.
 -spec set_param(Key :: binary(), Value :: binary(), route()) -> route().
-set_param(Key, Value, #route{params = Params} = Route)
+set_param(Key, Value, #route{hparams = HParams} = Route)
         when is_binary(Key), is_binary(Value) ->
-    Route#route{params = [{Key, Value} | Params]}.
+    Route#route{hparams = ersip_hparams:set_raw(Key, Value, HParams)}.
 
--spec make(iolist()) -> route_set().
-make(Binary) ->
-    H0 = ersip_hdr:new(?ERSIPH_ROUTE),
-    H1 = ersip_hdr:add_value(Binary, H0),
-    case parse(H1) of
-        {ok, RouteSet} ->
-            RouteSet;
-        {error, _} = Error  ->
-            error(Error)
+%% @doc Make Route header from binary or from raw representation.
+-spec make(binary()) -> route().
+make(Bin) when is_binary(Bin) ->
+    case parse(Bin) of
+        {ok, Route} -> Route;
+        {error, Reason} -> error(Reason)
+    end;
+make(#{uri := URI} = Raw) ->
+    HParams0 = ersip_hparams:make(maps:get(params, Raw, #{})),
+    HParams =
+        case ersip_hparams:parse_known(fun parse_known/2, HParams0) of
+            {ok, H} -> H
+            %% {error, Reason} -> error({invalid_params, Reason}) %% (Ref1) see below
+        end,
+    #route{display_name  = ersip_display_name:make(maps:get(display_name, Raw, <<>>)),
+           uri           = ersip_uri:make(URI),
+           hparams       = HParams
+          }.
+
+%% @doc Parse Route header from binary.
+-spec parse(binary()) -> parse_result().
+parse(Bin) ->
+    case parse_hdr(Bin) of
+        {ok, Route, <<>>} -> {ok, Route};
+        {ok, _, _} -> {error, {invalid_route, Bin}};
+        {error, Reason} -> {error, {invalid_route, Reason}}
     end.
 
--spec parse(ersip_hdr:header()) -> parse_result().
-parse(Header) ->
-    MaybeRevRouteSet =
-        lists:foldl(fun(IORoute, Acc) ->
-                            add_to_maybe_route_set(iolist_to_binary(IORoute), Acc)
-                    end,
-                    {ok, ersip_route_set:new()},
-                    ersip_hdr:raw_values(Header)),
-    case MaybeRevRouteSet of
-        {ok, RevRouteSet} ->
-            {ok, ersip_route_set:reverse(RevRouteSet)};
+%% @doc Parse single Route header and return unparsed rest.
+-spec parse_hdr(binary()) -> ersip_parser_aux:parse_result(route()).
+parse_hdr(Bin) ->
+    Parsers = [fun ersip_nameaddr:parse/1,
+               fun ersip_parser_aux:trim_lws/1,
+               fun parse_params/1,
+               fun ersip_parser_aux:trim_lws/1
+              ],
+    case ersip_parser_aux:parse_all(Bin, Parsers) of
+        {ok, [{DisplayName, URI}, _, HParams, _], Rest} ->
+            Route = #route{display_name = DisplayName,
+                           uri = URI,
+                           hparams = HParams},
+            {ok, Route, Rest};
         {error, Reason} ->
             {error, {invalid_route, Reason}}
     end.
 
+%% @doc Assemble route header to iolist().
+-spec assemble(route()) -> iolist().
+assemble(#route{display_name = DN, uri = URI, hparams = HParams}) ->
+    HParamsIO0 = ersip_hparams:assemble(HParams),
+    HParamsIO =
+        case ersip_iolist:is_empty(HParamsIO0) of
+            true -> [];
+            false -> [$; | HParamsIO0]
+        end,
+    [ersip_nameaddr:assemble(DN, URI), HParamsIO].
 
--spec build(HeaderName :: binary(), route_set()) -> ersip_hdr:header().
-build(HdrName, {route_set, _} = RouteSet) ->
-    Hdr = ersip_hdr:new(HdrName),
-    ersip_route_set:foldl(
-      fun(Route, HdrAcc) ->
-              ersip_hdr:add_value(assemble_route(Route), HdrAcc)
-      end,
-      Hdr,
-      RouteSet).
+%% @doc Assemble route header to binary().
+-spec assemble_bin(route()) -> binary().
+assemble_bin(#route{} = R) ->
+    iolist_to_binary(assemble(R)).
 
--spec make_route(binary() | ersip_uri:uri()) -> route().
-make_route(Bin) when is_binary(Bin) ->
-    case parse_route(Bin) of
-        {ok, Route, <<>>} ->
-            Route;
-        {ok, _, Rest} ->
-            error({garbage_at_end, Rest});
-        {error, _} = Error ->
-            error(Error)
-    end;
-make_route(URI) ->
-    #route{display_name = {display_name, []}, uri = URI}.
+%% @doc Raw representation of Route header.
+-spec raw(route()) -> raw().
+raw(#route{} = Route) ->
+    #{uri => ersip_uri:raw(uri(Route)),
+      display_name => ersip_display_name:raw(display_name(Route)),
+      params => ersip_hparams:raw(Route#route.hparams)
+     }.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+%%===================================================================
+%% Helpers
+%%===================================================================
 
--spec add_to_maybe_route_set(binary(), maybe_rev_route_set()) -> maybe_rev_route_set().
-add_to_maybe_route_set(_, {error, _} = Error) ->
-    Error;
-add_to_maybe_route_set(Bin, {ok, RouteSet}) ->
-    case parse_route(Bin) of
-        {ok, Route, <<>>} ->
-            {ok, ersip_route_set:add_first(Route, RouteSet)};
-        {ok, Route, <<$,, Rest/binary>>} ->
-            MaybeRoute = {ok, ersip_route_set:add_first(Route, RouteSet)},
-            add_to_maybe_route_set(ersip_bin:trim_head_lws(Rest), MaybeRoute);
-        {ok, _, Rest} ->
-            {error, {garbage_at_end, Rest}};
-        {error, _} = Error ->
-            Error
-    end.
+%% @private
+-spec parse_params(binary()) -> ersip_parser_aux:parse_result(ersip_parser_aux:gen_param_list()).
+parse_params(<<$;, Bin/binary>>) ->
+    ersip_hparams:parse(fun parse_known/2, Bin);
+parse_params(Bin) ->
+    {ok, ersip_hparams:new(), Bin}.
 
--spec parse_route(binary()) -> {ok, route(), binary()} | {error, term()}.
-parse_route(Bin) ->
-    Parsers = [fun ersip_nameaddr:parse/1,
-               fun ersip_parser_aux:trim_lws/1,
-               fun parse_route_params/1,
-               fun ersip_parser_aux:trim_lws/1
-              ],
-    case ersip_parser_aux:parse_all(Bin, Parsers) of
-        {ok, [{DisplayName, URI}, _, ParamsList, _], Rest} ->
-            {ok,
-             #route{display_name = DisplayName,
-                    uri          = URI,
-                    params       = ParamsList
-                   },
-             Rest
-            };
-        {error, _} = Error ->
-            Error
-    end.
-
-
--spec assemble_route(route()) -> iolist().
-assemble_route(#route{} = Route) ->
-    #route{display_name = DN,
-           uri = URI,
-           params = ParamsList
-          } = Route,
-    [ersip_nameaddr:assemble(DN, URI),
-     lists:map(fun({Key, Value}) when is_binary(Value) ->
-                       [<<";">>, Key, <<"=">>, Value];
-                  ({Key, novalue})  ->
-                       [<<";">>, Key]
-               end,
-               ParamsList)
-    ].
-
--spec parse_route_params(binary()) -> ersip_parser_aux:parse_result([route_param()]).
-parse_route_params(<<$;, Bin/binary>>) ->
-    do_parse_route_params(Bin);
-parse_route_params(Rest) ->
-    {ok, [], Rest}.
-
--spec do_parse_route_params(binary()) -> ersip_parser_aux:parse_result([route_param()]).
-do_parse_route_params(Bin) ->
-    case ersip_parser_aux:parse_params($;, Bin) of
-        {ok, Params, Rest} ->
-            {ok, do_parse_params(Params, []), Rest};
-        {error, Reason} ->
-            {error, {invalid_parameters, Reason}}
-    end.
-
--spec do_parse_params(ersip_parser_aux:gen_param_list(), [{binary(), binary() | novalue}]) ->
-                             [{binary(), binary() | novalue}].
-do_parse_params([], Acc) ->
-    lists:reverse(Acc);
-do_parse_params([{Key, <<>>} | Rest], Acc) ->
-    Acc1 = [{Key, novalue} | Acc],
-    do_parse_params(Rest, Acc1);
-do_parse_params([{Key, Value} | Rest], Acc) ->
-    Acc1 = [{Key, Value} | Acc],
-    do_parse_params(Rest, Acc1).
+%% @private
+%%
+%% WARNING: If you add known parameter here then you need to add handling
+%% parse known result above (see Ref1).
+-spec parse_known(binary(), binary()) -> ersip_hparams:parse_known_fun_result().
+parse_known(_, _) ->
+    {ok, unknown}.

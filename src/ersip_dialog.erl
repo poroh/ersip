@@ -715,7 +715,7 @@ fill_request_strict_route(RemoteTarget, RouteSet0, Req0) ->
     %% UAC MUST then place the remote target URI into the Route header
     %% field as the last value.
     RouteSet1 = ersip_route_set:remove_first(RouteSet0),
-    RURIRoute = ersip_hdr_route:make_route(RemoteTarget),
+    RURIRoute = ersip_hdr_route:new(RemoteTarget),
     RouteSet = ersip_route_set:add_last(RURIRoute, RouteSet1),
     ersip_sipmsg:set(route, RouteSet, Req1).
 

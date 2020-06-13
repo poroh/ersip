@@ -51,7 +51,7 @@ stateless_proxy_forward_to_proxy_test() ->
     {SipMsg2, #{nexthop := NexthopURI}} = ersip_proxy_common:forward_request(Target, SipMsg0, ProxyOptions),
     ?assertEqual(Target, NexthopURI),
     %% Check route has only one element NextProxyURI.
-    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ExpectedRouteSet = ersip_hdr_route_list:make(<<"<", NextProxyURI/binary, ">">>),
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg2)),
     ok.
 
@@ -480,7 +480,7 @@ process_route_info_strict_routing_test() ->
     SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
-    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ExpectedRouteSet = ersip_hdr_route_list:make(<<"<", NextProxyURI/binary, ">">>),
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
     ok.
 
@@ -516,7 +516,7 @@ process_route_info_loose_routing_test() ->
     SipMsg0 = process_route_info(raw_message(Msg), Options),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
-    ExpectedRouteSet = ersip_hdr_route:make(<<"<", NextProxyURI/binary, ">">>),
+    ExpectedRouteSet = ersip_hdr_route_list:make(<<"<", NextProxyURI/binary, ">">>),
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
     ok.
 
@@ -545,7 +545,7 @@ process_route_info_no_rr_checker_test() ->
     SipMsg0 = process_route_info(raw_message(Msg), #{}),
     SipMsg = rebuild_sipmsg(SipMsg0),
     ?assertEqual(ersip_uri:make(BobURI), ersip_sipmsg:ruri(SipMsg)),
-    ExpectedRouteSet = ersip_hdr_route:make(<<"<", ThisProxyURI/binary, ">, <", NextProxyURI/binary, ">">>),
+    ExpectedRouteSet = ersip_hdr_route_list:make(<<"<", ThisProxyURI/binary, ">, <", NextProxyURI/binary, ">">>),
     ?assertEqual(ExpectedRouteSet, ersip_sipmsg:get(route, SipMsg)),
     ok.
 

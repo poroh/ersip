@@ -844,7 +844,7 @@ set_routes(Header, Routes, SipMsg) ->
 add_routes([], RouteSet) ->
     RouteSet;
 add_routes([URI|Rest], RouteSet0) ->
-    Route = ersip_hdr_route:make_route(ersip_uri:make(URI)),
+    Route = ersip_hdr_route:new(ersip_uri:make(URI)),
     RouteSet = ersip_route_set:add_first(Route, RouteSet0),
     add_routes(Rest, RouteSet).
 

@@ -14,6 +14,8 @@
 %% Cases
 %%===================================================================
 
+-define(crlf, "\r\n").
+
 parse_test() ->
     {ok, CSeq} = ersip_hdr_cseq:parse(create(<<"314159 INVITE">>)),
     ?assertEqual(ersip_method:make(<<"INVITE">>), ersip_hdr_cseq:method(CSeq)),
@@ -63,6 +65,37 @@ raw_test() ->
     ?assertEqual({43, <<"INVITE">>}, ersip_hdr_cseq:raw(ersip_hdr_cseq:make(<<"43 INVITE">>))),
     ?assertMatch({99, _}, ersip_hdr_cseq:raw(ersip_hdr_cseq:make(<<"99 OPTIONS">>))),
     ?assertMatch({99, <<"NEWMETHOD">>}, ersip_hdr_cseq:raw(ersip_hdr_cseq:make(<<"99 NEWMETHOD">>))),
+    ok.
+
+cseq_in_message_test() ->
+    Msg1 = <<"OPTIONS sip:bob@biloxi.com SIP/2.0" ?crlf
+             "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds" ?crlf
+             "To: a@b" ?crlf
+             "From: a@b;tag=a" ?crlf
+             "Call-ID: someCallId" ?crlf
+             "CSeq: 314159 OPTIONS" ?crlf
+             ?crlf
+           >>,
+    ?assertMatch({ok, _}, ersip_sipmsg:parse(Msg1, [cseq])),
+    {ok, SipMsg1} = ersip_sipmsg:parse(Msg1, [cseq]),
+    CSeq1 = ersip_sipmsg:cseq(SipMsg1),
+    ?assertEqual(314159, ersip_hdr_cseq:number(CSeq1)),
+    ?assertEqual(ersip_method:make(<<"OPTIONS">>), ersip_hdr_cseq:method(CSeq1)),
+
+    Msg2 = <<"OPTIONS sip:bob@biloxi.com SIP/2.0" ?crlf
+            "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds" ?crlf
+            "To: a@b" ?crlf
+            "From: a@b;tag=a" ?crlf
+            "Call-ID: someCallId" ?crlf
+            "Cseq: 314160 OPTIONS" ?crlf
+             ?crlf
+          >>,
+    ?assertMatch({ok, _}, ersip_sipmsg:parse(Msg2, [cseq])),
+    {ok, SipMsg2} = ersip_sipmsg:parse(Msg2, [cseq]),
+    CSeq2 = ersip_sipmsg:cseq(SipMsg2),
+    ?assertEqual(314160, ersip_hdr_cseq:number(CSeq2)),
+    ?assertEqual(ersip_method:make(<<"OPTIONS">>), ersip_hdr_cseq:method(CSeq2)),
+
     ok.
 
 %%===================================================================

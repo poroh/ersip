@@ -34,3 +34,26 @@ quote_test() ->
                  ersip_quoted_string:quote(<<"I love using \"quotes\" in the sentences">>)),
     ?assertEqual(<<"\"\\\\\"">>, ersip_quoted_string:quote(<<"\\">>)),
     ok.
+
+unquote_test() ->
+    ?assertEqual(<<"abc">>, ersip_quoted_string:unquote(<<"abc">>)),
+    ?assertEqual(<<"abc">>, ersip_quoted_string:unquote(<<"\"abc\"">>)),
+    ?assertEqual(<<"Alice Cooper">>, ersip_quoted_string:unquote(<<"\"Alice Cooper\"">>)),
+    ?assertEqual(<<"\\">>, ersip_quoted_string:unquote(<<"\"\\\\\"">>)),
+    ?assertEqual(<<" ">>,  ersip_quoted_string:unquote(<<"\" \"">>)),
+    ?assertEqual(<<"">>,   ersip_quoted_string:unquote(<<"\"\"">>)),
+    ?assertEqual(<<"\"">>, ersip_quoted_string:unquote(<<"\"\\\"\"">>)),
+    Russian = unicode:characters_to_binary("съешь еще этих вкусных французских булок"),
+    Chinese = unicode:characters_to_binary("你好，世界"),
+    ?assertEqual(Russian, ersip_quoted_string:unquote(<<"\"", Russian/binary, "\"">>)),
+    ?assertEqual(Chinese, ersip_quoted_string:unquote(<<"\"", Chinese/binary, "\"">>)),
+    ok.
+
+unquoting_parse_test() ->
+    Russian = unicode:characters_to_binary("съешь еще этих вкусных французских булок"),
+    Chinese = unicode:characters_to_binary("你好，世界. 𢈘"),
+    Emoji = unicode:characters_to_binary("😀"),
+    ?assertEqual({ok, Russian, <<>>}, ersip_quoted_string:unquoting_parse(<<"\"", Russian/binary, "\"">>)),
+    ?assertEqual({ok, Chinese, <<>>}, ersip_quoted_string:unquoting_parse(<<"\"", Chinese/binary, "\"">>)),
+    ?assertEqual({ok, Emoji, <<>>}, ersip_quoted_string:unquoting_parse(<<"\"", Emoji/binary, "\"">>)),
+    ok.

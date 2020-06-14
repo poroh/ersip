@@ -93,10 +93,7 @@ to_binary({method, Bin}) ->
 -spec make(binary()) -> method().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
-        {ok, M, <<>>} ->
-            M;
-        {ok, _, _} ->
-            error({error, {invalid_method, Bin}});
-        {error, _} = Error ->
-            error(Error)
+        {ok, M, <<>>} -> M;
+        {ok, _, _}       -> error({invalid_method, Bin});
+        {error, Reason}  -> error(Reason)
     end.

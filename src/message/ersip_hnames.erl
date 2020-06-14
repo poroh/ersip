@@ -118,7 +118,8 @@ all_known_headers() ->
      event,
      refer_to,
      replaces,
-     rseq
+     rseq,
+     rack
     ].
 
 %%%===================================================================

@@ -112,11 +112,5 @@ utf8_len(<<UTF8_2:8, _:16, _/binary>>)
 utf8_len(<<UTF8_3:8, _:24, _/binary>>)
   when UTF8_3 >= 16#F0 andalso UTF8_3 =< 16#F7 ->
     {ok, 4};
-utf8_len(<<UTF8_4:8, _:32, _/binary>>)
-  when UTF8_4 >= 16#F8 andalso UTF8_4 =< 16#FB ->
-    {ok, 5};
-utf8_len(<<UTF8_5:8, _:40, _/binary>>)
-  when UTF8_5 >= 16#FC andalso UTF8_5 =< 16#FD ->
-    {ok, 6};
 utf8_len(<<_:8, _/binary>>) ->
     {ok, 1}.

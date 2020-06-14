@@ -1,31 +1,24 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% IO list routines
-%%
+%%%
+%%% Copyright (c) 2017 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% IO list routines
+%%%
 
 -module(ersip_iolist).
 
--export([ trim_lws/1,
-          trim_head_lws/1,
-          trim_tail_lws/1,
-          is_empty/1,
-          join/2
+-export([trim_head_lws/1,
+         trim_tail_lws/1,
+         is_empty/1,
+         join/2
         ]).
 
 -include("ersip_sip_abnf.hrl").
 
-%%%===================================================================
-%%% API
-%%%===================================================================
-
--spec trim_lws(iolist()) -> iolist().
-trim_lws(L) ->
-    L1 = trim_head_lws(L),
-    L2 = trim_tail_lws(L1),
-    L2.
+%%===================================================================
+%% API
+%%===================================================================
 
 %% @doc trim leading linear whitesapaces (SP or HTABs).
 -spec trim_head_lws(iolist()) -> iolist().
@@ -72,20 +65,11 @@ is_empty([X|Rest]) ->
 
 
 %% @doc join list of iolists with separator
--spec join(Sep, List) -> iolist() when
-      List :: [iolist() | binary()],
-      Sep  :: iolist() | binary() | char().
-join(_, []) ->
-    [];
-join(_, [ X ]) ->
-    X;
-join(Sep, [ X | Rest ]) ->
-    [ X |
-      lists:map(fun(Y) ->
-                        [ Sep, Y ]
-                end,
-                Rest)
-    ].
+-spec join(Sep :: iolist() | binary() | char(), List :: [iolist() | binary()]) -> iolist().
+join(_, [])  -> [];
+join(_, [X]) -> X;
+join(Sep, [X | Rest]) ->
+    [X | lists:map(fun(Y) -> [Sep, Y] end, Rest)].
 
 %%%===================================================================
 %%% internal implementation

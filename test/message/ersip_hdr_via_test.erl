@@ -1,18 +1,18 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% iolist tests
-%%
+%%%
+%%% Copyright (c) 2017, 2020 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% iolist tests
+%%%
 
 -module(ersip_hdr_via_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 -define(crlf, "\r\n").
 
@@ -20,7 +20,7 @@ topmost_via_test() ->
     HVia@0 = ersip_hdr:new(<<"Via">>),
     HVia@1 = ersip_hdr:add_values(
                [<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;branch=z9hG4bK77ef4c2312983.1">>,
-                <<"SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds">>
+                [<<"SIP/2.0/UDP pc33.atlanta.com;">>, <<"branch=z9hG4bK776asdhds">>]
                ],
                HVia@0),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
@@ -30,7 +30,8 @@ topmost_via_test() ->
     ?assertEqual(ersip_transport:make(udp), Transport),
     {sent_by, Host, Port} = ersip_hdr_via:sent_by(Via),
     ?assertEqual({hostname, <<"bigbox3.site3.atlanta.com">>}, Host),
-    ?assertEqual(5060, Port).
+    ?assertEqual(5060, Port),
+    ok.
 
 topmost_via_ipport_test() ->
     HVia@0 = ersip_hdr:new(<<"Via">>),
@@ -46,7 +47,8 @@ topmost_via_ipport_test() ->
     ?assertEqual(ersip_transport:make(tcp), Transport),
     {sent_by, Host, Port} = ersip_hdr_via:sent_by(Via),
     ?assertEqual({ipv4, {192, 168, 1, 1}}, Host),
-    ?assertEqual(5090, Port).
+    ?assertEqual(5090, Port),
+    ok.
 
 check_params_test() ->
     {ok, Via} = ersip_hdr_via:parse((<<"SIP/2.0/TCP 192.168.1.1:5090;branch=z9hG4bK77ef4c2312983.1;rport;x=1;some">>)),
@@ -148,7 +150,16 @@ topmost_via_negative_test() ->
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=-0">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=65536">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
-    bad_topmost_via(<<"SIP/3.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
+    bad_topmost_via(<<"SIP/3.0/UDP bigbox3.site3.atlanta.com">>),
+    bad_topmost_via(<<"NotSIP/2.0/UDP bigbox3.site3.atlanta.com">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com,">>),
+    bad_topmost_via(<<"SIP/2.0/UDP [::1],">>),
+    bad_topmost_via(<<"SIP/2.0/UDP [::1,]">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=\"1.2.3.4&\"">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4.">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4,">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4'">>),
+    bad_topmost_via(<<"SIP/2.0/WHAT bigbox3.site3.atlanta.com">>),
     ok.
 
 via_branch_test() ->
@@ -262,8 +273,10 @@ set_param_received_ipv6_test() ->
 set_param_received_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    ?assertError({error, _}, ersip_hdr_via:set_param(received, x, Via)),
-    ?assertError({error, _}, ersip_hdr_via:set_param(received, <<".">>, Via)).
+    ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, x, Via)),
+    ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, <<".">>, Via)),
+    ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, <<"a.com;">>, Via)),
+    ok.
 
 set_param_rport_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=1234;maddr=x.com">>),
@@ -286,11 +299,11 @@ set_param_rport_to_true_test() ->
 set_param_rport_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    ?assertError({error, _}, ersip_hdr_via:set_param(rport, false, Via)),
-    ?assertError({error, _}, ersip_hdr_via:set_param(rport, <<"aaaa">>, Via)),
-    ?assertError({error, _}, ersip_hdr_via:set_param(rport, 65536, Via)),
-    ?assertError({error, _}, ersip_hdr_via:set_param(rport, -1, Via)),
-    ?assertError({error, _}, ersip_hdr_via:set_param(rport, 0, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, false, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, <<"aaaa">>, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, 65536, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, -1, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, 0, Via)),
     ok.
 
 set_ttl_test() ->
@@ -329,9 +342,32 @@ all_raw_params_test() ->
                   {<<"maddr">>, <<"x.com">>}], ersip_hdr_via:all_raw_params(Via)),
     ok.
 
-%%%===================================================================
-%%% Implementation
-%%%===================================================================
+raw_test() ->
+    Via0 = <<"SIP/2.0/TCP 192.168.1.1:5090;Branch=branch_v;ttl=200;x;maddr=x.com;received=1.1.1.1;rport=5090">>,
+    ?assertMatch(#{protocol  := <<"SIP">>},         ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{version   := <<"2.0">>},         ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{transport := <<"TCP">>},         ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{host      := <<"192.168.1.1">>}, ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{branch    := <<"branch_v">>},    ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{ttl       := 200},               ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{maddr     := <<"x.com">>},       ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{received  := <<"1.1.1.1">>},     ersip_hdr_via:raw(make(Via0))),
+    ?assertMatch(#{rport     := 5090},              ersip_hdr_via:raw(make(Via0))),
+    ok.
+
+parse_test() ->
+    ?assertMatch({ok, _}, ersip_hdr_via:parse(<<"SIP/2.0/TCP 192.168.1.1">>)),
+    ?assertMatch({ok, _}, ersip_hdr_via:parse([<<"SIP/2.0/TCP">>, <<" 192.168.1.1">>])),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:parse(<<"Some garbage">>)),
+    ok.
+
+make_test() ->
+    ?assertError({invalid_via, _}, ersip_hdr_via:make(<<"Some garbage">>)),
+    ok.
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 create_via(Bin) ->
     V@0 = ersip_hdr:new(<<"Via">>),
@@ -355,3 +391,6 @@ check_reassemble(Binary) ->
     Via1Bin = ersip_hdr_via:assemble(Via1),
     {ok, Via2} = ersip_hdr_via:topmost_via(create_via(Via1Bin)),
     ?assertEqual(ersip_hdr_via:make_key(Via1), ersip_hdr_via:make_key(Via2)).
+
+make(Bin) ->
+    ersip_hdr_via:make(Bin).

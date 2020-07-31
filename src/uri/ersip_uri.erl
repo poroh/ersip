@@ -193,7 +193,9 @@ assemble_bin(#uri{} = U) ->
 
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
-    Params.
+    Params;
+params(_) ->
+    #{}.
 
 -spec raw_params(uri()) -> [{binary(), binary()} | binary()].
 raw_params(#uri{data = #sip_uri_data{params = Params}}) ->

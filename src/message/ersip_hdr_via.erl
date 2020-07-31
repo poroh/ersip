@@ -31,7 +31,8 @@
          make_key/1,
          assemble/1,
          assemble_bin/1,
-         parse/1
+         parse/1,
+         parse_first_via/1
         ]).
 
 -export_type([via/0,
@@ -66,7 +67,8 @@
                                rport    => ersip_transport:port_number() | true,
                                binary() => binary()
                               }.
-
+-type maybe_rev_vias() :: {ok, [via()]}
+                            | {error, term()}.
 %%%===================================================================
 %%% API
 %%%===================================================================
@@ -99,10 +101,10 @@ topmost_via(Header) ->
             case parse_via(iolist_to_binary(TopVia)) of
                 {error, _} = Error ->
                     Error;
-                {ok, Via} = Ok ->
+                {ok, Via, _} ->
                     case validate_topmost_via(Via) of
                         ok ->
-                            Ok;
+                            {ok, Via};
                         {error, _} = Error ->
                             Error
                     end
@@ -263,27 +265,70 @@ assemble(#via{} = Via) ->
 assemble_bin(#via{} = Via) ->
     iolist_to_binary(assemble(Via)).
 
--spec parse(iolist()) -> {ok, via()} | {error, term()}.
+-spec parse(iolist()) -> {ok, [via()]} | {error, term()}.
 parse(IOList) ->
-    parse_via(iolist_to_binary(IOList)).
+    parse_vias(iolist_to_binary(IOList)).
+
+-spec parse_first_via(iolist()) -> {ok, via(), RestVia :: binary()} | {error, term()}.
+parse_first_via(IOList) ->
+    case parse_via(iolist_to_binary(IOList)) of
+        {ok, Via, <<$,, Rest/binary>>} ->
+            {ok, Via, ersip_bin:trim_head_lws(Rest)};
+        {ok, Via, _} ->
+            {ok, Via, <<>>};
+        {error, _} = Error ->
+            Error
+    end.
 
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
 
--spec parse_via(binary()) -> {ok,via()} | {error, term()}.
+-spec parse_via(binary()) -> {ok,via(),binary()} | {error, term()}.
 parse_via(ViaBinary) ->
     Parsers = [fun parse_sent_protocol/1,
                fun ersip_parser_aux:parse_lws/1,
                fun parse_sent_by/1,
                fun ersip_parser_aux:trim_lws/1,
-               fun parse_via_params/1],
+               fun parse_via_params/1,
+               fun ersip_parser_aux:trim_lws/1],
     case ersip_parser_aux:parse_all(ViaBinary, Parsers) of
-        {ok, [SentProtocol, _, SentBy, _, HParams], _} ->
+        {ok, [SentProtocol, _, SentBy, _, HParams, _], Rest} ->
             Via = #via{sent_protocol = SentProtocol,
                        sent_by       = SentBy,
                        hparams       = HParams},
-            {ok, Via};
+            {ok, Via, Rest};
+        {error, _} = Error ->
+            Error
+    end.
+
+-spec parse_vias(binary()) -> {ok,[via()]} | {error, term()}.
+parse_vias(ViaBinary) ->
+    MaybeRevVias =
+        lists:foldl(fun(IOVia, Acc) ->
+            add_to_maybe_vias(iolist_to_binary(IOVia), Acc)
+                    end,
+            {ok, []},
+            [ViaBinary]),
+    case MaybeRevVias of
+        {ok, RevVias} ->
+            {ok, lists:reverse(RevVias)};
+        {error, _} = Error ->
+            Error
+    end.
+
+-spec add_to_maybe_vias(binary(), maybe_rev_vias()) -> maybe_rev_vias().
+add_to_maybe_vias(_, {error, _} = Error) ->
+    Error;
+add_to_maybe_vias(Bin, {ok, Vias}) ->
+    case parse_via(Bin) of
+        {ok, Via, <<>>} ->
+            {ok, [Via | Vias]};
+        {ok, Via, <<$,, Rest/binary>>} ->
+            MaybeVia = {ok, [Via | Vias]},
+            add_to_maybe_vias(ersip_bin:trim_head_lws(Rest), MaybeVia);
+        {ok, _, Rest} ->
+            {error, {garbage_at_end, Rest}};
         {error, _} = Error ->
             Error
     end.

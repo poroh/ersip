@@ -97,6 +97,6 @@ make_target(HostBin, Port, Transport, TTL) ->
     {ersip_host:make(HostBin), Port, ersip_transport:make(Transport), #{ttl => TTL}}.
 
 target(ViaBin) ->
-    {ok, Via} = ersip_hdr_via:parse(ViaBin),
+    {ok, [Via|_]} = ersip_hdr_via:parse(ViaBin),
     ersip_response:target(Via).
 

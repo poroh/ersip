@@ -49,7 +49,7 @@ topmost_via_ipport_test() ->
     ?assertEqual(5090, Port).
 
 check_params_test() ->
-    {ok, Via} = ersip_hdr_via:parse((<<"SIP/2.0/TCP 192.168.1.1:5090;branch=z9hG4bK77ef4c2312983.1;rport;x=1;some">>)),
+    {ok, [Via]} = ersip_hdr_via:parse((<<"SIP/2.0/TCP 192.168.1.1:5090;branch=z9hG4bK77ef4c2312983.1;rport;x=1;some">>)),
     ?assertEqual({ok, ersip_branch:make(<<"z9hG4bK77ef4c2312983.1">>)}, ersip_hdr_via:branch(Via)),
     ?assertEqual({ok, true}, ersip_hdr_via:rport(Via)),
     ?assertEqual({ok, <<"1">>}, ersip_hdr_via:raw_param(<<"x">>, Via)),

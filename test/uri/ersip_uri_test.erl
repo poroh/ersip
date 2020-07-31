@@ -564,6 +564,11 @@ parse_three_params_test() ->
                <<"param3">> => <<"value3">>},
     ?assertEqual(Params, ersip_uri:params(Uri)).
 
+params_on_non_sip_test() ->
+    Uri = ersip_uri:make(<<"tel:+16505550505">>),
+    ?assertEqual(#{}, ersip_uri:params(Uri)),
+    ok.
+
 raw_params_test() ->
     Uri = ersip_uri:make(<<"sip:carol@chicago.com;ttl=1;lr;c;param2=value2;param3=value3;maddr=1.1.1.1">>),
     RawParams = lists:sort(ersip_uri:raw_params(Uri)),

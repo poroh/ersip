@@ -544,7 +544,10 @@ is_sip(#uri{}) ->
 %% @deprecated
 -spec params(uri()) -> uri_params().
 params(#uri{data = #sip_uri_data{params = Params}}) ->
-    Params.
+    Params;
+params(#uri{}) ->
+    #{}.
+
 
 %% @doc Get raw URI params as list.
 -spec raw_params(uri()) -> [{binary(), binary()} | binary()].

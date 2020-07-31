@@ -89,7 +89,7 @@ add_value(Value, #header{values = V} = Hdr) ->
     Hdr#header{values = V ++ [Value]}.
 
 %% @doc Append list of values to headr's list of values.
--spec add_values(Value :: value(), header()) -> header().
+-spec add_values(Values :: [value()], header()) -> header().
 add_values(Values, #header{} = Hdr) ->
     lists:foldl(fun add_value/2,
                 Hdr,

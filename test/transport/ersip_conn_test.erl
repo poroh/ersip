@@ -443,6 +443,52 @@ take_via_neg_transport_mismatch_test() ->
                  ersip_conn:conn_data(Msg, Conn)),
     ok.
 
+take_via_with_comma_separated_via_test() ->
+    %% Check taking via from response.
+    LocalIP  = {127, 0, 0, 99},
+    RemoteIP = {127, 0, 0, 1},
+    UDP  = ersip_transport:make(udp),
+    Conn = ersip_conn:new(LocalIP, 5091, RemoteIP, 5061, UDP, #{}),
+    TopMostVia = <<"SIP/2.0/UDP 127.0.0.99:5091;branch=z9hG4bK6hh35hsh460350psr7svreer7"
+                  ",SIP/2.0/UDP 127.0.0.3:5060;branch=z9hG4bK03v084g25gh20v0pxr263vg66">>,
+    Msg =
+        << "SIP/2.0 200 OK" ?crlf
+           "Via: ", TopMostVia/binary, ?crlf
+           "Via: SIP/2.0/UDP 127.0.0.2:5061;branch=z9hG4bKhjhs8ass877;received=192.0.2.4" ?crlf
+           "To: <sip:carol@chicago.com>;tag=93810874" ?crlf
+           "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+           "Call-ID: a84b4c76e66710" ?crlf
+           "CSeq: 63104 OPTIONS" ?crlf
+           "Contact: <sip:carol@chicago.com>" ?crlf
+           "Contact: <mailto:carol@chicago.com>" ?crlf
+           "Allow: INVITE, ACK, CANCEL, OPTIONS, BYE" ?crlf
+           "Accept: application/sdp" ?crlf
+           "Accept-Encoding: gzip" ?crlf
+           "Accept-Language: en" ?crlf
+           "Supported: foo" ?crlf
+           "Content-Type: application/sdp" ?crlf
+           "Content-Length: 4" ?crlf ?crlf
+           "Test">>,
+    {_, [{new_response, Via, RawMsg}]} = ersip_conn:conn_data(Msg, Conn),
+    %% 1. Smoke check of Via:
+    LocalHost99 = ersip_host:make(<<"127.0.0.99">>),
+    ?assertEqual({sent_by, LocalHost99, 5091}, ersip_hdr_via:sent_by(Via)),
+    check_topmost_via(RawMsg, ersip_hdr_via:make(<<"SIP/2.0/UDP 127.0.0.3:5060;branch=z9hG4bK03v084g25gh20v0pxr263vg66">>)),
+
+    Conn2 = ersip_conn:new({127, 0, 0, 3}, 5060, RemoteIP, 5061, UDP, #{}),
+    {_, [{new_response, Via2, RawMsg2}]} = ersip_conn:conn_data(ersip_msg:serialize_bin(RawMsg), Conn2),
+    check_topmost_via(RawMsg2, ersip_hdr_via:make(<<"SIP/2.0/UDP 127.0.0.2:5061;branch=z9hG4bKhjhs8ass877;received=192.0.2.4">>)),
+    LocalHost3 = ersip_host:make(<<"127.0.0.3">>),
+    ?assertMatch({sent_by, LocalHost3, 5060}, ersip_hdr_via:sent_by(Via2)),
+
+    Conn3 = ersip_conn:new({127, 0, 0, 2}, 5061, RemoteIP, 5061, UDP, #{}),
+    {_, [{new_response, Via3, RawMsg3}]} = ersip_conn:conn_data(ersip_msg:serialize_bin(RawMsg2), Conn3),
+    check_no_via(RawMsg3),
+    LocalHost2 = ersip_host:make(<<"127.0.0.2">>),
+    ?assertMatch({sent_by, LocalHost2, 5061}, ersip_hdr_via:sent_by(Via3)),
+    ok.
+
+
 
 %%%===================================================================
 %%% Helpers
@@ -484,3 +530,8 @@ parse_msg(Msg) ->
 check_no_via(RawMsgNoVia) ->
     ViaH = ersip_msg:get(<<"via">>, RawMsgNoVia),
     ?assertEqual({error, no_via}, ersip_hdr_via:topmost_via(ViaH)).
+
+check_topmost_via(RawMsg, Expected) ->
+    ViaH = ersip_msg:get(<<"via">>, RawMsg),
+    {ok, Got} = ersip_hdr_via:topmost_via(ViaH),
+    ?assertEqual(ersip_hdr_via:make_key(Expected), ersip_hdr_via:make_key(Got)).

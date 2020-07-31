@@ -33,6 +33,26 @@ topmost_via_test() ->
     ?assertEqual(5060, Port),
     ok.
 
+comma_separated_topmost_via_test() ->
+    TopMostVia = <<"SIP/2.0/UDP 127.0.0.99:5091;branch=z9hG4bK6hh35hsh460350psr7svreer7"
+                  ",SIP/2.0/UDP 127.0.0.2:5060;branch=z9hG4bK03v084g25gh20v0pxr263vg66"
+                   ",SIP/2.0/UDP 127.0.0.3:5060;branch=z9hG4bK4a47.8726b736377fdd93dd24ffb625e68c98.0">>,
+    HVia@0 = ersip_hdr:new(<<"Via">>),
+    HVia@1 = ersip_hdr:add_values(
+               [TopMostVia,
+                [<<"SIP/2.0/UDP pc33.atlanta.com;">>, <<"branch=z9hG4bK776asdhds">>]
+               ],
+               HVia@0),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    {sent_protocol, Protocol, Version, Transport} = ersip_hdr_via:sent_protocol(Via),
+    ?assertEqual(<<"SIP">>, Protocol),
+    ?assertEqual(<<"2.0">>, Version),
+    ?assertEqual(ersip_transport:make(udp), Transport),
+    {sent_by, Host, Port} = ersip_hdr_via:sent_by(Via),
+    ?assertEqual(ersip_host:make(<<"127.0.0.99">>), Host),
+    ?assertEqual(5091, Port),
+    ok.
+
 topmost_via_ipport_test() ->
     HVia@0 = ersip_hdr:new(<<"Via">>),
     HVia@1 = ersip_hdr:add_values(
@@ -152,14 +172,15 @@ topmost_via_negative_test() ->
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;rport=A">>),
     bad_topmost_via(<<"SIP/3.0/UDP bigbox3.site3.atlanta.com">>),
     bad_topmost_via(<<"NotSIP/2.0/UDP bigbox3.site3.atlanta.com">>),
-    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com,">>),
-    bad_topmost_via(<<"SIP/2.0/UDP [::1],">>),
+    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com?">>),
+    bad_topmost_via(<<"SIP/2.0/UDP [::1]?">>),
     bad_topmost_via(<<"SIP/2.0/UDP [::1,]">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;received=\"1.2.3.4&\"">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4.">>),
-    bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4,">>),
     bad_topmost_via(<<"SIP/2.0/UDP bigbox3.site3.atlanta.com;maddr=1.2.3.4'">>),
     bad_topmost_via(<<"SIP/2.0/WHAT bigbox3.site3.atlanta.com">>),
+    bad_topmost_via(<<"SIP/2.0/WHAT bigbox3.site3.atlanta.com@">>),
+    bad_topmost_via(<<"SIP/2.0/WHAT bigbox3.site3.atlanta.com;a=b ?">>),
     ok.
 
 via_branch_test() ->
@@ -359,10 +380,33 @@ parse_test() ->
     ?assertMatch({ok, _}, ersip_hdr_via:parse(<<"SIP/2.0/TCP 192.168.1.1">>)),
     ?assertMatch({ok, _}, ersip_hdr_via:parse([<<"SIP/2.0/TCP">>, <<" 192.168.1.1">>])),
     ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:parse(<<"Some garbage">>)),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:parse(<<"SIP/2.0/TCP 192.168.1.1;a=b ?">>)),
     ok.
 
 make_test() ->
     ?assertError({invalid_via, _}, ersip_hdr_via:make(<<"Some garbage">>)),
+    ok.
+
+take_topmost_test() ->
+    Rest = <<"SIP/2.0/UDP 127.0.0.2:5060;branch=z9hG4bK03v084g25gh20v0pxr263vg66"
+             ",SIP/2.0/UDP 127.0.0.3:5060;branch=z9hG4bK4a47.8726b736377fdd93dd24ffb625e68c98.0">>,
+    TopMostVia = <<"SIP/2.0/UDP 127.0.0.99:5091;branch=z9hG4bK6hh35hsh460350psr7svreer7,", Rest/binary>>,
+    Result = ersip_hdr_via:take_topmost(TopMostVia),
+    ?assertMatch({ok, _, Rest}, Result),
+    ok.
+
+take_topmost_2_test() ->
+    Rest = <<"SIP/2.0/UDP 127.0.0.2:5060">>,
+    TopMostVia = <<"SIP/2.0/UDP 127.0.0.2:5060,", Rest/binary>>,
+    Result = ersip_hdr_via:take_topmost(TopMostVia),
+    ?assertMatch({ok, _, Rest}, Result),
+    ok.
+
+take_topmost_error_test() ->
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<",">>)),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/3.0/UDP 127.0.0.2:5060">>)),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/2.0/UNKNOWN 127.0.0.2:5060,SIP/2.0/UDP 127.0.0.2:5060">>)),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/2.0/TCP 127.0.0.2:5060;a=b ?">>)),
     ok.
 
 %%===================================================================

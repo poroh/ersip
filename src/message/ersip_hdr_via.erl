@@ -11,6 +11,7 @@
 -export([new/3,
          new/4,
          topmost_via/1,
+         take_topmost/1,
          sent_protocol/1,
          branch/1,
          set_branch/2,
@@ -109,15 +110,35 @@ topmost_via(Header) ->
     case ersip_hdr:raw_values(Header) of
         [] -> {error, no_via};
         [TopVia | _]  ->
-            case parse_via(iolist_to_binary(TopVia)) of
+            case parse_via_with_rest(iolist_to_binary(TopVia)) of
                 {error, _} = Error -> Error;
-                {ok, Via} = Ok ->
-                    case validate_topmost_via(Via) of
-                        ok -> Ok;
+                {ok, Via, Rest} ->
+                    case validate_topmost_via(Via, Rest) of
+                        ok -> {ok, Via};
                         {error, Reason} ->
                             {error, {invalid_via, Reason}}
                     end
             end
+    end.
+
+-spec take_topmost(iolist()) -> ersip_parser_aux:parse_result(via()).
+take_topmost(IOList) ->
+    Bin = iolist_to_binary(IOList),
+    case parse_via_with_rest(Bin) of
+        {ok, Via, <<",", Rest/binary>>} ->
+            case validate_topmost_via(Via) of
+                ok -> {ok, Via, Rest};
+                {error, Reason} -> {error, {invalid_via, Reason}}
+            end;
+        {ok, Via, <<>>} ->
+            case validate_topmost_via(Via) of
+                ok -> {ok, Via, <<>>};
+                {error, Reason} -> {error, {invalid_via, Reason}}
+            end;
+        {ok, _, Rest} ->
+            {error, {invalid_via, {invalid_via, {garbage_at_the_end, Rest}}}};
+        {error, Reason} ->
+            {error, {invalid_via, Reason}}
     end.
 
 %% @doc Get sent protocol.
@@ -330,18 +351,28 @@ raw(#via{} = Via) ->
 
 -spec parse_via(binary()) -> {ok,via()} | {error, term()}.
 parse_via(ViaBinary) ->
+    case parse_via_with_rest(ViaBinary) of
+        {ok, Via, <<>>} ->
+            {ok, Via};
+        {ok, _, _}      -> {error, {invalid_via, ViaBinary}};
+        {error, Reason} -> {error, {invalid_via, Reason}}
+    end.
+
+-spec parse_via_with_rest(binary()) -> ersip_parser_aux:parse_result(via()).
+parse_via_with_rest(ViaBinary) ->
     Parsers = [fun parse_sent_protocol/1,
                fun ersip_parser_aux:parse_lws/1,
                fun parse_sent_by/1,
                fun ersip_parser_aux:trim_lws/1,
-               fun parse_params/1],
+               fun parse_params/1,
+               fun ersip_parser_aux:trim_lws/1
+              ],
     case ersip_parser_aux:parse_all(ViaBinary, Parsers) of
-        {ok, [SentProtocol, _, SentBy, _, HParams], <<>>} ->
+        {ok, [SentProtocol, _, SentBy, _, HParams, _], Rest} ->
             Via = #via{sent_protocol = SentProtocol,
                        sent_by       = SentBy,
                        hparams       = HParams},
-            {ok, Via};
-        {ok, _, _}      -> {error, {invalid_via, ViaBinary}};
+            {ok, Via, Rest};
         {error, Reason} -> {error, {invalid_via, Reason}}
     end.
 
@@ -376,7 +407,13 @@ parse_sent_by(Binary) ->
             <<HostPort:Pos/binary, Rest/binary>> = Binary,
             parse_sent_by_host_port(ersip_bin:trim_lws(HostPort), host, #{rest => Rest});
         nomatch ->
-            parse_sent_by_host_port(ersip_bin:trim_lws(Binary), host, #{rest => <<>>})
+            case binary:match(Binary, <<",">>) of
+                {Pos, 1} ->
+                    <<HostPort:Pos/binary, Rest/binary>> = Binary,
+                    parse_sent_by_host_port(ersip_bin:trim_lws(HostPort), host, #{rest => Rest});
+                nomatch ->
+                    parse_sent_by_host_port(ersip_bin:trim_lws(Binary), host, #{rest => <<>>})
+            end
     end.
 
 -spec parse_sent_by_host_port(binary() | [binary()], host | port | result, map()) -> ersip_parser_aux:parse_result().
@@ -546,6 +583,14 @@ assemble_ttl(Value) ->
 assemble_maddr(Value) ->
     iolist_to_binary(ersip_host:assemble(Value)).
 
+
+-spec validate_topmost_via(via(), binary()) -> ok | {error, term()}.
+validate_topmost_via(#via{} = Via, <<>>) ->
+    validate_topmost_via(Via);
+validate_topmost_via(#via{} = Via, <<",", _/binary>>) ->
+    validate_topmost_via(Via);
+validate_topmost_via(#via{}, Rest) ->
+    {error, {garbage_at_the_end, Rest}}.
 
 -spec validate_topmost_via(via()) -> ok | {error, term()}.
 validate_topmost_via(#via{sent_protocol = SentProtocol}) ->

@@ -98,11 +98,17 @@ take_via(Msg, #sip_conn{} = SIPConn) ->
         {error, no_header} ->
             {error, no_via};
         {ok, Value, NewViaH} ->
-            case ersip_hdr_via:parse(Value) of
-                {ok, Via} ->
+            case ersip_hdr_via:take_topmost(Value) of
+                {ok, Via, Rest} ->
                     case check_via_match(Via, SIPConn) of
                         match ->
-                            {ok, Via, ersip_msg:set_header(NewViaH, Msg)};
+                            case Rest of
+                                <<>> ->
+                                    {ok, Via, ersip_msg:set_header(NewViaH, Msg)};
+                                _ ->
+                                    NewViaH1 = ersip_hdr:add_topmost(Rest, NewViaH),
+                                    {ok, Via, ersip_msg:set_header(NewViaH1, Msg)}
+                            end;
                         {mismatch, Expected, Got} ->
                             {error, {via_mismatch, Expected, Got}}
                     end;

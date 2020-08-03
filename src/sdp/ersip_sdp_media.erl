@@ -13,6 +13,7 @@
          port_num/1,
          protocol/1,
          formats/1,
+         set_formats/2,
          conn/1,
          set_conn/2,
          attrs/1,
@@ -67,6 +68,10 @@ protocol(#media{protocol = P}) ->
 -spec formats(media()) -> [binary()].
 formats(#media{fmts = FMTS}) ->
     FMTS.
+
+-spec set_formats([binary()], media()) -> media().
+set_formats(FMTS, #media{} = Media) ->
+     Media#media{fmts = FMTS}.    
 
 -spec conn(media()) -> ersip_sdp_conn:conn() | undefined.
 conn(#media{conn = Conn}) ->

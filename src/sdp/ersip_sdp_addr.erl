@@ -183,6 +183,3 @@ find_addr_end(<<"\r", _/binary>>, Acc) ->
 find_addr_end(<<_:8, Rest/binary>>, Acc) ->
     find_addr_end(Rest, Acc+1).
 
-
-
-

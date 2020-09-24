@@ -20,6 +20,7 @@
          parse_slash/1,
          parse_sep/2,
          parse_non_neg_int/1,
+         parse_pos_int/1,
          parse_kvps/3,
          parse_params/2,
          parse_gen_param_value/1
@@ -150,6 +151,10 @@ trim_lws(Bin) ->
 -spec parse_non_neg_int(binary()) -> parse_result(non_neg_integer(), {invalid_integer, binary()}).
 parse_non_neg_int(Bin) ->
     parse_non_neg_int_impl(Bin, start, 0).
+
+-spec parse_pos_int(binary()) -> parse_result(pos_integer(), {invalid_integer, binary()}).
+parse_pos_int(Bin) ->
+    parse_pos_int_impl(Bin, start, 0).
 
 %% @doc Parse key-value pairs sepeated with Sep.
 %% Validator may:
@@ -329,6 +334,18 @@ parse_non_neg_int_impl(Bin, start, _) ->
 parse_non_neg_int_impl(<<Char/utf8, R/binary>>, rest, Acc) when Char >= $0 andalso Char =< $9 ->
     parse_non_neg_int_impl(R, rest, Acc * 10 + Char - $0);
 parse_non_neg_int_impl(Rest, rest, Acc) ->
+    {ok, Acc, Rest}.
+
+-spec parse_pos_int_impl(binary(), State, Acc) -> parse_result(pos_integer()) when
+      State :: start | rest,
+      Acc :: non_neg_integer().
+parse_pos_int_impl(<<Char/utf8, _/binary>> = Bin, start, Acc) when Char >= $1 andalso Char =< $9 ->
+    parse_pos_int_impl(Bin, rest, Acc);
+parse_pos_int_impl(Bin, start, _) ->
+    {error, {invalid_integer, Bin}};
+parse_pos_int_impl(<<Char/utf8, R/binary>>, rest, Acc) when Char >= $0 andalso Char =< $9 ->
+    parse_pos_int_impl(R, rest, Acc * 10 + Char - $0);
+parse_pos_int_impl(Rest, rest, Acc) ->
     {ok, Acc, Rest}.
 
 -spec parse_kvps_make_validator_func(parse_kvps_validator()) -> KVPsMapFun when

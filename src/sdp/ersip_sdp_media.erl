@@ -39,10 +39,13 @@
                 key        :: maybe_binary(),                    %% k=
                 attrs = [] :: ersip_sdp_attr:attr_list()
                }).
+
 -type media() :: #media{}.
--type media_type()   :: binary().
--type maybe_binary() :: binary() | undefined.
--type parse_result() :: ersip_parser_aux:parse_result([media()]).
+
+-type media_type()    :: binary().
+-type maybe_binary()  :: binary() | undefined.
+
+-type parse_result()  :: ersip_parser_aux:parse_result([media()]).
 -type parse_result(X) :: ersip_parser_aux:parse_result(X).
 
 %%%===================================================================
@@ -146,16 +149,16 @@ do_parse_medias(Rest, Acc) ->
 
 -spec assemble_media(media()) -> iolist().
 assemble_media(#media{} = Media) ->
- #media{type      = MediaType,
-        port      = Port,
-        port_num  = NumPorts,
-        protocol  = Protocol,
-        fmts      = Formats,
-        title     = Title,
-        conn      = Conn,
-        bandwidth = Bandwidth,
-        key       = Key,
-        attrs     = Attrs} = Media,
+    #media{type      = MediaType,
+           port      = Port,
+           port_num  = NumPorts,
+           protocol  = Protocol,
+           fmts      = Formats,
+           title     = Title,
+           conn      = Conn,
+           bandwidth = Bandwidth,
+           key       = Key,
+           attrs     = Attrs} = Media,
     [<<"m=">>, MediaType, <<" ">>, integer_to_binary(Port),
      case NumPorts of
          1 -> [];
@@ -192,7 +195,7 @@ parse_proto(Bin) ->
             {error, {invalid_protocol, Reason}}
     end.
 
--spec do_parse_proto(binary(), nonempty_list(binary())) -> parse_result(nonempty_list(binary)).
+-spec do_parse_proto(binary(), nonempty_list(binary())) -> parse_result(nonempty_list(binary())).
 do_parse_proto(<<"/", Rest/binary>>, Acc) ->
     case ersip_sdp_aux:parse_token(Rest) of
         {ok, Token, Rest1} ->
@@ -223,5 +226,4 @@ do_parse_fmts(Bin, Acc) ->
         _ ->
             {ok, lists:reverse(Acc), Bin}
     end.
-
 

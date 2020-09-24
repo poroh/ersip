@@ -74,7 +74,7 @@ parse_error_test() ->
 
 assemble_test() ->
     IceCandidateBin = <<"2 1 UDP 1694498815 2001:420:c0e0:1005::61 45664 typ srflx raddr fe80::6676:baff:fe9c:ee4a rport 8998 generation 0 time 12">>,
-    ?assertEqual(IceCandidateBin, reassemble(IceCandidateBin)),
+    ?assertEqual(ersip_bin:to_lower(IceCandidateBin), ersip_bin:to_lower(reassemble(IceCandidateBin))),
 
     ok.
 

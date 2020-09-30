@@ -52,7 +52,7 @@
 %% TCP == ersip_transport:make(<<"tcp">>),
 %% TCP == ersip_transport:make(tcp).
 %% '''
--spec make(binary() | transport_atom()) -> transport().
+-spec make(raw() | transport_atom()) -> transport().
 make(V) ->
     case parse(V) of
         {ok, T} -> T;
@@ -98,7 +98,7 @@ sctp() ->
     {transport, sctp}.
 
 %% @doc Parse transport from raw representation or from binary().
--spec parse(binary() | raw()) -> parse_result().
+-spec parse(raw() | transport_atom()) -> parse_result().
 parse(V) when is_binary(V) ->
     case parse_bin(V) of
         {error, _} = Error ->

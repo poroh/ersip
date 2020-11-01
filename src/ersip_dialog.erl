@@ -65,13 +65,15 @@
                  local_tag           :: ersip_hdr_fromto:tag(),
                  local_uri           :: ersip_uri:uri(),
                  local_seq  = empty  :: ersip_hdr_cseq:cseq_num() | empty,
+                 local_invite_seq  = empty  :: ersip_hdr_cseq:cseq_num() | empty,
                  remote_tag          :: ersip_hdr_fromto:tag() | undefined,
                  remote_uri          :: ersip_uri:uri(),
                  remote_seq = empty  :: ersip_hdr_cseq:cseq_num() | empty,
                  remote_target       :: ersip_uri:uri(),
                  secure              :: boolean(),
                  route_set           :: ersip_route_set:route_set(),
-                 state               :: state()
+                 state               :: state(),
+                 request_method      :: ersip_method:method() | undefined
                 }).
 -record(dialog_id, {local_tag  :: ersip_hdr_fromto:tag_key(),
                     remote_tag :: ersip_hdr_fromto:tag_key() | undefined,
@@ -178,7 +180,7 @@ uas_create(Request, Response) ->
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
     UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
     {Dialog, UpdatedResp};
-uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
+uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early, request_method = RequestMethod} = Dialog) ->
     %% Independent of the method, if a request outside of a dialog generates
     %% a non-2xx final response, any early dialogs created through
     %% provisional responses to that request are terminated.
@@ -186,9 +188,15 @@ uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
         Status when Status >= 300 ->
             terminate_dialog;
         _ ->
-            State = state_by_response(RespSipMsg),
             UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
-            {Dialog#dialog{state = State}, UpdatedResp}
+            CSeq = ersip_sipmsg:get(cseq, RespSipMsg),
+            case ersip_hdr_cseq:method(CSeq) of
+                RequestMethod ->
+                    State = state_by_response(RespSipMsg),
+                    {Dialog#dialog{state = State}, UpdatedResp};
+                _ ->
+                    {Dialog, UpdatedResp}
+            end
     end.
 
 %% @doc New dialog on UAC side.
@@ -246,7 +254,21 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     Req3  = ersip_sipmsg:set(callid, Dialog0#dialog.callid, Req2),
     Req4 = maybe_update_cseq(Req0, Dialog0, Req3),
     CSeq = ersip_sipmsg:get(cseq, Req4),
-    Dialog1 = Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)},
+    ACK = ersip_method:ack(),
+    CANCEL = ersip_method:cancel(),
+    INVITE = ersip_method:invite(),
+    Dialog1 =
+        case ersip_sipmsg:method(Req0) of
+            Method when Method == ACK orelse Method == CANCEL ->
+                %% Do not update local_seq for ACK and CANCEL
+                Dialog0;
+            INVITE ->
+                Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq),
+                    local_invite_seq = ersip_hdr_cseq:number(CSeq)};
+            _ ->
+                Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)}
+        end,
+
     %% The UAC uses the remote target and route set to build the
     %% Request-URI and Route header field of the request.
     #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog1,
@@ -402,6 +424,7 @@ do_uas_create(Request, Response) ->
             remote_target = ersip_hdr_contact:uri(ReqContact),
             %% The local sequence number MUST be empty.
             local_seq  = empty,
+            local_invite_seq = empty,
             %% The remote sequence number MUST be set to the value of the
             %% sequence number in the CSeq header field of the request.  The
             %% local sequence number MUST be empty.
@@ -421,7 +444,8 @@ do_uas_create(Request, Response) ->
             %% local URI MUST be set to the URI in the To field
             local_uri  = ersip_hdr_fromto:uri(ReqTo),
             %%
-            state = State
+            state = State,
+            request_method = ersip_hdr_cseq:method(ReqCSeq)
            }.
 
 -spec uac_create(ersip_request:request(), ersip_sipmsg:sipmsg()) -> dialog().
@@ -459,6 +483,15 @@ uac_create(Request, Response) ->
     ReqFrom       = ersip_sipmsg:get(from,    ReqSipMsg),
     ReqTo         = ersip_sipmsg:get(to,      ReqSipMsg),
 
+    LocalSeq = ersip_hdr_cseq:number(ReqCseq),
+    INVITE = ersip_method:invite(),
+    LocalInviteSeq =
+        case ersip_sipmsg:method(ReqSipMsg) of
+            INVITE ->
+                LocalSeq;
+            _ ->
+                empty
+        end,
     #dialog{secure    = IsSecure,
             route_set = RouteSet,
             %% The remote target MUST be set to the URI from the
@@ -466,7 +499,8 @@ uac_create(Request, Response) ->
             remote_target = RTargetURI,
             %% The local sequence number MUST be set to the value of the sequence
             %% number in the CSeq header field of the request.
-            local_seq    = ersip_hdr_cseq:number(ReqCseq),
+            local_seq    = LocalSeq,
+            local_invite_seq = LocalInviteSeq,
             %% The remote sequence number MUST be empty
             remote_seq   = empty,
             %% The call identifier component of the dialog ID MUST be
@@ -763,7 +797,7 @@ uas_maybe_update_target(ReqSipMsg, target_refresh, #dialog{} = Dialog) ->
 maybe_update_cseq(InReq, #dialog{local_seq = empty}, Req) ->
     CSeq = get_or_create(cseq, InReq),
     ersip_sipmsg:set(cseq, CSeq, Req);
-maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
+maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, local_invite_seq = LocalInviteSeq}, Req) ->
     ACK = ersip_method:ack(),
     CANCEL = ersip_method:cancel(),
     case ersip_sipmsg:method(InReq) of
@@ -771,6 +805,9 @@ maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
             case ersip_sipmsg:find(cseq, InReq) of
                 {ok, CSeq} ->
                     ersip_sipmsg:set(cseq, CSeq, Req);
+                not_found when is_integer(LocalInviteSeq) ->
+                    %% Use INIVTE Seq for ACK/CANCEL. It is possible to have another requests between INVITE and ACK/CANCEL, for example PRACK
+                    set_cseq(InReq, LocalInviteSeq-1, Req);
                 not_found ->
                     set_cseq(InReq, LocalSeq-1, Req)
             end;

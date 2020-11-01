@@ -32,7 +32,8 @@ basic_parse_test() ->
     parse_sips_ok(<<"sips:a@b:5090">>,     #{user => <<"a">>,   host => <<"b">>, port => 5090}),
     parse_sips_ok(<<"sips:a:b@b:5090">>,   #{user => <<"a:b">>, host => <<"b">>, port => 5090}),
 
-    parse_ok(<<"TEL:+16505550505">>, #{scheme => <<"tel">>, data => <<"+16505550505">>}),
+    parse_tel_ok(<<"TEL:+16505550505">>, #{user => <<"+16505550505">>}),
+    parse_ok(<<"cid:+16505550505">>, #{scheme => <<"cid">>, data => <<"+16505550505">>}),
     ok.
 
 parse_fail_test() ->
@@ -70,9 +71,10 @@ transport_parse_test() ->
     check_transport(<<"sip:b;transport=ws">>,   ws),
     check_transport(<<"sip:b;transport=wss">>,  wss),
     check_other_transport(<<"sip:b;transport=wssnew">>, <<"wssnew">>),
+    check_transport(<<"tel:+16505550505;transport=tcp">>,  tcp),
 
     ?assertEqual(undefined, ersip_uri:transport(ersip_uri:make(<<"sip:b">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:transport(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(undefined, ersip_uri:transport(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 transport_parse_fail_test() ->
@@ -87,8 +89,9 @@ set_transport_test() ->
     ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com;transport=tls">>),
                  ersip_uri:set_transport(ersip_transport:make(tls),
                                          ersip_uri:make(<<"sip:carol@chicago.com;TRANSPORT=tcp">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_transport(ersip_transport:make(udp),
-                                                                ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(ersip_uri:make(<<"tel:+16505550505;transport=udp">>),
+                ersip_uri:set_transport(ersip_transport:make(udp),
+                                        ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 clear_transport_test() ->
@@ -96,7 +99,8 @@ clear_transport_test() ->
                  ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;transport=tcp">>))),
     ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com">>),
                  ersip_uri:clear_transport(ersip_uri:make(<<"sip:carol@chicago.com;TRANSPORT=tcp">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:clear_transport(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(ersip_uri:make(<<"tel:+16505550505">>),
+                 ersip_uri:clear_transport(ersip_uri:make(<<"tel:+16505550505;transport=udp">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -106,7 +110,8 @@ clear_transport_test() ->
 loose_router_test() ->
     ?assertEqual(true,  ersip_uri:loose_router(ersip_uri:make(<<"sip:b;lr">>))),
     ?assertEqual(false, ersip_uri:loose_router(ersip_uri:make(<<"sip:b">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:loose_router(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(true,  ersip_uri:loose_router(ersip_uri:make(<<"tel:+16505550505;lr">>))),
+    ?assertEqual(false, ersip_uri:loose_router(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
 set_loose_router_test() ->
@@ -126,9 +131,25 @@ set_loose_router_test() ->
     URI4 = ersip_uri:make(ersip_uri:assemble_bin(URI3)),
     ?assertEqual(false, ersip_uri:loose_router(URI4)),
 
+    TELURI0  = ersip_uri:make(<<"tel:+16505550505">>),
+    ?assertEqual(false,  ersip_uri:loose_router(TELURI0)),
+    TELURI1 = ersip_uri:set_loose_router(true, TELURI0),
+    ?assertEqual(true,  ersip_uri:loose_router(TELURI1)),
+
+    %% Check that set remains after serialization.
+    TELURI2 = ersip_uri:make(ersip_uri:assemble_bin(TELURI1)),
+    ?assertEqual(true,  ersip_uri:loose_router(TELURI2)),
+
+    TELURI3 = ersip_uri:set_loose_router(false, TELURI2),
+    ?assertEqual(false, ersip_uri:loose_router(TELURI3)),
+
+    %% Check that clear remains after serialization.
+    TELURI4 = ersip_uri:make(ersip_uri:assemble_bin(TELURI3)),
+    ?assertEqual(false, ersip_uri:loose_router(TELURI4)),
+
     %% Check error on non-SIP URI:
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_loose_router(false, ersip_uri:make(<<"tel:+16505550505">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_loose_router(true, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_loose_router(false, ersip_uri:make(<<"cid:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_loose_router(true, ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -142,7 +163,7 @@ maddr_test() ->
     ?assertMatch({error, {invalid_sip_uri, {invalid_maddr, _}}}, ersip_uri:parse(<<"sip:b;maddr=&">>)),
 
     ?assertEqual(undefined, ersip_uri:maddr(ersip_uri:make(<<"sip:b">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:maddr(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(ersip_host:make(<<"1.1.1.1">>), ersip_uri:maddr(ersip_uri:make(<<"tel:+16505550505;maddr=1.1.1.1">>))),
     ok.
 
 set_maddr_test() ->
@@ -151,7 +172,9 @@ set_maddr_test() ->
     ?assertEqual(<<"sip:b;maddr=atlanta.com">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"atlanta.com">>), ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;maddr=1.1.1.1">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"sip:b;maddr=atlanta.com">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tel:+16505550505;maddr=1.1.1.1">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"tel:+16505550505;maddr=atlanta.com">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"cid:+16505550505">>))),
     ?assertError({host_expected, _},    ersip_uri:set_maddr(<<"1.1.1.1">>, ersip_uri:make(<<"sip:b">>))),
     ok.
 
@@ -159,8 +182,9 @@ clear_maddr_test() ->
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_maddr(ersip_uri:make(<<"sip:b;maddr=1.1.1.1">>)))),
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_maddr(ersip_uri:make(<<"sip:b;maddr=[::1]">>)))),
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_maddr(ersip_uri:make(<<"sip:b;maddr=atlanta.com">>)))),
+    ?assertEqual(<<"tel:+16505550505">>, ersip_uri:assemble_bin(ersip_uri:clear_maddr(ersip_uri:make(<<"tel:+16505550505;maddr=atlanta.com">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:clear_maddr(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:clear_maddr(ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -173,7 +197,9 @@ user_param_test() ->
     ?assertEqual(<<"something">>, ersip_uri:user_param(ersip_uri:make(<<"sip:b;user=something">>))),
     ?assertEqual(undefined,       ersip_uri:user_param(ersip_uri:make(<<"sip:b">>))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:user_param(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"something">>, ersip_uri:user_param(ersip_uri:make(<<"tel:+16505550505;user=something">>))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:user_param(ersip_uri:make(<<"cid:+16505550505">>))),
 
     ?assertMatch({error, {invalid_sip_uri, _}}, ersip_uri:parse(<<"sip:b;user=&">>)),
     ?assertMatch({error, {invalid_sip_uri, _}}, ersip_uri:parse(<<"sip:b;user=">>)),
@@ -184,7 +210,9 @@ set_user_param_test() ->
     ?assertEqual(<<"sip:b;user=phone">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(phone, ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;user=something">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(<<"something">>, ersip_uri:make(<<"sip:b">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_user_param(phone, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tel:+16505550505;user=something">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(<<"something">>, ersip_uri:make(<<"tel:+16505550505">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_user_param(phone, ersip_uri:make(<<"cid:+16505550505">>))),
     ?assertError({user_param_expected, _}, ersip_uri:set_user_param(undefined, ersip_uri:make(<<"sip:b">>))),
     ?assertError({user_param_expected, _}, ersip_uri:set_user_param(99, ersip_uri:make(<<"sip:b">>))),
     ok.
@@ -194,7 +222,9 @@ clear_user_param_test() ->
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_user_param(ersip_uri:make(<<"sip:b;user=phone">>)))),
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_user_param(ersip_uri:make(<<"sip:b;user=something">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:clear_user_param(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tel:+16505550505">>, ersip_uri:assemble_bin(ersip_uri:clear_user_param(ersip_uri:make(<<"tel:+16505550505;user=something">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:clear_user_param(ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -213,7 +243,9 @@ ttl_test() ->
     ?assertMatch({error, {invalid_sip_uri, _}}, ersip_uri:parse(<<"sip:b;ttl=-1">>)),
     ?assertMatch({error, {invalid_sip_uri, _}}, ersip_uri:parse(<<"sip:b;ttl=256">>)),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:ttl(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(1, ersip_uri:ttl(ersip_uri:make(<<"tel:+16505550505;ttl=1">>))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:ttl(ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 set_ttl_test() ->
@@ -222,7 +254,9 @@ set_ttl_test() ->
     ?assertEqual(<<"sip:b;ttl=0">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(0,   ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;ttl=3">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(3,   ersip_uri:make(<<"sip:b;ttl=5">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_ttl(5, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tel:+16505550505;ttl=3">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(3,   ersip_uri:make(<<"tel:+16505550505;ttl=5">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_ttl(5, ersip_uri:make(<<"cid:+16505550505">>))),
     ?assertError({ttl_expected, _},     ersip_uri:set_ttl(undefined, ersip_uri:make(<<"sip:b">>))),
     ?assertError({ttl_expected, _},     ersip_uri:set_ttl(-1, ersip_uri:make(<<"sip:b">>))),
     ?assertError({ttl_expected, _},     ersip_uri:set_ttl(256, ersip_uri:make(<<"sip:b">>))),
@@ -230,8 +264,9 @@ set_ttl_test() ->
 
 clear_ttl_test() ->
     ?assertEqual(<<"sip:b">>, ersip_uri:assemble_bin(ersip_uri:clear_ttl(ersip_uri:make(<<"sip:b;ttl=1">>)))),
+    ?assertEqual(<<"tel:+16505550505">>, ersip_uri:assemble_bin(ersip_uri:clear_ttl(ersip_uri:make(<<"tel:+16505550505;ttl=1">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:clear_ttl(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:clear_ttl(ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -270,8 +305,10 @@ gen_param_test() ->
     ?assertEqual(<<"2">>,   ersip_uri:gen_param(<<"Another">>, ersip_uri:make(<<"sip:b;Some=1;Another=2">>))),
     ?assertEqual(undefined, ersip_uri:gen_param(<<"Another">>, ersip_uri:make(<<"sip:b;Some=1">>))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"tel:+16505550505">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:gen_param(<<"some">>, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tcp">>,   ersip_uri:gen_param(<<"transport">>, ersip_uri:make(<<"tel:+16505550505;transport=tcp">>))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:gen_param(<<"ttl">>, ersip_uri:make(<<"cid:+16505550505">>))),
+    ?assertError({sip_uri_expected, _}, ersip_uri:gen_param(<<"some">>, ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 set_gen_param_test() ->
@@ -307,7 +344,9 @@ set_gen_param_test() ->
     ?assertEqual(<<"sip:b;lr">>, ersip_uri:assemble_bin(ersip_uri:set_gen_param(<<"lr">>, true, ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;some">>, ersip_uri:assemble_bin(ersip_uri:set_gen_param(<<"Some">>, true, ersip_uri:make(<<"sip:b">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_gen_param(<<"some">>, <<"value">>, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"tel:+16505550505;ttl=5">>,   ersip_uri:assemble_bin(ersip_uri:set_gen_param(<<"ttl">>, <<"5">>,   ersip_uri:make(<<"tel:+16505550505">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:set_gen_param(<<"some">>, <<"value">>, ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 clear_gen_param_test() ->
@@ -318,7 +357,14 @@ clear_gen_param_test() ->
 
     ?assertEqual(undefined, ersip_uri:gen_param(<<"some">>, ersip_uri:clear_gen_param(<<"some">>, ersip_uri:make(<<"sip:b;some=1">>)))),
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:clear_gen_param(<<"ttl">>, ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(undefined, ersip_uri:maddr     (ersip_uri:clear_gen_param(<<"maddr">>, ersip_uri:make(<<"tel:+16505550505;maddr=1.1.1.1">>)))),
+    ?assertEqual(undefined, ersip_uri:ttl       (ersip_uri:clear_gen_param(<<"ttl">>, ersip_uri:make(<<"tel:+16505550505;ttl=12">>)))),
+    ?assertEqual(undefined, ersip_uri:user_param(ersip_uri:clear_gen_param(<<"user">>, ersip_uri:make(<<"tel:+16505550505;user=phone">>)))),
+    ?assertEqual(undefined, ersip_uri:transport (ersip_uri:clear_gen_param(<<"transport">>, ersip_uri:make(<<"tel:+16505550505;transport=tcp">>)))),
+
+    ?assertEqual(undefined, ersip_uri:gen_param(<<"some">>, ersip_uri:clear_gen_param(<<"some">>, ersip_uri:make(<<"tel:+16505550505;some=1">>)))),
+
+    ?assertError({sip_uri_expected, _}, ersip_uri:clear_gen_param(<<"ttl">>, ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 %-------------------------------------------------------------------
@@ -390,8 +436,11 @@ uri_make_key_test() ->
                                  {user, <<"Alice">>},
                                  {host, {hostname, <<"atlanta.com">>}},
                                  {port, 5061}])),
+    {ok, ExpectedURI3} = ersip_uri:parse(<<"tel:+16505550505">>),
+    ?assertEqual(ersip_uri:make_key(ExpectedURI3),
+        ersip_uri:make([{scheme, tel}, {user, <<"+16505550505">>}])),
 
-    ?assertError({cannot_make_key, _}, ersip_uri:make_key(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertError({cannot_make_key, _}, ersip_uri:make_key(ersip_uri:make(<<"cid:+16505550505">>))),
     ok.
 
 uri_compare_test() ->
@@ -523,9 +572,11 @@ user_manip_test() ->
     ?assertEqual(<<"sip:alice@1.1.1.1:5091">>, ersip_uri:assemble_bin(URIAlice)),
     ok.
 
-user_only_for_sip_test() ->
-    ?assertError({sip_uri_expected, _}, ersip_uri:user(ersip_uri:make(<<"tel:+16505550505">>))),
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_user(<<"alice">>, ersip_uri:make(<<"tel:+16505550505">>))),
+user_manip_tel_test() ->
+    URITel1 = ersip_uri:make(<<"tel:+16505550505">>),
+    URITel2 = ersip_uri:set_user(<<"+16505550506">>, URITel1),
+    ?assertEqual(<<"+16505550506">>, ersip_uri:user(URITel2)),
+    ?assertEqual(<<"tel:+16505550506">>, ersip_uri:assemble_bin(URITel2)),
     ok.
 
 host_manip_test() ->
@@ -659,6 +710,11 @@ parse_sip_ok(URIBin, ExpectedRawSIP) ->
 parse_sips_ok(URIBin, ExpectedRawSIP) ->
     {ok, URI} = ersip_uri:parse(URIBin),
     #{scheme := <<"sips">>, sip := ResultSIP} = ersip_uri:raw(URI),
+    ?assertEqual(ExpectedRawSIP, ResultSIP).
+
+parse_tel_ok(URIBin, ExpectedRawSIP) ->
+    {ok, URI} = ersip_uri:parse(URIBin),
+    #{scheme := <<"tel">>, sip := ResultSIP} = ersip_uri:raw(URI),
     ?assertEqual(ExpectedRawSIP, ResultSIP).
 
 check_transport(URIBin, Transport) ->

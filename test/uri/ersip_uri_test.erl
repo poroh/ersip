@@ -42,6 +42,9 @@ parse_fail_test() ->
     ?assertMatch({error, {invalid_sip_uri, empty_username}},    ersip_uri:parse(<<"sip::a@b:5090">>)),
     ?assertMatch({error, {invalid_sip_uri, {bad_password, _}}}, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
 
+    ?assertMatch({error, {invalid_sip_uri, {garbage_at_the_end, <<"@">>}}}, ersip_uri:parse(<<"sip:a@b@">>)),
+    ?assertMatch({error, {invalid_sip_uri, {garbage_at_the_end, <<"@">>}}}, ersip_uri:parse(<<"sip:a@b@:5090">>)),
+
     ?assertMatch({error, {invalid_sip_uri, {invalid_host, _}}}, ersip_uri:parse(<<"sip:%:5090">>)),
     ?assertMatch({error, {invalid_sip_uri, {invalid_host, _}}}, ersip_uri:parse(<<"sip:%">>)),
     ?assertMatch({error, {invalid_sip_uri, {invalid_host, _}}}, ersip_uri:parse(<<"sip:a.-">>)),

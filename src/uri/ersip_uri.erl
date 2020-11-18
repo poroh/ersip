@@ -722,6 +722,8 @@ parse_hostport(User, R) ->
                 case {ersip_host:parse(HostBin), parse_port(PortBin)} of
                     {{ok, Host, <<>>}, {ok, Port}} ->
                         {ok, #sip_uri_data{user = User, host = Host, port = Port, host_orig = HostBin}};
+                    {{ok, _, End}, {ok, _}} ->
+                        {error, {invalid_host, {garbage_at_the_end, End}}};
                     {{error, Reason}, _} ->
                         {error, {invalid_host, Reason}};
                     {_, {error, _} = Error} ->

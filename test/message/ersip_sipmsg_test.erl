@@ -867,6 +867,26 @@ set_method_nocseq_test() ->
     ?assertEqual(<<"REGISTER">>, ersip_sipmsg:method_bin(RegRebuild2)),
     ok.
 
+method_of_response_test() ->
+    CallId = <<"a84b4c76e66710@pc33.atlanta.com">>,
+    Msg = <<"SIP/2.0 200 OK"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
+            ?crlf "Call-ID: ", CallId/binary,
+            ?crlf "CSeq: 10 OPTIONS"
+            ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    {ok, SipMsg} = ersip_sipmsg:parse(Msg, []),
+    ?assertEqual(<<"OPTIONS">>, ersip_sipmsg:method_bin(SipMsg)),
+    ?assertEqual(ersip_method:options(), ersip_sipmsg:method(SipMsg)),
+    ok.
+
+
 set_reason_test() ->
     MsgBin
         = <<"SIP/2.0 200 OK"

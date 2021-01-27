@@ -66,6 +66,7 @@ reason_impl(301) -> <<"Moved Permanently">>;
 reason_impl(302) -> <<"Moved Temporarily">>;
 reason_impl(305) -> <<"Use Proxy">>;
 reason_impl(380) -> <<"Alternative Service">>;
+reason_impl(400) -> <<"Bad Request">>;
 reason_impl(401) -> <<"Unauthorized">>;
 reason_impl(402) -> <<"Payment Required">>;
 reason_impl(403) -> <<"Forbidden">>;

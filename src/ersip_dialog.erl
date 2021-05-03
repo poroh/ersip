@@ -71,7 +71,11 @@
                  remote_target       :: ersip_uri:uri(),
                  secure              :: boolean(),
                  route_set           :: ersip_route_set:route_set(),
-                 state               :: state()
+                 state               :: state(),
+                 %% sequence number of last sent INVITE. It is added
+                 %% for convenience it is used when ACK/CANCEL without
+                 %% specified Cseq are sent via dialog
+                 invite_seq = empty    :: ersip_hdr_cseq:cseq_num() | empty
                 }).
 -record(dialog_id, {local_tag  :: ersip_hdr_fromto:tag_key(),
                     remote_tag :: ersip_hdr_fromto:tag_key() | undefined,
@@ -247,11 +251,12 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     Req4 = maybe_update_cseq(Req0, Dialog0, Req3),
     CSeq = ersip_sipmsg:get(cseq, Req4),
     Dialog1 = Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)},
+    Dialog2 = maybe_update_invite_seq(ersip_sipmsg:method_bin(Req4), ersip_hdr_cseq:number(CSeq), Dialog1),
     %% The UAC uses the remote target and route set to build the
     %% Request-URI and Route header field of the request.
-    #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog1,
+    #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog2,
     Req5 = fill_request_route(RemoteTarget, RouteSet, Req4),
-    {Dialog1, Req5}.
+    {Dialog2, Req5}.
 
 %% 12.2.1 UAC Behavior
 %% 12.2.1.2 Processing the Responses
@@ -483,7 +488,10 @@ uac_create(Request, Response) ->
             %% the local URI MUST be set to the URI in the From field.
             local_uri    = ersip_hdr_fromto:uri(ReqFrom),
             %%
-            state = state_by_response(Response)
+            state = state_by_response(Response),
+            %% This sequence number is added for convenience - it is
+            %% added to CANCEL/ACK if they are send via dialog
+            invite_seq = invite_seq(ReqSipMsg)
            }.
 
 -spec uas_update_response(ersip_sipmsg:sipmsg(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
@@ -763,7 +771,7 @@ uas_maybe_update_target(ReqSipMsg, target_refresh, #dialog{} = Dialog) ->
 maybe_update_cseq(InReq, #dialog{local_seq = empty}, Req) ->
     CSeq = get_or_create(cseq, InReq),
     ersip_sipmsg:set(cseq, CSeq, Req);
-maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
+maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, invite_seq = InviteSeq}, Req) ->
     ACK = ersip_method:ack(),
     CANCEL = ersip_method:cancel(),
     case ersip_sipmsg:method(InReq) of
@@ -772,10 +780,10 @@ maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq}, Req) ->
                 {ok, CSeq} ->
                     ersip_sipmsg:set(cseq, CSeq, Req);
                 not_found ->
-                    set_cseq(InReq, LocalSeq-1, Req)
+                    set_cseq(InReq, InviteSeq, Req)
             end;
         _ ->
-            set_cseq(InReq, LocalSeq, Req)
+            set_cseq(InReq, LocalSeq+1, Req)
     end.
 
 -spec set_cseq(ersip_sipmsg:sipmsg(), pos_integer(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
@@ -784,8 +792,28 @@ set_cseq(InReq, LocalSeq, Req) ->
     CSeqNum = ersip_hdr_cseq:number(CSeq0),
     CSeq = case LocalSeq >= CSeqNum of
                true ->
-                   ersip_hdr_cseq:set_number(LocalSeq+1, CSeq0);
+                   ersip_hdr_cseq:set_number(LocalSeq, CSeq0);
                _ ->
                    CSeq0
            end,
     ersip_sipmsg:set(cseq, CSeq, Req).
+
+-spec invite_seq(ersip_sipmsg:sipmsg()) -> ersip_hdr_cseq:cseq_num() | empty.
+invite_seq(SipMsg) ->
+    INVITE = ersip_method:invite(),
+    case ersip_sipmsg:method(SipMsg) of
+        INVITE ->
+            CSeq = ersip_sipmsg:cseq(SipMsg),
+            ersip_hdr_cseq:number(CSeq);
+        _ ->
+            empty
+    end.
+
+-spec maybe_update_invite_seq(binary(), ersip_hdr_cseq:cseq_num(), dialog()) -> dialog().
+maybe_update_invite_seq(<<"INVITE">>, CseqNum, #dialog{} = Dialog) ->
+    Dialog#dialog{invite_seq = CseqNum};
+maybe_update_invite_seq(_, _, #dialog{} = Dialog) ->
+    Dialog.
+
+
+

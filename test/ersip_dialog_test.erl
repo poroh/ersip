@@ -244,6 +244,21 @@ indialog_ack_and_cancel_cseq_no_cseq_test() ->
     ?assertEqual(cseq_number(UACReInviteSipMsg), cseq_number(UACCancelSipMsg)),
     ok.
 
+indialog_ack_and_cancel_cseq_no_cseq_with_info_test() ->
+    %% Requests within a dialog MUST contain strictly monotonically
+    %% increasing and contiguous CSeq sequence numbers (increasing-by-one)
+    %% in each direction (excepting ACK and CANCEL of course, whose numbers
+    %% equal the requests being acknowledged or cancelled).
+    {_, UACDialog0} = create_uas_uac_dialogs(invite_request()),
+    {UACDialog1, ReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UACDialog0),
+    {UACDialog2, InfoSipMsg} = ersip_dialog:uac_request(info_sipmsg(#{}), UACDialog1),
+    {_, AckSipMsg}    = ersip_dialog:uac_request(del_cseq(ack_sipmsg()), UACDialog2),
+    {_, CancelSipMsg} = ersip_dialog:uac_request(del_cseq(cancel_sipmsg()), UACDialog2),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(AckSipMsg)),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(CancelSipMsg)),
+    ?assertEqual(cseq_number(ReInviteSipMsg) + 1, cseq_number(InfoSipMsg)),
+    ok.
+
 uas_message_checking_cseq_test() ->
     %% 1. If the remote sequence number is empty, it MUST be set to
     %% the value of the sequence number in the CSeq header field value
@@ -626,6 +641,12 @@ uas_negative_response_terminate_test() ->
     ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvReq, InvResp487, Dialog)),
     ok.
 
+uac_notify_dialog_test() ->
+    {_, UACDialog0} = notify_create_uas_uac_dialogs(notify_request()),
+    {_, NotifyInviteSipMsg} = ersip_dialog:uac_request(notify_sipmsg(), UACDialog0),
+    ?assertEqual(cseq_number(notify_sipmsg())+1, cseq_number(NotifyInviteSipMsg)),
+    ok.
+
 
 %%%===================================================================
 %%% Helpers
@@ -709,6 +730,72 @@ create_uas_uac_dialogs(Req, ProxyFun) ->
     InvResp200UAC = ProxyFun(response, InvResp200UAS),
 
     {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAC, UACDialogEarly),
+    {UASDialogConfirmed, UACDialogConfirmed}.
+
+
+notify_request() ->
+    NotifySipMsg = create_sipmsg(notify_request_bin(), make_default_source(), []),
+    Target = ersip_uri:make(<<"sip:127.0.0.1">>),
+    ersip_request:new(NotifySipMsg, ersip_branch:make_random(7), Target).
+
+notify_request_bin() ->
+    notify_request_bin(#{}).
+
+notify_request_bin(Options) ->
+    RURI = maps:get(ruri, Options, <<"sip:bob@biloxi.com">>),
+    RecordRoute = case Options of
+                      #{record_route := RR} ->
+                          <<"Record-Route: ", RR/binary, ?crlf>>;
+                      _ ->
+                          <<>>
+                  end,
+    Contact = case Options of
+                  #{contact := <<>>} ->
+                      <<>>;
+                  #{contact := ContactVal} ->
+                      <<"Contact: ", ContactVal/binary, ?crlf>>;
+                  _ ->
+                      <<"Contact: <sip:alice@pc33.atlanta.com>", ?crlf>>
+              end,
+    Route = case Options of
+                #{route := Routes} ->
+                    IORoutes = [<<"Route: ", R/binary, ?crlf>> || R <- Routes],
+                    iolist_to_binary(IORoutes);
+                _ ->
+                    <<>>
+            end,
+    <<"NOTIFY ", RURI/binary, " SIP/2.0" ?crlf
+      "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
+      "Max-Forwards: 70" ?crlf
+      "To: Bob <sip:bob@biloxi.com>" ?crlf
+      "From: Alice <sip:alice@atlanta.com>;tag=1928301774" ?crlf
+      "Call-ID: a84b4c76e66710" ?crlf
+      "CSeq: 314159 INVITE" ?crlf,
+      Contact/binary,
+      RecordRoute/binary,
+      Route/binary,
+      "Subscription-State: active;expires=3600"
+      "Content-Type: text/plain" ?crlf
+      "Content-Length: 4" ?crlf
+      ?crlf
+      "Test">>.
+
+notify_sipmsg() ->
+    create_sipmsg(notify_request_bin(), make_default_source(), []).
+
+notify_create_uas_uac_dialogs(Req) ->
+    notify_create_uas_uac_dialogs(Req, fun(_, ReqResp) -> ReqResp end).
+
+notify_create_uas_uac_dialogs(Req, ProxyFun) ->
+    NotifySipMsg0 = ersip_request:sipmsg(Req),
+    NotifySipMsg = ProxyFun(request, NotifySipMsg0),
+
+    NotifyResp200UAS = invite_reply(200, NotifySipMsg),
+    NotifyResp200UAC = ProxyFun(response, NotifyResp200UAS),
+
+    {UASDialogConfirmed, _} = ersip_dialog:uas_new(NotifySipMsg, NotifyResp200UAS),
+    {ok, UACDialogConfirmed} = ersip_dialog:uac_new(Req, NotifyResp200UAC),
+
     {UASDialogConfirmed, UACDialogConfirmed}.
 
 bye_sipmsg() ->

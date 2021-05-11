@@ -8,6 +8,8 @@
 
 -module(ersip_sdp_conn).
 
+-export([new/1,
+         new/3]).
 -export([addr/1,
          set_addr/2,
          ttl/1,
@@ -32,6 +34,15 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec new(ersip_sdp_addr:addr()) -> conn().
+new(Addr) ->
+    new(Addr, undefined, 1).
+
+-spec new(ersip_sdp_addr:addr(),
+          non_neg_integer() | undefined, non_neg_integer()) -> conn().
+new(Addr, TTL, NumAddrs) ->
+    #conn{addr = Addr, ttl = TTL, num_addrs = NumAddrs}.
 
 -spec addr(conn()) -> ersip_sdp_addr:addr().
 addr(#conn{addr = Addr}) ->
@@ -197,5 +208,3 @@ is_ip6_multicast({ip6, {A, _, _, _,  _, _, _, _}}) when A >= 16#FF00, A =< 16#FF
     true;
 is_ip6_multicast(_) ->
     false.
-
-

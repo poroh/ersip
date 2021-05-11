@@ -51,6 +51,18 @@ set_conn_test() ->
     ?assertEqual(ExpectedSDP, ResultSDP),
     ok.
 
+constructor_test() ->
+    Conn = ersip_sdp_conn:new({ip4, {127, 0, 0, 1}}),
+    Media1 = ersip_sdp_media:new(<<"audio">>, 49170, [<<"RTP">>, <<"AVP">>], [<<"0">>]),
+    assemble_parse([Media1]),
+    Media2 = ersip_sdp_media:set_type(<<"video">>, Media1),
+    Media3 = ersip_sdp_media:set_port(50000, Media2),
+    Media4 = ersip_sdp_media:set_port_num(5, Media3),
+    Media5 = ersip_sdp_media:set_protocol([<<"FOO">>, <<"BAR">>, <<"BAZ">>], Media4),
+    Media6 = ersip_sdp_media:set_formats([<<"1">>, <<"2">>, <<"3">>], Media5),
+    Media7 = ersip_sdp_media:set_conn(Conn, Media6),
+    assemble_parse([Media7]).
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================
@@ -62,3 +74,7 @@ parse(Bin) ->
         {error, _} = Error ->
             Error
     end.
+
+assemble_parse(Medias) ->
+    Bin = iolist_to_binary(ersip_sdp_media:assemble(Medias)),
+    ?assertEqual({ok, Medias}, parse(Bin)).

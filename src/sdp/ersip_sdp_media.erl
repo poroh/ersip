@@ -8,10 +8,17 @@
 
 -module(ersip_sdp_media).
 
+-export([new/4,
+         new/5
+        ]).
 -export([type/1,
+         set_type/2,
          port/1,
+         set_port/2,
          port_num/1,
+         set_port_num/2,
          protocol/1,
+         set_protocol/2,
          formats/1,
          set_formats/2,
          conn/1,
@@ -52,29 +59,61 @@
 %%% API
 %%%===================================================================
 
+-spec new(media_type(), inet:port_number(),
+          nonempty_list(binary()), nonempty_list(binary())) -> media().
+new(T, Port, Protocol, FMTS) ->
+    new(T, Port, Protocol, FMTS, 1).
+
+-spec new(media_type(), inet:port_number(),
+          nonempty_list(binary()), nonempty_list(binary()),
+          non_neg_integer()) -> media().
+new(T, Port, Protocol, FMTS, PN) ->
+    #media{type = T,
+           port = Port,
+           port_num = PN,
+           protocol = Protocol,
+           fmts = FMTS,
+           bandwidth = ersip_sdp_bandwidth:new()}.
+
 -spec type(media()) -> binary().
 type(#media{type = T}) ->
     T.
+
+-spec set_type(media_type(), media()) -> media().
+set_type(T, #media{} = Media) ->
+    Media#media{type = T}.
 
 -spec port(media()) -> inet:port_number().
 port(#media{port = P}) ->
     P.
 
+-spec set_port(inet:port_number(), media()) -> media().
+set_port(Port, #media{} = Media) ->
+    Media#media{port = Port}.
+
 -spec port_num(media()) -> non_neg_integer() | undefined.
 port_num(#media{port_num = PN}) ->
     PN.
+
+-spec set_port_num(non_neg_integer() | undefined, media()) -> media().
+set_port_num(PN, #media{} = Media) ->
+    Media#media{port_num = PN}.
 
 -spec protocol(media()) -> nonempty_list(binary()).
 protocol(#media{protocol = P}) ->
     P.
 
--spec formats(media()) -> [binary()].
+-spec set_protocol(nonempty_list(binary()), media()) -> media().
+set_protocol(P, #media{} = Media) ->
+    Media#media{protocol = P}.
+
+-spec formats(media()) -> nonempty_list(binary()).
 formats(#media{fmts = FMTS}) ->
     FMTS.
 
 -spec set_formats([binary()], media()) -> media().
 set_formats(FMTS, #media{} = Media) ->
-     Media#media{fmts = FMTS}.    
+     Media#media{fmts = FMTS}.
 
 -spec conn(media()) -> ersip_sdp_conn:conn() | undefined.
 conn(#media{conn = Conn}) ->
@@ -226,4 +265,3 @@ do_parse_fmts(Bin, Acc) ->
         _ ->
             {ok, lists:reverse(Acc), Bin}
     end.
-

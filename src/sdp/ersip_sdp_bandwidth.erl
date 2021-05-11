@@ -8,6 +8,7 @@
 
 -module(ersip_sdp_bandwidth).
 
+-export([new/0]).
 -export([tias/1,
          ct/1,
          as/1,
@@ -33,6 +34,10 @@
 %%%===================================================================
 %%% API
 %%%===================================================================
+
+-spec new() -> bandwidth().
+new() ->
+    {bandwidth, []}.
 
 -spec tias(bandwidth()) -> non_neg_integer() | undefined.
 tias({bandwidth, BWList}) ->
@@ -128,5 +133,3 @@ bw_type_to_binary(tias) ->
     <<"TIAS">>;
 bw_type_to_binary({bw_type, T}) ->
     T.
-
-

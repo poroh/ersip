@@ -51,7 +51,7 @@ basic_response_parse_test() ->
             ?crlf "Via: SIP/2.0/UDP server10.biloxi.com"
             ?crlf "   ;branch=z9hG4bKnashds8;received=192.0.2.3"
             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
-            ?crlf "   ;branch=z9hG4bK77ef4c2312983.1;received=192.0.2.2"
+            ?crlf "\t;branch=z9hG4bK77ef4c2312983.1;received=192.0.2.2"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com"
             ?crlf "   ;branch=z9hG4bK776asdhds ;received=192.0.2.1"
             ?crlf "To: Bob <sip:bob@biloxi.com>;tag=a6c85cf"
@@ -144,7 +144,6 @@ message_too_long_on_first_line_parse_test() ->
     ?assertMatch({{error, message_too_long}, _P2}, ersip_parser:parse(P1)),
     ok.
 
-
 invalid_method_test() ->
     Msg = <<"INV@TE sip:bob@biloxi.com SIP/2.0"
             ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
@@ -159,7 +158,47 @@ invalid_method_test() ->
             ?crlf ?crlf "Test"
           >>,
     P  = ersip_parser:new_dgram(Msg),
-    {{error, {bad_message, _}}, _P2} = ersip_parser:parse(P).
+    ?assertMatch({{error, {bad_message, {bad_request_line, _}}}, _P2}, ersip_parser:parse(P)),
+    ok.
+
+no_protocol_on_first_line_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    ?assertMatch({{error, {bad_message, {bad_request_line, _}}}, _P2}, ersip_parser:parse(P)),
+    ok.
+
+gabage_at_the_end_of_first_line_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0 something unexpected"
+            ?crlf "Content-Length: 4"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    ?assertMatch({{error, {bad_message, {bad_request_line, _}}}, _P2}, ersip_parser:parse(P)),
+    ok.
+
+header_empty_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"
+            ?crlf ": SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf ?crlf "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    ?assertMatch({{error, {bad_header, _}}, _P2}, ersip_parser:parse(P)),
+    ok.
+
+header_bad_name_with_multiline_header_test() ->
+    Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
+            ": SIP/2.0/UDP pc33.atlanta.com" ?crlf
+            " ;branch=z9hG4bK776asdhds" ?crlf
+            "Content-Length: 4" ?crlf
+            ?crlf
+            "Test"
+          >>,
+    P  = ersip_parser:new_dgram(Msg),
+    ?assertMatch({{error, {bad_header, _}}, _P2}, ersip_parser:parse(P)),
+    ok.
 
 no_content_len_test() ->
     Msg = <<"INVITE sip:bob@biloxi.com SIP/2.0"

@@ -335,7 +335,7 @@ parse_sp(<<" ", Rest/binary>>) ->
 parse_sp(Bin) ->
     {error, {invalid_separator, Bin}}.
 
--spec parse_ruri(binary()) -> ersip_parser_aux:parse_result(ersip_method:method()).
+-spec parse_ruri(binary()) -> ersip_parser_aux:parse_result(binary()).
 parse_ruri(Bin) ->
     case find_ruri_end(Bin) of
         0 -> {error, {invalid_ruri, Bin}};

@@ -1,11 +1,11 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SDP session level
-%% RFC 4566
-%%
+%%%
+%%% Copyright (c) 2018, 2021 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SDP session level
+%%% RFC 4566
+%%%
 
 -module(ersip_sdp).
 
@@ -33,9 +33,9 @@
 
 -define(crlf, "\r\n").
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -record(sdp, {origin       :: ersip_sdp_origin:origin(),
               session_name :: binary(),
@@ -54,9 +54,9 @@
 -type maybe_binary()  :: binary() | undefined.
 -type parse_result(X) :: ersip_parser_aux:parse_result(X).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 -spec origin(sdp()) -> ersip_sdp_origin:origin().
 origin(#sdp{origin = Origin}) ->

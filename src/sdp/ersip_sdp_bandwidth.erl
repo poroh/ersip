@@ -1,10 +1,10 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% SDP bandwidth
-%%
+%%%
+%%% Copyright (c) 2018, 2021 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% SDP bandwidth
+%%%
 
 -module(ersip_sdp_bandwidth).
 
@@ -19,9 +19,9 @@
 
 -export_type([bandwidth/0]).
 
-%%%===================================================================
-%%% Types
-%%%===================================================================
+%%===================================================================
+%% Types
+%%===================================================================
 
 -type bandwidth() :: {bandwidth, bw_list()}.
 -type bw_list()  :: [bw_item()].
@@ -31,9 +31,9 @@
 
 -type parse_result() :: ersip_parser_aux:parse_result(bandwidth()).
 
-%%%===================================================================
-%%% API
-%%%===================================================================
+%%===================================================================
+%% API
+%%===================================================================
 
 -spec new() -> bandwidth().
 new() ->

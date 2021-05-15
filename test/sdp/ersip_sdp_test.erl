@@ -24,7 +24,9 @@ parse_rfc4566_example_test() ->
             "i=A Seminar on the session description protocol" ?crlf
             "u=http://www.example.com/seminars/sdp.pdf" ?crlf
             "e=j.doe@example.com (Jane Doe)" ?crlf
+            "p=+1 617 555-6011" ?crlf
             "c=IN IP4 224.2.17.12/127" ?crlf
+            "b=AS:1024" ?crlf
             "t=2873397496 2873404696" ?crlf
             "a=recvonly" ?crlf
             "m=audio 49170 RTP/AVP 0" ?crlf
@@ -43,11 +45,21 @@ parse_rfc4566_example_test() ->
     ?assertEqual(<<"A Seminar on the session description protocol">>, ersip_sdp:info(SDP)),
     ?assertEqual(<<"http://www.example.com/seminars/sdp.pdf">>, ersip_sdp:uri(SDP)),
     ?assertEqual([<<"j.doe@example.com (Jane Doe)">>], ersip_sdp:emails(SDP)),
+    ?assertEqual([<<"+1 617 555-6011">>], ersip_sdp:phones(SDP)),
+
     SessConn = ersip_sdp:conn(SDP),
     SessAddr = ersip_sdp_conn:addr(SessConn),
     ?assertEqual(ersip_sdp_addr:make(<<"IN IP4 224.2.17.12">>), SessAddr),
     ?assertEqual(127, ersip_sdp_conn:ttl(SessConn)),
     ?assertEqual(1,   ersip_sdp_conn:num_addrs(SessConn)),
+
+    Band = ersip_sdp:bandwidth(SDP),
+    ?assertEqual(1024, ersip_sdp_bandwidth:as(Band)),
+
+    Time = ersip_sdp:time(SDP),
+    ?assertEqual(2873397496, ersip_sdp_time:start(Time)),
+    ?assertEqual(2873404696, ersip_sdp_time:stop(Time)),
+
     ?assertEqual([<<"recvonly">>],   ersip_sdp:attrs(SDP)),
     ?assertMatch([_, _], ersip_sdp:medias(SDP)),
     [MAudio, MVideo] = ersip_sdp:medias(SDP),
@@ -197,6 +209,8 @@ bad_test() ->
     ?assertMatch({error, {invalid_sdp, {unsupported_version,<<"1">>}}}, ersip_sdp:parse(bad3())),
     ?assertMatch({error, {invalid_sdp, {unexpected_attribute_error, {session_name,<<"t=0 0">>}}}}, ersip_sdp:parse(bad4())),
     ?assertMatch({error, {invalid_sdp, {unexpected_attribute_error, {version, <<"o=", _/binary>>}}}}, ersip_sdp:parse(bad5())),
+    ?assertMatch({error, {invalid_sdp, {unexpected_end, _}}}, ersip_sdp:parse(bad6())),
+    ?assertMatch({error, {invalid_sdp, {unexpected_end, _}}}, ersip_sdp:parse(bad7())),
     ok.
 
 bad_line_start_test() ->
@@ -311,6 +325,18 @@ bad5() -> %%  no version
       "t=0 0\r\n",
       "m=audio 49200 RTP/AVP 0\r\n",
       "a=rtpmap:0 PCMU/8000\r\n">>.
+
+bad6() -> %% truncated on emails
+    <<"v=0\r\n",
+      "o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "s=Simulcast Enabled Client\r\n",
+      "e=j.doe@example.com (Jane Doe)">>.
+
+bad7() -> %% truncated on phones
+    <<"v=0\r\n",
+      "o=alice 2362969037 2362969040 IN IP4 192.0.2.156\r\n",
+      "s=Simulcast Enabled Client\r\n",
+      "p=+1 617 555-6011">>.
 
 sdp_lines() ->
     ["v=0",

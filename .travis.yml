@@ -1,5 +1,6 @@
 language: erlang
 otp_release:
+  - 24.0
   - 23.0
   - 22.0
   - 21.0
@@ -8,3 +9,5 @@ otp_release:
   - 19.3
 after_success:
   - env DEBUG=1 rebar3 as test coveralls send
+before_script:
+  - kerl list installations

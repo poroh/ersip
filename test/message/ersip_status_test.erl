@@ -1,19 +1,19 @@
-%%
-%% Copyright (c) 2017 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Status codes tests
-%%
+%%%
+%%% Copyright (c) 2017, 2021 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Status codes tests
+%%%
 
 -module(ersip_status_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 response_type_test() ->
     ?assertEqual(provisional, ersip_status:response_type(100)),
@@ -59,6 +59,7 @@ reason_text_test() ->
     test_phrase(416, "Unsupported URI Scheme"),
     test_phrase(420, "Bad Extension"),
     test_phrase(421, "Extension Required"),
+    test_phrase(422, "Session Interval Too Small"),
     test_phrase(423, "Interval Too Brief"),
     test_phrase(480, "Temporarily Unavailable"),
     test_phrase(481, "Call/Transaction Does Not Exist"),
@@ -91,9 +92,9 @@ bad_request_reason_test() ->
     test_bad_request_reason("Max-Forwards", {error, {header_error,{maxforwards,some}}}),
     ok.
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 test_phrase(Code, Text) ->
     TextBin = list_to_binary(Text),

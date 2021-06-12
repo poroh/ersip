@@ -82,6 +82,7 @@ reason_impl(415) -> <<"Unsupported Media Type">>;
 reason_impl(416) -> <<"Unsupported URI Scheme">>;
 reason_impl(420) -> <<"Bad Extension">>;
 reason_impl(421) -> <<"Extension Required">>;
+reason_impl(422) -> <<"Session Interval Too Small">>;
 reason_impl(423) -> <<"Interval Too Brief">>;
 reason_impl(480) -> <<"Temporarily Unavailable">>;
 reason_impl(481) -> <<"Call/Transaction Does Not Exist">>;

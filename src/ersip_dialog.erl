@@ -84,7 +84,7 @@
 
 -type dialog() :: #dialog{}.
 -type id()     :: #dialog_id{}.
--type state() :: early | confirmed.
+-type state() :: {early, ersip_hdr_cseq:cseq()} | confirmed.
 -type request_type() :: target_refresh
                       | regular.
 
@@ -182,17 +182,23 @@ uas_create(Request, Response) ->
 uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = confirmed} = Dialog) ->
     UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
     {Dialog, UpdatedResp};
-uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = early} = Dialog) ->
+uas_pass_response(ReqSipMsg, RespSipMsg, #dialog{state = {early, InitCSeqKey}} = Dialog) ->
     %% Independent of the method, if a request outside of a dialog generates
     %% a non-2xx final response, any early dialogs created through
     %% provisional responses to that request are terminated.
-    case ersip_sipmsg:status(RespSipMsg) of
-        Status when Status >= 300 ->
-            terminate_dialog;
-        _ ->
-            State = state_by_response(RespSipMsg),
+    case ersip_hdr_cseq:make_key(ersip_sipmsg:cseq(ReqSipMsg)) == InitCSeqKey of
+        true ->
+            case ersip_sipmsg:status(RespSipMsg) of
+                Status when Status >= 300 ->
+                    terminate_dialog;
+                _ ->
+                    State = state_by_response(RespSipMsg),
+                    UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
+                    {Dialog#dialog{state = State}, UpdatedResp}
+            end;
+        false ->
             UpdatedResp = uas_update_response(ReqSipMsg, RespSipMsg),
-            {Dialog#dialog{state = State}, UpdatedResp}
+            {Dialog, UpdatedResp}
     end.
 
 %% @doc New dialog on UAC side.
@@ -209,17 +215,22 @@ uac_new(Req, Response) ->
     end.
 
 -spec uac_update(ersip_sipmsg:sipmsg() | timeout, dialog()) -> {ok, dialog()} | terminate_dialog.
-uac_update(timeout, #dialog{state = early}) ->
+uac_update(timeout, #dialog{state = {early, _}}) ->
     terminate_dialog;
-uac_update(RespSipMsg, #dialog{state = early} = Dialog) ->
-    %% Independent of the method, if a request outside of a dialog generates
-    %% a non-2xx final response, any early dialogs created through
-    %% provisional responses to that request are terminated.
-    case ersip_sipmsg:status(RespSipMsg) of
-        Status when Status >= 300 ->
-            terminate_dialog;
-        _ ->
-            uac_trans_result(RespSipMsg, target_refresh, Dialog)
+uac_update(RespSipMsg, #dialog{state = {early, InitCSeqKey}} = Dialog) ->
+    case ersip_hdr_cseq:make_key(ersip_sipmsg:cseq(RespSipMsg)) == InitCSeqKey of
+        true ->
+            %% Independent of the method, if a request outside of a dialog generates
+            %% a non-2xx final response, any early dialogs created through
+            %% provisional responses to that request are terminated.
+            case ersip_sipmsg:status(RespSipMsg) of
+                Status when Status >= 300 ->
+                    terminate_dialog;
+                _ ->
+                    uac_trans_result(RespSipMsg, target_refresh, Dialog)
+            end;
+        false ->
+            uac_trans_result(RespSipMsg, regular, Dialog)
     end;
 uac_update(RespSipMsg, #dialog{} = Dialog) ->
     uac_trans_result(RespSipMsg, target_refresh, Dialog).
@@ -356,9 +367,9 @@ is_secure(#dialog{secure = Secure}) ->
     Secure.
 
 -spec is_early(dialog()) -> boolean().
-is_early(#dialog{state = early}) ->
+is_early(#dialog{state = {early, _}}) ->
     true;
-is_early(_) ->
+is_early(#dialog{}) ->
     false.
 
 -spec target(dialog()) -> ersip_uri:uri().
@@ -657,7 +668,7 @@ cc_check_uac_sips(Request, _Response) ->
 state_by_response(RespSipMsg) ->
     case ersip_status:response_type(ersip_sipmsg:status(RespSipMsg)) of
         provisional ->
-            early;
+            {early, ersip_hdr_cseq:make_key(ersip_sipmsg:cseq(RespSipMsg))};
         final ->
             confirmed
     end.

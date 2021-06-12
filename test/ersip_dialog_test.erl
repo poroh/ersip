@@ -1,23 +1,23 @@
-%%
-%% Copyright (c) 2018 Dmitry Poroh
-%% All rights reserved.
-%% Distributed under the terms of the MIT License. See the LICENSE file.
-%%
-%% Common dialog support test
-%%
-%% TODO:
-%%  - Check that Record-route are ignored for target_refresher
-%%     messages
-%%
+%%%
+%%% Copyright (c) 2018, 2021 Dmitry Poroh
+%%% All rights reserved.
+%%% Distributed under the terms of the MIT License. See the LICENSE file.
+%%%
+%%% Common dialog support test
+%%%
+%%% TODO:
+%%%  - Check that Record-route are ignored for target_refresher
+%%%     messages
+%%%
 
 
 -module(ersip_dialog_test).
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%===================================================================
-%%% Cases
-%%%===================================================================
+%%===================================================================
+%% Cases
+%%===================================================================
 
 dialog_create_test() ->
     InvReq = invite_request(),
@@ -638,7 +638,7 @@ uas_negative_response_terminate_test() ->
     InvResp487 = invite_reply(487, InvSipMsg),
     ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
     {Dialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180),
-    ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvReq, InvResp487, Dialog)),
+    ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvSipMsg, InvResp487, Dialog)),
     ok.
 
 uac_notify_dialog_test() ->
@@ -648,9 +648,108 @@ uac_notify_dialog_test() ->
     ok.
 
 
-%%%===================================================================
-%%% Helpers
-%%%===================================================================
+%% Check that provisional respose creates dialogs (UAC/UAS) in early state.
+%%
+%% Check that in-dialog messages (PRACK, INFO, ...) in early
+%% dialog does not switch dialog state to confirmed state.
+early_dialog_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180UAS = invite_reply(180, InvSipMsg),
+
+    {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    ?assertEqual(true, ersip_dialog:is_early(UASDialogEarly)),
+
+    {ok, UACDialogEarly} = ersip_dialog:uac_new(InvReq, InvResp180UAC),
+    ?assertEqual(true, ersip_dialog:is_early(UACDialogEarly)),
+
+    {UACDialogEarly1, InfoSipMsg} = ersip_dialog:uac_request(info_sipmsg(#{}), UACDialogEarly),
+    ?assertEqual(true, ersip_dialog:is_early(UACDialogEarly1)),
+
+    {ok, UASDialogEarly1} = ersip_dialog:uas_process(InfoSipMsg, regular, UASDialogEarly),
+    ?assertEqual(true, ersip_dialog:is_early(UASDialogEarly1)),
+
+    InfoResp200UAS = ersip_sipmsg:reply(200, InfoSipMsg),
+
+    {UASDialogEarly2, InfoResp200UAC} = ersip_dialog:uas_pass_response(InfoSipMsg, InfoResp200UAS, UASDialogEarly1),
+    ?assertEqual(true, ersip_dialog:is_early(UASDialogEarly2)),
+
+    {ok, UACDialogEarly2} = ersip_dialog:uac_trans_result(InfoResp200UAC, regular, UACDialogEarly1),
+    ?assertEqual(true, ersip_dialog:is_early(UACDialogEarly2)),
+
+    %% Check that ersip_dialog:uac_update works the same way as uac_trans_result for in (early) dialog requests
+    ?assertEqual({ok, UACDialogEarly2}, ersip_dialog:uac_update(InfoResp200UAC, UACDialogEarly1)),
+
+
+    InvResp200UAS = invite_reply(200, InvSipMsg),
+    {UASDialogConfirmed, InvResp200UAC} = ersip_dialog:uas_pass_response(InvSipMsg, InvResp200UAS, UASDialogEarly2),
+    ?assertEqual(false, ersip_dialog:is_early(UASDialogConfirmed)),
+    {ok, UACDialogConfirmed} = ersip_dialog:uac_update(InvResp200UAC, UACDialogEarly2),
+    ?assertEqual(false, ersip_dialog:is_early(UACDialogConfirmed)),
+    ok.
+
+%% Check that UAC terminates early dialog on non2xx response
+uac_terminates_early_dialog_on_non2xx_response_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180UAS = invite_reply(180, InvSipMsg),
+
+    {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    {ok, UACDialogEarly} = ersip_dialog:uac_new(InvReq, InvResp180UAC),
+
+    InvResp400 = invite_reply(400, InvSipMsg),
+    ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvSipMsg, InvResp400, UASDialogEarly)),
+    ?assertEqual(terminate_dialog, ersip_dialog:uac_update(InvResp400, UACDialogEarly)),
+    ok.
+
+%% Check that UAC terminates early dialog on timeout
+uac_terminates_early_dialog_on_timeout_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180UAS = invite_reply(180, InvSipMsg),
+    {_, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
+    {ok, UACDialogEarly} = ersip_dialog:uac_new(InvReq, InvResp180UAC),
+    ?assertEqual(terminate_dialog, ersip_dialog:uac_update(timeout, UACDialogEarly)),
+    ok.
+
+
+%% Check that uas_create + uas_pass_response works the same way as uas_new.
+%% Confirmed dialog
+uas_create_pass_response_pair_confirmed_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp200 = invite_reply(200, InvSipMsg),
+    {UASDialog, UACResp200} = ersip_dialog:uas_new(InvSipMsg, InvResp200),
+    ?assertEqual(UASDialog, ersip_dialog:uas_create(InvSipMsg, InvResp200)),
+    ?assertEqual({UASDialog, UACResp200}, ersip_dialog:uas_pass_response(InvSipMsg, InvResp200, UASDialog)),
+    ok.
+
+%% Check that uas_create + uas_pass_response works the same way as uas_new.
+%% Early dialog
+uas_create_pass_response_pair_early_test() ->
+    InvReq = invite_request(),
+    InvSipMsg = ersip_request:sipmsg(InvReq),
+    InvResp180 = invite_reply(180, InvSipMsg),
+    {UASDialog, UACResp180} = ersip_dialog:uas_new(InvSipMsg, InvResp180),
+    ?assertEqual(UASDialog, ersip_dialog:uas_create(InvSipMsg, InvResp180)),
+    ?assertEqual({UASDialog, UACResp180}, ersip_dialog:uas_pass_response(InvSipMsg, InvResp180, UASDialog)),
+    ok.
+
+%% Check that uas_create + uas_pass_response works the same way as uas_new.
+%% SIPS in RURI & SIP URI in contact
+uas_create_pass_response_pair_sip_schema_mismatch_test() ->
+    InvReq = invite_request(),
+    InvSipMsg0 = ersip_request:sipmsg(InvReq),
+    InvSipMsg = ersip_sipmsg:set_ruri(ersip_uri:make(<<"sips:bob@biloxy.com">>), InvSipMsg0),
+    InvResp200SIPS = invite_reply(200, InvSipMsg),
+    InvResp200 = ersip_sipmsg:set(contact, make_contact(<<"sip:bob@192.0.2.4">>), InvResp200SIPS),
+    ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_create(InvSipMsg, InvResp200)),
+    ok.
+
+
+%%===================================================================
+%% Helpers
+%%===================================================================
 
 -define(crlf, "\r\n").
 

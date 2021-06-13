@@ -54,7 +54,7 @@ parse_fail_test() ->
     ?assertMatch({error, {invalid_sip_uri, {invalid_port, _}}}, ersip_uri:parse(<<"sip:[::1]x">>)),
 
     ?assertMatch({error, {invalid_sip_uri, {invalid_port, _}}}, ersip_uri:parse(<<"sips:[::1]x">>)),
-    ?assertMatch({error, {invalid_sip_uri, {invalid_parameter, _}}}, ersip_uri:parse(<<"sips:[::1];=b">>)),
+    ?assertMatch({error, {invalid_sip_uri, {invalid_parameter, _, _}}}, ersip_uri:parse(<<"sips:[::1];=b">>)),
     ok.
 
 permissive_parsing_test() ->

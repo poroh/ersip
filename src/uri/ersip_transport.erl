@@ -24,7 +24,8 @@
         ]).
 
 -export_type([transport/0,
-              raw/0]).
+              raw/0,
+              parse_error/0]).
 
 %%===================================================================
 %% Types
@@ -38,7 +39,7 @@
 -type other_transport() :: {other_transport, binary()}.
 -type parse_result() :: {ok, transport()} | {error, parse_error()}.
 -type parse_error()  :: {bad_transport_atom, atom()}
-                      | {invalid_transport, binary()}.
+                      | {transport_is_not_token, binary()}.
 -type raw() :: binary().
 
 %%===================================================================
@@ -212,6 +213,6 @@ parse_bin(V) ->
         Bin ->
             case ersip_parser_aux:check_token(Bin) of
                 true  -> {other_transport, Bin};
-                false -> {error, {invalid_transport, Bin}}
+                false -> {error, {transport_is_not_token, Bin}}
             end
     end.

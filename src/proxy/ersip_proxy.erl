@@ -153,7 +153,7 @@ trans_result(?SERVER_TRANS_ID, SipMsg0, #stateful{phase = init, options = ProxyO
     RURI = ersip_sipmsg:ruri(SipMsg1),
     case ersip_uri:params(RURI) of
         #{maddr := Host} ->
-            URI = ersip_uri:make([{scheme, sip}, {host, Host}]),
+            URI = ersip_uri:from_sip(ersip_uri_sip:new(Host)),
             forward_to(URI, Stateful1);
         _ ->
             RURI = ersip_sipmsg:ruri(SipMsg1),

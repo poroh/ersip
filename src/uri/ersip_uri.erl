@@ -60,25 +60,30 @@
          clear_not_allowed_parts/2,
          rebuild_header_values/1,
          assemble_scheme/1,
+         raw/1,
+
          is_sip/1,
-         raw/1
+         as_sip/1,
+         from_sip/1,
+
+         is_tel/1,
+         as_tel/1,
+         from_tel/1
         ]).
 -export_type([uri/0, scheme/0, raw/0]).
-
--include("ersip_sip_abnf.hrl").
 
 %%===================================================================
 %% Types
 %%===================================================================
 
--record(uri, {scheme = {scheme, sip}   :: scheme(),
-              type   = sip  :: type(),
+-record(uri, {type   = sip  :: type(),
               data          :: uri_data()
              }).
 
 -type uri() :: #uri{}.
 -type uri_data() :: ersip_uri_sip:sip_uri()
-                  | ersip_uri_absolute:absolute_uri().
+                  | ersip_uri_absolute:absolute_uri()
+                  | ersip_uri_tel:tel_uri().
 
 -type scheme()   :: {scheme, sip | sips | tel | binary()}.
 -type type() :: sip | tel | absolute.
@@ -100,8 +105,9 @@
 -type key_value_list() :: [{binary(), binary()} | binary()].
 
 -type parse_result() :: {ok, uri()} | {error, parse_error()}.
--type parse_error() :: {invalid_scheme, binary()}
-                     | {invalid_sip_uri, ersip_uri_sip_parser:sip_uri_parse_error()}.
+-type parse_error() :: {invalid_sip_uri, ersip_uri_sip_parser:parse_error()}
+                     | {invalid_tel_uri, ersip_uri_tel:parse_error()}
+                     | {invalid_abs_uri, ersip_uri_absolute:parse_error()}.
 
 %%===================================================================
 %% API
@@ -110,17 +116,22 @@
 
 %% @doc Scheme of the URI.
 -spec scheme(uri()) -> scheme().
-scheme(#uri{scheme = S}) ->
-    S.
+scheme(#uri{type = sip, data = D}) ->
+    ersip_uri_sip:scheme(D);
+scheme(#uri{type = tel}) ->
+    {scheme, tel};
+scheme(#uri{type = absolute, data = D}) ->
+    ersip_uri_absolute:scheme(D).
 
 %% @doc URI scheme in binary form.
 -spec scheme_bin(uri()) -> binary().
-scheme_bin(#uri{scheme = {scheme, sip}}) ->
-    <<"sip">>;
-scheme_bin(#uri{scheme = {scheme, sips}}) ->
-    <<"sips">>;
-scheme_bin(#uri{scheme = {scheme, Bin}}) when is_binary(Bin) ->
-    ersip_bin:to_lower(Bin).
+scheme_bin(#uri{} = URI) ->
+    case scheme(URI) of
+        {scheme, sip}  -> <<"sip">>;
+        {scheme, sips} -> <<"sips">>;
+        {scheme, tel} -> <<"tel">>;
+        {scheme, X} when is_binary(X) -> ersip_bin:to_lower(X)
+    end.
 
 %% @doc Get data of the URI (everything after scheme).
 %% Example:
@@ -130,7 +141,8 @@ scheme_bin(#uri{scheme = {scheme, Bin}}) when is_binary(Bin) ->
 %% '''
 -spec data(uri()) -> binary().
 data(#uri{type = T, data = Data}) ->
-    iolist_to_binary(assemble_data(T, Data)).
+    {_, V} = ersip_uri_parser_aux:split_scheme(iolist_to_binary(assemble(T, Data))),
+    V.
 
 %% @doc Get user part of SIP URI.
 %% Raises error if URI is not SIP(S) URI.
@@ -389,7 +401,7 @@ make(Parts) when is_list(Parts) ->
 %% if make_key(UriA) =:= make_key(UriB) then they equal by RFC3261 19.1.4 URI Comparison.
 -spec make_key(uri()) -> uri().
 make_key(#uri{} = URI) ->
-    #uri{scheme = URI#uri.scheme,
+    #uri{type = URI#uri.type,
          data = make_data_key(URI#uri.type, URI#uri.data)
         }.
 
@@ -402,35 +414,18 @@ make_key(#uri{} = URI) ->
 %% '''
 -spec parse(binary()) -> parse_result().
 parse(Binary) ->
-    case split_scheme(Binary) of
-        {<<>>, _} ->
-            {error, {invalid_scheme, Binary}};
-        {<<"sip">>, R} ->
-            parse_uri(<<"sip">>, <<"sip">>, R);
-        {<<"sips">>, R} ->
-            parse_uri(<<"sips">>, <<"sips">>, R);
-        {S, R} ->
-            parse_uri(ersip_bin:to_lower(S), S, R)
-    end.
+     {Scheme, _} = ersip_uri_parser_aux:split_scheme(Binary),
+    parse_uri(Scheme, Binary).
 
 %% @doc Assemble URI to iolist.
 -spec assemble(uri()) -> iolist().
-assemble(#uri{scheme = Scheme, type = T, data = Data}) ->
-    [assemble_scheme(Scheme), $:,
-     assemble_data(T, Data)
-    ].
+assemble(#uri{type = T, data = Data}) ->
+    assemble(T, Data).
 
 %% @doc Assemble URI to binary.
 -spec assemble_bin(uri()) -> binary().
 assemble_bin(#uri{} = U) ->
     iolist_to_binary(assemble(U)).
-
-%% @doc Returns true if URI is SIP or SIPS URI.
--spec is_sip(uri()) -> boolean().
-is_sip(#uri{type = sip}) ->
-    true;
-is_sip(#uri{}) ->
-    false.
 
 %% @doc Get URI params.
 %% @deprecated
@@ -470,8 +465,6 @@ clear_params(#uri{} = URI) ->
 %% @doc Set part of the URI
 %% @deprecated
 -spec set_part(uri_part(), uri()) -> uri().
-set_part({scheme, _} = Scheme, #uri{} = URI) ->
-    URI#uri{scheme = Scheme};
 set_part({user, U}, #uri{} = URI) when is_binary(U) ->
     set_user(U, URI);
 set_part({port, P}, #uri{} = URI) when is_integer(P) ->
@@ -489,8 +482,8 @@ set_part(Part, _) ->
 %% @doc Get part of the URI
 %% @deprecated
 -spec get_part(uri_part_name(), uri()) -> uri_part().
-get_part(scheme, #uri{scheme = Scheme}) ->
-    Scheme;
+get_part(scheme, #uri{} = URI) ->
+    scheme(URI);
 get_part(user, #uri{} = URI) ->
     {user, user(URI)};
 get_part(port, #uri{} = URI) ->
@@ -541,33 +534,54 @@ raw(#uri{type = T, data = D} = URI) ->
              data => data(URI)},
     enrich_raw(T, D, Base).
 
+%% @doc Returns true if URI is SIP or SIPS URI.
+-spec is_sip(uri()) -> boolean().
+is_sip(#uri{type = sip}) -> true;
+is_sip(#uri{}) -> false.
+
+-spec as_sip(uri()) -> ersip_uri_sip:sip_uri().
+as_sip(#uri{type = sip, data = D}) -> D.
+
+-spec from_sip(ersip_uri_sip:sip_uri()) -> uri().
+from_sip(SIPData) ->
+    #uri{type = sip, data = SIPData}.
+
+-spec is_tel(uri()) -> boolean().
+is_tel(#uri{type = tel}) -> true;
+is_tel(#uri{}) -> false.
+
+-spec as_tel(uri()) -> ersip_uri_tel:tel_uri().
+as_tel(#uri{type = tel, data = D}) -> D.
+
+-spec from_tel(ersip_uri_tel:tel_uri()) -> uri().
+from_tel(TelData) ->
+    #uri{type = tel, data = TelData}.
+
 %%===================================================================
 %% Internal implementation
 %%===================================================================
 
--spec parse_uri(Scheme :: binary(), OrigScheme :: binary(), URIData :: binary()) -> parse_result().
-parse_uri(<<"sip">>, _, R) ->
-    case ersip_uri_sip_parser:parse_data(R) of
+-spec parse_uri(Scheme :: binary(), Bin :: binary()) -> parse_result().
+parse_uri(<<"sip", _/binary>>, Bin) ->
+    case ersip_uri_sip_parser:parse(Bin) of
         {ok, SipData} ->
-            {ok, #uri{scheme = {scheme, sip}, type = sip, data = SipData}};
+            {ok, #uri{type = sip, data = SipData}};
         {error, Reason} ->
             {error, {invalid_sip_uri, Reason}}
     end;
-parse_uri(<<"sips">>, _, R) ->
-    case ersip_uri_sip_parser:parse_data(R) of
-        {ok, SipData} ->
-            {ok, #uri{scheme = {scheme, sips}, type = sip, data = SipData}};
+parse_uri(<<"tel">>, Bin) ->
+    case ersip_uri_tel:parse(Bin) of
+        {ok, TelData} ->
+            {ok, #uri{type = tel, data = TelData}};
         {error, Reason} ->
-            {error, {invalid_sip_uri, Reason}}
+            {error, {invalid_tel_uri, Reason}}
     end;
-parse_uri(_, SchemeBin, R) ->
-    case ersip_parser_aux:check_token(SchemeBin) of
-        true ->
-            AbsData = ersip_uri_absolute:parse_data(R),
-            URI = #uri{scheme = {scheme, SchemeBin}, type = absolute, data = AbsData},
-            {ok, URI};
-        false ->
-            {error, {invalid_scheme, SchemeBin}}
+parse_uri(_, Bin) ->
+    case ersip_uri_absolute:parse(Bin) of
+        {ok, AbsURI} ->
+            {ok, #uri{type = absolute, data = AbsURI}};
+        {error, Reason} ->
+            {error, {invalid_abs_uri, Reason}}
     end.
 
 -spec force_sip(uri()) -> ok.
@@ -580,29 +594,27 @@ force_sip(#uri{} = URI) ->
 -spec make_data_key(type(), uri_data()) -> uri_data().
 make_data_key(sip, SIPData) ->
     ersip_uri_sip:make_key(SIPData);
+make_data_key(tel, TELData) ->
+    ersip_uri_tel:make_key(TELData);
 make_data_key(T, _) ->
     error({cannot_make_key, {unsupported_type, T}}).
 
--spec split_scheme(binary()) -> {binary(), binary()}.
-split_scheme(Bin) ->
-    case binary:split(Bin, <<":">>) of
-        [Scheme, Suffix] ->
-            {Scheme, Suffix};
-        [Suffix] ->
-            {<<>>, Suffix}
-    end.
 
 assemble_scheme({scheme, sip}) ->
     <<"sip">>;
 assemble_scheme({scheme, sips}) ->
     <<"sips">>;
+assemble_scheme({scheme, tel}) ->
+    <<"tel">>;
 assemble_scheme({scheme, Scheme}) ->
     Scheme.
 
--spec assemble_data(type(), uri_data()) -> iolist().
-assemble_data(sip, SIPData) ->
+-spec assemble(type(), uri_data()) -> iolist().
+assemble(sip, SIPData) ->
     ersip_uri_sip:assemble(SIPData);
-assemble_data(absolute, AbsData) ->
+assemble(tel, TELData) ->
+    ersip_uri_tel:assemble(TELData);
+assemble(absolute, AbsData) ->
     ersip_uri_absolute:assemble(AbsData).
 
 -spec enrich_raw(type(), uri_data(), raw()) -> raw().

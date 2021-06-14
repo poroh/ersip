@@ -8,34 +8,50 @@
 
 -module(ersip_uri_sip_parser).
 
--export([parse_data/1,
+-export([parse/1,
          parse_and_add_param/2]).
 
--export_type([sip_uri_parse_error/0]).
+-export_type([parse_result/0,
+              parse_error/0]).
 
 %%===================================================================
 %% Types
 %%===================================================================
 
--type sip_uri_parse_result() :: {ok, ersip_uri_sip:sip_uri()} | {error, sip_uri_parse_error()}.
--type sip_uri_parse_error() :: {invalid_host, ersip_host:parse_error() | {garbage_at_the_end, binary()}}
-                             | {invalid_ipv6_reference, binary()}
-                             | {invalid_port, binary()}
-                             | {invalid_maddr, binary()}
-                             | {invalid_transport, ersip_transport:parse_error()}
-                             | {invalid_user_param, binary()}
-                             | {invalid_ttl, binary()}
-                             | {invalid_parameter, binary(), binary()}.
+-type parse_result() :: {ok, ersip_uri_sip:sip_uri()} | {error, parse_error()}.
+-type parse_error() :: {invalid_host, ersip_host:parse_error() | {garbage_at_the_end, binary()}}
+                     | {invalid_ipv6_reference, binary()}
+                     | {invalid_port, binary()}
+                     | {invalid_maddr, binary()}
+                     | {invalid_transport, ersip_transport:parse_error()}
+                     | {invalid_user_param, binary()}
+                     | {invalid_ttl, binary()}
+                     | {invalid_parameter, binary(), binary()}
+                     | {invalid_scheme, binary()}.
 
 %%===================================================================
 %% API
 %%===================================================================
 
--spec parse_data(binary()) -> sip_uri_parse_result().
-parse_data(Bin) ->
-    parse_usesrinfo(Bin).
+-spec parse(binary()) -> parse_result().
+parse(Bin) ->
+    case ersip_uri_parser_aux:split_scheme(Bin) of
+        {<<"sip", Secure/binary>>, Rest} ->
+            case parse_usesrinfo(Rest) of
+                {ok, SIPUri} ->
+                    case Secure of
+                        <<"s">> ->
+                            {ok, ersip_uri_sip:set_secure(true, SIPUri)};
+                        _ ->
+                            {ok, ersip_uri_sip:set_secure(false, SIPUri)}
+                    end;
+                {error, _} = Error -> Error
+            end;
+        {Scheme, _} ->
+            {error, {invalid_scheme, Scheme}}
+    end.
 
--spec parse_and_add_param(binary(), ersip_uri_sip:sip_uri()) -> sip_uri_parse_result().
+-spec parse_and_add_param(binary(), ersip_uri_sip:sip_uri()) -> parse_result().
 parse_and_add_param(Bin, SIPURI) ->
     do_parse_and_add_param(Bin, SIPURI).
 
@@ -45,7 +61,7 @@ parse_and_add_param(Bin, SIPURI) ->
 
 -include("ersip_sip_abnf.hrl").
 
--spec parse_usesrinfo(binary()) -> sip_uri_parse_result().
+-spec parse_usesrinfo(binary()) -> parse_result().
 parse_usesrinfo(Bin) ->
     case binary:split(Bin, <<"@">>) of
         [Userinfo, R] ->
@@ -60,7 +76,7 @@ parse_usesrinfo(Bin) ->
     end.
 
 %% hostport         =  host [":" port]
--spec parse_hostport(binary() | undefined, binary()) -> sip_uri_parse_result().
+-spec parse_hostport(binary() | undefined, binary()) -> parse_result().
 parse_hostport(User, R) ->
     {HostPort, Params, Headers} = split_uri(R),
     MaybeSIPData =
@@ -106,7 +122,7 @@ parse_port(Bin) ->
 %% uri-parameters    =  *( ";" uri-parameter)
 %% uri-parameter     =  transport-param / user-param / method-param
 %%                      / ttl-param / maddr-param / lr-param / other-param
--spec maybe_add_params(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
+-spec maybe_add_params(parse_result(), binary()) -> parse_result().
 maybe_add_params({error, _} = Err, _) ->
     Err;
 maybe_add_params({ok, URIData}, <<>>) ->
@@ -121,7 +137,7 @@ maybe_add_params({ok, URIData}, ParamsBin) ->
                 {ok, URIData},
                 ParamsList).
 
--spec maybe_add_headers(sip_uri_parse_result(), binary()) -> sip_uri_parse_result().
+-spec maybe_add_headers(parse_result(), binary()) -> parse_result().
 maybe_add_headers({error, _} = Err, _) ->
     Err;
 maybe_add_headers({ok, SIPURI}, <<>>) ->
@@ -187,7 +203,7 @@ split_uri(Bin) ->
             {HostPort, Params, Headers}
     end.
 
--spec split_hostport(binary()) -> {ok, {binary(), binary()}} | {error, sip_uri_parse_error()}.
+-spec split_hostport(binary()) -> {ok, {binary(), binary()}} | {error, parse_error()}.
 split_hostport(<<$[, _/binary>> = IPv6RefPort) ->
     case binary:match(IPv6RefPort, <<"]">>) of
         nomatch ->
@@ -242,7 +258,7 @@ uri_header_validator(Key, Value) ->
 
 %% @private
 %% @doc Parse and add parameters described in RFC3261
--spec do_parse_and_add_param(binary(), ersip_uri_sip:sip_uri()) -> sip_uri_parse_result().
+-spec do_parse_and_add_param(binary(), ersip_uri_sip:sip_uri()) -> parse_result().
 do_parse_and_add_param(Param, SIPData) ->
     Pair =
         case binary:split(Param, <<"=">>) of

@@ -9,7 +9,13 @@
 -module(ersip_uri_sip).
 
 -export([new/0,
+         new/1,
          new_parsed/3,
+
+         scheme/1,
+
+         secure/1,
+         set_secure/2,
 
          user/1,
          set_user/2,
@@ -56,6 +62,8 @@
 
          clear_not_allowed_parts/2,
 
+         make/1,
+         parse/1,
          make_key/1,
          assemble/1,
          enrich_raw/2
@@ -76,6 +84,7 @@
 
 -record(sip_uri,
         {
+         secure :: boolean(),
          %% user: The identifier of a particular resource at the host being
          %%    addressed.  The term "host" in this context frequently refers
          %%    to a domain.  The "userinfo" of a URI consists of this user
@@ -132,13 +141,33 @@
 %% @private
 -spec new() -> sip_uri().
 new() ->
-    #sip_uri{host = {ipv4, {0, 0, 0, 0}}}.
+    #sip_uri{secure = false, host = {ipv4, {0, 0, 0, 0}}}.
+
+-spec new(ersip_host:host()) -> sip_uri().
+new(Host) ->
+    true = ersip_host:is_host(Host),
+    #sip_uri{secure = false, host = Host}.
 
 -spec new_parsed(binary() | undefined, ersip_host:host(), binary()) -> sip_uri().
 new_parsed(undefined, Host, HostBin) ->
-    #sip_uri{host = Host, host_orig = HostBin};
+    #sip_uri{secure = false, host = Host, host_orig = HostBin};
 new_parsed(User, Host, HostBin) ->
-    #sip_uri{user = {user, User}, host = Host, host_orig = HostBin}.
+    #sip_uri{secure = false, user = {user, User}, host = Host, host_orig = HostBin}.
+
+
+-spec scheme(sip_uri()) -> ersip_uri:scheme().
+scheme(#sip_uri{secure = false}) ->
+    {scheme, sip};
+scheme(#sip_uri{secure = true}) ->
+    {scheme, sips}.
+
+-spec secure(sip_uri()) -> boolean().
+secure(#sip_uri{secure = S}) ->
+    S.
+
+-spec set_secure(boolean(), sip_uri()) -> sip_uri().
+set_secure(Secure, #sip_uri{} = U) when is_boolean(Secure) ->
+    U#sip_uri{secure = Secure}.
 
 %% @private
 -spec user(sip_uri()) -> binary() | undefined.
@@ -379,6 +408,19 @@ clear_not_allowed_parts(record_route, #sip_uri{params = P} = URI) ->
                 headers = #{}
                }.
 
+-spec parse(binary()) -> ersip_uri_sip_parser:parse_result().
+parse(Bin) ->
+    ersip_uri_sip_parser:parse(Bin).
+
+-spec make(binary()) -> sip_uri().
+make(Bin) ->
+    case parse(Bin) of
+        {ok, SIPURI} ->
+            SIPURI;
+        {error, Reason} ->
+            error({invalid_sip_uri, Reason})
+    end.
+
 -spec make_key(sip_uri()) -> sip_uri().
 make_key(#sip_uri{} = URIData) ->
     %%
@@ -390,7 +432,8 @@ make_key(#sip_uri{} = URIData) ->
     %%
     %% For two URIs to be equal, the user, password, host, and port
     %% components must match.
-    #sip_uri{user  = userinfo_key(URIData#sip_uri.user),
+    #sip_uri{secure = URIData#sip_uri.secure,
+             user  = userinfo_key(URIData#sip_uri.user),
              host  = ersip_host:make_key(URIData#sip_uri.host),
              host_orig = undefined,
              port  = URIData#sip_uri.port,
@@ -398,31 +441,13 @@ make_key(#sip_uri{} = URIData) ->
              headers = headers_key(URIData#sip_uri.headers)
             }.
 
-%% @private
-%% @doc URI userinfo part key
--spec userinfo_key(undefined | {user, binary()}) -> undefined | {user, binary()}.
-userinfo_key(undefined) ->
-    undefined;
-userinfo_key({user, Bin}) ->
-    {user, ersip_bin:unquote_rfc_2396(Bin)}.
-
-%% @private
-%% @doc URI params key
--spec params_key(uri_params()) -> uri_params().
-params_key(Params) ->
-    maps:with([user, transport, ttl, method], Params).
-
-%% @doc URI headers key
--spec headers_key(uri_headers()) -> uri_headers().
-headers_key(Headers) ->
-    maps:map(fun(Key, Value) ->
-                     {Key, ersip_bin:unquote_rfc_2396(Value)}
-             end,
-             Headers).
-
 -spec assemble(sip_uri()) -> iolist().
 assemble(#sip_uri{} = SIPData) ->
-    [case SIPData#sip_uri.user of
+    [case SIPData#sip_uri.secure of
+         true -> <<"sips:">>;
+         false -> <<"sip:">>
+     end,
+     case SIPData#sip_uri.user of
          undefined ->
              [];
          User ->
@@ -458,6 +483,8 @@ enrich_raw(#sip_uri{} = URI, Base) ->
              {headers, raw_headers(URI)}],
     NonEmpty = [{K, V} || {K, V} <- Parts, V /= undefined andalso V /= [] andalso V /= #{}],
     Base#{sip => maps:from_list(NonEmpty)}.
+
+
 
 
 %%===================================================================
@@ -549,3 +576,25 @@ assemble_param(Pair) ->
         {Name, Val} -> [<<";">>, Name, <<"=">>, Val];
         Name -> [<<";">>, Name]
     end.
+
+%% @private
+%% @doc URI userinfo part key
+-spec userinfo_key(undefined | {user, binary()}) -> undefined | {user, binary()}.
+userinfo_key(undefined) ->
+    undefined;
+userinfo_key({user, Bin}) ->
+    {user, ersip_bin:unquote_rfc_2396(Bin)}.
+
+%% @private
+%% @doc URI params key
+-spec params_key(uri_params()) -> uri_params().
+params_key(Params) ->
+    maps:with([user, transport, ttl, method], Params).
+
+%% @doc URI headers key
+-spec headers_key(uri_headers()) -> uri_headers().
+headers_key(Headers) ->
+    maps:map(fun(Key, Value) ->
+                     {Key, ersip_bin:unquote_rfc_2396(Value)}
+             end,
+             Headers).

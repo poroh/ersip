@@ -36,8 +36,8 @@ basic_parse_test() ->
     ok.
 
 parse_fail_test() ->
-    ?assertMatch({error, {invalid_scheme, _}}, ersip_uri:parse(<<"?:a@b:5090">>)),
-    ?assertMatch({error, {invalid_scheme, _}}, ersip_uri:parse(<<"a@b">>)),
+    ?assertMatch({error, {invalid_abs_uri, {invalid_scheme, _}}}, ersip_uri:parse(<<"?:a@b:5090">>)),
+    ?assertMatch({error, {invalid_abs_uri, {invalid_scheme, _}}}, ersip_uri:parse(<<"a@b">>)),
     ?assertMatch({error, {invalid_sip_uri, empty_username}},    ersip_uri:parse(<<"sip:@b:5090">>)),
     ?assertMatch({error, {invalid_sip_uri, empty_username}},    ersip_uri:parse(<<"sip::a@b:5090">>)),
     ?assertMatch({error, {invalid_sip_uri, {bad_password, _}}}, ersip_uri:parse(<<"sip:a:%@b:5090">>)),
@@ -55,6 +55,8 @@ parse_fail_test() ->
 
     ?assertMatch({error, {invalid_sip_uri, {invalid_port, _}}}, ersip_uri:parse(<<"sips:[::1]x">>)),
     ?assertMatch({error, {invalid_sip_uri, {invalid_parameter, _, _}}}, ersip_uri:parse(<<"sips:[::1];=b">>)),
+
+    ?assertMatch({error, {invalid_tel_uri, {invalid_subscriber, _}}}, ersip_uri:parse(<<"tel:+a">>)),
     ok.
 
 permissive_parsing_test() ->
@@ -377,24 +379,15 @@ rebuild_headers_value_test() ->
 make_test() ->
     ?assertError({invalid_host, _},   ersip_uri:make([{host, {hostname, <<"-ab">>}}])),
     ?assertError({invalid_part, _},   ersip_uri:make([{x, {user, <<"a-b">>}}])),
-    ?assertError({invalid_scheme, _}, ersip_uri:make(<<"x">>)),
+    ?assertError({invalid_abs_uri, {invalid_scheme, _}}, ersip_uri:make(<<"x">>)),
     ok.
 
 uri_make_key_test() ->
     {ok, ExpectedURI} = ersip_uri:parse(<<"sips:Alice@atlanta.com:8083">>),
-    ?assertEqual(ersip_uri:make_key(ExpectedURI),
-                 ersip_uri:make([{scheme, sips},
-                                 {user, <<"Alice">>},
-                                 {host, {hostname, <<"atlanta.com">>}},
-                                 {port, 8083}])),
+    ?assertEqual(<<"sips:Alice@atlanta.com:8083">>, ersip_uri:assemble_bin(ersip_uri:make_key(ExpectedURI))),
     {ok, ExpectedURI2} = ersip_uri:parse(<<"sip:Alice@atlanta.com:5061">>),
-    ?assertEqual(ersip_uri:make_key(ExpectedURI2),
-                 ersip_uri:make([{scheme, sip},
-                                 {user, <<"Alice">>},
-                                 {host, {hostname, <<"atlanta.com">>}},
-                                 {port, 5061}])),
-
-    ?assertError({cannot_make_key, _}, ersip_uri:make_key(ersip_uri:make(<<"tel:+16505550505">>))),
+    ?assertEqual(<<"sip:Alice@atlanta.com:5061">>, ersip_uri:assemble_bin(ersip_uri:make_key(ExpectedURI2))),
+    ?assertError({cannot_make_key, _}, ersip_uri:make_key(ersip_uri:make(<<"sms:+16505550505">>))),
     ok.
 
 uri_compare_test() ->
@@ -467,6 +460,9 @@ uri_compare_test() ->
 
     ?assertEqual(make_key(<<"sip:biloxi.com;transport=tcp;method=REGISTER?to">>),
                  make_key(<<"sip:biloxi.com;method=REGISTER;transport=tcp?to">>)),
+
+    ?assertEqual(make_key(<<"tel:+1(650)555-0123">>),
+                 make_key(<<"tel:+16505550123">>)),
     ok.
 
 uri_assemeble_test() ->
@@ -596,6 +592,29 @@ is_sip_test() ->
     ?assertEqual(false, ersip_uri:is_sip(ersip_uri:make(<<"tel:11234">>))),
     ok.
 
+as_sip_test() ->
+    ?assertEqual(<<"a">>, ersip_uri_sip:user(ersip_uri:as_sip(ersip_uri:make(<<"sip:a@b">>)))),
+    ok.
+
+from_sip_test() ->
+    URI = ersip_uri:from_sip(ersip_uri_sip:new_parsed(<<"a">>, ersip_host:make(<<"b">>), <<"b">>)),
+    ?assertEqual(<<"sip:a@b">>, ersip_uri:assemble_bin(URI)),
+    ok.
+
+is_tel_test() ->
+    ?assertEqual(false, ersip_uri:is_tel(ersip_uri:make(<<"sip:a@b">>))),
+    ?assertEqual(true, ersip_uri:is_tel(ersip_uri:make(<<"tel:11234">>))),
+    ok.
+
+as_tel_test() ->
+    ?assertEqual(<<"11234">>, ersip_uri_tel:phone(ersip_uri:as_tel(ersip_uri:make(<<"tel:11234">>)))),
+    ok.
+
+from_tel_test() ->
+    URI = ersip_uri:from_tel(ersip_uri_tel:make(<<"tel:+1234">>)),
+    ?assertEqual(<<"tel:+1234">>, ersip_uri:assemble_bin(URI)),
+    ok.
+
 raw_test() ->
     ?assertMatch(#{scheme := <<"sip">>,
                    data := <<"a@b">>,
@@ -633,6 +652,25 @@ clear_params_test() ->
     ?assertEqual(<<"sip:a@b">>, clear_params(<<"sip:a@b;a=b;c=d">>)),
     ?assertEqual(<<"sip:a@b">>, clear_params(<<"sip:a@b;ttl=1">>)),
     ?assertEqual(<<"tel:+16505550505">>, clear_params(<<"tel:+16505550505">>)),
+    ok.
+
+assemble_scheme_test() ->
+    ?assertEqual(<<"sip">>, ersip_uri:assemble_scheme({scheme, sip})),
+    ?assertEqual(<<"sips">>, ersip_uri:assemble_scheme({scheme, sips})),
+    ?assertEqual(<<"tel">>, ersip_uri:assemble_scheme({scheme, tel})),
+    ?assertEqual(<<"sms">>, ersip_uri:assemble_scheme({scheme, <<"sms">>})),
+    ok.
+
+set_part_test() ->
+    ?assertEqual(<<"sip:b@b.com">>, ersip_uri:assemble_bin(ersip_uri:set_part({user, <<"b">>}, ersip_uri:make(<<"sip:a@b.com">>)))),
+    ?assertEqual(<<"sip:a@b.com:5060">>, ersip_uri:assemble_bin(ersip_uri:set_part({port, 5060}, ersip_uri:make(<<"sip:a@b.com">>)))),
+    ok.
+
+scheme_bin_test() ->
+    ?assertEqual(<<"sip">>, ersip_uri:scheme_bin(ersip_uri:make(<<"sip:a@b">>))),
+    ?assertEqual(<<"sips">>, ersip_uri:scheme_bin(ersip_uri:make(<<"sips:a@b">>))),
+    ?assertEqual(<<"tel">>, ersip_uri:scheme_bin(ersip_uri:make(<<"tel:156">>))),
+    ?assertEqual(<<"sms">>, ersip_uri:scheme_bin(ersip_uri:make(<<"sms:+156">>))),
     ok.
 
 

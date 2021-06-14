@@ -69,6 +69,7 @@ RFC supported in this SIP stack:
       - 8.2.3. "Subscription-State" Header Field
   + RFC 3891 The Session Initiation Protocol (SIP) "Replaces" Header (header only)
       - 6.1. The Replaces Header
+  + RFC 3966 The tel URI for Telephone Numbers
 
 ## License
 

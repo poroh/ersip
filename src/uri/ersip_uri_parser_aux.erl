@@ -8,7 +8,8 @@
 
 -module(ersip_uri_parser_aux).
 
--export([unquote_hex/1]).
+-export([unquote_hex/1,
+         split_scheme/1]).
 
 %%===================================================================
 %% API
@@ -17,6 +18,15 @@
 -spec unquote_hex(binary()) -> binary().
 unquote_hex(Bin) ->
     do_unquote_hex(Bin, Bin, {0, 0}, []).
+
+-spec split_scheme(binary()) -> {binary(), binary()}.
+split_scheme(Bin) ->
+    case binary:split(Bin, <<":">>) of
+        [Scheme, Suffix] ->
+            {ersip_bin:to_lower(Scheme), Suffix};
+        [Suffix] ->
+            {<<>>, Suffix}
+    end.
 
 %%===================================================================
 %% Implementation

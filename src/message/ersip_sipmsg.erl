@@ -60,6 +60,7 @@
          set_raw_header/2,
 
          %% Parse and build message
+         make/1,
          parse/2,
          serialize/1,
          serialize_bin/1,
@@ -318,6 +319,16 @@ raw_header(HdrName, #sipmsg{} = Msg) when is_binary(HdrName) ->
 -spec set_raw_header(ersip_hdr:header(), sipmsg()) -> {ok, ersip_sipmsg:sipmsg()} | {error, term()}.
 set_raw_header(RawHdr, #sipmsg{} = SipMsg) ->
     ersip_siphdr:set_raw_header(RawHdr, SipMsg).
+
+%% @doc Make SIP message from binary
+-spec make(binary()) -> ersip_sipmsg:sipmsg().
+make(Bin) ->
+    case ersip_sipmsg:parse(Bin, all) of
+        {ok, SipMsg} ->
+            SipMsg;
+        {error, Reason} ->
+            error({invalid_sip_message, Reason})
+    end.
 
 %% @doc Parse Raw message and transform it to SIP message or parse
 %% additional headers of SIP message.

@@ -907,6 +907,25 @@ set_reason_test() ->
     ok.
 
 
+make_test() ->
+    MsgBin
+        = <<"SIP/2.0 200 OK"
+            ?crlf "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bK776asdhds"
+            ?crlf "Max-Forwards: 70"
+            ?crlf "From: Alice <sip:alice@atlanta.com>;tag=zzzz"
+            ?crlf "To: Bob <sip:bob@biloxi.com>"
+            ?crlf "CSeq: 314159 OPTIONS"
+            ?crlf "Call-ID: 1234",
+            ?crlf "Content-Type: application/sdp"
+            ?crlf "Content-Length: 0"
+            ?crlf ?crlf ""
+          >>,
+    SipMsg = ersip_sipmsg:make(MsgBin),
+    ?assertEqual(200, ersip_sipmsg:status(SipMsg)),
+    ?assertError({invalid_sip_message, _}, ersip_sipmsg:make(<<"sip:">>)),
+    ok.
+
+
 %%%===================================================================
 %%% Helpers
 %%%===================================================================

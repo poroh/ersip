@@ -60,6 +60,8 @@ make_error_test() ->
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"0.500a">>)),
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"0.abc">>)),
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"1.001">>)),
+    ?assertError({invalid_qvalue, _}, ersip_qvalue:make(1001)),
+    ?assertError({invalid_qvalue, _}, ersip_qvalue:make(-1)),
     ok.
 
 %%%===================================================================

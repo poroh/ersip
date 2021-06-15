@@ -261,8 +261,9 @@ uac_request(Req0, #dialog{} = Dialog0) ->
     Req3  = ersip_sipmsg:set(callid, Dialog0#dialog.callid, Req2),
     Req4 = maybe_update_cseq(Req0, Dialog0, Req3),
     CSeq = ersip_sipmsg:get(cseq, Req4),
-    Dialog1 = Dialog0#dialog{local_seq = ersip_hdr_cseq:number(CSeq)},
-    Dialog2 = maybe_update_invite_seq(ersip_sipmsg:method_bin(Req4), ersip_hdr_cseq:number(CSeq), Dialog1),
+    CSeqNum = ersip_hdr_cseq:number(CSeq),
+    Dialog1 = maybe_update_local_seq(CSeqNum, Dialog0),
+    Dialog2 = maybe_update_invite_seq(ersip_sipmsg:method_bin(Req4), CSeqNum, Dialog1),
     %% The UAC uses the remote target and route set to build the
     %% Request-URI and Route header field of the request.
     #dialog{remote_target = RemoteTarget, route_set = RouteSet} = Dialog2,
@@ -797,7 +798,7 @@ maybe_update_cseq(InReq, #dialog{local_seq = LocalSeq, invite_seq = InviteSeq}, 
             set_cseq(InReq, LocalSeq+1, Req)
     end.
 
--spec set_cseq(ersip_sipmsg:sipmsg(), pos_integer(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
+-spec set_cseq(ersip_sipmsg:sipmsg(), ersip_hdr_cseq:cseq_num(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
 set_cseq(InReq, LocalSeq, Req) ->
     CSeq0  = get_or_create(cseq, InReq),
     CSeqNum = ersip_hdr_cseq:number(CSeq0),
@@ -826,5 +827,11 @@ maybe_update_invite_seq(<<"INVITE">>, CseqNum, #dialog{} = Dialog) ->
 maybe_update_invite_seq(_, _, #dialog{} = Dialog) ->
     Dialog.
 
-
-
+%% UAC should update its local CSeq sequence number only with a value that is
+%% strictly monotonically increasing and contiguous (section 12.2.1.1).
+-spec maybe_update_local_seq(ersip_hdr_cseq:cseq_num(), dialog()) -> dialog().
+maybe_update_local_seq(CSeqNum, #dialog{local_seq = LocalCSeqNum} = Dialog) when LocalCSeqNum == empty orelse
+                                                                                 CSeqNum > LocalCSeqNum ->
+    Dialog#dialog{local_seq = CSeqNum};
+maybe_update_local_seq(_, #dialog{} = Dialog) ->
+    Dialog.

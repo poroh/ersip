@@ -259,6 +259,23 @@ indialog_ack_and_cancel_cseq_no_cseq_with_info_test() ->
     ?assertEqual(cseq_number(ReInviteSipMsg) + 1, cseq_number(InfoSipMsg)),
     ok.
 
+indialog_request_after_repeated_ack_no_cseq_test() ->
+    %% Requests within a dialog MUST contain strictly monotonically
+    %% increasing and contiguous CSeq sequence numbers (increasing-by-one)
+    %% in each direction (excepting ACK and CANCEL of course, whose numbers
+    %% equal the requests being acknowledged or cancelled).
+    {_, UACDialog0} = create_uas_uac_dialogs(invite_request()),
+    {UACDialog1, ReInviteSipMsg} = ersip_dialog:uac_request(reinvite_sipmsg(), UACDialog0),
+    {UACDialog2, AckSipMsg1} = ersip_dialog:uac_request(del_cseq(ack_sipmsg()), UACDialog1),
+    {UACDialog3, InfoSipMsg1} = ersip_dialog:uac_request(info_sipmsg(#{}), UACDialog2),
+    {UACDialog4, AckSipMsg2} = ersip_dialog:uac_request(del_cseq(ack_sipmsg()), UACDialog3),
+    {_, InfoSipMsg2} = ersip_dialog:uac_request(info_sipmsg(#{}), UACDialog4),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(AckSipMsg1)),
+    ?assertEqual(cseq_number(ReInviteSipMsg), cseq_number(AckSipMsg2)),
+    ?assertEqual(cseq_number(ReInviteSipMsg) + 1, cseq_number(InfoSipMsg1)),
+    ?assertEqual(cseq_number(ReInviteSipMsg) + 2, cseq_number(InfoSipMsg2)),
+    ok.
+
 uas_message_checking_cseq_test() ->
     %% 1. If the remote sequence number is empty, it MUST be set to
     %% the value of the sequence number in the CSeq header field value

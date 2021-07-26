@@ -94,7 +94,7 @@ set_param(PName, PValue, #event{hparams = HParams} = Event)
     end.
 
 %% @doc Create Event header from SIP or from raw representation.
--spec make(binary()) -> event().
+-spec make(binary() | raw()) -> event().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, Event} ->

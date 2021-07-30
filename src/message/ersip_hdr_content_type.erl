@@ -58,7 +58,7 @@ params(#content_type{params = P}) ->
     P.
 
 %% @doc Create Content-Type header from binary or from raw SIP header.
--spec make(ersip_hdr:header() | binary()) -> content_type().
+-spec make(ersip_hdr:header() | binary() | raw()) -> content_type().
 make(Bin) when is_binary(Bin) ->
     case parse_content_type(Bin) of
         {ok, Content_Type} ->

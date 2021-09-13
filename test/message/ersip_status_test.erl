@@ -52,6 +52,7 @@ reason_text_test() ->
     test_phrase(406, "Not Acceptable"),
     test_phrase(407, "Proxy Authentication Required"),
     test_phrase(408, "Request Timeout"),
+    test_phrase(409, "Conflict"),
     test_phrase(410, "Gone"),
     test_phrase(413, "Request Entity Too Large"),
     test_phrase(414, "Request-URI Too Long"),

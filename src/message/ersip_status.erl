@@ -75,6 +75,7 @@ reason_impl(405) -> <<"Method Not Allowed">>;
 reason_impl(406) -> <<"Not Acceptable">>;
 reason_impl(407) -> <<"Proxy Authentication Required">>;
 reason_impl(408) -> <<"Request Timeout">>;
+reason_impl(409) -> <<"Conflict">>;
 reason_impl(410) -> <<"Gone">>;
 reason_impl(413) -> <<"Request Entity Too Large">>;
 reason_impl(414) -> <<"Request-URI Too Long">>;

@@ -129,6 +129,23 @@ extension_is_supported_test() ->
     ?assertMatch({process, _}, ProcessResult),
     ok.
 
+extension_is_supported_multiple_order_test() ->
+    Supported = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gin">>),
+                                                 ersip_option_tag:make(<<"gruu">>)
+                                                ]),
+    Options = #{supported => Supported
+               },
+    REGISTERSipMsgGinGRUU = register_request_gin_gruu(make_default_source()),
+    ProcessResult = ersip_uas:process_request(REGISTERSipMsgGinGRUU, allowed_methods(), Options),
+    ?assertMatch({process, _}, ProcessResult),
+    Supported2 = ersip_hdr_opttag_list:from_list([ersip_option_tag:make(<<"gruu">>),
+                                                  ersip_option_tag:make(<<"gin">>)
+                                                 ]),
+    Options2 = #{supported => Supported2
+                },
+    ProcessResult2 = ersip_uas:process_request(REGISTERSipMsgGinGRUU, allowed_methods(), Options2),
+    ?assertMatch({process, _}, ProcessResult2),
+    ok.
 
 %%%===================================================================
 %%% Helpers

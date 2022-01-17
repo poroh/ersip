@@ -216,12 +216,13 @@ make_unsupported_scheme(SipMsg, Options, Scheme) ->
       Supported   :: ersip_hdr_opttag_list:option_tag_list(),
       Unsupported :: ersip_hdr_opttag_list:option_tag_list().
 check_supported(Required, Supported) ->
-    Intersect = ersip_hdr_opttag_list:intersect(Required, Supported),
-    case Intersect =:= Required of
+    EmptyList = ersip_hdr_opttag_list:from_list([]),
+    Unsupported = ersip_hdr_opttag_list:subtract(Required, Supported),
+    case Unsupported =:= EmptyList of
         true ->
             all_supported;
         false ->
-            ersip_hdr_opttag_list:subtract(Required, Supported)
+            Unsupported
     end.
 
 -spec check_sip_scheme(ersip_uri:scheme()) -> boolean().

@@ -40,7 +40,7 @@
 -type encoding_params()  :: pos_integer() | undefined.
 -type rtpmap()           :: #rtpmap{}.
 -type parse_result()     :: {ok, rtpmap()} |
-                            {error, {invalid_rtpmap_candidate, term()}}.
+                            {error, {invalid_rtpmap, term()}}.
 -type parse_result(T)    :: ersip_parser_aux:parse_result(T).
 
 -export_type([
@@ -139,7 +139,7 @@ do_parse_rtpmap(Bin) ->
                 params = EncodingParams
             }};
         {error, Reason} ->
-            {error, {invalid_rtpmap_candidate, Reason}}
+            {error, {invalid_rtpmap, Reason}}
     end.
 
 -spec parse_encoding_params(binary()) -> parse_result(encoding_params()).
@@ -151,8 +151,10 @@ parse_encoding_params(Bin) ->
         fun ersip_parser_aux:parse_non_neg_int/1
     ],
     case ersip_parser_aux:parse_all(Bin, Parsers) of
-        {ok, [_, EncodingParams], Rest} ->
+        {ok, [_, EncodingParams], <<>> = Rest} ->
             {ok, EncodingParams, Rest};
+        {ok, [_, _], Rest} ->
+            {error, {invalid_encoding_params, Rest}};
         Error ->
             Error
     end.

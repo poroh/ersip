@@ -41,16 +41,24 @@ parse_test() ->
 
 parse_error_test() ->
     ?assertEqual(
-        {error, {invalid_rtpmap_candidate, {no_separator, $/, <<"A">>}}},
+        {error, {invalid_rtpmap, {no_separator, $/, <<"A">>}}},
         ersip_sdp_attr_rtpmap:parse(<<"99 AMR-WB/16000A">>)
     ),
     ?assertEqual(
-        {error, {invalid_rtpmap_candidate, {invalid_integer, <<" AMR-WB/16000">>}}},
+        {error, {invalid_rtpmap, {invalid_integer, <<" AMR-WB/16000">>}}},
         ersip_sdp_attr_rtpmap:parse(<<" AMR-WB/16000">>)
     ),
     ?assertEqual(
-        {error, {invalid_rtpmap_candidate, {invalid_integer, <<"A">>}}},
+        {error, {invalid_rtpmap, {invalid_integer, <<"A">>}}},
         ersip_sdp_attr_rtpmap:parse(<<"0 AMR-WB/16000/A">>)
+    ),
+    ?assertEqual(
+        {error, {invalid_rtpmap, {no_separator, $/, <<" Garbage">>}}},
+        ersip_sdp_attr_rtpmap:parse(<<"99 AMR-WB/16000 Garbage">>)
+    ),
+    ?assertEqual(
+        {error, {invalid_rtpmap, {invalid_encoding_params, <<" Garbage">>}}},
+        ersip_sdp_attr_rtpmap:parse(<<"99 AMR-WB/16000/2 Garbage">>)
     ),
     ok.
 

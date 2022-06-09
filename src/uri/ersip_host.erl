@@ -164,7 +164,9 @@ raw(Host) ->
 %% Internal implementation
 %%===================================================================
 
+-if(?OTP_RELEASE < 25).
 -type nonempty_binary() :: <<_:8,_:_*8>>.
+-endif.
 
 -define(VALID_HOST_CHAR(C), (?is_alphanum(C)
                              orelse C == $.

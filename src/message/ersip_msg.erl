@@ -110,7 +110,7 @@ set(List, Message) ->
 
 %% @doc Set message part to specified value.
 -spec set(item(), term(), message()) -> message().
-set(type, _X, #message{type = {_X, _, _}} = Message) ->
+set(type, X, #message{type = {X, _, _}} = Message) ->
     Message;
 set(type, X, Message) ->
     Message#message{type = {X, undefined, undefined}};

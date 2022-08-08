@@ -192,7 +192,7 @@ val_max_forwards(SipMessage, Options) ->
     end.
 
 -spec val_loop_detect(ersip_sipmsg:sipmsg(), options()) -> validate_result().
-val_loop_detect(SipMessage, Options) ->
+val_loop_detect(SipMessage, _Options) ->
     %% TODO: implement it eventually
     {ok, SipMessage}.
 
@@ -242,7 +242,7 @@ do_val_proxy_require(SipMessage, Options) ->
 %% section also defines what the element must do if the inspection
 %% fails.
 -spec val_proxy_authorization(ersip_sipmsg:sipmsg(), options()) -> validate_result().
-val_proxy_authorization(SipMessage, Options) ->
+val_proxy_authorization(SipMessage, _Options) ->
     %% TODO: implement it eventually
     {ok, SipMessage}.
 
@@ -329,15 +329,15 @@ maybe_add_allow(_, Resp) ->
     Resp.
 
 -spec maybe_add_accept(options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_accept(Options, Resp) ->
+maybe_add_accept(_Options, Resp) ->
     Resp.
 
 -spec maybe_add_accept_encoding(options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_accept_encoding(Options, Resp) ->
+maybe_add_accept_encoding(_Options, Resp) ->
     Resp.
 
 -spec maybe_add_accept_language(options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
-maybe_add_accept_language(Options, Resp) ->
+maybe_add_accept_language(_Options, Resp) ->
     Resp.
 
 -spec maybe_add_supported(options(), ersip_sipmsg:sipmsg()) -> ersip_sipmsg:sipmsg().
@@ -402,7 +402,7 @@ ri_strict_route(SipMsg, #{}) ->
 %% continue processing as if those values had not been present in the
 %% request.
 -spec ri_process_maddr(ersip_sipmsg:sipmsg(), proxy_params()) -> ersip_sipmsg:sipmsg().
-ri_process_maddr(SipMsg, ProxyParams) ->
+ri_process_maddr(SipMsg, _ProxyParams) ->
     %% TODO: maddr: implement it eventually
     SipMsg.
 

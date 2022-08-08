@@ -1,3 +1,4 @@
+.idea
 .eunit
 deps
 *.o
@@ -14,3 +15,4 @@ tags
 .rebar3
 ebin
 .DS_Store
+ersip.iml

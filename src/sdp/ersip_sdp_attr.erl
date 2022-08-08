@@ -9,10 +9,11 @@
 -module(ersip_sdp_attr).
 
 -export([parse/1,
-         assemble/1
-        ]).
+    parse_attr/1,
+    assemble/1
+]).
 
--export_type([attr_list/0]).
+-export_type([attr_list/0, attr/0]).
 
 %%%===================================================================
 %%% Types
@@ -20,6 +21,7 @@
 
 -type attr_list()    :: [attr()].
 -type parse_result() :: ersip_parser_aux:parse_result(attr_list()).
+-type parse_result(T) :: ersip_parser_aux:parse_result(T).
 -type attr()         :: attr_name()
                       | {attr_name(), attr_value()}.
 -type attr_name()    :: binary().
@@ -32,6 +34,10 @@
 -spec parse(binary()) -> parse_result().
 parse(Bin) ->
     do_parse_attrs(Bin, []).
+
+-spec parse_attr(binary()) -> parse_result(attr()).
+parse_attr(Bin) ->
+    do_parse_attr(Bin).
 
 -spec assemble(attr_list()) -> iolist().
 assemble(AttrList) ->
@@ -57,20 +63,32 @@ do_parse_attrs(<<"a=", Rest/binary>>, Acc) ->
         [_] ->
             {error, {invalid_attr, {no_crlf, Rest}}};
         [AttrLine, Rest1] ->
-            {AttrName, _} = Pair =
-                case binary:split(AttrLine, <<":">>) of
-                    [N, V] -> {N, V};
-                    [N]    -> {N, novalue}
-                end,
-            case ersip_sdp_aux:check_token(AttrName) of
-                false ->
-                    {error, {invalid_attr, AttrName}};
-                true ->
-                    do_parse_attrs(Rest1, [make_attr(Pair) | Acc])
+            case do_parse_attr(AttrLine) of
+                {error,_} = Err ->
+                    Err;
+                {ok, V, _} ->
+                    do_parse_attrs(Rest1, [V|Acc])
             end
     end;
 do_parse_attrs(Rest, Acc) ->
     {ok, lists:reverse(Acc), Rest}.
+
+-spec do_parse_attr(binary()) -> parse_result(attr()).
+do_parse_attr(AttrLine) ->
+    {AttrName, _} = Pair =
+        case binary:split(AttrLine, <<":">>) of
+            [N, V] -> {N, V};
+            [N]    -> {N, novalue}
+        end,
+
+    case ersip_sdp_aux:check_token(AttrName) of
+        false ->
+            {error, {invalid_attr, AttrName}};
+        true ->
+            {ok, make_attr(Pair), <<>>}
+    end.
+
+
 
 -spec make_attr({attr_name(), attr_value() | novalue}) -> attr().
 make_attr({Name, novalue}) ->

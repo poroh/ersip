@@ -39,8 +39,7 @@
 -type clock_rate()       :: pos_integer().
 -type encoding_params()  :: pos_integer() | undefined.
 -type rtpmap()           :: #rtpmap{}.
--type parse_result()     :: {ok, rtpmap()} |
-                            {error, {invalid_rtpmap, term()}}.
+-type parse_result()     :: ersip_parser_aux:parse_result(rtpmap()).
 -type parse_result(T)    :: ersip_parser_aux:parse_result(T).
 
 -export_type([
@@ -114,6 +113,9 @@ assemble_bin(Rtpmap) ->
 %%%===================================================================
 %%% Internal implementation
 %%%===================================================================
+
+-define(sp, " ").
+
 %% https://datatracker.ietf.org/doc/html/rfc8866#section-6.6
 %%
 %% a=rtpmap:<payload type> <encoding name>/<clock rate> [/<encoding parameters>]
@@ -163,7 +165,7 @@ parse_encoding_params(Bin) ->
 assemble_rtpmap(#rtpmap{} = Rtpmap) ->
     ClockRateBin = integer_to_binary(clock_rate(Rtpmap)),
     [
-        integer_to_binary(payload_type(Rtpmap)), " ",
+        integer_to_binary(payload_type(Rtpmap)), ?sp,
         encoding_name(Rtpmap), "/",
         ClockRateBin,
         encoding_params_assemble(encoding_params(Rtpmap))

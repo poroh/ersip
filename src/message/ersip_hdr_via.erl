@@ -158,7 +158,7 @@ all_raw_params(#via{hparams = HParams}) ->
 
 %% @doc Get Via parameter.  This function supports known paramters
 %% (deprecated) and binary parameters.
--spec set_param(known_via_params() | binary(), term(), via()) -> via().
+-spec set_param(known_via_params() | binary(), any(), via()) -> via().
 set_param(received, Value, Via) when is_binary(Value) ->
     case ersip_host:parse(Value) of
         {ok, Host, <<>>} -> set_param(received, Host, Via);
@@ -309,7 +309,7 @@ assemble_bin(#via{} = Via) ->
     iolist_to_binary(assemble(Via)).
 
 %% @doc Parse single Via header
--spec parse(iolist()) -> {ok, via()} | {error, term()}.
+-spec parse(iolist()|binary()) -> {ok, via()} | {error, term()}.
 parse(Binary) when is_binary(Binary) ->
     parse_via(Binary);
 parse(IOList) ->

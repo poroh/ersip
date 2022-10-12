@@ -150,6 +150,7 @@ maddr_test() ->
     ?assertError({sip_uri_expected, _}, ersip_uri:maddr(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
+-dialyzer({nowarn_function, set_maddr_test/0}).
 set_maddr_test() ->
     ?assertEqual(<<"sip:b;maddr=1.1.1.1">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;maddr=[::1]">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"[::1]">>), ersip_uri:make(<<"sip:b">>)))),
@@ -184,6 +185,7 @@ user_param_test() ->
     ?assertMatch({error, {invalid_sip_uri, _}}, ersip_uri:parse(<<"sip:b;user=">>)),
     ok.
 
+-dialyzer({nowarn_function, set_user_param_test/0}).
 set_user_param_test() ->
     ?assertEqual(<<"sip:b;user=ip">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(ip, ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;user=phone">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(phone, ersip_uri:make(<<"sip:b">>)))),
@@ -221,6 +223,7 @@ ttl_test() ->
     ?assertError({sip_uri_expected, _}, ersip_uri:ttl(ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
+-dialyzer({nowarn_function, set_ttl_test/0}).
 set_ttl_test() ->
     ?assertEqual(<<"sip:b;ttl=5">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(5,   ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;ttl=255">>, ersip_uri:assemble_bin(ersip_uri:set_ttl(255, ersip_uri:make(<<"sip:b">>)))),
@@ -279,6 +282,7 @@ gen_param_test() ->
     ?assertError({sip_uri_expected, _}, ersip_uri:gen_param(<<"some">>, ersip_uri:make(<<"tel:+16505550505">>))),
     ok.
 
+-dialyzer({nowarn_function, set_gen_param_test/0}).
 set_gen_param_test() ->
     ?assertEqual(ersip_uri:make(<<"sip:carol@chicago.com;transport=udp">>),
                  ersip_uri:set_gen_param(<<"transport">>, <<"udp">>, ersip_uri:make(<<"sip:carol@chicago.com;transport=tcp">>))),
@@ -376,6 +380,7 @@ rebuild_headers_value_test() ->
 % other tests
 %-------------------------------------------------------------------
 
+-dialyzer({nowarn_function, make_test/0}).
 make_test() ->
     ?assertError({invalid_host, _},   ersip_uri:make([{host, {hostname, <<"-ab">>}}])),
     ?assertError({invalid_part, _},   ersip_uri:make([{x, {user, <<"a-b">>}}])),
@@ -661,10 +666,11 @@ assemble_scheme_test() ->
     ?assertEqual(<<"sms">>, ersip_uri:assemble_scheme({scheme, <<"sms">>})),
     ok.
 
-set_part_test() ->
-    ?assertEqual(<<"sip:b@b.com">>, ersip_uri:assemble_bin(ersip_uri:set_part({user, <<"b">>}, ersip_uri:make(<<"sip:a@b.com">>)))),
-    ?assertEqual(<<"sip:a@b.com:5060">>, ersip_uri:assemble_bin(ersip_uri:set_part({port, 5060}, ersip_uri:make(<<"sip:a@b.com">>)))),
-    ok.
+% Deprecated
+% set_part_test() ->
+%    ?assertEqual(<<"sip:b@b.com">>, ersip_uri:assemble_bin(ersip_uri:set_part({user, <<"b">>}, ersip_uri:make(<<"sip:a@b.com">>)))),
+%    ?assertEqual(<<"sip:a@b.com:5060">>, ersip_uri:assemble_bin(ersip_uri:set_part({port, 5060}, ersip_uri:make(<<"sip:a@b.com">>)))),
+%    ok.
 
 scheme_bin_test() ->
     ?assertEqual(<<"sip">>, ersip_uri:scheme_bin(ersip_uri:make(<<"sip:a@b">>))),

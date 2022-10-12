@@ -30,7 +30,7 @@
 -type allow() :: {allow, ersip_method_set:set()}.
 -type raw() :: ersip_method_set:raw().
 -type parse_result() :: {ok, allow()} | {error, parse_error()}.
--type parse_error() :: no_allow | {invalid_allow, binary()}.
+-type parse_error() :: no_allow | {invalid_allow, term()}.
 
 %%===================================================================
 %% API

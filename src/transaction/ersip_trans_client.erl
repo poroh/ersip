@@ -79,7 +79,7 @@ new(Transport, Request, Options) ->
 %% Side effects are defined in module ersip_trans_se
 %%
 -spec event(Event, trans_client()) -> result() when
-      Event :: {timer, TimerFun}
+      Event :: {timer, TimerFun} | timer_type()
              | {resp, ersip_status:response_type(), term()},
       TimerFun :: fun((trans_client()) -> result()).
 event({timer, TimerVal}, ClientTrans) ->

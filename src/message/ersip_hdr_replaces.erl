@@ -59,7 +59,7 @@ early_only(#replaces{params = P}) ->
 
 %% @doc Create Replaces header from binary() or from raw
 %% representation.
--spec make(binary()) -> replaces().
+-spec make(binary()|raw()) -> replaces().
 make(HeaderBin) when is_binary(HeaderBin) ->
     case parse(HeaderBin) of
         {ok, Replaces} ->

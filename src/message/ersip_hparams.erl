@@ -253,7 +253,7 @@ set(PName, PValue, ParseKnownF, HParams) ->
     end.
 
 %% @doc Find original value of the parameter.
--spec find_raw(orig_key(), hparams()) -> {ok, orig_value()} | not_found.
+-spec find_raw(orig_key()|atom(), hparams()) -> {ok, orig_value()} | not_found.
 find_raw(BinName, #hparams{orig = Orig}) when is_binary(BinName) ->
     case maps:find(ersip_bin:to_lower(BinName), Orig) of
         error -> not_found;

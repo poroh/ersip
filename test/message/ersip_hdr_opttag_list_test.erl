@@ -15,9 +15,9 @@
 %%===================================================================
 
 parse_raw_hdr_test() ->
-    parse_success(<<"100rel, timer">>),
-    parse_success(<<"100rel,timer">>),
-    parse_success(<<"100rel">>),
+    {'option_tag_list', _} = parse_success(<<"100rel, timer">>),
+    {'option_tag_list', _} = parse_success(<<"100rel,timer">>),
+    {'option_tag_list', _} = parse_success(<<"100rel">>),
     parse_fail(<<>>),
     parse_fail(<<"&">>),
     ok.

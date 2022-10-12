@@ -25,7 +25,8 @@
          as_integer/1
         ]).
 -export_type([header/0,
-              header_key/0]).
+              header_key/0,
+              value/0]).
 
 -include("ersip_headers.hrl").
 

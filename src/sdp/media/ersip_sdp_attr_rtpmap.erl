@@ -139,7 +139,7 @@ do_parse_rtpmap(Bin) ->
                 encoding_name = Name,
                 clock_rate = ClockRate,
                 params = EncodingParams
-            }};
+            }, <<>>};
         {error, Reason} ->
             {error, {invalid_rtpmap, Reason}}
     end.

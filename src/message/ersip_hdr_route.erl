@@ -9,20 +9,20 @@
 -module(ersip_hdr_route).
 
 -export([new/1,
-         uri/1,
-         set_uri/2,
-         display_name/1,
-         set_display_name/2,
-         is_loose_route/1,
-         params/1,
-         param/2,
-         set_param/3,
-         make/1,
-         assemble/1,
-         assemble_bin/1,
-         parse_hdr/1,
-         raw/1
-        ]).
+    uri/1,
+    set_uri/2,
+    display_name/1,
+    set_display_name/2,
+    is_loose_route/1,
+    params/1,
+    param/2,
+    set_param/3,
+    make/1,
+    assemble/1,
+    assemble_bin/1,
+    parse_hdr/1,
+    raw/1,
+    parse/1]).
 
 -export_type([route/0, raw/0]).
 
@@ -38,9 +38,17 @@
 -type route_param()  :: {Key :: binary(), Value :: binary()}.
 -type parse_result() :: {ok, route()} | {error, parse_error()}.
 -type parse_error()  :: {invalid_route, term()}.
--type raw() :: #{uri          := ersip_uri:raw(),
-                 params       := ersip_hparams:raw(),
-                 display_name := ersip_display_name:raw()}.
+
+
+-type uri()      :: ersip_uri:raw().
+-type uri_bin()  :: ersip_uri:raw() | binary().
+
+-type raw(T)     :: #{uri          := T,
+                      params       := ersip_hparams:raw(),
+                      display_name := ersip_display_name:raw()}.
+
+-type raw()      :: raw(uri()).
+-type raw_make() :: raw(uri_bin()).
 
 %%===================================================================
 %% API
@@ -93,7 +101,7 @@ set_param(Key, Value, #route{hparams = HParams} = Route)
     Route#route{hparams = ersip_hparams:set_raw(Key, Value, HParams)}.
 
 %% @doc Make Route header from binary or from raw representation.
--spec make(binary()) -> route().
+-spec make(binary()|raw_make()) -> route().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, Route} -> Route;

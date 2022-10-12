@@ -114,5 +114,4 @@ attr_to_iolist(#ssrc{attr = N}) ->
 
 -spec to_iolist_item(term()) -> iolist().
 to_iolist_item(N) when is_number(N) -> [integer_to_binary(N)];
-to_iolist_item(A) when is_atom(A) -> [atom_to_binary(A)];
 to_iolist_item(O) -> [O].

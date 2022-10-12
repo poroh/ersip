@@ -91,6 +91,7 @@ get_test() ->
     ?assertError({no_param, _}, ersip_hparams:get(<<"e">>, ersip_hparams:make(<<"a=b">>))),
     ok.
 
+-dialyzer({nowarn_function, make_test/0}).
 make_test() ->
     ?assertEqual({ok, <<"b">>}, ersip_hparams:find_raw(<<"a">>, ersip_hparams:make(<<"a=b;c=d">>))),
     ?assertEqual({ok, <<"d">>}, ersip_hparams:find_raw(<<"c">>, ersip_hparams:make(<<"a=b;c=d">>))),

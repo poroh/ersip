@@ -90,7 +90,7 @@ raw_test() ->
                  ersip_hdr_replaces:dialog_id(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces2)))),
     ?assertEqual(ersip_hdr_replaces:early_only(Replaces2),
                  ersip_hdr_replaces:early_only(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces2)))),
-    Raw = #{call_id => <<"425928@bobster.example.org">>, from_tag => <<"7743">>, to_tag => <<"6472">>},
+    Raw = #{call_id => <<"425928@bobster.example.org">>, from_tag => <<"7743">>, to_tag => <<"6472">>, early_only=>false},
     ?assertError({invalid_param, _}, ersip_hdr_replaces:make(Raw#{params => #{<<"@">> => <<>>}})),
     ?assertError({invalid_param, _}, ersip_hdr_replaces:make(Raw#{params => #{<<"to-tag">> => <<"@">>}})),
     ok.

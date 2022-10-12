@@ -35,9 +35,18 @@
                    hparams      :: ersip_hparams:hparams()}).
 -type refer_to() :: #refer_to{}.
 -type parse_result() :: {ok, refer_to()} | {error, term()}.
--type raw() :: #{uri          := ersip_uri:raw(),
-                 params       := ersip_hparams:raw(),
-                 display_name := ersip_display_name:raw()}.
+
+-type uri()      :: ersip_uri:raw().
+-type uri_bin()  :: ersip_uri:raw() | binary().
+
+-type raw(T)     :: #{uri          := T,
+                      params       := ersip_hparams:raw(),
+                      display_name := ersip_display_name:raw()}.
+
+
+-type raw()      :: raw(uri()).
+-type raw_make() :: raw(uri_bin()).
+
 
 %%===================================================================
 %% API
@@ -88,7 +97,7 @@ parse(Header) ->
     end.
 
 %% @doc Make Refer-To from binary or raw value.
--spec make(binary() | raw()) -> refer_to().
+-spec make(binary() | raw_make()) -> refer_to().
 make(Bin) when is_binary(Bin) ->
     case parse_hdr(Bin) of
         {ok, ReferTo} ->

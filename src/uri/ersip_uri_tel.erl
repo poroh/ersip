@@ -40,6 +40,7 @@
 -type parse_result() :: {ok, tel_uri()} | {error, parse_error()}.
 -type parse_error()  :: {invalid_phone_context, binary()}
                       | {invalid_scheme, binary()}
+                      | {invalid_subscriber, binary()}
                       | {garbage_at_the_end, binary()}.
 -type number_end_state() :: {non_neg_integer(), non_neg_integer()|undefined}.
 

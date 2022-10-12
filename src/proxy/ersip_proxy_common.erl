@@ -23,7 +23,7 @@
         #{ %% Message validation options
            validate  => validate_options(),
            %% Proxy parameters
-           proxy          => ersip_proxy:options()
+           proxy     => ersip_proxy:options()
          }.
 
 -type validate_options() ::

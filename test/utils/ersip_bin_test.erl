@@ -9,11 +9,14 @@
 -module(ersip_bin_test).
 -include_lib("eunit/include/eunit.hrl").
 
+
+-dialyzer({nowarn_function, to_lower_test/0}).
 to_lower_test() ->
     ?assertEqual(<<"aa1bbzzdd_@%20">>, ersip_bin:to_lower(<<"AA1BBZZDD_@%20">>)),
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(1)),
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(atom)).
 
+-dialyzer({nowarn_function, to_upper_test/0}).
 to_upper_test() ->
     ?assertEqual(<<"AA1BBZZDD_@%20">>, ersip_bin:to_upper(<<"aa1bbzzdd_@%20">>)),
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_upper(1)),

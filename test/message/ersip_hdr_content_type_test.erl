@@ -76,7 +76,7 @@ raw_test() ->
     ?assertMatch(#{type := {<<"application">>, <<"sdp">>}}, raw(<<"application/sdp">>)),
     ?assertMatch(#{params := #{<<"charset">> := <<"ISO-8859-4">>}}, raw(<<"text/html; charset=\"ISO-8859-4\"">>)),
 
-    ?assertEqual(<<"application/sdp">>, from_raw(#{type => {<<"application">>, <<"sdp">>}})),
+    ?assertEqual(<<"application/sdp">>, from_raw(#{type => {<<"application">>, <<"sdp">>}, params => #{}})),
     ?assertEqual(<<"text/html;charset=ISO-8859-4">>,
                  from_raw(#{type => {<<"text">>, <<"html">>},
                             params => #{<<"charset">> => <<"ISO-8859-4">>}})),

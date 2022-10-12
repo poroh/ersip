@@ -356,7 +356,7 @@ request_validation_proxy_require_no_required_test() ->
     Supported =
         ersip_hdr_opttag_list:from_list(
           [ersip_option_tag:make(S) || S <- SupportedList]),
-    Options = #{proxy_params => #{supported => Supported}},
+    Options = #{proxy => #{supported => Supported}},
     {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
@@ -439,7 +439,9 @@ proxy_params_check_no_validate_test() ->
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
     %%% Check that invalid options are ignored if no_validate => true
-    process_route_info(
+
+    %TODO: useless?
+    _ = process_route_info(
       raw_message(Msg),
       #{proxy =>
             #{no_validate => true,
@@ -686,7 +688,7 @@ forward_request_record_route_add_test() ->
             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
             ?crlf "To: Bob <sip:bob@biloxi.com>"
             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
             ?crlf "CSeq: 314159 INVITE"
             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
             ?crlf "Content-Type: application/sdp"
@@ -694,9 +696,9 @@ forward_request_record_route_add_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI,
+    ProxyOpts = #{proxy => #{record_route_uri => ThisProxyURI,
                   check_rroute_fun => fun(X) -> ThisProxyURI == X end
-                 },
+                 }},
     {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
@@ -722,9 +724,9 @@ forward_request_record_route_append_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI,
+    ProxyOpts = #{proxy => #{record_route_uri => ThisProxyURI,
                   check_rroute_fun => fun(X) -> ThisProxyURI == X end
-                 },
+                 }},
     {SipMsg0, _} = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     SipMsg = rebuild_sipmsg(SipMsg0),
     RecordRouteSet = ersip_sipmsg:get(record_route, SipMsg),
@@ -755,9 +757,10 @@ forward_request_record_route_append_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sips:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI,
+    ProxyOpts = #{proxy => #{record_route_uri => ThisProxyURI,
                   check_rroute_fun => fun(X) -> X == ThisProxyURI end
-                 },
+                 }},
+    %TODO: useless?
     _ = forward_request(BobURI, raw_message(Msg), ProxyOpts),
     ok.
 
@@ -773,7 +776,7 @@ forward_request_record_route_append_not_sips_test() ->
             ?crlf "Via: SIP/2.0/UDP bigbox3.site3.atlanta.com"
             ?crlf "To: Bob <sip:bob@biloxi.com>"
             ?crlf "From: Alice <sip:alice@atlanta.com>;tag=1928301774"
-            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com",
+            ?crlf "Call-ID: a84b4c76e66710@pc33.atlanta.com"
             ?crlf "CSeq: 314159 INVITE"
             ?crlf "Contact: <sip:alice@pc33.atlanta.com>"
             ?crlf "Content-Type: application/sdp"
@@ -782,9 +785,9 @@ forward_request_record_route_append_not_sips_test() ->
             ?crlf ?crlf "Test"
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
-    ProxyOpts = #{record_route_uri => ThisProxyURI,
+    ProxyOpts = #{proxy => #{record_route_uri => ThisProxyURI,
                   check_rroute_fun => fun(X) -> X == ThisProxyURI end
-                 },
+                 }},
     ?assertError({error, _}, forward_request(BobURI, raw_message(Msg), ProxyOpts)),
     ok.
 
@@ -967,7 +970,7 @@ forward_request(Target, RawMsg, Opts) when is_binary(Target) ->
     forward_request(ersip_uri:make(Target), RawMsg, Opts);
 forward_request(Target, RawMsg, Opts) ->
     {ok, SipMsg} = request_validation(RawMsg, Opts),
-    ersip_proxy_common:forward_request(Target, SipMsg, Opts).
+    ersip_proxy_common:forward_request(Target, SipMsg, maps:get(proxy, Opts, #{})).
 
 rebuild_sipmsg(SipMsg) ->
     SipMsgBin = ersip_sipmsg:serialize_bin(SipMsg),
@@ -978,7 +981,7 @@ rebuild_sipmsg(SipMsg) ->
 
 
 peer() ->
-    {{127, 0, 0, 1}, 5060}.
+    {{ipv4, {127, 0, 0, 1}}, 5060}.
 
 udp_source() ->
     Transport = ersip_transport:make(udp),

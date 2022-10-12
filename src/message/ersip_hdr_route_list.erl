@@ -28,7 +28,7 @@
 %% API
 %%===================================================================
 
--spec make(iolist()) -> route_set().
+-spec make(iolist()|binary()) -> route_set().
 make(Binary) ->
     H0 = ersip_hdr:new(?ERSIPH_ROUTE),
     H1 = ersip_hdr:add_value(Binary, H0),

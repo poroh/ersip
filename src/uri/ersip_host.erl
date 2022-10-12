@@ -78,7 +78,7 @@ check_hostname(Bin) when is_binary(Bin) ->
     hostname_valid(Bin).
 
 %% @doc Generate host specification from binary.
--spec parse(binary()) -> ersip_parser_aux:parse_result(host()).
+-spec parse(binary()) -> ersip_parser_aux:parse_result().
 parse(Binary) ->
     Pos = find_host_end(Binary, 0),
     <<MaybeHost:Pos/binary, Rest/binary>> = Binary,
@@ -201,7 +201,8 @@ find_host_end(_, Pos) ->
 %% '''
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
-              | {error, {invalid_name, binary()}}.
+              | {error, {invalid_name, binary()}}
+              | {error, {invalid_ipv6, binary()}}.
 parse_ipv6_reference(R) when byte_size(R) < 2 ->
     {error, {invalid_name, R}};
 parse_ipv6_reference(R) ->

@@ -16,7 +16,7 @@
 
 parse_test() ->
     RtpmapBin0 = <<"99 AMR-WB/16000">>,
-    {ok, Rtpmap0} = ersip_sdp_attr_rtpmap:parse(RtpmapBin0),
+    {ok, Rtpmap0, _} = ersip_sdp_attr_rtpmap:parse(RtpmapBin0),
     ?assertEqual(99,                ersip_sdp_attr_rtpmap:payload_type(Rtpmap0)),
     ?assertEqual(<<"AMR-WB">>,      ersip_sdp_attr_rtpmap:encoding_name(Rtpmap0)),
     ?assertEqual(16000,             ersip_sdp_attr_rtpmap:clock_rate(Rtpmap0)),
@@ -24,14 +24,14 @@ parse_test() ->
     ?assertEqual(RtpmapBin0,        ersip_sdp_attr_rtpmap:assemble_bin(Rtpmap0)),
 
     RtpmapBin1 = <<"100 H264/90000/2">>,
-    {ok, Rtpmap1} = ersip_sdp_attr_rtpmap:parse(RtpmapBin1),
+    {ok, Rtpmap1, _} = ersip_sdp_attr_rtpmap:parse(RtpmapBin1),
     ?assertEqual(100,               ersip_sdp_attr_rtpmap:payload_type(Rtpmap1)),
     ?assertEqual(<<"H264">>,        ersip_sdp_attr_rtpmap:encoding_name(Rtpmap1)),
     ?assertEqual(90000,             ersip_sdp_attr_rtpmap:clock_rate(Rtpmap1)),
     ?assertEqual(2,                 ersip_sdp_attr_rtpmap:encoding_params(Rtpmap1)),
     ?assertEqual(RtpmapBin1,        ersip_sdp_attr_rtpmap:assemble_bin(Rtpmap1)),
 
-    {ok, Rtpmap2} = ersip_sdp_attr_rtpmap:parse(<<"101 telephone-event/8000">>),
+    {ok, Rtpmap2, _} = ersip_sdp_attr_rtpmap:parse(<<"101 telephone-event/8000">>),
     ?assertEqual(101,                   ersip_sdp_attr_rtpmap:payload_type(Rtpmap2)),
     ?assertEqual(<<"telephone-event">>, ersip_sdp_attr_rtpmap:encoding_name(Rtpmap2)),
     ?assertEqual(8000,                  ersip_sdp_attr_rtpmap:clock_rate(Rtpmap2)),

@@ -71,6 +71,7 @@ assemble_test() ->
     ?assertEqual(<<"some">>, ersip_transport:assemble(make_transport(<<"Some">>))),
     ok.
 
+-dialyzer({nowarn_function, make_test/0}).
 make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),
     ?assertError({bad_transport_atom, _}, ersip_transport:make(x)).

@@ -54,6 +54,7 @@ parse_error_test() ->
     parse_error(<<"0.-1">>),
     ok.
 
+-dialyzer({nowarn_function, make_error_test/0}).
 make_error_test() ->
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"1.1">>)),
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"-0">>)),

@@ -49,7 +49,7 @@
 -type parse_result() :: {ok, contact()} | {error, parse_error()}.
 -type parse_error() ::  {invalid_contact, term()}.
 
--type raw() :: #{uri          := ersip_uri:raw(),
+-type raw() :: #{uri          := ersip_uri:raw() | binary(),
                  params       := ersip_hparams:raw(),
                  display_name := ersip_display_name:raw(),
                  expires      => expires(),
@@ -79,7 +79,7 @@ display_name(#contact{display_name = DN}) ->
 
 %% @doc Get expires parameter value. If no expires parameter is
 %% defined than undefined is retutned
--spec expires(contact(), Default :: expires()) -> expires() | undefined.
+-spec expires(contact(), Default :: expires() | undefined) -> expires() | undefined.
 expires(#contact{hparams = HParams}, Default) ->
     case ersip_hparams:find(expires, HParams) of
         not_found -> Default;

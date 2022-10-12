@@ -19,7 +19,8 @@
 %%===================================================================
 
 -type parse_result() :: {ok, ersip_uri_sip:sip_uri()} | {error, parse_error()}.
--type parse_error() :: {invalid_host, ersip_host:parse_error() | {garbage_at_the_end, binary()}}
+-type parse_error() :: {invalid_host, ersip_host:parse_error()
+                     | {garbage_at_the_end, binary()}}
                      | {invalid_ipv6_reference, binary()}
                      | {invalid_port, binary()}
                      | {invalid_maddr, binary()}
@@ -27,7 +28,9 @@
                      | {invalid_user_param, binary()}
                      | {invalid_ttl, binary()}
                      | {invalid_parameter, binary(), binary()}
-                     | {invalid_scheme, binary()}.
+                     | {invalid_scheme, binary()}
+                     | {bad_password, binary()}
+                     | empty_username.
 
 %%===================================================================
 %% API

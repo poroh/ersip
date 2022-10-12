@@ -9,12 +9,13 @@
 -module(ersip_proxy).
 
 -export([new_stateful/2,
-         trans_result/3,
-         trans_finished/2,
-         forward_to/2,
-         timer_fired/2,
-         cancel/1
-        ]).
+    trans_result/3,
+    trans_finished/2,
+    forward_to/2,
+    timer_fired/2,
+    cancel/1]).
+
+-export([code_comparision_class/1]).
 
 -export_type([params/0,
               options/0,
@@ -141,7 +142,7 @@ new_stateful(SipMsg, ProxyOptions) ->
                         },
     {Stateful, [ersip_proxy_se:create_trans(server, ?SERVER_TRANS_ID, SipMsg)]}.
 
--spec trans_result(internal_trans_id(), ersip_sipmsg:sipmsg(), stateful()) -> stateful_result().
+-spec trans_result(internal_trans_id(), ersip_sipmsg:sipmsg()|timeout, stateful()) -> stateful_result().
 trans_result(?SERVER_TRANS_ID, SipMsg0, #stateful{phase = init, options = ProxyOptions} = Stateful) ->
     SipMsg1   = ersip_proxy_common:process_route_info(SipMsg0, ProxyOptions),
     Stateful1 = Stateful#stateful{phase = select_target,

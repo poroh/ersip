@@ -88,7 +88,7 @@ reassemble_test() ->
     ok.
 
 now_test() ->
-    ?assertMatch({_, _}, ersip_hdr_date:now()),
+    {_, _} = ersip_hdr_date:now(),
     ok.
 
 make_test() ->

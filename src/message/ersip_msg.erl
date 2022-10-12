@@ -154,7 +154,7 @@ del_header(HeaderName, #message{headers = H} = Message) ->
     Key = ersip_hdr:make_key(HeaderName),
     Message#message{headers = maps:remove(Key, H)}.
 
--spec add(Name :: binary(), Value :: binary(), message()) -> message().
+-spec add(Name :: binary(), Value :: ersip_hdr:value(), message()) -> message().
 add(HeaderName, Value, #message{headers = H} = Message) ->
     Key = ersip_hnames:make_key(HeaderName),
     case H of
@@ -171,7 +171,7 @@ add(HeaderName, Value, #message{headers = H} = Message) ->
 source(#message{source = Source}) ->
     Source.
 
--spec set_source(ersip_source:source(), message()) -> message().
+-spec set_source(ersip_source:source()|undefined, message()) -> message().
 set_source(Source, #message{} = Message) ->
     Message#message{source = Source}.
 

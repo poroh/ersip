@@ -1470,7 +1470,7 @@ make_default_source() ->
     tcp_source(default_peer()).
 
 default_peer() ->
-    {{127, 0, 0, 1}, 5060}.
+    {{ipv4, {127, 0, 0, 1}}, 5060}.
 
 tcp_source(Peer) ->
     ersip_source:new(default_peer(), Peer, ersip_transport:tcp(), undefined).

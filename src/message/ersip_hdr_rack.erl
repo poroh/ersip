@@ -31,7 +31,7 @@
               }).
 -type rack() :: #rack{}.
 -type parse_result() :: {ok, rack()} | {error, parse_error()}.
--type parse_error() :: {invalid_rack, term()}.
+-type parse_error() :: {invalid_rack, term()} | no_rack.
 -type raw() :: #{rseq => ersip_hdr_rseq:raw(),
                  cseq => ersip_hdr_cseq:raw()}.
 
@@ -74,7 +74,7 @@ cseq(#rack{cseq = CSeq}) ->
     CSeq.
 
 %% @doc Parse RAck from binary or raw SIP header representation.
--spec parse(ersip_hdr:header()) -> parse_result().
+-spec parse(ersip_hdr:header()|binary()) -> parse_result().
 parse(HeaderBin) when is_binary(HeaderBin) ->
     parse_rack(HeaderBin);
 parse(Header) ->

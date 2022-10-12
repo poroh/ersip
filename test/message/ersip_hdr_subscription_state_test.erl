@@ -182,7 +182,7 @@ raw_test() ->
     ok.
 
 make_from_raw_test() ->
-    ?assertEqual(<<"terminated">>, assemble(ersip_hdr_subscription_state:make(#{value => <<"terminated">>}))),
+    ?assertEqual(<<"terminated">>, assemble(ersip_hdr_subscription_state:make(#{value => <<"terminated">>, params => #{}}))),
     ?assertEqual(<<"active;expires=30">>, assemble(ersip_hdr_subscription_state:make(#{value => <<"active">>, params => #{<<"expires">> => <<"30">>}}))),
     ?assertEqual(30, ersip_hdr_subscription_state:expires(make(#{value => <<"active">>, params => #{<<"expires">> => <<"30">>}}))),
     ?assertEqual(<<"active;expires=30">>, assemble(ersip_hdr_subscription_state:make(#{value => <<"active">>, expires => 30}))),

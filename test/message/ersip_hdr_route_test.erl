@@ -24,14 +24,14 @@ parse_test() ->
     ok.
 
 make_from_raw_test() ->
-    ?assertEqual(<<"<sip:a@b>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b">>}))),
-    ?assertEqual(<<"<sip:a@b;lr>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>}))),
+    ?assertEqual(<<"<sip:a@b>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b">>, params => #{}, display_name => <<>>}))),
+    ?assertEqual(<<"<sip:a@b;lr>">>, assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>, params => #{}, display_name => <<>>}))),
     ?assertEqual(<<"<sip:a@b;lr>;ext=1">>,
                  assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>,
-                                                 params => #{<<"ext">> => <<"1">>}}))),
+                                                 params => #{<<"ext">> => <<"1">>}, display_name => <<>>}))),
     ?assertEqual(<<"<sip:a@b;lr>;extNoArg">>,
                  assemble(ersip_hdr_route:make(#{uri => <<"sip:a@b;lr">>,
-                                                 params => #{<<"extNoArg">> => <<>>}}))),
+                                                 params => #{<<"extNoArg">> => <<>>}, display_name => <<>>}))),
     ok.
 
 make_error_test() ->

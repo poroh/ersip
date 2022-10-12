@@ -10,7 +10,9 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
+-dialyzer({nowarn_function, uac_reliable_test/0}).
 uac_reliable_test() ->
+    %%TODO: broken typing for request()
     {ClientTrans0, SideEffects0} = ersip_trans_client:new(reliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
     %% Message is sent
@@ -71,7 +73,9 @@ uac_reliable_test() ->
     ?assertMatch(normal, maps:get(clear_trans, SideEffectsMap_5_1)),
     ?assertEqual(normal, ersip_trans_client:clear_reason(ClientTrans_5_1)).
 
+-dialyzer({nowarn_function, uac_unreliable_test/0}).
 uac_unreliable_test() ->
+    %%TODO: broken typing for request()
     {ClientTrans0, SideEffects0} = ersip_trans_client:new(unreliable, message, #{}),
     SideEffectsMap0 = maps:from_list(SideEffects0),
     %% Message is sent

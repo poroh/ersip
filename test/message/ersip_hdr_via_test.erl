@@ -291,6 +291,7 @@ set_param_received_ipv6_test() ->
     ?assertEqual({ok, {ipv6, {0, 0, 0, 0, 0, 0, 0, 1}}}, ersip_hdr_via:received(Via1)),
     ok.
 
+-dialyzer({nowarn_function, set_param_received_error_test/0}).
 set_param_received_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
@@ -317,6 +318,7 @@ set_param_rport_to_true_test() ->
     ?assertEqual({ok, true}, ersip_hdr_via:rport(Via1)),
     ok.
 
+-dialyzer({nowarn_function, set_param_rport_error_test/0}).
 set_param_rport_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
@@ -391,22 +393,22 @@ take_topmost_test() ->
     Rest = <<"SIP/2.0/UDP 127.0.0.2:5060;branch=z9hG4bK03v084g25gh20v0pxr263vg66"
              ",SIP/2.0/UDP 127.0.0.3:5060;branch=z9hG4bK4a47.8726b736377fdd93dd24ffb625e68c98.0">>,
     TopMostVia = <<"SIP/2.0/UDP 127.0.0.99:5091;branch=z9hG4bK6hh35hsh460350psr7svreer7,", Rest/binary>>,
-    Result = ersip_hdr_via:take_topmost(TopMostVia),
+    Result = ersip_hdr_via:take_topmost([TopMostVia]),
     ?assertMatch({ok, _, Rest}, Result),
     ok.
 
 take_topmost_2_test() ->
     Rest = <<"SIP/2.0/UDP 127.0.0.2:5060">>,
     TopMostVia = <<"SIP/2.0/UDP 127.0.0.2:5060,", Rest/binary>>,
-    Result = ersip_hdr_via:take_topmost(TopMostVia),
+    Result = ersip_hdr_via:take_topmost([TopMostVia]),
     ?assertMatch({ok, _, Rest}, Result),
     ok.
 
 take_topmost_error_test() ->
-    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<",">>)),
-    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/3.0/UDP 127.0.0.2:5060">>)),
-    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/2.0/UNKNOWN 127.0.0.2:5060,SIP/2.0/UDP 127.0.0.2:5060">>)),
-    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost(<<"SIP/2.0/TCP 127.0.0.2:5060;a=b ?">>)),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost([<<",">>])),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost([<<"SIP/3.0/UDP 127.0.0.2:5060">>])),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost([<<"SIP/2.0/UNKNOWN 127.0.0.2:5060,SIP/2.0/UDP 127.0.0.2:5060">>])),
+    ?assertMatch({error, {invalid_via, _}}, ersip_hdr_via:take_topmost([<<"SIP/2.0/TCP 127.0.0.2:5060;a=b ?">>])),
     ok.
 
 %%===================================================================

@@ -99,7 +99,7 @@
 -type sip_uri_raw() :: #{host := binary(),
                          user => binary(),
                          port => inet:port_number(),
-                         params => key_value_list(),
+                         params => map(),
                          headers => key_value_list()
                         }.
 -type key_value_list() :: [{binary(), binary()} | binary()].
@@ -327,7 +327,7 @@ clear_ttl(#uri{data = D} = U) ->
 %%   true = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b;lr">>)).
 %%   undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
 %% '''
--spec gen_param(binary(), uri()) -> binary() | undefined.
+-spec gen_param(binary(), uri()) -> binary() | true | undefined.
 gen_param(Name, #uri{data = D} = U) ->
     force_sip(U),
     ersip_uri_sip:gen_param(Name, D).

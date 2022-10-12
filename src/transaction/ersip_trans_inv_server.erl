@@ -79,9 +79,12 @@ new(ReliableTranport, Request, Options) ->
             error({api_error, <<"server transaction must be initialyzed with INVITE request">>})
     end.
 
+
+-dialyzer({no_fail_call, event/2}).
 -spec event(Event, trans_inv_server()) -> result() when
       Event :: {timer, timer_type()}
              | {send, ersip_sipmsg:sipmsg()}
+             | {received, ersip_sipmsg:sipmsg()}
              | retransmit.
 event({received, SipMsg}, ServerTrans) ->
     case ersip_sipmsg:type(SipMsg) of

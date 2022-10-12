@@ -319,7 +319,7 @@ make_default_source() ->
     udp_source(default_peer()).
 
 default_peer() ->
-    {{127, 0, 0, 1}, 5060}.
+    {{ipv4,{127, 0, 0, 1}}, 5060}.
 
 default_nexthop() ->
     ersip_uri:make(<<"sip:127.0.0.2">>).
@@ -443,6 +443,7 @@ ack_bin() ->
       "Content-Length: 0" ?crlf
       ?crlf>>.
 
+-compile([{nowarn_unused_function, [{ invite_bad,0 }]}]).
 invite_bad() ->
     <<"INVITE sip:bob@biloxi.com SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf

@@ -15,6 +15,7 @@
 %% Cases
 %%===================================================================
 
+-dialyzer({nowarn_function, response_type_test/0}).
 response_type_test() ->
     ?assertEqual(provisional, ersip_status:response_type(100)),
     ?assertEqual(provisional, ersip_status:response_type(199)),

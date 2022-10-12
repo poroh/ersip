@@ -54,16 +54,16 @@ make_error_test() ->
 
 expires_test() ->
     Alice20 = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;expires=20">>),
-    ?assertEqual(20, ersip_hdr_contact:expires(Alice20, any)),
+    ?assertEqual(20, ersip_hdr_contact:expires(Alice20, undefined)),
     Alice30 = ersip_hdr_contact:set_expires(30, Alice20),
-    ?assertEqual(30, ersip_hdr_contact:expires(Alice30, any)),
+    ?assertEqual(30, ersip_hdr_contact:expires(Alice30, undefined)),
     ?assertEqual(<<"Alice <sip:alice@atlanta.com>;expires=30">>, iolist_to_binary(ersip_hdr_contact:assemble(Alice30))),
 
     AliceNoExpires = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>">>),
     ?assertEqual(21, ersip_hdr_contact:expires(AliceNoExpires, 21)),
 
     Alice45 = ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;Expires=45">>),
-    ?assertEqual(45, ersip_hdr_contact:expires(Alice45, any)),
+    ?assertEqual(45, ersip_hdr_contact:expires(Alice45, undefined)),
 
     ?assertEqual(46, ersip_hdr_contact:expires(ersip_hdr_contact:make(<<"sip:a@b;expires=46">>))),
     ?assertEqual(undefined, ersip_hdr_contact:expires(ersip_hdr_contact:make(<<"sip:a@b">>))),
@@ -145,7 +145,7 @@ raw_test() ->
     ?assertMatch(#{params := #{<<"some">> := <<"b">>}}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"Alice <sip:alice@atlanta.com>;Some=b">>))),
 
     ?assertNotMatch(#{expires := _}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"sip:a@b">>))),
-    ?assertNotMatch(#{qvalue  := _}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"sip:a@b">>))),
+    ?assertNotMatch(#{q       := _}, ersip_hdr_contact:raw(ersip_hdr_contact:make(<<"sip:a@b">>))),
     ok.
 
 make_from_raw_test() ->
@@ -157,7 +157,7 @@ make_from_raw_test() ->
     check_set_from_raw(<<"<sip:a@b>;some">>),
     check_set_from_raw(<<"<sip:a@b>;some=x">>),
 
-    ?assertError({invalid_params, _}, ersip_hdr_contact:make(#{uri => <<"sip:a@b">>, params => #{<<"expires">> => <<"bad_expires">>}})),
+    ?assertError({invalid_params, _}, ersip_hdr_contact:make(#{uri => <<"sip:a@b">>, params => #{<<"expires">> => <<"bad_expires">>}, display_name => <<>>})),
     ok.
 
 %%===================================================================

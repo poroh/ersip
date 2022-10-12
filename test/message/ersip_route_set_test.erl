@@ -22,6 +22,7 @@ is_empty_test() ->
     ?assertEqual(false, ersip_route_set:is_empty(NotEmpty)),
     ok.
 
+-dialyzer({nowarn_function, first_and_last_test/0}).
 first_and_last_test() ->
     Empty = ersip_route_set:new(),
     ?assertError({error, _}, ersip_route_set:last(Empty)),

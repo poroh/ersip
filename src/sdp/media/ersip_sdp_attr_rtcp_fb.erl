@@ -62,7 +62,7 @@ val(#rtcp_fb{val = V}) ->
 param(#rtcp_fb{param = P}) ->
     P.
 
--spec bytestring(rtcp_fb()) -> binary().
+-spec bytestring(rtcp_fb()) -> binary() | undefined.
 bytestring(#rtcp_fb{bytestring = B}) ->
     B.
 
@@ -233,7 +233,7 @@ parse_param(<<Rest/binary>>, R1) ->
             {<<>>, R1#rtcp_fb{param = T}};
         {ok, T, <<?sp, Rest1/binary>>} ->
             {<<>>, R1#rtcp_fb{param = T, bytestring = Rest1}};
-        {ok, T, Rest1} ->
+        {ok, _T, Rest1} ->
             {error, {unexpected_input, Rest1}};
         Err ->
             Err
@@ -301,7 +301,7 @@ is_id_char($_) ->
 is_id_char(_) ->
     false.
 
--spec find_id_end(binary(), non_neg_integer()) -> non_neg_integer().
+-spec find_id_end(binary(), non_neg_integer()) -> non_neg_integer()|{error, term()}.
 find_id_end(<<>>, Acc) -> Acc;
 find_id_end(<<?sp, _/binary>>, Acc) -> Acc;
 find_id_end(<<C:8, Rest/binary>>, Acc) ->

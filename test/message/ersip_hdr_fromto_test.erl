@@ -86,9 +86,9 @@ make_test() ->
     ?assertEqual(URI, ersip_hdr_fromto:uri(To)),
     ?assertError({error, _}, ersip_hdr_fromto:make(<<>>)),
 
-    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin}))),
-    ?assertEqual(<<"<", URIBin/binary, ">;tag=1928301774">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin, tag => <<"1928301774">>}))),
-    ?assertError({invalid_params, _}, ersip_hdr_fromto:make(#{uri => URIBin, params => #{<<"tag">> => <<"@">>}})),
+    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin, params => #{}, display_name => <<>>}))),
+    ?assertEqual(<<"<", URIBin/binary, ">;tag=1928301774">>, ersip_hdr_fromto:assemble_bin(ersip_hdr_fromto:make(#{uri => URIBin, tag => <<"1928301774">>, params => #{}, display_name => <<>>}))),
+    ?assertError({invalid_params, _}, ersip_hdr_fromto:make(#{uri => URIBin, params => #{<<"tag">> => <<"@">>}, display_name => <<>>})),
     ok.
 
 tag_key_test() ->

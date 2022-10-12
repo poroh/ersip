@@ -86,9 +86,9 @@ raw_test() ->
 
 make_from_raw_test() ->
     URIBin = <<"sip:alice@atlanta.com">>,
-    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin}))),
-    ?assertEqual(<<"<", URIBin/binary, ">;hparam1=hvalue1">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<"hparam1">> => <<"hvalue1">>}}))),
-    ?assertError({invalid_param, _}, ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<";">> => <<"hvalue1">>}})),
+    ?assertEqual(<<"<", URIBin/binary, ">">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin, params => #{}, display_name => <<>>}))),
+    ?assertEqual(<<"<", URIBin/binary, ">;hparam1=hvalue1">>, ersip_hdr_refer_to:assemble_bin(ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<"hparam1">> => <<"hvalue1">>}, display_name => <<>>}))),
+    ?assertError({invalid_param, _}, ersip_hdr_refer_to:make(#{uri => URIBin, params => #{<<";">> => <<"hvalue1">>}, display_name => <<>>})),
     ok.
 
 %%===================================================================

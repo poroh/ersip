@@ -21,7 +21,7 @@
 %%===================================================================
 
 %% @doc trim leading linear whitesapaces (SP or HTABs).
--spec trim_head_lws(iolist()) -> iolist().
+-spec trim_head_lws(iolist() | binary()) -> iolist() | binary().
 trim_head_lws([]) ->
     [];
 trim_head_lws([H|Rest]) when is_binary(H) ->
@@ -44,11 +44,11 @@ trim_head_lws(B) when is_binary(B) ->
     ersip_bin:trim_head_lws(B).
 
 %% @doc trim trailing linear whitesapaces (SP or HTABs).
--spec trim_tail_lws(iolist()) -> iolist().
+-spec trim_tail_lws(iolist() | binary()) -> iolist() | binary().
 trim_tail_lws(L) ->
     trim_tail_lws_impl(L).
 
--spec is_empty(iolist()) -> boolean().
+-spec is_empty(iolist() | binary()) -> boolean().
 is_empty(<<>>) ->
     true;
 is_empty([]) ->
@@ -101,7 +101,7 @@ string_trim_lws_impl([ $\t | Rest ]) ->
 string_trim_lws_impl(V) when is_list(V) ->
     V.
 
--spec trim_tail_lws_impl(iolist()) -> iolist().
+-spec trim_tail_lws_impl(iolist() | binary()) -> iolist() | binary().
 trim_tail_lws_impl(X) when is_binary(X) ->
     ersip_bin:trim_tail_lws(X);
 trim_tail_lws_impl(Char) when ?is_LWS_char(Char) ->

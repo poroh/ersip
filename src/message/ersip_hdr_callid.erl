@@ -20,7 +20,7 @@
          raw/1
         ]).
 
--export_type([callid/0, raw/0]).
+-export_type([callid/0, raw/0, make/0]).
 
 %%===================================================================
 %% Types
@@ -30,6 +30,7 @@
 -type parse_result() :: {ok, callid()} | {error, parse_error()}.
 -type parse_error() :: no_callid | {invalid_callid, binary()}.
 -type raw() :: binary().
+-type make() :: binary().
 
 %%===================================================================
 %% API
@@ -43,7 +44,7 @@
 %%   CallId2 = ersip_hdr_callid:make(<<"adwkldqwdjqklj">>).
 %%   CallId3 = ersip_hdr_callid:make(ersip_hdr:add_value(<<"a@b">>, ersip_hdr:new(<<"CallId">>))).
 %% '''
--spec make(ersip_hdr:header() | binary() | raw()) -> callid().
+-spec make(ersip_hdr:header() | make()) -> callid().
 make(Bin) when is_binary(Bin) ->
     case parse_callid(Bin) of
         {ok, CallId}    -> CallId;

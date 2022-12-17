@@ -15,9 +15,9 @@
 %%%===================================================================
 
 parse_test() ->
-    parse_success(<<"INVITE, ACK, OPTIONS">>),
-    parse_success(<<"INVITE,ACK,OPTIONS">>),
-    parse_success(<<"INVITE">>),
+    _ = parse_success(<<"INVITE, ACK, OPTIONS">>),
+    _ = parse_success(<<"INVITE,ACK,OPTIONS">>),
+    _ = parse_success(<<"INVITE">>),
     parse_fail(<<>>),
     parse_fail(<<"&">>),
     ok.

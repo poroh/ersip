@@ -29,7 +29,8 @@
 -export_type([fromto/0,
               tag/0,
               tag_key/0,
-              raw/0
+              raw/0,
+              make/0
              ]).
 
 %%===================================================================
@@ -49,6 +50,12 @@
                  display_name := ersip_display_name:raw(),
                  tag          => binary(),
                  tag_key      => binary()}.
+-type make() :: binary()
+              | #{uri          := ersip_uri:make(),
+                  params       => ersip_hparams:make(),
+                  display_name => ersip_display_name:make(),
+                  tag          => binary(),
+                  tag_key      => binary()}.
 
 -type parse_result() :: {ok, fromto()} | {error, parse_error()}.
 -type parse_error()  :: {invalid_fromto, no_value}
@@ -70,7 +77,7 @@ new() ->
             uri = ersip_uri:make([{host, DefaultHost}])}.
 
 %% @doc Make From/To field from binary() or raw representation.
--spec make(binary() | raw()) -> fromto().
+-spec make(make()) -> fromto().
 make(Bin) when is_binary(Bin) ->
     case parse_fromto(Bin) of
         {ok, FromTo} ->
@@ -182,7 +189,7 @@ build(HdrName, #fromto{} = FromTo) ->
     ersip_hdr:add_value(assemble(FromTo), Hdr).
 
 %% @doc Serialize header or tag to iolist().
--spec assemble(fromto()) -> iolist().
+-spec assemble(fromto() | tag()) -> iolist().
 assemble(#fromto{hparams = HParams} = FromTo) ->
     DisplayName = display_name(FromTo),
     URI = uri(FromTo),

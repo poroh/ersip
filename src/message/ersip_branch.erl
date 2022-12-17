@@ -70,7 +70,7 @@ make_random(NumBytes) ->
 %% @doc Create comparable key for branch parameter.
 %% After make_key(Branch) can be used in ets/maps as key to find
 %% transaction.
--spec make_key(branch()) -> branch_key().
+-spec make_key(branch() | branch_key() ) -> branch_key().
 make_key({branch, Bin}) ->
     {branch_key, ersip_bin:to_lower(Bin)};
 make_key({branch_key, _} = Key) ->

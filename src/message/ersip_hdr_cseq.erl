@@ -115,7 +115,7 @@ set_method(Method, #cseq{} = CSeq) ->
     CSeq#cseq{method = Method}.
 
 %% @doc Parse header from raw SIP header or from binary.
--spec parse(ersip_hdr:header()) -> parse_result().
+-spec parse(ersip_hdr:header() | binary()) -> parse_result().
 parse(Binary) when is_binary(Binary) ->
     parse_cseq(Binary);
 parse(Header) ->

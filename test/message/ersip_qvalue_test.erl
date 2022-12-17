@@ -61,6 +61,10 @@ make_error_test() ->
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"0.abc">>)),
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(<<"1.001">>)),
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(1001)),
+    ok.
+
+-dialyzer({nowarn_function, make_error_2_test/0}).
+make_error_2_test() ->
     ?assertError({invalid_qvalue, _}, ersip_qvalue:make(-1)),
     ok.
 

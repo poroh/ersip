@@ -157,6 +157,10 @@ set_maddr_test() ->
     ?assertEqual(<<"sip:b;maddr=1.1.1.1">>, ersip_uri:assemble_bin(ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"sip:b;maddr=atlanta.com">>)))),
 
     ?assertError({sip_uri_expected, _}, ersip_uri:set_maddr(ersip_host:make(<<"1.1.1.1">>), ersip_uri:make(<<"tel:+16505550505">>))),
+    ok.
+
+-dialyzer({nowarn_function, set_maddr_error_test/0}).
+set_maddr_error_test() ->
     ?assertError({host_expected, _},    ersip_uri:set_maddr(<<"1.1.1.1">>, ersip_uri:make(<<"sip:b">>))),
     ok.
 
@@ -190,6 +194,10 @@ set_user_param_test() ->
     ?assertEqual(<<"sip:b;user=something">>, ersip_uri:assemble_bin(ersip_uri:set_user_param(<<"something">>, ersip_uri:make(<<"sip:b">>)))),
 
     ?assertError({sip_uri_expected, _}, ersip_uri:set_user_param(phone, ersip_uri:make(<<"tel:+16505550505">>))),
+    ok.
+
+-dialyzer({nowarn_function, set_user_param_error_test/0}).
+set_user_param_error_test() ->
     ?assertError({user_param_expected, _}, ersip_uri:set_user_param(undefined, ersip_uri:make(<<"sip:b">>))),
     ?assertError({user_param_expected, _}, ersip_uri:set_user_param(99, ersip_uri:make(<<"sip:b">>))),
     ok.
@@ -226,9 +234,10 @@ set_ttl_test() ->
     ?assertEqual(<<"sip:b;ttl=255">>, ersip_uri:assemble_bin(ersip_uri:set_ttl(255, ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;ttl=0">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(0,   ersip_uri:make(<<"sip:b">>)))),
     ?assertEqual(<<"sip:b;ttl=3">>,   ersip_uri:assemble_bin(ersip_uri:set_ttl(3,   ersip_uri:make(<<"sip:b;ttl=5">>)))),
+    ok.
 
-    ?assertError({sip_uri_expected, _}, ersip_uri:set_ttl(5, ersip_uri:make(<<"tel:+16505550505">>))),
-    ?assertError({ttl_expected, _},     ersip_uri:set_ttl(undefined, ersip_uri:make(<<"sip:b">>))),
+-dialyzer({nowarn_function, set_ttl_error_test/0}).
+set_ttl_error_test() ->
     ?assertError({ttl_expected, _},     ersip_uri:set_ttl(-1, ersip_uri:make(<<"sip:b">>))),
     ?assertError({ttl_expected, _},     ersip_uri:set_ttl(256, ersip_uri:make(<<"sip:b">>))),
     ok.
@@ -376,7 +385,9 @@ rebuild_headers_value_test() ->
 % other tests
 %-------------------------------------------------------------------
 
-make_test() ->
+
+-dialyzer({nowarn_function, make_error_test/0}).
+make_error_test() ->
     ?assertError({invalid_host, _},   ersip_uri:make([{host, {hostname, <<"-ab">>}}])),
     ?assertError({invalid_part, _},   ersip_uri:make([{x, {user, <<"a-b">>}}])),
     ?assertError({invalid_abs_uri, {invalid_scheme, _}}, ersip_uri:make(<<"x">>)),

@@ -24,7 +24,7 @@
          raw/1
         ]).
 
--export_type([refer_to/0, raw/0]).
+-export_type([refer_to/0, raw/0, make/0]).
 
 %%===================================================================
 %% Types
@@ -38,6 +38,10 @@
 -type raw() :: #{uri          := ersip_uri:raw(),
                  params       := ersip_hparams:raw(),
                  display_name := ersip_display_name:raw()}.
+-type make() :: binary()
+              | #{uri          := ersip_uri:make(),
+                  params       => ersip_hparams:make(),
+                  display_name => ersip_display_name:make()}.
 
 %%===================================================================
 %% API
@@ -88,7 +92,7 @@ parse(Header) ->
     end.
 
 %% @doc Make Refer-To from binary or raw value.
--spec make(binary() | raw()) -> refer_to().
+-spec make(make()) -> refer_to().
 make(Bin) when is_binary(Bin) ->
     case parse_hdr(Bin) of
         {ok, ReferTo} ->

@@ -28,9 +28,11 @@
 
 -export_type([parse_result/0,
               parse_result/1,
+              parse_result/2,
               parser_fun/0,
               separator/0,
-              gen_param_list/0]).
+              gen_param_list/0,
+              parse_token_error/0]).
 
 %%%===================================================================
 %%% Types
@@ -52,6 +54,8 @@
 -type gen_param()      :: {Key :: binary(), gen_param_value()}.
 -type gen_param_list() :: [gen_param()].
 -type gen_param_value() :: binary().
+
+-type parse_token_error() :: {not_a_token, binary()}.
 
 %%%===================================================================
 %%% API
@@ -106,7 +110,7 @@ parse_all(Binary, Parsers) ->
     parse_all_impl(Binary, Parsers, []).
 
 %% @doc Parse SIP token
--spec parse_token(binary()) -> parse_result(binary(), {not_a_token, binary()}).
+-spec parse_token(binary()) -> parse_result(binary(), parse_token_error()).
 parse_token(Bin) ->
     End = find_token_end(Bin, 0),
     case End of

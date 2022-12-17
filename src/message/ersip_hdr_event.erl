@@ -24,7 +24,7 @@
          raw/1
         ]).
 
--export_type([type/0, id/0, raw/0]).
+-export_type([type/0, id/0, raw/0, make/0]).
 
 %%===================================================================
 %% Types
@@ -39,6 +39,11 @@
 -type id()    :: binary(). %% lower case.
 -type raw()   :: #{type   := binary(), %% lower case
                    params := ersip_hparams:raw(),
+                   id     => binary() %% lower case,
+                  }.
+-type make()  :: binary()
+               | #{type   := binary(), %% lower case
+                   params => ersip_hparams:make(),
                    id     => binary() %% lower case,
                   }.
 
@@ -94,7 +99,7 @@ set_param(PName, PValue, #event{hparams = HParams} = Event)
     end.
 
 %% @doc Create Event header from SIP or from raw representation.
--spec make(binary() | raw()) -> event().
+-spec make(make()) -> event().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, Event} ->

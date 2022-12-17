@@ -30,7 +30,7 @@
 -type allow() :: {allow, ersip_method_set:set()}.
 -type raw() :: ersip_method_set:raw().
 -type parse_result() :: {ok, allow()} | {error, parse_error()}.
--type parse_error() :: no_allow | {invalid_allow, binary()}.
+-type parse_error() :: no_allow | {invalid_allow, ersip_method:parse_error()}.
 
 %%===================================================================
 %% API
@@ -137,6 +137,6 @@ parse_header_list(HeaderList) ->
                       MethodList),
         {ok, from_list(L)}
     catch
-        throw:{error, _} = Error ->
-            {error, {invalid_allow, Error}}
+        throw:{error, V} ->
+            {error, {invalid_allow, V}}
     end.

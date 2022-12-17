@@ -18,7 +18,7 @@
          raw/1
         ]).
 
--export_type([replaces/0, raw/0]).
+-export_type([replaces/0, raw/0, make/0]).
 
 %%===================================================================
 %% Types
@@ -35,6 +35,13 @@
                  early_only := boolean(),
                  params   := ersip_hparams:raw()
                 }.
+-type make() :: binary()
+              | #{call_id   := ersip_hdr_callid:make(),
+                  from_tag  := binary(),
+                  to_tag    := binary(),
+                  early_only => boolean(),
+                  params     => ersip_hparams:make()
+                 }.
 
 %%===================================================================
 %% Api
@@ -59,7 +66,7 @@ early_only(#replaces{params = P}) ->
 
 %% @doc Create Replaces header from binary() or from raw
 %% representation.
--spec make(binary()) -> replaces().
+-spec make(make()) -> replaces().
 make(HeaderBin) when is_binary(HeaderBin) ->
     case parse(HeaderBin) of
         {ok, Replaces} ->

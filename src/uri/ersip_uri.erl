@@ -68,9 +68,11 @@
 
          is_tel/1,
          as_tel/1,
-         from_tel/1
+         from_tel/1,
+
+         set_part/2
         ]).
--export_type([uri/0, scheme/0, raw/0]).
+-export_type([uri/0, scheme/0, raw/0, make/0]).
 
 %%===================================================================
 %% Types
@@ -96,10 +98,15 @@
                  data := binary(),
                  sip => sip_uri_raw()}.
 
+-type make() :: binary()
+              | #{scheme := binary(),
+                  data := binary(),
+                  sip => sip_uri_raw()}.
+
 -type sip_uri_raw() :: #{host := binary(),
                          user => binary(),
                          port => inet:port_number(),
-                         params => key_value_list(),
+                         params => #{binary() => binary()},
                          headers => key_value_list()
                         }.
 -type key_value_list() :: [{binary(), binary()} | binary()].
@@ -327,14 +334,14 @@ clear_ttl(#uri{data = D} = U) ->
 %%   true = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b;lr">>)).
 %%   undefined = ersip_uri:gen_param(<<"lr">>, ersip_uri:make(<<"sip:b">>)).
 %% '''
--spec gen_param(binary(), uri()) -> binary() | undefined.
+-spec gen_param(binary(), uri()) -> binary() | true | undefined.
 gen_param(Name, #uri{data = D} = U) ->
     force_sip(U),
     ersip_uri_sip:gen_param(Name, D).
 
 %% @doc Set generic parameter of URI.
 %% Raises error if URI is not SIP(S) URI.
--spec set_gen_param(binary(), binary(), uri()) -> uri().
+-spec set_gen_param(binary(), binary() | true, uri()) -> uri().
 set_gen_param(Name, Value, #uri{data = D} = U) ->
     force_sip(U),
     NewD = ersip_uri_sip:set_gen_param(Name, Value, D),
@@ -381,7 +388,7 @@ get(Parts, URI) when is_list(Parts) ->
 %%   TelURI = ersip_uri:make(<<"tel:+16505550505">>),
 %%   TelURI = ersip_uri:make(#{scheme => <<"tel">>, data => <<"+16505550505">>}).
 %% '''
--spec make(binary() | raw() | [uri_part()]) -> uri().
+-spec make(make() | [uri_part()]) -> uri().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, URI}       -> URI;

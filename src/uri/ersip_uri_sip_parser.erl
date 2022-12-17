@@ -27,7 +27,9 @@
                      | {invalid_user_param, binary()}
                      | {invalid_ttl, binary()}
                      | {invalid_parameter, binary(), binary()}
-                     | {invalid_scheme, binary()}.
+                     | {invalid_scheme, binary()}
+                     | {bad_password, binary()}
+                     | empty_username.
 
 %%===================================================================
 %% API

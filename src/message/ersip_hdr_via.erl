@@ -121,7 +121,7 @@ topmost_via(Header) ->
             end
     end.
 
--spec take_topmost(iolist()) -> ersip_parser_aux:parse_result(via()).
+-spec take_topmost(iolist() | binary()) -> ersip_parser_aux:parse_result(via()).
 take_topmost(IOList) ->
     Bin = iolist_to_binary(IOList),
     case parse_via_with_rest(Bin) of
@@ -309,7 +309,7 @@ assemble_bin(#via{} = Via) ->
     iolist_to_binary(assemble(Via)).
 
 %% @doc Parse single Via header
--spec parse(iolist()) -> {ok, via()} | {error, term()}.
+-spec parse(iolist() | binary()) -> {ok, via()} | {error, term()}.
 parse(Binary) when is_binary(Binary) ->
     parse_via(Binary);
 parse(IOList) ->

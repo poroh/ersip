@@ -39,7 +39,7 @@
 -type clock_rate()       :: pos_integer().
 -type encoding_params()  :: pos_integer() | undefined.
 -type rtpmap()           :: #rtpmap{}.
--type parse_result()     :: ersip_parser_aux:parse_result(rtpmap()).
+-type parse_result()     :: {ok, rtpmap()} | {error, term()}.
 -type parse_result(T)    :: ersip_parser_aux:parse_result(T).
 
 -export_type([

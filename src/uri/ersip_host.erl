@@ -201,7 +201,7 @@ find_host_end(_, Pos) ->
 %% '''
 -spec parse_ipv6_reference(nonempty_binary()) -> Result when
       Result :: {ok, {ipv6, inet:ip6_address()}}
-              | {error, {invalid_name, binary()}}.
+              | {error, parse_error()}.
 parse_ipv6_reference(R) when byte_size(R) < 2 ->
     {error, {invalid_name, R}};
 parse_ipv6_reference(R) ->

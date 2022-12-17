@@ -62,7 +62,7 @@ val(#rtcp_fb{val = V}) ->
 param(#rtcp_fb{param = P}) ->
     P.
 
--spec bytestring(rtcp_fb()) -> binary().
+-spec bytestring(rtcp_fb()) -> binary() | undefined.
 bytestring(#rtcp_fb{bytestring = B}) ->
     B.
 
@@ -301,7 +301,7 @@ is_id_char($_) ->
 is_id_char(_) ->
     false.
 
--spec find_id_end(binary(), non_neg_integer()) -> non_neg_integer().
+-spec find_id_end(binary(), non_neg_integer()) -> non_neg_integer() | {error, {invalid_id_char, binary()}}.
 find_id_end(<<>>, Acc) -> Acc;
 find_id_end(<<?sp, _/binary>>, Acc) -> Acc;
 find_id_end(<<C:8, Rest/binary>>, Acc) ->

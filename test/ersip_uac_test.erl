@@ -19,7 +19,7 @@ options_create_all_defaults_test() ->
     AliceFrom = ersip_hdr_fromto:make(<<"sip:alice@atlanta.com">>),
     SipMsg = ersip_uac:options(BobURI, AliceFrom, []),
     ?assertEqual(ersip_method:options(), ersip_sipmsg:method(SipMsg)),
-    check_required_fields(SipMsg),
+    _ = check_required_fields(SipMsg),
     ok.
 
 options_create_set_to_tag_test() ->

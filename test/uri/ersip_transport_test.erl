@@ -73,7 +73,12 @@ assemble_test() ->
 
 make_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make(udp)),
-    ?assertError({bad_transport_atom, _}, ersip_transport:make(x)).
+    ok.
+
+-dialyzer({nowarn_function, make_error_test/0}).
+make_error_test() ->
+    ?assertError({bad_transport_atom, _}, ersip_transport:make(x)),
+    ok.
 
 make_by_uri_test() ->
     ?assertEqual({transport, udp}, ersip_transport:make_by_uri(ersip_uri:make(<<"sip:a@b">>))),

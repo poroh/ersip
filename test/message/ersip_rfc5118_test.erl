@@ -71,13 +71,13 @@ haveto(Name) ->
 haveto1({{ok, PMsg}, _P2}) ->
     validation(ersip_sipmsg:parse(PMsg, all));
 haveto1({{error,Any}, _}) -> {error, Any};
-haveto1({mor_data, _}) -> {error, more_data}.
+haveto1({more_data, _}) -> {error, more_data}.
 
 validation({error, _} = R) -> R;
 validation({ok, Msg}) ->
     case ersip_sipmsg:type(Msg) of
         request ->
-            case ersip_proxy_common:request_validation(Msg, #{to_tag => {tag, <<"12345">>}}) of
+            case ersip_proxy_common:request_validation(Msg, #{validate => #{to_tag => {tag, <<"12345">>}}}) of
                 {ok, _} = N -> N;
                 {reply, Msg1} ->
                     case ersip_sipmsg:status(Msg1) of

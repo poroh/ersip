@@ -29,10 +29,10 @@
 
 -type result() :: {trans_client(), [ersip_trans_se:effect()]}.
 -type clear_reason() :: ersip_trans_se:clear_reason().
--type request() :: term().
+-type request() :: ersip_request:request().
 
 -record(trans_client, {state         = 'Trying'    :: state(),
-                       request                     :: term(),
+                       request                     :: request() | undefined,
                        options                     :: map(),
                        reliable_transport          :: reliable | unreliable,
                        timers        = #{}         :: #{reference() => timer_type(),
@@ -42,7 +42,7 @@
                       }).
 
 -type trans_client_map() :: #{state => state(),
-                              request => term(),
+                              request => request(),
                               options => map(),
                               reliable_transport => reliable | unreliable,
                               timers => #{reference() => timer_type(),
@@ -80,7 +80,8 @@ new(Transport, Request, Options) ->
 %%
 -spec event(Event, trans_client()) -> result() when
       Event :: {timer, TimerFun}
-             | {resp, ersip_status:response_type(), term()},
+             | {resp, ersip_status:response_type(), term()}
+             | timer_type(),
       TimerFun :: fun((trans_client()) -> result()).
 event({timer, TimerVal}, ClientTrans) ->
     timer_fired(TimerVal, ClientTrans);

@@ -34,7 +34,7 @@
          remove/2,
          raw/1
         ]).
--export_type([hparams/0, raw/0, parse_known_fun_result/0]).
+-export_type([hparams/0, raw/0, make/0, parse_known_fun_result/0]).
 
 %%===================================================================
 %% Types
@@ -58,6 +58,7 @@
                                 | {ok, unknown}
                                 | {error, term()}.
 -type raw() :: #{lower_key() => orig_value()}.
+-type make() :: binary() | #{binary() => binary(), parsed_name() => binary()}.
 -type raw_list() :: [{orig_key(), orig_value()} | orig_key()].
 
 %%===================================================================
@@ -71,7 +72,7 @@ new() ->
 
 %% @doc Create paramters from binary or from raw data.
 %% Raises error if parameters cannot be parsed.
--spec make(binary() | raw()) -> hparams().
+-spec make(make()) -> hparams().
 make(<<>>) ->
     new();
 make(Bin) when is_binary(Bin) ->
@@ -253,7 +254,7 @@ set(PName, PValue, ParseKnownF, HParams) ->
     end.
 
 %% @doc Find original value of the parameter.
--spec find_raw(orig_key(), hparams()) -> {ok, orig_value()} | not_found.
+-spec find_raw(parsed_name() | orig_key(), hparams()) -> {ok, orig_value()} | not_found.
 find_raw(BinName, #hparams{orig = Orig}) when is_binary(BinName) ->
     case maps:find(ersip_bin:to_lower(BinName), Orig) of
         error -> not_found;

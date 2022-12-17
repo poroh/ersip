@@ -82,6 +82,7 @@ new(ReliableTranport, Request, Options) ->
 -spec event(Event, trans_inv_server()) -> result() when
       Event :: {timer, timer_type()}
              | {send, ersip_sipmsg:sipmsg()}
+             | {received, ersip_sipmsg:sipmsg()}
              | retransmit.
 event({received, SipMsg}, ServerTrans) ->
     case ersip_sipmsg:type(SipMsg) of

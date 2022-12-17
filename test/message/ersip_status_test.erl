@@ -30,7 +30,12 @@ response_type_test() ->
     ?assertEqual(final, ersip_status:response_type(699)),
     ?assertException(error, function_clause, ersip_status:response_type(99)),
     ?assertException(error, function_clause, ersip_status:response_type(700)),
-    ?assertException(error, function_clause, ersip_status:response_type(a)).
+    ok.
+
+-dialyzer({nowarn_function, response_type_error_test/0}).
+response_type_error_test() ->
+    ?assertException(error, function_clause, ersip_status:response_type(a)),
+    ok.
 
 reason_text_test() ->
     test_phrase(100, "Trying"),

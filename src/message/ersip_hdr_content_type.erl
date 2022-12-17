@@ -39,6 +39,9 @@
                       | {invalid_content_type, binary()}.
 -type raw() :: #{type   := {binary(), binary()},
                  params := #{lower_param_key() => param_value()}}.
+-type make() :: binary()
+              | #{type   := {binary(), binary()},
+                  params => #{lower_param_key() => param_value()}}.
 -type param_key()   :: binary().
 -type param_value() :: binary().
 -type lower_param_key() :: binary().
@@ -58,7 +61,7 @@ params(#content_type{params = P}) ->
     P.
 
 %% @doc Create Content-Type header from binary or from raw SIP header.
--spec make(ersip_hdr:header() | binary() | raw()) -> content_type().
+-spec make(ersip_hdr:header() | make()) -> content_type().
 make(Bin) when is_binary(Bin) ->
     case parse_content_type(Bin) of
         {ok, Content_Type} ->

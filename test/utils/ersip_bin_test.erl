@@ -11,13 +11,23 @@
 
 to_lower_test() ->
     ?assertEqual(<<"aa1bbzzdd_@%20">>, ersip_bin:to_lower(<<"AA1BBZZDD_@%20">>)),
+    ok.
+
+-dialyzer({nowarn_function, to_lower_error_test/0}).
+to_lower_error_test() ->
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(1)),
-    ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(atom)).
+    ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_lower(atom)),
+    ok.
 
 to_upper_test() ->
     ?assertEqual(<<"AA1BBZZDD_@%20">>, ersip_bin:to_upper(<<"aa1bbzzdd_@%20">>)),
+    ok.
+
+-dialyzer({nowarn_function, to_upper_error_test/0}).
+to_upper_error_test() ->
     ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_upper(1)),
-    ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_upper(atom)).
+    ?assertMatch({'EXIT', {badarg, _}}, catch ersip_bin:to_upper(atom)),
+    ok.
 
 
 trim_lws_test() ->

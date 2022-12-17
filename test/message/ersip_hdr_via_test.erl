@@ -294,9 +294,15 @@ set_param_received_ipv6_test() ->
 set_param_received_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, x, Via)),
     ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, <<".">>, Via)),
     ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, <<"a.com;">>, Via)),
+    ok.
+
+-dialyzer({nowarn_function, set_param_received_error_2_test/0}).
+set_param_received_error_2_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;received=1.1.1.1;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    ?assertError({invalid_received, _}, ersip_hdr_via:set_param(received, x, Via)),
     ok.
 
 set_param_rport_test() ->
@@ -320,11 +326,17 @@ set_param_rport_to_true_test() ->
 set_param_rport_error_test() ->
     HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>),
     {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
-    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, false, Via)),
     ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, <<"aaaa">>, Via)),
     ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, 65536, Via)),
-    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, -1, Via)),
     ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, 0, Via)),
+    ok.
+
+-dialyzer({nowarn_function, set_param_rport_error_2_test/0}).
+set_param_rport_error_2_test() ->
+    HVia@1 = create_via(<<"SIP/2.0/TCP 192.168.1.1:5090;branch=branch_v;ttl=200;rport=4321;maddr=x.com">>),
+    {ok, Via} = ersip_hdr_via:topmost_via(HVia@1),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, false, Via)),
+    ?assertError({invalid_rport, _}, ersip_hdr_via:set_param(rport, -1, Via)),
     ok.
 
 set_ttl_test() ->

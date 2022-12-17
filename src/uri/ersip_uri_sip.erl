@@ -301,7 +301,7 @@ clear_ttl(#sip_uri{} = URI) ->
     clear_sip_param(ttl, URI).
 
 %% @private
--spec gen_param(binary(), sip_uri()) -> binary() | undefined.
+-spec gen_param(binary(), sip_uri()) -> binary() | true | undefined.
 gen_param(Name, #sip_uri{params = P}) when is_binary(Name) ->
     case find_known_param(Name) of
         {ok, KnownParam} ->
@@ -319,7 +319,7 @@ gen_param(Name, #sip_uri{params = P}) when is_binary(Name) ->
 
 
 %% @private
--spec set_gen_param(binary(), binary(), sip_uri()) -> sip_uri().
+-spec set_gen_param(binary(), binary() | true, sip_uri()) -> sip_uri().
 set_gen_param(Name, Value, #sip_uri{} = U)
   when is_binary(Name) andalso (is_binary(Value) orelse Value == true) ->
     ParamBin =

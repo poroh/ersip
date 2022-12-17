@@ -59,6 +59,12 @@
                  reason => binary(),
                  retry_after => non_neg_integer(),
                  expires => non_neg_integer()}.
+-type make() :: binary()
+              | #{value  := binary(),
+                  params => ersip_hparams:make(),
+                  reason => binary(),
+                  retry_after => non_neg_integer(),
+                  expires => non_neg_integer()}.
 
 %%===================================================================
 %% API
@@ -160,7 +166,7 @@ set_param(PName, PValue, #subs_state{hparams = HParams} = SubsState)
 
 %% @doc Make Subscription-State header from binary or raw
 %% representation of parameter.
--spec make(binary()) -> subs_state().
+-spec make(make()) -> subs_state().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, SubsState} ->

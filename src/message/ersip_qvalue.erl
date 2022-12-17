@@ -15,7 +15,7 @@
          raw/1
         ]).
 
--export_type([qvalue/0, raw/0]).
+-export_type([qvalue/0, raw/0, make/0]).
 
 %%%===================================================================
 %%% Types
@@ -25,12 +25,13 @@
 -type parse_result() :: {ok, qvalue()}
                       | {error, {invalid_qvalue, binary()}}.
 -type raw() :: 0..1000.
+-type make() :: raw() | binary().
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
--spec make(binary() | raw()) -> qvalue().
+-spec make(make()) -> qvalue().
 make(Bin) when is_binary(Bin) ->
     case parse(Bin) of
         {ok, QValue} ->

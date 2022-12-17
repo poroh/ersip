@@ -22,13 +22,14 @@
          make/1,
          to_binary/1
         ]).
--export_type([method/0]).
+-export_type([method/0, parse_error/0]).
 
 %%%===================================================================
 %%% Types
 %%%===================================================================
 
 -type method() :: {method, binary()}.
+-type parse_error() :: {invalid_method, ersip_parser_aux:parse_token_error()}.
 
 %%%===================================================================
 %%% API
@@ -77,7 +78,7 @@ notify() ->
 refer() ->
     ?REFER.
 
--spec parse(binary()) -> ersip_parser_aux:parse_result(method()).
+-spec parse(binary()) -> ersip_parser_aux:parse_result(method(), parse_error()).
 parse(Bin) ->
     case ersip_parser_aux:parse_token(Bin) of
         {ok, Token, Rest} ->

@@ -29,6 +29,7 @@
         ]).
 -export_type([contact/0,
               raw/0,
+              make/0,
               contact_param/0]).
 
 %%===================================================================
@@ -54,6 +55,12 @@
                  display_name := ersip_display_name:raw(),
                  expires      => expires(),
                  q            => ersip_qvalue:raw()}.
+-type make() :: binary()
+              | #{uri          := ersip_uri:make(),
+                  params       => ersip_hparams:make(),
+                  display_name => ersip_display_name:make(),
+                  expires      => expires(),
+                  q            => ersip_qvalue:make()}.
 
 %%===================================================================
 %% API
@@ -79,7 +86,7 @@ display_name(#contact{display_name = DN}) ->
 
 %% @doc Get expires parameter value. If no expires parameter is
 %% defined than undefined is retutned
--spec expires(contact(), Default :: expires()) -> expires() | undefined.
+-spec expires(contact(), Default :: expires() | undefined) -> expires() | undefined.
 expires(#contact{hparams = HParams}, Default) ->
     case ersip_hparams:find(expires, HParams) of
         not_found -> Default;
@@ -166,7 +173,7 @@ all_raw_params(#contact{hparams = HParams}) ->
 
 %% @doc Create Contact header from binary or raw values.
 %% Raise error if input is not well-formed Conact header.
--spec make(binary() | raw()) -> contact().
+-spec make(make()) -> contact().
 make(Bin) when is_binary(Bin) ->
     case ersip_hdr_contact:parse(Bin) of
         {ok, Contact} ->

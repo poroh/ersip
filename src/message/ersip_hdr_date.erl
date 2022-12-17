@@ -49,7 +49,7 @@
 %% @doc Make Date header from binary, raw representation of Date or
 %% from raw SIP header. If syntax is invalid then this function raises
 %% error.
--spec make(binary() | ersip_hdr:header()) -> datetime().
+-spec make(binary() | ersip_hdr:header() | calendar:datetime()) -> datetime().
 make(Bin) when is_binary(Bin) ->
     case parse_datetime(Bin) of
         {ok, DateTime} -> DateTime;

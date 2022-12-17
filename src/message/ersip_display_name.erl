@@ -16,7 +16,7 @@
          raw/1
         ]).
 
--export_type([display_name/0, raw/0]).
+-export_type([display_name/0, raw/0, make/0]).
 
 -include("ersip_sip_abnf.hrl").
 
@@ -26,6 +26,7 @@
 
 -type display_name() :: {display_name, binary() | [binary()]}.
 -type raw() :: binary().
+-type make() :: binary().
 
 %%===================================================================
 %% API
@@ -37,7 +38,7 @@ empty() ->
     {display_name, []}.
 
 %% @doc Create display name from binary.
--spec make(binary() | raw()) -> display_name().
+-spec make(make()) -> display_name().
 make(Binary) ->
     case parse_dn(Binary) of
         {ok, DN, <<>>} -> DN;

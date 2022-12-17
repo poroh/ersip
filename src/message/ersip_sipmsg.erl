@@ -97,7 +97,7 @@
                  method          :: ersip_method:method(),
                  ruri            :: ersip_uri:uri() | undefined,
                  headers = #{}   :: headers(),
-                 user            :: term() %% User data carried with message
+                 user            :: undefined | {set, term()} %% User data carried with message
                 }).
 
 -type sipmsg()       :: #sipmsg{}.

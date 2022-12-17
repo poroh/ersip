@@ -36,7 +36,7 @@ reliable_transport_flow_test() ->
     %% timer B fires, the client transaction SHOULD inform the TU that
     %% a timeout has occurred.  The client transaction MUST NOT
     %% generate an ACK.
-    {Terminated, SE1} = ersip_trans_inv_client:event(TimerBEv, CallingTrans),
+    {_Terminated, SE1} = ersip_trans_inv_client:event(TimerBEv, CallingTrans),
     TimeoutClear = ersip_trans_se:clear_trans(timeout),
     ?assertEqual(TimeoutClear, se_event(clear_trans, SE1)),
     ?assertEqual(not_found,    se_event(send_request, SE1)),
@@ -134,15 +134,15 @@ unreliable_transport_flow_test() ->
     %% in this state).  This process MUST continue so that the request
     %% is retransmitted with intervals that double after each
     %% transmission.
-    lists:foldl(fun(ExpectedTimeout, Trans) ->
-                        TimerA = ersip_trans_se:set_timer(ExpectedTimeout, TimerAEv),
-                        {Trans1, FSE} = ersip_trans_inv_client:event(TimerAEv, Trans),
-                        ?assertEqual(TimerA, se_event(set_timer, FSE)),
-                        ?assertEqual({send_request, InviteReq}, se_event(send_request, FSE)),
-                        Trans1
-                end,
-                CallingTrans1,
-                [4*T1, 8*T1, 16*T1, 32*T1]),
+    _ = lists:foldl(fun(ExpectedTimeout, Trans) ->
+                            TimerA = ersip_trans_se:set_timer(ExpectedTimeout, TimerAEv),
+                            {Trans1, FSE} = ersip_trans_inv_client:event(TimerAEv, Trans),
+                            ?assertEqual(TimerA, se_event(set_timer, FSE)),
+                            ?assertEqual({send_request, InviteReq}, se_event(send_request, FSE)),
+                            Trans1
+                    end,
+                    CallingTrans1,
+                    [4*T1, 8*T1, 16*T1, 32*T1]),
 
     {ProceedingTrans, _} = ersip_trans_inv_client:event({received, trying()}, CallingTrans0),
 
@@ -227,6 +227,7 @@ final_response_in_accepted_state_test() ->
     ok.
 
 
+-dialyzer({nowarn_function, error_handling_test/0}).
 error_handling_test() ->
     %% Invite transaction must be intialized with request.
     ?assertError({api_error, _}, ersip_trans_inv_client:new(reliable, ok200_req(), #{})),
@@ -245,15 +246,15 @@ error_handling_test() ->
 trans_expire_set_test() ->
     TransExpire = 31713,
     InviteReq = invite_req(),
-    {ClientTrans0, SideEffects0} = ersip_trans_inv_client:new(unreliable, InviteReq, #{trans_expire => TransExpire}),
-    SideEffectsMap0 = maps:from_list(SideEffects0),
+    {_, SideEffects0} = ersip_trans_inv_client:new(unreliable, InviteReq, #{trans_expire => TransExpire}),
+    _ = maps:from_list(SideEffects0),
     %% Transaction timer is set:
-    [{500,   RetransmitTimer},
+    [{500,   _RetransmitTimer},
      {TransExpire, _TransactionTimer}
     ] = lists:sort(proplists:get_all_values(set_timer, SideEffects0)),
 
-    {ClientTrans1, SideEffects1} = ersip_trans_client:new(reliable, InviteReq, #{trans_expire => TransExpire}),
-    SideEffectsMap1 = maps:from_list(SideEffects1),
+    {_, SideEffects1} = ersip_trans_client:new(reliable, InviteReq, #{trans_expire => TransExpire}),
+    _ = maps:from_list(SideEffects1),
     %% Transaction timer is set:
     [{TransExpire, _TransactionTimer1}] = lists:sort(proplists:get_all_values(set_timer, SideEffects1)),
     ok.

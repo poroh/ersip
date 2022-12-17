@@ -356,7 +356,7 @@ request_validation_proxy_require_no_required_test() ->
     Supported =
         ersip_hdr_opttag_list:from_list(
           [ersip_option_tag:make(S) || S <- SupportedList]),
-    Options = #{proxy_params => #{supported => Supported}},
+    Options = #{proxy => #{supported => Supported}},
     {reply, RespMsg} = request_validation(raw_message(Msg), Options),
     ?assertEqual(420, ersip_sipmsg:status(RespMsg)),
     Reason = ersip_sipmsg:reason(RespMsg),
@@ -439,12 +439,12 @@ proxy_params_check_no_validate_test() ->
           >>,
     ThisProxyURI = ersip_uri:make(<<"sip:this.proxy.org">>),
     %%% Check that invalid options are ignored if no_validate => true
-    process_route_info(
-      raw_message(Msg),
-      #{proxy =>
-            #{no_validate => true,
-              record_route_uri => ThisProxyURI
-             }}),
+    _ = process_route_info(
+          raw_message(Msg),
+          #{proxy =>
+                #{no_validate => true,
+                  record_route_uri => ThisProxyURI
+                 }}),
     ok.
 
 process_route_info_strict_routing_test() ->
@@ -966,7 +966,7 @@ process_route_info(RawMsg, Options) ->
 forward_request(Target, RawMsg, Opts) when is_binary(Target) ->
     forward_request(ersip_uri:make(Target), RawMsg, Opts);
 forward_request(Target, RawMsg, Opts) ->
-    {ok, SipMsg} = request_validation(RawMsg, Opts),
+    {ok, SipMsg} = request_validation(RawMsg, #{proxy => Opts}),
     ersip_proxy_common:forward_request(Target, SipMsg, Opts).
 
 rebuild_sipmsg(SipMsg) ->
@@ -978,7 +978,7 @@ rebuild_sipmsg(SipMsg) ->
 
 
 peer() ->
-    {{127, 0, 0, 1}, 5060}.
+    {ersip_host:make({127, 0, 0, 1}), 5060}.
 
 udp_source() ->
     Transport = ersip_transport:make(udp),

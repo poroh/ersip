@@ -26,7 +26,6 @@ dialog_create_test() ->
     InvResp180UAS = invite_reply(180, InvSipMsg),
 
     ?assertEqual(no_dialog, ersip_dialog:uas_dialog_id(InvSipMsg)),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
     {UASDialogEarly, InvResp180UAC} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
 
     ?assertMatch({ok, _}, ersip_dialog:uac_new(InvReq, InvResp180UAC)),
@@ -160,7 +159,6 @@ uas_dialog_rfc2543_compiance_test() ->
     InvReq = invite_request(),
     InvSipMsg = clear_tag(from, ersip_request:sipmsg(InvReq)),
     InvResp200 = invite_reply(200, InvSipMsg),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200)),
     {Dialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp200),
     %% If the value of the remote or local tags is null, the tag
     %% parameter MUST be omitted from the To or From header fields,
@@ -525,7 +523,6 @@ second_provisional_response_test() ->
     InvReq = invite_request(),
     InvSipMsg = ersip_request:sipmsg(InvReq),
     InvResp180UAS = invite_reply(180, InvSipMsg),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
     {UASDialogEarly, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
     ?assertMatch({UASDialogEarly, _}, ersip_dialog:uas_pass_response(InvSipMsg, InvResp180UAS, UASDialogEarly)),
     ok.
@@ -545,7 +542,6 @@ uas_check_contact_test() ->
     ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Sip)),
     %% 2. Check that we can create dialog with SIPs URI:
     InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Sips)),
     %% 3. Check that we cannot create dialog with star contact:
     InvResp200Star = ersip_sipmsg:set(contact, star, InvResp200),
     ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsg, InvResp200Star)),
@@ -558,7 +554,6 @@ uas_check_contact_test() ->
     ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sip)),
     %% 6. Check that we can create dialog with SIPS URI:
     InvResp200Sips = ersip_sipmsg:set(contact, make_contact(<<"sips:bob@192.0.2.4">>), InvResp200),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsgSIPSRR, InvResp200Sips)),
     %% 7. Bad contact format:
     InvSipMsgBadContct = ersip_request:sipmsg(invite_request(#{contact => <<"@">>})),
     ?assertError({cannot_create_dialog, _}, ersip_dialog:uas_new(InvSipMsgBadContct, InvResp200)),
@@ -645,7 +640,7 @@ uas_create_dialog_no_contact_in_resp_test() ->
     InvSipMsg = ersip_request:sipmsg(InvReq),
     InvResp180_0 = invite_reply(180, InvSipMsg),
     InvResp180 = ersip_sipmsg:set(contact, [], InvResp180_0),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
+    {_, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180),
     ok.
 
 uas_negative_response_terminate_test() ->
@@ -653,7 +648,6 @@ uas_negative_response_terminate_test() ->
     InvSipMsg = ersip_request:sipmsg(InvReq),
     InvResp180 = invite_reply(180, InvSipMsg),
     InvResp487 = invite_reply(487, InvSipMsg),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180)),
     {Dialog, _} = ersip_dialog:uas_new(InvSipMsg, InvResp180),
     ?assertEqual(terminate_dialog, ersip_dialog:uas_pass_response(InvSipMsg, InvResp487, Dialog)),
     ok.
@@ -834,7 +828,6 @@ create_uas_uac_dialogs(Req, ProxyFun) ->
     InvSipMsg0 = ersip_request:sipmsg(Req),
     InvSipMsg = ProxyFun(request, InvSipMsg0),
     InvResp180UAS = invite_reply(180, InvSipMsg),
-    ?assertMatch({_, _}, ersip_dialog:uas_new(InvSipMsg, InvResp180UAS)),
     {UASDialogEarly, InvResp180UAC0} = ersip_dialog:uas_new(InvSipMsg, InvResp180UAS),
     InvResp180UAC = ProxyFun(response, InvResp180UAC0),
 
@@ -859,27 +852,7 @@ notify_request_bin() ->
 
 notify_request_bin(Options) ->
     RURI = maps:get(ruri, Options, <<"sip:bob@biloxi.com">>),
-    RecordRoute = case Options of
-                      #{record_route := RR} ->
-                          <<"Record-Route: ", RR/binary, ?crlf>>;
-                      _ ->
-                          <<>>
-                  end,
-    Contact = case Options of
-                  #{contact := <<>>} ->
-                      <<>>;
-                  #{contact := ContactVal} ->
-                      <<"Contact: ", ContactVal/binary, ?crlf>>;
-                  _ ->
-                      <<"Contact: <sip:alice@pc33.atlanta.com>", ?crlf>>
-              end,
-    Route = case Options of
-                #{route := Routes} ->
-                    IORoutes = [<<"Route: ", R/binary, ?crlf>> || R <- Routes],
-                    iolist_to_binary(IORoutes);
-                _ ->
-                    <<>>
-            end,
+    Contact = <<"Contact: <sip:alice@pc33.atlanta.com>", ?crlf>>,
     <<"NOTIFY ", RURI/binary, " SIP/2.0" ?crlf
       "Via: SIP/2.0/UDP pc33.atlanta.com;branch=z9hG4bKnashds8" ?crlf
       "Max-Forwards: 70" ?crlf
@@ -888,8 +861,6 @@ notify_request_bin(Options) ->
       "Call-ID: a84b4c76e66710" ?crlf
       "CSeq: 314159 INVITE" ?crlf,
       Contact/binary,
-      RecordRoute/binary,
-      Route/binary,
       "Subscription-State: active;expires=3600"
       "Content-Type: text/plain" ?crlf
       "Content-Length: 4" ?crlf
@@ -993,7 +964,7 @@ make_default_source() ->
     tcp_source(default_peer()).
 
 default_peer() ->
-    {{127, 0, 0, 1}, 5060}.
+    {ersip_host:make({127, 0, 0, 1}), 5060}.
 
 tcp_source(Peer) ->
     ersip_source:new(default_peer(), Peer, ersip_transport:tcp(), undefined).

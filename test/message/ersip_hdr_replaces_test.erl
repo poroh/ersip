@@ -75,11 +75,13 @@ getters_test() ->
 raw_test() ->
     Replaces = ersip_hdr_replaces:make(<<"425928@bobster.example.org;to-tag=7743;from-tag=6472;early-only">>),
     Replaces2 = ersip_hdr_replaces:make(<<"425928@bobster.example.org;to-tag=7743;from-tag=6472">>),
+    Replaces3 = ersip_hdr_replaces:make(#{call_id => <<"425928@bobster.example.org">>, to_tag => <<"7743">>, from_tag => <<"6472">>}),
     ?assertMatch(#{call_id := <<"425928@bobster.example.org">>}, ersip_hdr_replaces:raw(Replaces)),
     ?assertMatch(#{to_tag := <<"7743">>}, ersip_hdr_replaces:raw(Replaces)),
     ?assertMatch(#{from_tag := <<"6472">>}, ersip_hdr_replaces:raw(Replaces)),
     ?assertMatch(#{early_only := true}, ersip_hdr_replaces:raw(Replaces)),
     ?assertMatch(#{early_only := false}, ersip_hdr_replaces:raw(Replaces2)),
+    ?assertEqual(ersip_hdr_replaces:raw(Replaces2), ersip_hdr_replaces:raw(Replaces3)),
 
     ?assertEqual(ersip_hdr_replaces:dialog_id(Replaces),
                  ersip_hdr_replaces:dialog_id(ersip_hdr_replaces:make(ersip_hdr_replaces:raw(Replaces)))),

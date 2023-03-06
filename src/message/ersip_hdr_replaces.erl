@@ -76,7 +76,7 @@ make(#{call_id := CallIdR, from_tag := FromTag, to_tag := ToTag} = Raw) ->
             {error, Reason} -> error({invalid_param, Reason})
         end,
     HParams2 = ersip_hparams:set(from_tag, {tag, FromTag}, <<"from-tag">>, FromTag, HParams1),
-    HParams3 = ersip_hparams:set(to_tag, {tag, ToTag}, <<"to-tag">>, FromTag, HParams2),
+    HParams3 = ersip_hparams:set(to_tag, {tag, ToTag}, <<"to-tag">>, ToTag, HParams2),
     HParams4 = case maps:get(early_only, Raw, false) of
                    true -> ersip_hparams:set(early_only, true, <<"early-only">>, <<>>, HParams3);
                    false -> HParams3

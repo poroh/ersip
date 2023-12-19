@@ -65,6 +65,10 @@
 %% DQUOTE *(qdtext / quoted-pair ) DQUOTE
 %% qdtext         =  LWS / %x21 / %x23-5B / %x5D-7E
 %%                        / UTF8-NONASCII
+%% The backslash character ("\") MAY be used as a single-character
+%% quoting mechanism only within quoted-string and comment constructs.
+%% Unlike HTTP/1.1, the characters CR and LF cannot be escaped by this
+%% mechanism to avoid conflict with line folding and header separation.
 -spec quoted_string(Quoted) -> {ok, Quoted, Rest} | error when
       Quoted :: binary(),
       Quoted :: binary(),

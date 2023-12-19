@@ -55,6 +55,7 @@ skip_impl(<<"\"", R/binary>>, start) -> skip_impl(R, raw);
 skip_impl(_, start)                  -> error;
 skip_impl(<<"\"", R/binary>>, raw)   -> {ok, R};
 skip_impl(<<"\\", R/binary>>, raw)   -> skip_impl(R, escaped);
+skip_impl(<<Byte:8, _/binary>>, raw) when Byte == 16#0A orelse Byte == 16#0D -> error;
 skip_impl(<<_:8, R/binary>>, raw)    -> skip_impl(R, raw);
 skip_impl(<<Byte:8, R/binary>>, escaped) when Byte =< 16#7F -> skip_impl(R, raw);
 skip_impl(<<_:8, _/binary>>, escaped) -> error.

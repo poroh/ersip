@@ -23,6 +23,8 @@ skip_test() ->
     ?assertEqual(error,           ersip_quoted_string:skip(<<"abc">>)),
     ?assertEqual(error,           ersip_quoted_string:skip(<<"">>)),
     ?assertEqual(error,           ersip_quoted_string:skip(<<"\"\\", 16#FF, "\"">>)),
+    ?assertEqual(error,           ersip_quoted_string:skip(<<"\"abc\rdef\"">>)),
+    ?assertEqual(error,           ersip_quoted_string:skip(<<"\"abc\ndef\"">>)),
     ok.
 
 quote_test() ->

@@ -233,7 +233,7 @@ parse_param(<<Rest/binary>>, R1) ->
             {<<>>, R1#rtcp_fb{param = T}};
         {ok, T, <<?sp, Rest1/binary>>} ->
             {<<>>, R1#rtcp_fb{param = T, bytestring = Rest1}};
-        {ok, T, Rest1} ->
+        {ok, _, Rest1} ->
             {error, {unexpected_input, Rest1}};
         Err ->
             Err
